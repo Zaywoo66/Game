@@ -5,6 +5,7 @@ mod effect;
 mod fixed;
 mod ids;
 mod modifiers;
+mod navy;
 mod opinion;
 mod polity;
 mod province_graph;
@@ -17,11 +18,12 @@ mod war;
 pub use diplomacy::{AllianceOffer, DiplomacyError, DiplomacyState};
 pub use effect::{Effect, EffectError, PreparedModifier};
 pub use fixed::Fixed;
-pub use ids::{ArmyId, CharacterId, CountryId, PlayerId, ProvinceId, WarId};
+pub use ids::{ArmyId, CharacterId, CountryId, FleetId, PlayerId, ProvinceId, WarId};
 pub use modifiers::{
     effective_value, ModKey, Modifier, ModifierInsertError, ModifierKind, ModifierSourceId,
     ModifierStore,
 };
+pub use navy::{Fleet, FleetMovement, NavyError, NavyState, SHIP_CAPACITY};
 pub use opinion::{Opinion, OpinionError, OpinionStateError};
 pub use polity::{
     AiThresholds, AiWeights, CharacterState, CharacterStats, CountryPolity, EconomyState,
