@@ -619,6 +619,9 @@ impl GameState {
         }
         let now = self.time.date();
         for (id, person) in [(character, a), (partner, b)] {
+            if person.name.trim().is_empty() {
+                return Err(MarriageError::Unnamed(id));
+            }
             if !person.is_alive_on(now) {
                 return Err(MarriageError::NotAlive(id));
             }

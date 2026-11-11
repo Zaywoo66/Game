@@ -195,7 +195,11 @@ impl PolityState {
                 if spouse == character
                     || partner.spouse != Some(character)
                     || partner.country == state.country
+                    || state.sex == Sex::Unknown
+                    || partner.sex == Sex::Unknown
                     || partner.sex == state.sex
+                    || state.name.trim().is_empty()
+                    || partner.name.trim().is_empty()
                     || !state.is_alive_on(date)
                     || !partner.is_alive_on(date)
                     || state

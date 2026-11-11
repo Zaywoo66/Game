@@ -150,6 +150,7 @@ Country and character numeric IDs are assigned in sorted key order starting at 1
 | `tag` | Country key and filename stem. |
 | `name` | Nonempty display name. |
 | `sex` | Required `male` or `female`. This content value is checked against biographical sources for historical characters. |
+| `spouse` | Optional key of another character in the scenario. Both character files must point to each other; the pair must be living, adult, from different countries and of opposite sex at scenario start. Omission means no modeled spouse. |
 | `color` | Three unsigned 8-bit RGB channel values in the order red, green, blue. |
 | `capital` | Province key referring to one of this country's land provinces. |
 | `ai_profile` | Profile key. |

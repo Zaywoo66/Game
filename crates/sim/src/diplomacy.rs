@@ -28,6 +28,7 @@ pub struct MarriageOffer {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum MarriageError {
     UnknownCharacter(CharacterId),
+    Unnamed(CharacterId),
     WrongCountry(CharacterId),
     SameCountry,
     NotAlive(CharacterId),

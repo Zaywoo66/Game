@@ -101,6 +101,20 @@ fn character_v2_requires_binary_sex_content() {
     }
 }
 
+#[test]
+fn character_spouse_reference_requires_a_reciprocal_eligible_pair() {
+    let loaded = load_scenario_from_reader(graph(), "1440", |logical| {
+        let bytes = legacy_read(logical)?;
+        if logical != "characters/henry_vi.json" {
+            return Ok(bytes);
+        }
+        let mut character: Value = serde_json::from_slice(&bytes).unwrap();
+        character["spouse"] = json!("james_ii_scotland");
+        Ok(serde_json::to_vec(&character).unwrap())
+    });
+    assert!(loaded.is_err());
+}
+
 fn data_root() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data")
 }
