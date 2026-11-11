@@ -261,8 +261,10 @@ source ID so timed modifiers can expire independently.
 The event locale catalog is a flat JSON mapping from ASCII snake_case keys to
 nonempty English display strings. Every `title`, `desc`, and option `text` key
 used by a valid event must be present. Duplicate keys, empty strings, and
-missing references fail data lint. The English catalog is prepared as the
-fallback; loading it in the popup UI and other languages remain separate M7 tasks.
+missing references fail data lint. Vite serves the English catalog at
+`/locales/events.en.json` in development and includes it in production UI
+builds. The popup UI consumes this route in a separate M7 task; other
+languages remain open.
 
 | Field | Representation and unit |
 |---|---|

@@ -46,8 +46,36 @@ function mapAssets() {
   };
 }
 
+function eventLocaleAsset() {
+  const fileName = 'locales/events.en.json';
+  const readLocale = () => readFileSync(new URL('../data/locales/events.en.json', import.meta.url));
+  return {
+    name: 'strategy-event-locale',
+    configureServer(server) {
+      const route = `${server.config.base}${fileName}`;
+      server.middlewares.use((request, response, next) => {
+        const pathname = request.url?.split('?')[0] ?? '';
+        if (pathname !== route || (request.method !== 'GET' && request.method !== 'HEAD')) {
+          return next();
+        }
+        try {
+          const data = readLocale();
+          response.setHeader('Content-Type', 'application/json');
+          response.setHeader('Content-Length', data.length);
+          response.end(request.method === 'HEAD' ? undefined : data);
+        } catch (error) {
+          next(error);
+        }
+      });
+    },
+    generateBundle() {
+      this.emitFile({ type: 'asset', fileName, source: readLocale() });
+    },
+  };
+}
+
 export default defineConfig({
   clearScreen: false,
   server: { port: 5173, strictPort: true },
-  plugins: [mapAssets()],
+  plugins: [mapAssets(), eventLocaleAsset()],
 });
