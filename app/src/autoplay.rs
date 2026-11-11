@@ -2,8 +2,8 @@ use std::{collections::BTreeSet, time::Instant};
 
 use strategy_data::state_hash;
 use strategy_sim::{
-    Command, CommandActor, Controller, Date, Fixed, GameState, PlayerId, ProvinceKind, StateChange,
-    TimeCommand,
+    Army, Command, CommandActor, Controller, Date, Fixed, GameState, PlayerId, ProvinceKind,
+    StateChange, TimeCommand,
 };
 
 use crate::{load_embedded_scenario, tick_host_with_log, AiDecisionLog};
@@ -56,6 +56,11 @@ pub fn new_autoplay(seed: u64) -> Result<GameState, String> {
         game = game
             .with_event_state(events.clone())
             .map_err(|error| format!("invalid autoplay events: {error:?}"))?;
+    }
+    if let Some(navy) = scenario.navy() {
+        game = game
+            .with_navy(navy.clone())
+            .map_err(|error| format!("invalid autoplay navy: {error:?}"))?;
     }
     let host = CommandActor::Host(PlayerId::new(1));
     for (&country, nation) in &polity.countries {
@@ -178,16 +183,7 @@ fn check_invariants(game: &GameState, initial_count: usize) -> Result<(), &'stat
         }
     }
     for army in military.armies.values() {
-        if army.soldiers == 0
-            || army.soldiers > military.rules.max_army_size
-            || army.morale < Fixed::ZERO
-            || army.morale > military.rules.max_morale
-            || !polity.countries.contains_key(&army.country)
-            || game
-                .province_graph()
-                .get(army.province)
-                .is_none_or(|province| province.kind != ProvinceKind::Land)
-        {
+        if !army_valid(game, army) {
             return Err("army state is invalid");
         }
     }
@@ -210,4 +206,64 @@ fn check_invariants(game: &GameState, initial_count: usize) -> Result<(), &'stat
         }
     }
     Ok(())
+}
+
+fn army_valid(game: &GameState, army: &Army) -> bool {
+    let Some(military) = game.war_state() else {
+        return false;
+    };
+    army.soldiers > 0
+        && army.soldiers <= military.rules.max_army_size
+        && army.morale >= Fixed::ZERO
+        && game
+            .effective_army_morale_limit(army.country)
+            .is_some_and(|limit| army.morale <= limit)
+        && game
+            .polity()
+            .is_some_and(|polity| polity.countries.contains_key(&army.country))
+        && game
+            .province_graph()
+            .get(army.province)
+            .is_some_and(|province| province.kind == ProvinceKind::Land)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn autoplay_accepts_modified_morale_ceiling_but_rejects_excess() {
+        let mut games = [1440, 1441, 1442].map(|seed| {
+            let mut game = new_autoplay(seed).unwrap();
+            advance_autoplay(&mut game, Date::new(1440, 4, 17).unwrap()).unwrap();
+            game
+        });
+        let game = games
+            .iter_mut()
+            .find(|game| {
+                game.war_state().unwrap().armies.values().any(|army| {
+                    game.effective_army_morale_limit(army.country)
+                        .is_some_and(|limit| limit > game.war_state().unwrap().rules.max_morale)
+                })
+            })
+            .expect("an event should increase a country's effective morale ceiling");
+        let army = game
+            .war_state()
+            .unwrap()
+            .armies
+            .values()
+            .find(|army| {
+                game.effective_army_morale_limit(army.country)
+                    .is_some_and(|limit| limit > game.war_state().unwrap().rules.max_morale)
+            })
+            .unwrap();
+        assert!(army_valid(&game, army));
+        let mut over_cap = army.clone();
+        over_cap.morale = game
+            .effective_army_morale_limit(army.country)
+            .unwrap()
+            .checked_add(Fixed::from_raw(1))
+            .unwrap();
+        assert!(!army_valid(&game, &over_cap));
+    }
 }
