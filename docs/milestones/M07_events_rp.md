@@ -1,8 +1,9 @@
 # M7 Events and RP
 Docs: DATA_FORMATS.md, SIM_RULES.md
 
-Progress: event YAML contract and linter in progress. The simulation engine,
-event content, UI, AI option selection, and multiplayer acceptance remain open.
+Progress: event YAML contract, linter, and typed data loader in progress. The
+simulation engine, event content, UI, AI option selection, and multiplayer
+acceptance remain open.
 
 ## Tasks
 - Event engine: triggers, mean time to happen, options, effects, popup UI
