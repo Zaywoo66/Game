@@ -1,0 +1,111 @@
+{
+  "schema_version": 1,
+  "map_version": 4,
+  "map_hash": "ef610c0ac68bf9e1c0c84fb75f5a03a69dc761f1efad9790e41aa7e5414f347a",
+  "provinces": [
+    {
+      "id": 11,
+      "key": "test_lake",
+      "kind": "lake",
+      "terrain": "inland_water",
+      "centroid": [
+        22,
+        29
+      ],
+      "neighbors": [],
+      "ports": [],
+      "development": 0
+    },
+    {
+      "id": 9,
+      "key": "test_sea",
+      "kind": "sea",
+      "terrain": "open_water",
+      "centroid": [
+        14,
+        35
+      ],
+      "neighbors": [
+        {
+          "id": 1,
+          "edge": "port"
+        }
+      ],
+      "ports": [],
+      "development": 0
+    },
+    {
+      "id": 7,
+      "key": "test_strait",
+      "kind": "sea",
+      "terrain": "open_water",
+      "centroid": [
+        12,
+        25
+      ],
+      "neighbors": [
+        {
+          "id": 1,
+          "edge": "strait"
+        }
+      ],
+      "ports": [],
+      "development": 0
+    },
+    {
+      "id": 2,
+      "key": "test_hills",
+      "kind": "land",
+      "terrain": "hills",
+      "centroid": [
+        7,
+        34
+      ],
+      "neighbors": [
+        {
+          "id": 1,
+          "edge": "normal"
+        },
+        {
+          "id": 1,
+          "edge": "river"
+        }
+      ],
+      "ports": [],
+      "development": 0
+    },
+    {
+      "id": 1,
+      "key": "test_land",
+      "kind": "land",
+      "terrain": "grassland",
+      "centroid": [
+        12,
+        34
+      ],
+      "neighbors": [
+        {
+          "id": 9,
+          "edge": "port"
+        },
+        {
+          "id": 7,
+          "edge": "strait"
+        },
+        {
+          "id": 2,
+          "edge": "river"
+        },
+        {
+          "id": 2,
+          "edge": "normal"
+        }
+      ],
+      "ports": [
+        9,
+        7
+      ],
+      "development": 3
+    }
+  ]
+}

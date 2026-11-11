@@ -1,0 +1,40 @@
+{
+  "schema_version": 1,
+  "map_version": 4,
+  "map_hash": "ef610c0ac68bf9e1c0c84fb75f5a03a69dc761f1efad9790e41aa7e5414f347a",
+  "provinces": [
+    {
+      "id": 1,
+      "key": "test_land",
+      "kind": "land",
+      "terrain": "grassland",
+      "centroid": [
+        12,
+        34
+      ],
+      "neighbors": [
+        {
+          "id": 9,
+          "edge": "port"
+        },
+        {
+          "id": 7,
+          "edge": "strait"
+        },
+        {
+          "id": 2,
+          "edge": "river"
+        },
+        {
+          "id": 2,
+          "edge": "normal"
+        }
+      ],
+      "ports": [
+        9,
+        7
+      ],
+      "development": 3
+    }
+  ]
+}

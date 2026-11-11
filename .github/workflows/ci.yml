@@ -43,6 +43,14 @@ jobs:
       - run: cargo test --workspace
       - run: python tools/lint_data.py
       - run: python -B -m unittest discover -s tools/tests
+      - name: Validate province schema and cross-references
+        shell: pwsh
+        run: |
+          if (Test-Path -LiteralPath 'data/provinces.json') {
+            cargo run --locked -p strategy-data --bin lint-provinces -- data/provinces.json
+            exit $LASTEXITCODE
+          }
+          Write-Output 'Canonical province file is generated in M2. Workspace tests cover the validator with fixtures.'
       - run: cargo build --locked -p strategy-app --features custom-protocol
       - uses: actions/upload-artifact@v4
         with:

@@ -1,1 +1,5 @@
-//! Content loading and validation begin in later milestones.
+//! Content loading and validation.
+
+mod provinces;
+
+pub use provinces::{load_provinces, parse_provinces, ProvinceLoadError};
