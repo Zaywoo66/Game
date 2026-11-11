@@ -54,6 +54,7 @@ jobs:
       - run: python -B -m unittest discover -s tools/map/tests
       - run: python tools/map/validate.py --region western_europe
       - run: cargo run --locked -p strategy-data --bin lint-provinces -- data/map/western_europe/provinces.json
+      - run: cargo run --locked -p strategy-data --bin lint-scenario -- data/scenarios/1440.json data/map/western_europe/provinces.json
       - run: cargo build --locked -p strategy-app --features custom-protocol
       - uses: actions/upload-artifact@v4
         with:

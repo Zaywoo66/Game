@@ -21,6 +21,7 @@ export interface MapTestControls {
   decodeProvinceId: typeof decodeProvinceId;
   pickAt(clientX: number, clientY: number): number;
   projectProvince(id: number): { x: number; y: number } | null;
+  readOwnerColor(id: number): Rgba;
   setOwnerColor(id: number, rgba: Rgba): OwnerUpdate;
   startBenchmark(): void;
   readBenchmark(): BenchmarkSample;
@@ -28,6 +29,7 @@ export interface MapTestControls {
 
 interface MapViewer {
   renderer: string;
+  setOwnerColors(colors: ReadonlyMap<number, Rgba>): void;
   startBenchmark(): void;
   readBenchmark(): BenchmarkSample;
   testControls: MapTestControls;
@@ -224,15 +226,18 @@ export function createMapViewer(
     };
   }
 
-  function setOwnerColor(id: number, rgba: Rgba): OwnerUpdate {
+  function readOwnerColor(id: number): Rgba {
     if (!provinces.has(id)) throw new RangeError('Unknown map province');
-    const read = (): Rgba => [
+    return [
       ownerBytes[id * 4],
       ownerBytes[id * 4 + 1],
       ownerBytes[id * 4 + 2],
       ownerBytes[id * 4 + 3],
     ];
-    const before = read();
+  }
+
+  function setOwnerColor(id: number, rgba: Rgba): OwnerUpdate {
+    const before = readOwnerColor(id);
     const rasterBefore = uniforms.provinceRaster.value;
     const rasterVersion = provinceTexture.version;
     const rasterData = provinceTexture.image.data;
@@ -241,12 +246,20 @@ export function createMapViewer(
     if (updateOwnerLookup(ownerBytes, id, rgba)) ownerTexture.needsUpdate = true;
     return {
       before,
-      after: read(),
+      after: readOwnerColor(id),
       rasterUnchanged: uniforms.provinceRaster.value === rasterBefore
         && provinceTexture.version === rasterVersion && provinceTexture.image.data === rasterData,
       ownerTextureUnchanged: uniforms.ownerLookup.value === ownerBefore
         && ownerTexture.image.data === ownerData,
     };
+  }
+
+  function setOwnerColors(colors: ReadonlyMap<number, Rgba>) {
+    let changed = false;
+    for (const id of provinces.keys()) {
+      if (updateOwnerLookup(ownerBytes, id, colors.get(id) ?? [0, 0, 0, 0])) changed = true;
+    }
+    if (changed) ownerTexture.needsUpdate = true;
   }
 
   let press: { x: number; y: number; id: number } | null = null;
@@ -314,9 +327,10 @@ export function createMapViewer(
 
   return {
     renderer: gpu,
+    setOwnerColors,
     startBenchmark,
     readBenchmark,
-    testControls: { decodeProvinceId, pickAt, projectProvince, setOwnerColor, startBenchmark, readBenchmark },
+    testControls: { decodeProvinceId, pickAt, projectProvince, readOwnerColor, setOwnerColor, startBenchmark, readBenchmark },
     dispose() {
       cancelAnimationFrame(frame);
       observer.disconnect();

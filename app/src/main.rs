@@ -1,8 +1,14 @@
 use tauri::{webview::PageLoadEvent, Manager};
 
+mod session;
+
 fn main() {
     let benchmark = std::env::args_os().any(|argument| argument == "--map-benchmark");
-    let builder = tauri::Builder::default();
+    let builder = tauri::Builder::default().invoke_handler(tauri::generate_handler![
+        session::game_snapshot,
+        session::game_command,
+        session::game_ai_log
+    ]);
     let builder = if benchmark {
         builder
             .setup(|app| {
@@ -25,7 +31,7 @@ fn main() {
                 }
             })
     } else {
-        builder
+        builder.setup(session::setup)
     };
 
     builder

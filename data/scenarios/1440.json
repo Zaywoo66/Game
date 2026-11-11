@@ -1,0 +1,60 @@
+{
+  "schema_version": 1,
+  "start_date": [
+    1440,
+    1,
+    1
+  ],
+  "seed": 1440,
+  "countries": [
+    "ara",
+    "cas",
+    "eng",
+    "fra",
+    "por",
+    "sco"
+  ],
+  "characters": [
+    "afonso_v_portugal",
+    "alfonso_v_aragon",
+    "charles_vii",
+    "edward_iv",
+    "ferdinand_viseu",
+    "henry_iv_castile",
+    "henry_vi",
+    "humphrey_gloucester",
+    "james_ii_scotland",
+    "james_iii_scotland",
+    "john_ii_aragon",
+    "john_ii_castile",
+    "louis_xi"
+  ],
+  "human_slots": {
+    "eng": 1
+  },
+  "rules": {
+    "adulthood_years": 18,
+    "base_taxable_development_per_province": 1,
+    "tax_per_development": 20000,
+    "max_tax_rate": 500,
+    "max_monthly_spending": 20000,
+    "debt_limit": 100000,
+    "income_modifier": "tax_income"
+  },
+  "traits": {
+    "administrator": [
+      {
+        "key": "tax_income",
+        "value": 100,
+        "kind": "multiplicative"
+      }
+    ],
+    "mercantile_court": [
+      {
+        "key": "tax_income",
+        "value": 500,
+        "kind": "additive"
+      }
+    ]
+  }
+}

@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "tag": "fra",
+  "name": "Kingdom of France",
+  "color": [
+    65,
+    108,
+    179
+  ],
+  "capital": "ile_de_france",
+  "ai_profile": "balanced",
+  "start": {
+    "ruler": "charles_vii",
+    "heir": "louis_xi",
+    "provinces": [
+      "ile_de_france",
+      "languedoc",
+      "loire"
+    ],
+    "treasury": 100000,
+    "tax_rate": 270,
+    "monthly_spending": 7000
+  }
+}

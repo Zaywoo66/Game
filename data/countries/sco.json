@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "tag": "sco",
+  "name": "Kingdom of Scotland",
+  "color": [
+    120,
+    99,
+    177
+  ],
+  "capital": "lowlands",
+  "ai_profile": "balanced",
+  "start": {
+    "ruler": "james_ii_scotland",
+    "heir": null,
+    "provinces": [
+      "highlands",
+      "lowlands"
+    ],
+    "treasury": 65000,
+    "tax_rate": 230,
+    "monthly_spending": 4500
+  }
+}

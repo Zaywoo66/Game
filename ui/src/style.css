@@ -40,3 +40,50 @@ p { font-size: 14px; color: #a8b6cf; }
 .map-sources li + li { margin-top: 4px; }
 .map-inspector { bottom: 18px; right: 18px; min-width: min(220px, calc(100% - 36px)); }
 .map-status { top: 50%; left: 50%; width: max-content; transform: translate(-50%, -50%); }
+
+.game-clock { top: 18px; right: 18px; width: min(280px, calc(100% - 36px)); pointer-events: auto; }
+.game-clock time { display: block; margin-bottom: 7px; color: #f5ebd5; font-variant-numeric: tabular-nums; }
+.game-clock-actions { display: flex; align-items: center; gap: 12px; }
+.game-clock-actions label { display: flex; align-items: center; gap: 6px; }
+.map-inspector--host {
+  width: min(330px, calc(100% - 36px));
+  max-height: calc(100% - 143px);
+  overflow: auto;
+  pointer-events: auto;
+  color-scheme: dark;
+}
+.game-clock :is(button, select), .map-inspector--host :is(button, input, select) {
+  box-sizing: border-box;
+  padding: 5px 7px;
+  border: 1px solid #78918d80;
+  border-radius: 3px;
+  background: #182e35;
+  color: #f5ebd5;
+  font: inherit;
+}
+.game-clock button, .map-inspector--host button { cursor: pointer; }
+.game-clock button:disabled, .map-inspector--host button:disabled { cursor: default; opacity: 0.65; }
+.game-clock :is(button, select):focus-visible, .map-inspector--host :is(button, input, select):focus-visible {
+  outline: 2px solid #e1c48c;
+  outline-offset: 2px;
+}
+.game-clock label, .country-picker, .fiscal-fields label { font-size: 13px; color: #c5d2ca; }
+.country-panel { margin-top: 11px; padding-top: 10px; border-top: 1px solid #78918d55; }
+.country-picker { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+.country-picker select { flex: 1; min-width: 0; }
+.country-name { display: flex; align-items: center; gap: 7px; }
+.country-name span { flex: 0 0 10px; height: 10px; border-radius: 2px; }
+.country-economy, .character-stats { display: grid; margin: 8px 0; gap: 6px; }
+.country-economy { grid-template-columns: 1fr 1fr; }
+.character-stats { grid-template-columns: repeat(3, 1fr); }
+.country-economy div, .character-stats div { min-width: 0; padding: 4px 6px; background: #25383b; border-radius: 3px; }
+.country-economy dt, .character-stats dt { color: #c5d2ca; font-size: 12px; }
+.country-economy dd, .character-stats dd { margin: 2px 0 0; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
+.fiscal-policy { margin: 9px 0; font-size: 13px; }
+.fiscal-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 6px; }
+.fiscal-fields label { display: grid; min-width: 0; gap: 3px; }
+.fiscal-fields input { width: 100%; }
+.character-panel { margin-top: 8px; padding-top: 7px; border-top: 1px solid #78918d55; }
+.character-panel h3 { margin: 0 0 3px; color: #e1c48c; font-size: 13px; font-weight: 600; }
+.character-panel .character-name { color: #f5ebd5; }
+.map-panel .game-error, .map-panel .game-regency { margin-top: 6px; color: #f0b28a; }

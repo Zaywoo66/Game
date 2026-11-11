@@ -6,19 +6,27 @@ use sha2::{Digest, Sha256};
 use strategy_sim::{
     AiProfileKey, Controller, CountryId, CountryState, Date, Effect, Fixed, GameState, InvalidDate,
     InvalidSpeed, MapIdentity, MapIdentityMismatch, ModKey, Modifier, ModifierInsertError,
-    ModifierKind, ModifierSourceId, ModifierStore, PlayerId, ProvinceGraph, ScheduleError,
-    ScheduledEffect, SeededRng, SimTime, Speed, Tick, TimeError, TriggerView,
+    ModifierKind, ModifierSourceId, ModifierStore, PlayerId, PolityError, ProvinceGraph,
+    ScheduleError, ScheduledEffect, SeededRng, SimTime, Speed, Tick, TimeError, TriggerView,
 };
 
 use crate::provinces::decode_hash;
 
-const SCHEMA_VERSION: u32 = 1;
-const STATE_HASH_DOMAIN: &[u8] = b"strategy:game-state:v1\0";
+mod polity;
+
+use polity::PolityFile;
+
+const LEGACY_VERSION: u32 = 1;
+const POLITY_VERSION: u32 = 2;
+const STATE_HASH_DOMAIN_V1: &[u8] = b"strategy:game-state:v1\0";
+const STATE_HASH_DOMAIN_V2: &[u8] = b"strategy:game-state:v2\0";
 
 #[derive(Debug)]
 pub enum SaveError {
     Json(serde_json::Error),
     UnsupportedSchemaVersion(u32),
+    VersionPolityMismatch(u32),
+    InvalidPolity(PolityError),
     InvalidMapHash,
     MapMismatch(MapIdentityMismatch),
     UnorderedRecords(&'static str),
@@ -37,6 +45,10 @@ impl fmt::Display for SaveError {
             Self::UnsupportedSchemaVersion(version) => {
                 write!(f, "unsupported save schema_version {version}")
             }
+            Self::VersionPolityMismatch(version) => {
+                write!(f, "save version {version} has the wrong polity payload")
+            }
+            Self::InvalidPolity(error) => write!(f, "invalid saved polity: {error:?}"),
             Self::InvalidMapHash => f.write_str("map_hash must be 64 lowercase hexadecimal digits"),
             Self::MapMismatch(error) => error.fmt(f),
             Self::UnorderedRecords(records) => write!(f, "{records} must be unique and sorted"),
@@ -84,7 +96,11 @@ pub fn save_game(state: &GameState) -> Result<Vec<u8>, SaveError> {
         .map(|byte| format!("{byte:02x}"))
         .collect();
     serde_json::to_vec(&SaveFile {
-        schema_version: SCHEMA_VERSION,
+        schema_version: if state.polity().is_some() {
+            POLITY_VERSION
+        } else {
+            LEGACY_VERSION
+        },
         map_version: identity.version,
         map_hash,
         state: StateFile::from(state),
@@ -95,7 +111,7 @@ pub fn save_game(state: &GameState) -> Result<Vec<u8>, SaveError> {
 /// Loads a save against an already validated map. The static graph is not in the save.
 pub fn load_game(bytes: &[u8], graph: ProvinceGraph) -> Result<GameState, SaveError> {
     let save: SaveFile<&RawValue> = serde_json::from_slice(bytes).map_err(SaveError::Json)?;
-    if save.schema_version != SCHEMA_VERSION {
+    if !matches!(save.schema_version, LEGACY_VERSION | POLITY_VERSION) {
         return Err(SaveError::UnsupportedSchemaVersion(save.schema_version));
     }
 
@@ -109,13 +125,20 @@ pub fn load_game(bytes: &[u8], graph: ProvinceGraph) -> Result<GameState, SaveEr
         .map_err(SaveError::MapMismatch)?;
 
     let state: StateFile = serde_json::from_str(save.state.get()).map_err(SaveError::Json)?;
+    if state.polity.is_some() != (save.schema_version == POLITY_VERSION) {
+        return Err(SaveError::VersionPolityMismatch(save.schema_version));
+    }
     state.restore(graph)
 }
 
 /// SHA-256 of the canonical state, including its map identity and save version.
 pub fn state_hash(state: &GameState) -> Result<[u8; 32], SaveError> {
     let mut hash = Sha256::new();
-    hash.update(STATE_HASH_DOMAIN);
+    hash.update(if state.polity().is_some() {
+        STATE_HASH_DOMAIN_V2
+    } else {
+        STATE_HASH_DOMAIN_V1
+    });
     hash.update(save_game(state)?);
     Ok(hash.finalize().into())
 }
@@ -140,6 +163,12 @@ struct StateFile {
     rng_state: u64,
     countries: Vec<CountryFile>,
     scheduled: Vec<ScheduledFile>,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "present_polity"
+    )]
+    polity: Option<PolityFile>,
 }
 
 impl From<&GameState> for StateFile {
@@ -165,6 +194,7 @@ impl From<&GameState> for StateFile {
                     modifier: ModifierFile::from(&grant.modifier),
                 })
                 .collect(),
+            polity: state.polity().map(PolityFile::from),
         }
     }
 }
@@ -192,7 +222,7 @@ impl StateFile {
             .map(ScheduledFile::restore)
             .collect::<Result<Vec<_>, _>>()?;
 
-        GameState::restore(
+        let base = GameState::restore(
             time,
             self.seed,
             SeededRng::new(self.rng_state),
@@ -200,7 +230,13 @@ impl StateFile {
             countries,
             schedule,
         )
-        .map_err(SaveError::InvalidSchedule)
+        .map_err(SaveError::InvalidSchedule)?;
+        if let Some(polity) = self.polity {
+            base.with_polity(polity.restore()?)
+                .map_err(SaveError::InvalidPolity)
+        } else {
+            Ok(base)
+        }
     }
 }
 
@@ -224,15 +260,7 @@ impl CountryFile {
             },
             known_technologies: country.known_technologies().map(str::to_owned).collect(),
             at_war: country.is_at_war(),
-            sources: country
-                .modifiers()
-                .sources()
-                .map(|(id, expires_at, modifiers)| SourceFile {
-                    id: id.get(),
-                    expires_at,
-                    modifiers: modifiers.iter().map(ModifierFile::from).collect(),
-                })
-                .collect(),
+            sources: SourceFile::snapshot_all(country.modifiers()),
         }
     }
 
@@ -249,19 +277,7 @@ impl CountryFile {
             ControllerFile::Human(player) => Controller::Human(PlayerId::new(player)),
             ControllerFile::Ai(profile) => Controller::Ai(AiProfileKey::new(profile)),
         };
-        require_sorted(&self.sources, "modifier sources", |source| source.id)?;
-        let mut modifiers = ModifierStore::default();
-        for source in self.sources {
-            let id = ModifierSourceId::new(source.id);
-            let entries = source
-                .modifiers
-                .into_iter()
-                .map(|modifier| modifier.restore(id))
-                .collect();
-            modifiers
-                .insert_source(id, source.expires_at, entries)
-                .map_err(SaveError::InvalidModifier)?;
-        }
+        let modifiers = SourceFile::restore_all(self.sources, "modifier sources")?;
         Ok((
             CountryId::new(self.id),
             CountryState::new(
@@ -290,9 +306,39 @@ struct SourceFile {
     modifiers: Vec<ModifierFile>,
 }
 
+impl SourceFile {
+    fn snapshot_all(store: &ModifierStore) -> Vec<Self> {
+        store
+            .sources()
+            .map(|(id, expires_at, modifiers)| Self {
+                id: id.get(),
+                expires_at,
+                modifiers: modifiers.iter().map(ModifierFile::from).collect(),
+            })
+            .collect()
+    }
+
+    fn restore_all(sources: Vec<Self>, label: &'static str) -> Result<ModifierStore, SaveError> {
+        require_sorted(&sources, label, |source| source.id)?;
+        let mut store = ModifierStore::default();
+        for source in sources {
+            let id = ModifierSourceId::new(source.id);
+            let entries = source
+                .modifiers
+                .into_iter()
+                .map(|modifier| modifier.restore(id))
+                .collect();
+            store
+                .insert_source(id, source.expires_at, entries)
+                .map_err(SaveError::InvalidModifier)?;
+        }
+        Ok(store)
+    }
+}
+
 #[derive(Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-struct ModifierFile {
+pub(super) struct ModifierFile {
     key: String,
     value: i64,
     kind: KindFile,
@@ -312,7 +358,11 @@ impl From<&Modifier> for ModifierFile {
 }
 
 impl ModifierFile {
-    fn restore(self, source: ModifierSourceId) -> Modifier {
+    pub(super) fn key(&self) -> &str {
+        &self.key
+    }
+
+    pub(super) fn restore(self, source: ModifierSourceId) -> Modifier {
         Modifier {
             source,
             key: ModKey::new(self.key),
@@ -393,4 +443,10 @@ where
     T: Deserialize<'de>,
 {
     Option::<T>::deserialize(deserializer)
+}
+
+fn present_polity<'de, D: Deserializer<'de>>(
+    deserializer: D,
+) -> Result<Option<PolityFile>, D::Error> {
+    PolityFile::deserialize(deserializer).map(Some)
 }

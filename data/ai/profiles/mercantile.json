@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "key": "mercantile",
+  "weights": {
+    "aggression": 260,
+    "expansion": 350,
+    "caution": 720,
+    "diplomacy": 730,
+    "economy": 920,
+    "naval": 650,
+    "loyalty": 510
+  },
+  "thresholds": {
+    "war_min_score": 250,
+    "peace_accept_score": 75,
+    "alliance_min_opinion": 30
+  },
+  "preferred_tax_rate": 270,
+  "preferred_monthly_spending": 4500
+}

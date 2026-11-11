@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "key": "john_ii_castile",
+  "country": "cas",
+  "name": "John II",
+  "dynasty": "trastamara_castile",
+  "birth": [
+    1405,
+    3,
+    6
+  ],
+  "death": [
+    1454,
+    7,
+    21
+  ],
+  "stats": {
+    "adm": 3,
+    "dip": 3,
+    "mil": 2
+  },
+  "traits": []
+}

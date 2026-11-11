@@ -3132,6 +3132,7 @@ dependencies = [
 name = "strategy-app"
 version = "0.1.0"
 dependencies = [
+ "serde",
  "strategy-ai",
  "strategy-data",
  "strategy-net",

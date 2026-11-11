@@ -92,11 +92,33 @@ then a single NUL byte, then the canonical save bytes. Hashing includes the
 map identity and schema version. Runtime state in memory uses the integer
 and ordered types from `sim`. Callers handle file input/output.
 
-## Countries (`data/countries/<tag>.yaml`)
-`tag, name, color, capital, culture, religion, government, start: { ruler, treasury, provinces:[...] }, unique_ideas:[idea_key]`
+## Countries (`data/countries/<tag>.json`)
 
-## Characters (`data/characters/*.yaml`)
-`key, name, birth, death?, dynasty, stats:{adm,dip,mil}, traits:[...]`
+M3 country, character, scenario and AI profile files use strict JSON with unsigned
+32-bit `schema_version: 1`. Tags and keys are ASCII snake_case strings.
+Country and character numeric IDs are assigned in sorted key order starting at 1.
+
+| Country field | Representation and unit |
+|---|---|
+| `tag` | Country key and filename stem. |
+| `name` | Nonempty display name. |
+| `color` | Three unsigned 8-bit RGB channel values in the order red, green, blue. |
+| `capital` | Province key referring to one of this country's land provinces. |
+| `ai_profile` | Profile key. |
+| `start.ruler`, `start.heir` | Character keys. The heir may be omitted or null. |
+| `start.provinces` | Unique land province keys, owned by one country at most. |
+| `start.treasury`, `start.monthly_spending` | Raw Fixed thousandths of a treasury unit. Spending is per game month. |
+| `start.tax_rate` | Raw Fixed fraction of taxable income. `250` means 25%. |
+
+## Characters (`data/characters/<key>.json`)
+
+| Character field | Representation and unit |
+|---|---|
+| `key`, `country`, `dynasty` | Character filename stem, country tag, dynasty key. |
+| `name` | Nonempty display name. |
+| `birth`, `death` | Gregorian `[year, month, day]` as in saves. Omit `death` or use null if unspecified. |
+| `stats.adm`, `stats.dip`, `stats.mil` | Whole unsigned 8-bit skill points. |
+| `traits` | Unique keys from the scenario's trait map. |
 
 ## Technologies (`data/techs/<branch>.yaml`) — DAG
 `key, branch, cost, requires:[keys], pos:{x,y}, effects:[Effect]`
@@ -109,8 +131,25 @@ and ordered types from `sim`. Callers handle file input/output.
 
 Every option requires an integer `ai_weight`, optionally conditioned by a trigger.
 
-## Scenarios (`data/scenarios/<year>.yaml`)
-`start_date, seed, countries:[tags], ownership overrides, diplomacy start state`
+## Scenarios (`data/scenarios/<year>.json`)
+
+| Scenario field | Representation and unit |
+|---|---|
+| `start_date` | Gregorian `[year, month, day]` as in saves. |
+| `seed` | Unsigned 64-bit RNG seed. |
+| `countries`, `characters` | Unique country tags and character keys to load. |
+| `human_slots` | Country tag to unique player slot number, 1 or 2. Other countries use their AI profile. |
+| `rules.adulthood_years` | Positive unsigned 16-bit whole calendar years. |
+| `rules.base_taxable_development_per_province` | Unsigned 32-bit whole development points added per province for economy. |
+| `rules.tax_per_development` | Raw Fixed thousandths of a treasury unit per taxable development point per month, before the tax rate. |
+| `rules.max_tax_rate` | Raw Fixed fraction from 0 through 1000. |
+| `rules.max_monthly_spending` | Nonnegative raw Fixed treasury amount per month. |
+| `rules.debt_limit` | Nonnegative raw Fixed treasury amount. The debt floor is its negative. |
+| `rules.income_modifier` | Modifier key used to calculate monthly tax income. |
+| `traits` | Trait keys mapped to arrays of permanent modifier records in the format below. |
+
+Validate content and cross-references with
+`cargo run --locked -p strategy-data --bin lint-scenario -- data/scenarios/1440.json data/map/western_europe/provinces.json`.
 
 ## Trigger and effect syntax
 
@@ -155,13 +194,37 @@ Add new leaves here first, then implement.
 - Every file has `schema_version`. Breaking change = bump version + migration note.
 - Every schema field declares its representation and unit. Fixed values use raw thousandths. Counts, IDs, versions, pixel coordinates and durations are ordinary integers in their own units, with no Fixed scaling.
 
-## AI profiles (`data/ai/profiles/<key>.yaml`)
-- `key`
-- `weights: { aggression, expansion, caution, diplomacy, economy, naval, loyalty }` (integers 0–1000)
-- `thresholds: { war_min_score, peace_accept_score, alliance_min_opinion }`
+## AI profiles (`data/ai/profiles/<key>.json`)
 
-## Country AI fields (`data/countries/<tag>.yaml`)
-`ai: { profile: <profile_key>, overrides: { <weight>: <int> } }`
+| Profile field | Representation and unit |
+|---|---|
+| `key` | Profile key and filename stem. |
+| `weights.aggression`, `expansion`, `caution`, `diplomacy`, `economy`, `naval`, `loyalty` | Whole weight points from 0 through 1000. |
+| `thresholds.war_min_score`, `peace_accept_score`, `alliance_min_opinion` | Signed 32-bit whole decision score points. |
+| `preferred_tax_rate` | Raw Fixed fraction within scenario tax limits. |
+| `preferred_monthly_spending` | Raw Fixed treasury amount per month within scenario spending limits. |
 
-## Scenario controllers (`data/scenarios/<year>.yaml`)
-`controllers: { <tag>: human | ai }`. The lobby assigns human slots to players.
+## Saved games (schema version 2)
+
+A game with countries and characters adds `state.polity` with `rules`,
+`countries`, `characters`, and `ai_profiles`. The static map is supplied as
+for v1. The loader still reads v1 snapshots for simulations without polity.
+The v2 state hash uses `strategy:game-state:v2` followed by NUL and the
+canonical save bytes.
+
+| Additional save field | Representation and unit |
+|---|---|
+| `polity.rules` | Scenario rule fields and units defined above. |
+| `polity.countries[].id`, `capital`, `provinces[]` | Unsigned 32-bit country and map province identifiers. |
+| `polity.countries[].economy.treasury` | Raw Fixed treasury amount. |
+| `economy.policy.tax_rate`, `economy.policy.monthly_spending` | Raw Fixed fraction and treasury amount per month. |
+| `economy.last_month` | Null or `{income, expenses}` in raw Fixed treasury amounts. Expenses are the amount paid. |
+| `economy.bankrupt` | Boolean bankruptcy flag. |
+| `polity.countries[].succession.ruler`, `heir` | Null or unsigned 32-bit character identifiers. |
+| `polity.characters[].id`, `country` | Unsigned 32-bit character and country identifiers. |
+| `polity.characters[].sources` | Modifier sources with the v1 source, expiry and value units. |
+| `polity.ai_profiles[]` | Profile fields and units above without a nested schema version. |
+
+Other country and character metadata keeps the content field representations.
+Country, character and province records are sorted by ID, profiles and trait
+keys by key, and modifier sources by ID.

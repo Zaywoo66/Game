@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "tag": "eng",
+  "name": "Kingdom of England",
+  "color": [
+    161,
+    59,
+    73
+  ],
+  "capital": "london",
+  "ai_profile": "balanced",
+  "start": {
+    "ruler": "henry_vi",
+    "heir": "humphrey_gloucester",
+    "provinces": [
+      "cornwall",
+      "london",
+      "midlands",
+      "normandie",
+      "northumbria",
+      "wales",
+      "yorkshire"
+    ],
+    "treasury": 120000,
+    "tax_rate": 250,
+    "monthly_spending": 12500
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "key": "edward_iv",
+  "country": "eng",
+  "name": "Edward of York",
+  "dynasty": "york",
+  "birth": [
+    1442,
+    4,
+    28
+  ],
+  "death": [
+    1483,
+    4,
+    9
+  ],
+  "stats": {
+    "adm": 4,
+    "dip": 3,
+    "mil": 5
+  },
+  "traits": []
+}

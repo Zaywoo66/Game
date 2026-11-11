@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "key": "alfonso_v_aragon",
+  "country": "ara",
+  "name": "Alfonso V",
+  "dynasty": "trastamara_aragon",
+  "birth": [
+    1396,
+    1,
+    1
+  ],
+  "death": [
+    1458,
+    6,
+    27
+  ],
+  "stats": {
+    "adm": 4,
+    "dip": 4,
+    "mil": 5
+  },
+  "traits": [
+    "administrator"
+  ]
+}

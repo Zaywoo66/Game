@@ -6,7 +6,7 @@ Status: [ ] todo, [~] in progress, [x] done. Update in the PR that changes it. W
 | M0 | Foundation | [x] | milestones/M00_foundation.md |
 | M1 | Simulation core | [x] | milestones/M01_sim_core.md |
 | M2 | Map | [x] | milestones/M02_map.md |
-| M3 | Countries and rulers | [ ] | milestones/M03_countries_rulers.md |
+| M3 | Countries and rulers | [x] | milestones/M03_countries_rulers.md |
 | M4 | Armies and land war | [ ] | milestones/M04_armies_war.md |
 | M5 | LAN multiplayer | [ ] | milestones/M05_multiplayer.md |
 | M6 | Diplomacy | [ ] | milestones/M06_diplomacy.md |

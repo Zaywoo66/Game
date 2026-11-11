@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "key": "ferdinand_viseu",
+  "country": "por",
+  "name": "Ferdinand of Viseu",
+  "dynasty": "avis",
+  "birth": [
+    1433,
+    11,
+    17
+  ],
+  "death": [
+    1470,
+    9,
+    18
+  ],
+  "stats": {
+    "adm": 3,
+    "dip": 4,
+    "mil": 3
+  },
+  "traits": [
+    "mercantile_court"
+  ]
+}

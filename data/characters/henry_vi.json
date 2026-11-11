@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "key": "henry_vi",
+  "country": "eng",
+  "name": "Henry VI",
+  "dynasty": "lancaster",
+  "birth": [
+    1421,
+    12,
+    6
+  ],
+  "death": [
+    1471,
+    5,
+    21
+  ],
+  "stats": {
+    "adm": 2,
+    "dip": 3,
+    "mil": 1
+  },
+  "traits": []
+}

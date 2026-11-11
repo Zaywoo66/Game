@@ -1,9 +1,11 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use crate::{
-    CountryId, Date, Effect, EffectError, Fixed, MapIdentity, ModKey, ModifierInsertError,
-    ModifierSourceId, ModifierStore, PlayerId, PreparedModifier, ProvinceGraph, SeededRng, SimTime,
-    Speed, Tick, TimeActor, TimeCommand, TimeError, TriggerView,
+    CharacterId, CharacterState, CountryId, CountryPolity, Date, EconomyState, Effect, EffectError,
+    FiscalError, FiscalPolicy, Fixed, MapIdentity, ModKey, ModifierInsertError, ModifierSourceId,
+    ModifierStore, PlayerId, PolityError, PolityState, PolityTickFailure, PreparedModifier,
+    ProvinceGraph, ProvinceId, SeededRng, SimTime, Speed, SuccessionState, Tick, TimeActor,
+    TimeCommand, TimeError, TriggerView,
 };
 
 /// Reference to a scenario's data-driven AI profile.
@@ -54,6 +56,14 @@ pub enum Command {
         country: CountryId,
         controller: Controller,
     },
+    SetFiscalPolicy {
+        country: CountryId,
+        policy: FiscalPolicy,
+    },
+    NominateHeir {
+        country: CountryId,
+        heir: Option<CharacterId>,
+    },
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -61,6 +71,14 @@ pub enum CommandError {
     Time(TimeError),
     HostRequired,
     UnknownCountry(CountryId),
+    PolityUnavailable,
+    NotCountryController(CountryId),
+    UnknownAiProfile(CountryId),
+    Fiscal(FiscalError),
+    InvalidHeir {
+        country: CountryId,
+        heir: CharacterId,
+    },
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -82,6 +100,23 @@ pub enum StateChange {
     ModifierSourceExpired {
         country: CountryId,
         source: ModifierSourceId,
+    },
+    FiscalPolicyChanged {
+        country: CountryId,
+        policy: FiscalPolicy,
+    },
+    EconomyChanged {
+        country: CountryId,
+        economy: EconomyState,
+    },
+    CharacterDied {
+        character: CharacterId,
+        country: CountryId,
+    },
+    SuccessionChanged {
+        country: CountryId,
+        succession: SuccessionState,
+        regency: bool,
     },
 }
 
@@ -109,6 +144,7 @@ pub struct TickReport {
     pub delta: Delta,
     pub ai_rejections: Vec<AiCommandRejection>,
     pub scheduled_failures: Vec<ScheduledEffectFailure>,
+    pub polity_failures: Vec<PolityTickFailure>,
 }
 
 /// A trusted scenario input for an effect due on an exact simulation tick.
@@ -217,11 +253,14 @@ pub struct GameState {
     province_graph: ProvinceGraph,
     countries: BTreeMap<CountryId, CountryState>,
     scheduled: ModifierSchedule,
+    polity: Option<PolityState>,
 }
 
 enum PreparedCommand<'a> {
     Time(SimTime),
     SetController(CountryId, &'a Controller),
+    SetFiscalPolicy(CountryId, FiscalPolicy),
+    NominateHeir(CountryId, Option<CharacterId>),
 }
 
 impl GameState {
@@ -288,6 +327,7 @@ impl GameState {
             province_graph,
             countries,
             scheduled,
+            polity: None,
         })
     }
 
@@ -316,6 +356,76 @@ impl GameState {
                 .iter()
                 .map(move |(&(country, _), grant)| (due, country, grant))
         })
+    }
+
+    /// Attaches validated country and ruler data during scenario setup or restore.
+    pub fn with_polity(mut self, polity: PolityState) -> Result<Self, PolityError> {
+        if self.polity.is_some() {
+            return Err(PolityError::AlreadyConfigured);
+        }
+        polity.validate(&self.province_graph, &self.countries, self.time.date())?;
+        self.polity = Some(polity);
+        Ok(self)
+    }
+
+    pub const fn polity(&self) -> Option<&PolityState> {
+        self.polity.as_ref()
+    }
+
+    pub fn country_polity(&self, country: CountryId) -> Option<&CountryPolity> {
+        self.polity()?.countries.get(&country)
+    }
+
+    pub fn character(&self, character: CharacterId) -> Option<&CharacterState> {
+        self.polity()?.characters.get(&character)
+    }
+
+    pub fn ruler(&self, country: CountryId) -> Option<(CharacterId, &CharacterState)> {
+        let ruler = self.country_polity(country)?.succession.ruler?;
+        Some((ruler, self.character(ruler)?))
+    }
+
+    pub fn owner_of_province(&self, province: ProvinceId) -> Option<CountryId> {
+        self.polity()?
+            .countries
+            .iter()
+            .find_map(|(&country, state)| state.provinces.contains(&province).then_some(country))
+    }
+
+    pub fn is_in_regency(&self, country: CountryId) -> Option<bool> {
+        self.polity()?.is_in_regency(country, self.time.date())
+    }
+
+    /// Returns living local candidates other than the ruler, oldest first.
+    /// Ties use ascending character ID.
+    pub fn eligible_heirs(&self, country: CountryId) -> Vec<CharacterId> {
+        self.polity().map_or_else(Vec::new, |polity| {
+            polity.eligible_heirs(country, self.time.date())
+        })
+    }
+
+    /// Projects a month using the current date, modifiers and eligible ruler.
+    /// This read-only forecast uses the same arithmetic as the monthly tick.
+    pub fn preview_monthly_economy(
+        &self,
+        country: CountryId,
+        policy: FiscalPolicy,
+    ) -> Result<EconomyState, CommandError> {
+        let base = self
+            .country(country)
+            .ok_or(CommandError::UnknownCountry(country))?;
+        let polity = self.polity().ok_or(CommandError::PolityUnavailable)?;
+        let state = &polity.countries[&country];
+        polity
+            .forecast(
+                country,
+                state,
+                self.time.date(),
+                &self.province_graph,
+                base.modifiers(),
+                policy,
+            )
+            .map_err(CommandError::Fiscal)
     }
 
     pub const fn time(&self) -> &SimTime {
@@ -381,6 +491,39 @@ impl GameState {
                     });
                 }
             }
+            PreparedCommand::SetFiscalPolicy(country, policy) => {
+                let state = self
+                    .polity
+                    .as_mut()
+                    .expect("polity validated")
+                    .countries
+                    .get_mut(&country)
+                    .expect("country validated");
+                if state.economy.policy != policy {
+                    state.economy.policy = policy;
+                    delta
+                        .changes
+                        .push(StateChange::FiscalPolicyChanged { country, policy });
+                }
+            }
+            PreparedCommand::NominateHeir(country, heir) => {
+                let regency = self.is_in_regency(country).expect("polity validated");
+                let state = self
+                    .polity
+                    .as_mut()
+                    .expect("polity validated")
+                    .countries
+                    .get_mut(&country)
+                    .expect("country validated");
+                if state.succession.heir != heir {
+                    state.succession.heir = heir;
+                    delta.changes.push(StateChange::SuccessionChanged {
+                        country,
+                        succession: state.succession,
+                        regency,
+                    });
+                }
+            }
         }
         Ok(delta)
     }
@@ -407,12 +550,59 @@ impl GameState {
                 if !self.countries.contains_key(country) {
                     return Err(CommandError::UnknownCountry(*country));
                 }
+                if let (Some(polity), Controller::Ai(profile)) = (self.polity(), controller) {
+                    if !polity.ai_profiles.contains_key(profile.as_str()) {
+                        return Err(CommandError::UnknownAiProfile(*country));
+                    }
+                }
                 Ok(PreparedCommand::SetController(*country, controller))
+            }
+            Command::SetFiscalPolicy { country, policy } => {
+                let polity = self.authorized_polity(actor, *country)?;
+                polity
+                    .rules
+                    .check_policy(*policy)
+                    .map_err(CommandError::Fiscal)?;
+                Ok(PreparedCommand::SetFiscalPolicy(*country, *policy))
+            }
+            Command::NominateHeir { country, heir } => {
+                let polity = self.authorized_polity(actor, *country)?;
+                if let Some(heir) = heir {
+                    if !polity.heir_is_eligible(*country, *heir, self.time.date()) {
+                        return Err(CommandError::InvalidHeir {
+                            country: *country,
+                            heir: *heir,
+                        });
+                    }
+                }
+                Ok(PreparedCommand::NominateHeir(*country, *heir))
             }
         }
     }
 
-    /// Advances time, expires sources, activates due effects, then dispatches AI.
+    fn authorized_polity(
+        &self,
+        actor: CommandActor,
+        country: CountryId,
+    ) -> Result<&PolityState, CommandError> {
+        let base = self
+            .country(country)
+            .ok_or(CommandError::UnknownCountry(country))?;
+        let authorized = match (actor, base.controller()) {
+            (
+                CommandActor::Host(player) | CommandActor::Guest(player),
+                Controller::Human(owner),
+            ) => player == *owner,
+            (CommandActor::Ai(owned_country), Controller::Ai(_)) => owned_country == country,
+            _ => false,
+        };
+        if !authorized {
+            return Err(CommandError::NotCountryController(country));
+        }
+        self.polity().ok_or(CommandError::PolityUnavailable)
+    }
+
+    /// Advances time, processes due effects, dispatches AI, then updates countries.
     ///
     /// The host callback gets read-only state and supplies commands to validate
     /// and apply before the next country is queried. A paused tick leaves the
@@ -423,6 +613,7 @@ impl GameState {
         mut decide_ai: impl FnMut(&Self, CountryId) -> Vec<Command>,
     ) -> Result<TickReport, TimeError> {
         let mut report = TickReport::default();
+        let previous_date = self.time.date();
         if !self.time.advance()? {
             return Ok(report);
         }
@@ -460,6 +651,16 @@ impl GameState {
                     }),
                 }
             }
+        }
+        if let Some(polity) = &mut self.polity {
+            let (changes, failures) = polity.advance(
+                previous_date,
+                self.time.date(),
+                &self.province_graph,
+                &self.countries,
+            );
+            report.delta.changes.extend(changes);
+            report.polity_failures = failures;
         }
         Ok(report)
     }
