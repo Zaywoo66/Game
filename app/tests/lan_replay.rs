@@ -10,7 +10,8 @@ use strategy_net::{
     LobbyController, PlayerCommand, ServerMessage, PROTOCOL_VERSION,
 };
 use strategy_sim::{
-    Command, CommandActor, Controller, CountryId, Date, GameState, PlayerId, Speed, TimeCommand,
+    Command, CommandActor, Controller, CountryId, Date, GameState, Opinion, PlayerId, Speed,
+    TimeCommand,
 };
 use tokio::{
     net::{TcpListener, TcpStream},
@@ -27,6 +28,50 @@ fn country(game: &GameState, tag: &str) -> u32 {
         .find(|(_, country)| country.tag == tag)
         .map(|(id, _)| id.get())
         .unwrap()
+}
+
+#[tokio::test]
+async fn lan_host_and_guest_keep_initial_directional_opinions() {
+    let scenario = load_embedded_scenario().unwrap();
+    let graph = scenario.province_graph().clone();
+    let castile = CountryId::new(country(&scenario, "cas"));
+    let portugal = CountryId::new(country(&scenario, "por"));
+    let scotland = country(&scenario, "sco");
+    let scenario = scenario
+        .with_opinions([
+            (castile, portugal, Opinion::new(37).unwrap()),
+            (portugal, castile, Opinion::new(-12).unwrap()),
+        ])
+        .unwrap();
+    let host = LanHost::start(
+        HostConfig {
+            room: "Opinion snapshot".into(),
+            host_country_id: portugal.get(),
+            guest_country_id: scotland,
+            ai_preset: AiPreset::Balanced,
+            grace_minutes: 0,
+            port: 0,
+        },
+        scenario,
+    )
+    .await
+    .unwrap();
+    let guest = LanClient::join(host.address(), "Opinion guest".into(), graph)
+        .await
+        .unwrap();
+    let host_view = host.view();
+    let guest_view = guest.subscribe();
+    let guest_view = guest_view.borrow();
+    for game in [&*host_view.game, &*guest_view.game] {
+        assert_eq!(
+            game.opinion(castile, portugal),
+            Some(Opinion::new(37).unwrap())
+        );
+        assert_eq!(
+            game.opinion(portugal, castile),
+            Some(Opinion::new(-12).unwrap())
+        );
+    }
 }
 
 #[tokio::test]
