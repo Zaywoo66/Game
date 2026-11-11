@@ -179,8 +179,15 @@ pub fn parse_technology_branch_yaml(
                 .enumerate()
                 .map(|(effect_index, effect)| {
                     let path = format!("{field}.effects[{effect_index}]");
-                    let parsed = parse_effect(effect, &path).map_err(TechnologyLoadError::Effect)?;
-                    if matches!(&parsed, Effect::AddModifier { duration_days: Some(_), .. }) {
+                    let parsed =
+                        parse_effect(effect, &path).map_err(TechnologyLoadError::Effect)?;
+                    if matches!(
+                        &parsed,
+                        Effect::AddModifier {
+                            duration_days: Some(_),
+                            ..
+                        }
+                    ) {
                         return Err(invalid(
                             &format!("{path}.add_modifier.duration_days"),
                             "technology effects must be permanent",
