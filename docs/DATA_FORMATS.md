@@ -181,7 +181,10 @@ Country and character numeric IDs are assigned in sorted key order starting at 1
 
 Each YAML file contains one event. The linter rejects duplicate event keys,
 unknown trigger/effect names, missing AI weights, and noninteger durations or
-weights. This is the M7 data contract; the event engine is implemented in a
+weights. Boolean literals in event YAML use lowercase `true` or `false` only;
+the linter rejects YAML 1.1 aliases such as `yes` that the Rust loader does not
+accept. This is
+the M7 data contract; the event engine is implemented in a
 separate M7 task.
 
 | Field | Representation and unit |

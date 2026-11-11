@@ -7,7 +7,7 @@ import sys
 
 import yaml
 
-from event_schema import validate_event
+from event_schema import noncanonical_bool_tokens, validate_event
 
 
 RAW_FIXED = (-(1 << 63), (1 << 63) - 1, "expected a raw Fixed integer in the signed 64-bit range")
@@ -87,6 +87,9 @@ def main():
             if suffix not in {".yaml", ".yml"}:
                 errors.append(f"{relative_path}: events must use YAML")
                 continue
+            errors.extend(
+                f"{relative_path}: {error}" for error in noncanonical_bool_tokens(text)
+            )
             try:
                 event_errors = validate_event(document)
             except RecursionError:

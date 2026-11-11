@@ -2,6 +2,8 @@
 
 import re
 
+import yaml
+
 
 KEY = re.compile(r"[a-z][a-z0-9]*(?:_[a-z0-9]+)*\Z", re.ASCII)
 U32_MAX = (1 << 32) - 1
@@ -10,6 +12,31 @@ I32_MIN = -(1 << 31)
 I32_MAX = (1 << 31) - 1
 I64_MIN = -(1 << 63)
 I64_MAX = (1 << 63) - 1
+
+
+def noncanonical_bool_tokens(source):
+    """Find YAML 1.1 boolean spellings that the Rust YAML 1.2 loader rejects."""
+    root = yaml.compose(source)
+    pending = [root]
+    visited = set()
+    errors = []
+    while pending:
+        node = pending.pop()
+        if node is None or id(node) in visited:
+            continue
+        visited.add(id(node))
+        if isinstance(node, yaml.ScalarNode):
+            if node.tag == "tag:yaml.org,2002:bool" and node.value not in ("true", "false"):
+                errors.append(
+                    f"line {node.start_mark.line + 1}: boolean token {node.value!r} "
+                    "must be lowercase true or false"
+                )
+        elif isinstance(node, yaml.SequenceNode):
+            pending.extend(node.value)
+        elif isinstance(node, yaml.MappingNode):
+            for key, value in node.value:
+                pending.extend((key, value))
+    return errors
 
 
 def validate_event(document):
