@@ -1,6 +1,6 @@
-# M5b Map density and visual/UI pass (insert between M5 and M6)
+# M5b Map density and visual/UI pass
 Docs: MAP_SCALE.md, MAP_PIPELINE.md; create docs/UI_STYLE.md in this milestone.
-Why: M2-M5 acceptance was technical only. Later systems (diplomacy, naval, AI) are tuned against map density, so density changes now, not later. M6 does not start until M5b is accepted.
+Why: M2-M5 acceptance was technical only. Later systems (diplomacy, naval, AI) are tuned against map density, so the 5b.2 rebuild is verified before M6. The remaining M5b visual/UI work may continue alongside M6–M11. M12 waits for M5b acceptance.
 
 ## A. Province density (tools + data)
 - Rebuild the Western Europe + British Isles slice with city-seeded provinces per MAP_SCALE.md (target ~400-600), plus areas.yaml and regions.yaml.

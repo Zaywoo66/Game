@@ -21,7 +21,7 @@ Status: [ ] todo, [~] in progress, [x] done. Update in the PR that changes it. W
 
 AI levels L0–L3 are delivered inside M3, M4, M6, M7–M9 (see each milestone's AI slice); M10 only completes L4.
 
-M5b map and visual work may proceed while M5 LAN acceptance is open. M6 starts after both M5 and M5b are accepted.
+After the 5b.2 dense-map rebuild passes CI, M6–M11 may proceed while physical two-PC M5 acceptance and the remaining M5b visual/UI checks are open. M12 cannot start until M5 and M5b are accepted. Local loopback and accelerated runs support development but do not close the two-PC acceptance.
 
 M13 is the first post-beta milestone; colonization, trade, religion and later eras follow.
 Vertical slice = M2–M7 on the small test region (see DECISIONS D5), then expand to beta map in M11.
