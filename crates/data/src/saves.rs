@@ -30,6 +30,7 @@ const ALLIANCE_VERSION: u32 = 5;
 const COALITION_VERSION: u32 = 6;
 const MARRIAGE_VERSION: u32 = 7;
 const EVENT_VERSION: u32 = 8;
+const GUARANTEE_VERSION: u32 = 9;
 const STATE_HASH_DOMAIN_V1: &[u8] = b"strategy:game-state:v1\0";
 const STATE_HASH_DOMAIN_V2: &[u8] = b"strategy:game-state:v2\0";
 const STATE_HASH_DOMAIN_V3: &[u8] = b"strategy:game-state:v3\0";
@@ -38,6 +39,7 @@ const STATE_HASH_DOMAIN_V5: &[u8] = b"strategy:game-state:v5\0";
 const STATE_HASH_DOMAIN_V6: &[u8] = b"strategy:game-state:v6\0";
 const STATE_HASH_DOMAIN_V7: &[u8] = b"strategy:game-state:v7\0";
 const STATE_HASH_DOMAIN_V8: &[u8] = b"strategy:game-state:v8\0";
+const STATE_HASH_DOMAIN_V9: &[u8] = b"strategy:game-state:v9\0";
 
 #[derive(Debug)]
 pub enum SaveError {
@@ -50,6 +52,7 @@ pub enum SaveError {
     VersionCoalitionMismatch(u32),
     VersionMarriageMismatch(u32),
     VersionEventMismatch(u32),
+    VersionGuaranteeMismatch(u32),
     InvalidPolity(PolityError),
     InvalidMilitary(WarError),
     InvalidOpinion(OpinionError),
@@ -96,6 +99,9 @@ impl fmt::Display for SaveError {
             }
             Self::VersionEventMismatch(version) => {
                 write!(f, "save version {version} has the wrong event payload")
+            }
+            Self::VersionGuaranteeMismatch(version) => {
+                write!(f, "save version {version} has the wrong guarantee payload")
             }
             Self::InvalidOpinion(error) => write!(f, "invalid saved opinion: {error:?}"),
             Self::InvalidOpinionState(error) => write!(f, "invalid saved opinion state: {error:?}"),
@@ -169,6 +175,7 @@ pub fn load_game(bytes: &[u8], graph: ProvinceGraph) -> Result<GameState, SaveEr
             | COALITION_VERSION
             | MARRIAGE_VERSION
             | EVENT_VERSION
+            | GUARANTEE_VERSION
     ) {
         return Err(SaveError::UnsupportedSchemaVersion(save.schema_version));
     }
@@ -233,6 +240,14 @@ pub fn load_game(bytes: &[u8], graph: ProvinceGraph) -> Result<GameState, SaveEr
     {
         return Err(SaveError::VersionEventMismatch(save.schema_version));
     }
+    let has_guarantees = restored
+        .diplomacy()
+        .is_some_and(|diplomacy| !diplomacy.guarantees.is_empty());
+    if (save.schema_version < GUARANTEE_VERSION && has_guarantees)
+        || (save.schema_version == GUARANTEE_VERSION && !has_guarantees)
+    {
+        return Err(SaveError::VersionGuaranteeMismatch(save.schema_version));
+    }
     Ok(restored)
 }
 
@@ -240,6 +255,7 @@ pub fn load_game(bytes: &[u8], graph: ProvinceGraph) -> Result<GameState, SaveEr
 pub fn state_hash(state: &GameState) -> Result<[u8; 32], SaveError> {
     let mut hash = Sha256::new();
     hash.update(match schema_version(state) {
+        GUARANTEE_VERSION => STATE_HASH_DOMAIN_V9,
         EVENT_VERSION => STATE_HASH_DOMAIN_V8,
         MARRIAGE_VERSION => STATE_HASH_DOMAIN_V7,
         COALITION_VERSION => STATE_HASH_DOMAIN_V6,
@@ -254,7 +270,12 @@ pub fn state_hash(state: &GameState) -> Result<[u8; 32], SaveError> {
 }
 
 fn schema_version(state: &GameState) -> u32 {
-    if state.events().is_some() {
+    if state
+        .diplomacy()
+        .is_some_and(|diplomacy| !diplomacy.guarantees.is_empty())
+    {
+        GUARANTEE_VERSION
+    } else if state.events().is_some() {
         EVENT_VERSION
     } else if state.polity().is_some_and(|polity| {
         polity.characters.values().any(|character| {

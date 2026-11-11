@@ -528,3 +528,16 @@ include localization keys, triggers, effects, option weights and timing; a
 running save therefore keeps its event rules if external YAML later changes.
 Saves v1–v7 remain readable without event state. LAN protocol v6 transports
 the same canonical snapshot and the validated zero-based event choice command.
+
+## Saved games (schema version 9)
+
+An active defensive guarantee uses save schema v9 and hash domain
+`strategy:game-state:v9` followed by NUL and canonical save bytes. The
+`state.diplomacy.guarantees` array contains directed `{a,b}` records: `a` is
+the positive unsigned 32-bit guarantor country ID and `b` is the protected
+country ID. Both IDs must exist and differ. Records are sorted by `(a,b)`
+without duplicates. Empty arrays are omitted. A v9 save must contain at
+least one guarantee; v1–v8 saves may not carry guarantees. V9 may also carry
+the v7 marriage and v8 event payloads, which remain validated and retained
+on load. LAN protocol v7 transports the same canonical snapshot and the
+validated guarantee/revoke commands.
