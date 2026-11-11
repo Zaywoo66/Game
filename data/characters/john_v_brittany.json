@@ -1,0 +1,19 @@
+{
+  "schema_version": 2,
+  "key": "john_v_brittany",
+  "country": "bre",
+  "name": "John V",
+  "dynasty": "montfort",
+  "sex": "male",
+  "birth": [
+    1389,
+    12,
+    24
+  ],
+  "stats": {
+    "adm": 3,
+    "dip": 3,
+    "mil": 3
+  },
+  "traits": []
+}

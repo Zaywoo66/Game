@@ -910,8 +910,25 @@ fn city_map_scenario_loads_with_explicit_land_partition_and_round_trips() {
         .collect();
     assert_eq!(declared, neutral);
     assert_eq!(map.identity().version.get(), 3);
-    assert_eq!(state.polity().unwrap().countries.len(), 6);
-    assert_eq!(state.polity().unwrap().characters.len(), 13);
+    assert_eq!(state.polity().unwrap().countries.len(), 7);
+    assert_eq!(state.polity().unwrap().characters.len(), 14);
+    let brittany = state
+        .polity()
+        .unwrap()
+        .countries
+        .values()
+        .find(|country| country.tag == "bre")
+        .unwrap();
+    assert_eq!(map.get(brittany.capital).unwrap().key, "nantes");
+    let brittany_keys: BTreeSet<_> = brittany
+        .provinces
+        .iter()
+        .map(|id| map.get(*id).unwrap().key.as_str())
+        .collect();
+    assert_eq!(
+        brittany_keys,
+        BTreeSet::from(["brest", "lorient", "nantes", "rennes", "st_brieuc"])
+    );
     let bytes = save_game(&state).unwrap();
     assert_eq!(load_game(&bytes, map).unwrap(), state);
     assert!(matches!(

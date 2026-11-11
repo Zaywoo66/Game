@@ -20,6 +20,6 @@ fn three_seeds_complete_ten_years_and_ai_wars_end_in_treaties() {
             second.treaties > 0 && second.cessions > 0,
             "seed {seed}: {second:?}"
         );
-        assert_eq!(second.country_count, 6);
+        assert_eq!(second.country_count, 7);
     }
 }
