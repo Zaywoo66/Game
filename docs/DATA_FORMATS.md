@@ -186,9 +186,51 @@ The 13 existing `male` entries were checked against the [UK Royal Family biograp
 `key, name, modifiers:[{key,value,kind}], unlock: Trigger`
 
 ## Events (`data/events/*.yaml`)
-`key, title, desc, trigger: Trigger, mean_time_to_happen?, options:[{text, effects:[Effect], ai_weight}]`
 
-Every option requires an integer `ai_weight`, optionally conditioned by a trigger.
+Each YAML file contains one event. The linter rejects duplicate event keys or
+YAML mapping fields, unknown trigger/effect names, missing AI weights, and
+noninteger durations or weights. Boolean literals in event YAML use lowercase
+`true` or `false` only; the linter rejects YAML 1.1 boolean spellings such as
+`yes` that the planned Rust loader does not accept. Event integer literals use plain
+decimal digits, with an optional leading minus for signed fields; leading
+zeros, separators, plus signs and hexadecimal forms are rejected so both
+parsers read the same value. This is the M7 data contract; the event engine is
+implemented in a separate M7 task.
+
+| Field | Representation and unit |
+|---|---|
+| `key` | Unique ASCII snake_case event key; unitless. |
+| `title`, `desc` | ASCII snake_case localization keys, not display text. |
+| `trigger` | One `Trigger` mapping from the supported syntax below. Evaluated for the subject country. |
+| `mean_time_to_happen` | Optional positive unsigned 64-bit integer in game days. While the trigger is true, each day has probability `1 / mean_time_to_happen` using a deterministic draw keyed by seed, tick, country ID and event key. Omission means no random automatic firing. |
+| `repeatable` | Optional Boolean, default `false`. A nonrepeatable event can fire once per country. |
+| `cooldown_days` | Positive unsigned 64-bit game days, required only when `repeatable: true`; counts after resolution. A pending choice never duplicates. |
+| `options` | Nonempty ordered list of option mappings. At least one base AI weight must be positive. |
+| `options[].text` | ASCII snake_case localization key. |
+| `options[].effects` | Ordered list of supported `Effect` mappings below; may be empty. |
+| `options[].ai_weight` | Required nonnegative unsigned 32-bit integer weight, unitless. |
+| `options[].ai_weight_if` | Optional `{when: Trigger, add: signed i32 integer}`. When true, add to the base weight and clamp below at zero. If every adjusted option weighs zero, AI uses the base weights. |
+
+Example:
+
+```yaml
+key: harvest_festival
+title: event_harvest_title
+desc: event_harvest_desc
+trigger: {not: {at_war: true}}
+mean_time_to_happen: 365
+repeatable: true
+cooldown_days: 365
+options:
+  - text: event_harvest_accept
+    ai_weight: 10
+    ai_weight_if: {when: {country_has_tech: agrarian_reform}, add: 5}
+    effects:
+      - add_modifier: {key: harvest_tax, value: 100, kind: multiplicative, duration_days: 30}
+  - text: event_harvest_decline
+    ai_weight: 1
+    effects: []
+```
 
 ## Scenarios (`data/scenarios/<year>.json`)
 
@@ -370,15 +412,40 @@ canonical bytes; older versions retain their prior encoding and hash.
 An active alliance between two countries directly at war is invalid and
 rejected on load.
 
-### Royal marriage migration (save v7 after war-participant v6)
+## Saved games (schema version 6)
+
+An active war with supporters or a completed coalition truce uses save schema
+v6 and hash domain `strategy:game-state:v6` followed by NUL and canonical
+save bytes. Earlier states retain their previous version and byte encoding.
+The `wars[]` records gain optional `attacker_supporters` and
+`defender_supporters` arrays of positive unsigned 32-bit country IDs, sorted
+ascending without duplicates. Leaders must not appear in either array, a
+country cannot join both sides, and each country can be in only one active
+war. Empty arrays are omitted on save.
+
+`military.coalition_truces` is an optional sorted array of `{a,b,concluded_at}`
+records, where `a` and `b` are positive unsigned 32-bit country IDs with
+`a < b`, and `concluded_at` is an unsigned 64-bit game tick no later than the
+saved tick. Each record represents a former opposing pair other than the
+original leaders. Empty arrays are omitted. The original leader pair stays
+in `military.treaties`. A peace creates a truce for every opposing pair, all
+using the same `military.rules.truce_ticks` duration. V1 through v5 saves
+remain readable with their original map identity.
+
+## Saved games (schema version 7)
+
+V7 uses hash domain `strategy:game-state:v7` followed by NUL and canonical
+save bytes. New scenario states with known character sex use v7 even before a
+marriage is offered. Older saves keep their earlier version and hash.
 
 New character snapshots store `sex` (`male` or `female`) and `spouse` (omitted
-when unmarried, otherwise another character ID). Spouse links are reciprocal, cross-country, opposite-sex,
-living and adult on the saved date. Pending marriage offers are directed
-character-ID pairs with a Gregorian expiry, valid for 30 game days. A marriage
-temporarily adds 20 points to each country's effective opinion, clamped to
-the normal opinion range; it never changes base opinion. Character death clears
-both spouse links. Old v1–v6 saves lacking `sex` load with internal `Unknown`;
-those characters cannot enter a new royal marriage. New scenario content must
-always provide `male` or `female`. The first 1440 slice has no female character
-entry, so an eligible historical pair awaits the M11 content pass.
+when unmarried, otherwise another character ID). Spouse links are reciprocal,
+cross-country, opposite-sex, living and adult on the saved date. Pending
+marriage offers are directed character-ID pairs with a Gregorian expiry, valid
+for 30 game days. A marriage temporarily adds 20 points to each country's
+effective opinion, clamped to the normal opinion range; it never changes base
+opinion. Character death clears both spouse links. Old v1–v6 saves lacking
+`sex` load with internal `Unknown`; those characters cannot enter a new royal
+marriage. New scenario content must always provide `male` or `female`. The first
+1440 slice has no female character entry, so historical marriage content awaits
+M11.

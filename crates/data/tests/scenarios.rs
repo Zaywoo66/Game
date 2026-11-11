@@ -158,6 +158,23 @@ fn royal_marriage_save_preserves_spouse_and_effective_opinion() {
         )
         .unwrap();
     let pending = save_game(&state).unwrap();
+    let pending_json: Value = serde_json::from_slice(&pending).unwrap();
+    assert_eq!(pending_json["schema_version"], json!(7));
+    let mut wrong_version = pending_json.clone();
+    wrong_version["schema_version"] = json!(5);
+    assert!(matches!(
+        load_game(&serde_json::to_vec(&wrong_version).unwrap(), graph()),
+        Err(SaveError::VersionMarriageMismatch(5))
+    ));
+    let mut missing_sex = pending_json.clone();
+    missing_sex["state"]["polity"]["characters"][0]
+        .as_object_mut()
+        .unwrap()
+        .remove("sex");
+    assert!(matches!(
+        load_game(&serde_json::to_vec(&missing_sex).unwrap(), graph()),
+        Err(SaveError::VersionMarriageMismatch(7))
+    ));
     assert_eq!(load_game(&pending, graph()).unwrap(), state);
     state
         .apply(
@@ -430,7 +447,7 @@ fn rejects_duplicate_human_slots_and_paths_outside_the_resolver_contract() {
 }
 
 #[test]
-fn save_v2_round_trips_country_economy_characters_profiles_and_rules() {
+fn current_save_round_trips_country_economy_characters_profiles_and_rules() {
     let mut state = m3_state();
     for _ in 0..62 {
         state.tick(|_, _| Vec::new()).unwrap();
@@ -443,7 +460,7 @@ fn save_v2_round_trips_country_economy_characters_profiles_and_rules() {
         .all(|country| country.economy.last_month.is_some()));
     let bytes = save_game(&state).unwrap();
     let fields: Value = serde_json::from_slice(&bytes).unwrap();
-    assert_eq!(fields["schema_version"], 2);
+    assert_eq!(fields["schema_version"], 7);
     assert!(fields["state"]["polity"].is_object());
 
     let restored = load_game(&bytes, graph()).unwrap();
@@ -507,11 +524,11 @@ fn m4_scenario_validates_fort_references_and_rules() {
 }
 
 #[test]
-fn save_v3_round_trips_military_rules_and_forts() {
+fn current_save_round_trips_military_rules_and_forts() {
     let state = original();
     let bytes = save_game(&state).unwrap();
     let json: Value = serde_json::from_slice(&bytes).unwrap();
-    assert_eq!(json["schema_version"], 3);
+    assert_eq!(json["schema_version"], 7);
     assert_eq!(
         json["state"]["military"]["forts"].as_array().unwrap().len(),
         7
@@ -547,6 +564,7 @@ fn save_v3_rejects_bad_versions_and_military_records() {
         Err(SaveError::InvalidMilitary(_))
     ));
 
+    save["schema_version"] = json!(3);
     save["state"].as_object_mut().unwrap().remove("military");
     assert!(matches!(
         load_game(&serde_json::to_vec(&save).unwrap(), graph()),
@@ -625,6 +643,8 @@ fn save_v3_preserves_active_armies_movement_sieges_and_treaties() {
         War {
             attacker,
             defender,
+            attacker_supporters: Default::default(),
+            defender_supporters: Default::default(),
             goal,
             started_at: Tick::ZERO,
             score: -15,
@@ -654,6 +674,50 @@ fn save_v3_preserves_active_armies_movement_sieges_and_treaties() {
     );
     military.next_army_id = 3;
     military.next_war_id = 3;
+
+    let mut coalition = military.clone();
+    coalition
+        .wars
+        .get_mut(&active)
+        .unwrap()
+        .attacker_supporters
+        .insert(castile);
+    coalition
+        .coalition_truces
+        .insert((castile.min(portugal), castile.max(portugal)), Tick::ZERO);
+    let mut coalition_diplomacy = DiplomacyState::default();
+    coalition_diplomacy
+        .alliances
+        .insert((castile.min(portugal), castile.max(portugal)));
+    let coalition_state = state
+        .clone()
+        .with_diplomacy(coalition_diplomacy)
+        .unwrap()
+        .with_war_state(coalition)
+        .unwrap();
+    let coalition_bytes = save_game(&coalition_state).unwrap();
+    let coalition_json: Value = serde_json::from_slice(&coalition_bytes).unwrap();
+    assert_eq!(coalition_json["schema_version"], json!(7));
+    assert_eq!(
+        coalition_json["state"]["military"]["wars"][0]["attacker_supporters"],
+        json!([castile.get()])
+    );
+    assert_eq!(
+        coalition_json["state"]["military"]["coalition_truces"][0]["concluded_at"],
+        json!(0)
+    );
+    let coalition_loaded = load_game(&coalition_bytes, graph()).unwrap();
+    assert_eq!(coalition_loaded, coalition_state);
+    assert_eq!(
+        state_hash(&coalition_loaded).unwrap(),
+        state_hash(&coalition_state).unwrap()
+    );
+    let mut wrong_version = coalition_json.clone();
+    wrong_version["schema_version"] = json!(5);
+    assert!(matches!(
+        load_game(&serde_json::to_vec(&wrong_version).unwrap(), graph()),
+        Err(SaveError::VersionCoalitionMismatch(5))
+    ));
 
     let state = state.with_war_state(military).unwrap();
     let bytes = save_game(&state).unwrap();

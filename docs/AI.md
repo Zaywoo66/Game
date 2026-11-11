@@ -41,6 +41,10 @@ armies, splits oversized armies, and retreats when outnumbered with low
 morale. It offers or accepts cession according to occupation, war score
 and relative strength. A two-year stalemate allows white peace. Every
 military order includes a score and reason in the per-country decision log.
+In a war with supporters, L1 treats all opposing participants as enemies,
+moves and retreats supporter armies using the same validated commands, and
+leaves peace proposals and acceptance to the original war leaders. The
+guarantee task will add the decision to enter an existing war.
 
 The first L2 alliance slice answers pending offers through `Command`s. A
 nonnegative opinion at or above the profile's `alliance_min_opinion` accepts.

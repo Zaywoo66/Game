@@ -7,14 +7,16 @@ Host-authoritative. Host runs sim. Client sends `Command`s, receives `Delta`s an
 `tokio` + TCP with Postcard 1.1.3 payloads and a big-endian unsigned 32-bit
 length prefix. Client frames are bounded to 64 KiB and server frames to
 8 MiB. Readers run dedicated tasks so cancellation cannot consume part of
-the next frame. The handshake validates protocol version 3 and both map
+the next frame. The handshake validates protocol version 5 and both map
 identity fields before accepting a guest.
 
-## Messages (v3)
-- Client->Host: `Hello{version,name,map_version,map_hash,resume}`, `Confirm{resume}`, `Command{seq,command}`, `PauseRequest{seq,paused}`, `Ping{nonce}`, `Pong{nonce}`, `Resync`. Commands include validated alliance offer, accept, reject and break actions.
+## Messages (v5)
+- Client->Host: `Hello{version,name,map_version,map_hash,resume}`, `Confirm{resume}`, `Command{seq,command}`, `PauseRequest{seq,paused}`, `Ping{nonce}`, `Pong{nonce}`, `Resync`. Commands include validated alliance and royal-marriage offer, accept and reject actions.
 - Host->Client: `Welcome{player_id}`, `Snapshot{state}` (join/resync), `Delta{tick,changes}`, `CommandRejected{seq,reason}`, `Checksum{tick,hash}`, `Pause{bool}`, `Speed{n}`, `Ping{nonce}`, `Pong{nonce}`.
 - Either human player can pause or resume. Only the host sets speed (D2).
-- Either peer may send a `Ping{nonce}` and receive a matching `Pong{nonce}` to measure round-trip time. Protocol v1/v2 builds are rejected. Use the same build on both PCs.
+- Either peer may send a `Ping{nonce}` and receive a matching `Pong{nonce}` to measure round-trip time. Protocol v1–v4 builds are rejected. Use the same build on both PCs.
+- V4 adds coalition participants to the canonical save snapshots; command messages are unchanged.
+- V5 adds royal-marriage commands and v7 character/marriage data to canonical save snapshots.
 - See [LAN_ACCEPTANCE.md](LAN_ACCEPTANCE.md) for the two-PC checklist and `--lan-log` mode.
 - Welcome includes a private 128-bit resume token. The guest confirms it
   after parsing its first snapshot. A disconnected, unconfirmed handshake

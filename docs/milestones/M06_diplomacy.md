@@ -10,6 +10,11 @@ Docs: SIM_RULES.md, DATA_FORMATS.md
 - Every action has validation + typed reason + unit test
 - Player-to-player proposal accepted/rejected end-to-end over the network
 
+Royal-marriage mechanics, AI and wire commands have synthetic tests. The full
+player-to-player UI acceptance remains open with the wider M6 diplomacy screen.
+The 1440 content has no eligible female character or modeled prior spouse;
+historical marriage content belongs to M11.
+
 ## AI slice (required)
 Docs: AI.md
 - **AI L2**: AI answers proposals using the same acceptance formula shown to humans, proposes alliances/guarantees/marriages/truces, reacts to threats and broken treaties

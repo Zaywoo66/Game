@@ -18,10 +18,11 @@ fn identity() -> MapIdentity {
 #[test]
 fn handshake_rejects_each_incompatible_identity_component() {
     let map = identity();
+    assert_eq!(PROTOCOL_VERSION, 5);
     assert_eq!(validate_hello(PROTOCOL_VERSION, 2, [42; 32], map), Ok(()));
     assert_eq!(
-        validate_hello(1, 2, [42; 32], map),
-        Err(HandshakeError::ProtocolVersion { received: 1 })
+        validate_hello(3, 2, [42; 32], map),
+        Err(HandshakeError::ProtocolVersion { received: 3 })
     );
     assert_eq!(
         validate_hello(PROTOCOL_VERSION, 1, [42; 32], map),

@@ -1,0 +1,13 @@
+key: bad_numbers
+title: event_bad_numbers_title
+desc: event_bad_numbers_desc
+trigger: {at_war: false}
+mean_time_to_happen: 012
+repeatable: true
+cooldown_days: 1_000
+options:
+  - text: event_bad_numbers_choice
+    ai_weight: +10
+    ai_weight_if: {when: {at_war: false}, add: -01}
+    effects:
+      - add_modifier: {key: bad_number, value: 0x10, kind: additive, duration_days: 30}

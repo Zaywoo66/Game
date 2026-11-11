@@ -8,8 +8,8 @@ use strategy_sim::{
     Controller, CountryId, CountryPolity, CountryState, Date, DiplomacyError, EconomyState,
     EdgeKind, FiscalAiProfile, Fixed, GameState, MapIdentity, ModKey, ModifierStore, Opinion,
     PlayerId, PolityRules, PolityState, Province, ProvinceEdge, ProvinceGraph, ProvinceId,
-    ProvinceKind, SimTime, Speed, StateChange, SuccessionState, TickReport, WarError, WarId,
-    WarRules, WarState,
+    ProvinceKind, SimTime, Speed, StateChange, SuccessionState, TickReport, War, WarError, WarId,
+    WarRules, WarSide, WarState,
 };
 
 #[test]
@@ -604,6 +604,94 @@ fn a_scripted_war_resolves_battle_siege_and_occupation_before_peace_transfers_th
 }
 
 #[test]
+fn supporter_fights_and_besieges_but_only_leaders_make_peace_and_all_opponents_get_truces() {
+    let mut state = setup_coalition(|_| {});
+    let supporter = CommandActor::Host(PlayerId::new(3));
+    let war = &state.war_state().unwrap().wars[&WAR];
+    assert_eq!(war.side(C), Some(WarSide::Attacker));
+    assert!(war.opposed(C, B));
+    assert!(state.country_at_war(C));
+    assert_eq!(
+        state.validate_command(
+            supporter,
+            &Command::OfferPeace {
+                country: C,
+                war: WAR,
+                cede_goal: false
+            }
+        ),
+        Err(CommandError::War(WarError::NotWarLeader))
+    );
+
+    raise(&mut state, supporter, C, 6, 200);
+    raise(&mut state, GUEST, B, 5, 50);
+    apply(
+        &mut state,
+        supporter,
+        Command::MoveArmy {
+            country: C,
+            army: FIRST_ARMY,
+            destination: province(5),
+        },
+    );
+    let battle = day(&mut state);
+    assert!(battle.delta.changes().iter().any(|change| matches!(
+        change,
+        StateChange::BattleResolved { war: WAR, province: battlefield, winner: C, loser: B, .. }
+            if *battlefield == province(5)
+    )));
+    for _ in 0..4 {
+        day(&mut state);
+    }
+    assert_eq!(state.war_state().unwrap().occupation(province(5)), Some(C));
+    assert!(state.war_state().unwrap().wars[&WAR].score >= 40);
+    apply(
+        &mut state,
+        HOST,
+        Command::OfferPeace {
+            country: A,
+            war: WAR,
+            cede_goal: false,
+        },
+    );
+    assert_eq!(
+        state.validate_command(
+            supporter,
+            &Command::AcceptPeace {
+                country: C,
+                war: WAR
+            }
+        ),
+        Err(CommandError::War(WarError::NotWarLeader))
+    );
+    apply(
+        &mut state,
+        GUEST,
+        Command::AcceptPeace {
+            country: B,
+            war: WAR,
+        },
+    );
+    assert_eq!(state.owner_of_province(province(5)), Some(B));
+    assert!(!state.country_at_war(C));
+    assert_eq!(
+        state.war_state().unwrap().coalition_truces.get(&(B, C)),
+        Some(&state.time().tick())
+    );
+    assert_eq!(
+        state.validate_command(
+            supporter,
+            &Command::DeclareWar {
+                country: C,
+                defender: B,
+                goal: province(5),
+            }
+        ),
+        Err(CommandError::War(WarError::TruceActive))
+    );
+}
+
+#[test]
 fn splitting_does_not_create_more_supply_for_the_same_country_and_province() {
     let mut state = setup(|rules| {
         rules.base_supply = 4;
@@ -654,6 +742,14 @@ fn day(state: &mut GameState) -> TickReport {
 }
 
 fn setup(tune: impl FnOnce(&mut WarRules)) -> GameState {
+    setup_internal(tune, false)
+}
+
+fn setup_coalition(tune: impl FnOnce(&mut WarRules)) -> GameState {
+    setup_internal(tune, true)
+}
+
+fn setup_internal(tune: impl FnOnce(&mut WarRules), coalition: bool) -> GameState {
     let graph = ProvinceGraph::try_new(
         identity(),
         [
@@ -715,6 +811,16 @@ fn setup(tune: impl FnOnce(&mut WarRules)) -> GameState {
         },
         succession: SuccessionState::default(),
     };
+    let mut polity_countries = BTreeMap::from([
+        (A, polity_country("first", 1, &[1, 2, 3])),
+        (
+            B,
+            polity_country("second", 4, if coalition { &[4, 5] } else { &[4, 5, 6] }),
+        ),
+    ]);
+    if coalition {
+        polity_countries.insert(C, polity_country("third", 6, &[6]));
+    }
     let polity = PolityState {
         rules: PolityRules {
             adulthood_years: 18,
@@ -725,10 +831,7 @@ fn setup(tune: impl FnOnce(&mut WarRules)) -> GameState {
             debt_limit: Fixed::ZERO,
             income_modifier: ModKey::new("income"),
         },
-        countries: BTreeMap::from([
-            (A, polity_country("first", 1, &[1, 2, 3])),
-            (B, polity_country("second", 4, &[4, 5, 6])),
-        ]),
+        countries: polity_countries,
         characters: BTreeMap::new(),
         ai_profiles: BTreeMap::from([(
             "test_profile".to_owned(),
@@ -761,17 +864,39 @@ fn setup(tune: impl FnOnce(&mut WarRules)) -> GameState {
         morale_modifier: ModKey::new("army_morale"),
     };
     tune(&mut rules);
+    let mut country_states = BTreeMap::from([(A, country(1)), (B, country(2))]);
+    if coalition {
+        country_states.insert(C, country(3));
+    }
+    let mut military = WarState::new(rules, BTreeMap::from([(province(5), 2)]));
+    if coalition {
+        military.wars.insert(
+            WAR,
+            War {
+                attacker: A,
+                defender: B,
+                attacker_supporters: BTreeSet::from([C]),
+                defender_supporters: BTreeSet::new(),
+                goal: province(5),
+                started_at: strategy_sim::Tick::new(0),
+                score: 0,
+                occupations: BTreeMap::new(),
+                offer: None,
+            },
+        );
+        military.next_war_id = 2;
+    }
     GameState::new(
         SimTime::new(Date::new(1440, 1, 1).unwrap(), Speed::One, false),
         42,
         graph,
-        BTreeMap::from([(A, country(1)), (B, country(2))]),
+        country_states,
         [],
     )
     .unwrap()
     .with_polity(polity)
     .unwrap()
-    .with_war_state(WarState::new(rules, BTreeMap::from([(province(5), 2)])))
+    .with_war_state(military)
     .unwrap()
 }
 

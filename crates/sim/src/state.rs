@@ -707,11 +707,9 @@ impl GameState {
     }
 
     pub fn directly_at_war(&self, a: CountryId, b: CountryId) -> bool {
-        self.war_state.as_ref().is_some_and(|state| {
-            state.wars.values().any(|war| {
-                (war.attacker == a && war.defender == b) || (war.attacker == b && war.defender == a)
-            })
-        })
+        self.war_state
+            .as_ref()
+            .is_some_and(|state| state.wars.values().any(|war| war.opposed(a, b)))
     }
 
     /// A third country with land borders to both parties and more active soldiers
@@ -773,7 +771,7 @@ impl GameState {
             war_state
                 .wars
                 .values()
-                .any(|war| diplomacy.allied(war.attacker, war.defender))
+                .any(|war| diplomacy.alliances.iter().any(|&(a, b)| war.opposed(a, b)))
         }) {
             return Err(WarError::AllianceActive);
         }
