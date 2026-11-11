@@ -20,3 +20,4 @@ id_type!(ProvinceId, "Stable numeric identifier for a province.");
 id_type!(CountryId, "Stable numeric identifier for a country.");
 id_type!(CharacterId, "Stable numeric identifier for a character.");
 id_type!(ArmyId, "Stable numeric identifier for an army.");
+id_type!(PlayerId, "Stable numeric identifier for a human player.");

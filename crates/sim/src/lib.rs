@@ -6,12 +6,13 @@ mod ids;
 mod modifiers;
 mod province_graph;
 mod rng;
+mod state;
 mod time;
 mod trigger;
 
 pub use effect::{Effect, EffectError, PreparedModifier};
 pub use fixed::Fixed;
-pub use ids::{ArmyId, CharacterId, CountryId, ProvinceId};
+pub use ids::{ArmyId, CharacterId, CountryId, PlayerId, ProvinceId};
 pub use modifiers::{
     effective_value, ModKey, Modifier, ModifierInsertError, ModifierKind, ModifierSourceId,
     ModifierStore,
@@ -21,6 +22,11 @@ pub use province_graph::{
     ProvinceGraphError, ProvinceKind,
 };
 pub use rng::{derive_ai_rng, SeededRng};
+pub use state::{
+    AiCommandRejection, AiProfileKey, Command, CommandActor, CommandError, Controller,
+    CountryState, Delta, GameState, ScheduleError, ScheduledEffect, ScheduledEffectFailure,
+    StateChange, TickReport,
+};
 pub use time::{
     Date, InvalidDate, InvalidSpeed, SimTime, Speed, Tick, TimeActor, TimeCommand, TimeError,
 };
