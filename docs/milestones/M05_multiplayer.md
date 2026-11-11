@@ -10,3 +10,10 @@ Docs: NETWORK.md, ARCHITECTURE.md
 ## Acceptance
 - Two machines on one LAN play 1 hour with zero checksum mismatches
 - Firewall and router-isolation troubleshooting written in README
+
+## AI slice (required)
+Docs: AI.md
+- AI runs on host only; clients receive AI effects as ordinary deltas
+- Lobby: host chooses which countries are human-controlled; the rest are AI. AI aggressiveness preset selectable
+- Disconnect handling per DECISIONS D8: country held, then optional temporary AI takeover by host; reconnect returns control
+- Acceptance add-on: 2 humans + AI countries for 1 hour, no checksum mismatches, AI actions visible to both clients

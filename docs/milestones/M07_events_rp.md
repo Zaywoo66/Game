@@ -9,3 +9,9 @@ Docs: DATA_FORMATS.md, SIM_RULES.md
 ## Acceptance
 - Events fire deterministically by seed; data linter rejects unknown triggers/effects
 - Both players see and resolve their own events in multiplayer
+
+## AI slice (required)
+Docs: AI.md
+- **AI L3 (events)**: AI picks event options by `ai_weight` and profile; weights required for every option in data
+- Data linter fails if an event option lacks `ai_weight`
+- Acceptance add-on: AI-only run fires events without stalling on pending choices

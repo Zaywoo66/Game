@@ -24,3 +24,8 @@ Host keeps player slot for X minutes; reconnecting client receives `Snapshot`.
 
 ## Tests
 Loopback integration tests: host + 1 client in one process, scripted commands, assert identical hashes after 10k ticks.
+
+## Lobby and controllers
+- The host chooses which countries are human-controlled. All others use AI. Only the host runs AI.
+- Messages: `Lobby{countries:[{tag,controller}]}`, `ClaimCountry{tag}`, and `SetController{tag,controller}` (host only).
+- When a player disconnects, their country is held for a grace period. The host may then enable temporary AI. Reconnecting restores human control (D8).

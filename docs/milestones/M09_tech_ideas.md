@@ -8,3 +8,8 @@ Docs: DATA_FORMATS.md, SIM_RULES.md
 
 ## Acceptance
 - Data linter detects cycles and missing prerequisites; modifiers show in tooltips with sources
+
+## AI slice (required)
+Docs: AI.md
+- **AI L3 (tech/ideas)**: choose technologies and ideas according to profile and current needs (war, economy)
+- Acceptance add-on: AI-only run shows tech progress for all countries within sane bounds
