@@ -1,0 +1,8 @@
+schema_version: 1
+branch: military
+technologies:
+  - key: military_drill
+    cost: 10
+    requires: [unknown_tech]
+    pos: {x: 0, y: 0}
+    effects: []

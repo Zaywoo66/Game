@@ -1,6 +1,10 @@
 # M9 Technology and ideas
 Docs: DATA_FORMATS.md, SIM_RULES.md
 
+Progress: technology YAML v1 contract, prerequisite-DAG data linter, and typed
+Rust loader are in progress. Research points, unlocks, ideas, reforms,
+tech-tree UI, and AI choices remain open.
+
 ## Tasks
 - Tech DAG loader, research points, unlock effects as modifiers
 - Unique ideas per country, government reforms

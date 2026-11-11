@@ -62,6 +62,8 @@ export interface WarView {
   id: number;
   attacker_id: number;
   defender_id: number;
+  attacker_supporters: number[];
+  defender_supporters: number[];
   goal_province_id: number;
   score: number;
   occupations: { province_id: number; country_id: number }[];
@@ -90,6 +92,7 @@ export interface GameSnapshot {
   clock: ClockView;
   local_country_id: number | null;
   countries: CountryView[];
+  guarantees: { guarantor_id: number; protected_id: number }[];
   owners: { province_id: number; country_id: number }[];
   max_tax_rate: number;
   max_monthly_spending: string;
@@ -107,6 +110,7 @@ interface GameUpdate {
   sequence: number;
   clock: ClockView;
   countries: CountryView[];
+  guarantees: { guarantor_id: number; protected_id: number }[];
   armies?: ArmyView[];
   removed_armies?: number[];
   fleets?: FleetView[];
@@ -130,7 +134,8 @@ export type GameCommand =
   | { type: 'disembark_army'; country_id: number; fleet_id: number; destination: number }
   | { type: 'declare_war'; country_id: number; defender_id: number; goal_province_id: number }
   | { type: 'offer_peace'; country_id: number; war_id: number; cede_goal: boolean }
-  | { type: 'accept_peace'; country_id: number; war_id: number };
+  | { type: 'accept_peace'; country_id: number; war_id: number }
+  | { type: 'guarantee' | 'revoke_guarantee'; country_id: number; protected_id: number };
 
 interface TauriBridge {
   core: { invoke<T>(name: string, args?: Record<string, unknown>): Promise<T> };
@@ -173,6 +178,7 @@ function applyUpdate(snapshot: GameSnapshot, update: GameUpdate): GameSnapshot {
     sequence: update.sequence,
     clock: update.clock,
     countries: updateRows(snapshot.countries, update.countries) ?? snapshot.countries,
+    guarantees: update.guarantees,
     owners,
     armies: updateRows(snapshot.armies, update.armies, update.removed_armies),
     fleets: updateRows(snapshot.fleets, update.fleets, update.removed_fleets),

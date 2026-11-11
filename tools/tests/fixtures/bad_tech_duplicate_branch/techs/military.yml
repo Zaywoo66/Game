@@ -1,0 +1,8 @@
+schema_version: 1
+branch: military
+technologies:
+  - key: pike_square
+    cost: 100
+    requires: []
+    pos: {x: 1, y: 0}
+    effects: []

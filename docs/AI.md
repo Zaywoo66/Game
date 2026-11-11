@@ -43,8 +43,7 @@ and relative strength. A two-year stalemate allows white peace. Every
 military order includes a score and reason in the per-country decision log.
 In a war with supporters, L1 treats all opposing participants as enemies,
 moves and retreats supporter armies using the same validated commands, and
-leaves peace proposals and acceptance to the original war leaders. The
-guarantee task will add the decision to enter an existing war.
+leaves peace proposals and acceptance to the original war leaders.
 
 The first L2 alliance slice answers pending offers through `Command`s. A
 nonnegative opinion at or above the profile's `alliance_min_opinion` accepts.
@@ -54,6 +53,29 @@ strictly exceed each party's total; the derived country/tick RNG then gives a
 10% acceptance chance. Without that threat, AI rejects. AI proposes legal
 alliances on a staggered 31-tick cadence. The read-only factor query reports
 opinion, profile minimum, common threat and direct war for human tooltips.
+On its 31-tick diplomacy cadence, an AI can guarantee a non-allied country
+when its opinion meets its profile's alliance minimum and both countries
+border a stronger third country. The AI issues only the validated guarantee
+command. Entering a defensive war follows the guarantee automatically; AI
+military orders then use the existing supporter-side rules. AI does not revoke
+guarantees periodically.
+
+M7 event choices are read from the authoritative pending-event state. For each
+AI country the host chooses at most one pending event per tick in event-key
+order. The AI adds the one conditional weight when its trigger is true, clamps
+negative results to zero and falls back to base weights if all adjusted
+weights are zero. A keyed seeded draw selects the option, and the AI submits a
+`ChooseEvent` command through the ordinary validation path. It never changes
+the pending event directly.
+
+Royal-marriage AI uses a separate read-only factor list: effective opinion
+toward the proposer, `marriage_min_opinion`, and legal named-character pair.
+It accepts a legal offer when effective opinion meets the data profile's
+threshold, otherwise rejects. Human acceptance has no opinion threshold.
+On the same staggered 31-tick L2 cadence, an AI may offer a legal marriage
+to the highest-opinion country; stable character ID order breaks ties. This
+choice uses no random draw. The current 1440 content has no eligible woman,
+so the behavior is covered with a synthetic scenario until M11 content work.
 
 Run the same host tick without a window with
 `cargo run --locked -p strategy-app --bin ai-smoke -- 3653 1440 1441 1442`.

@@ -302,10 +302,10 @@ fn map_version_and_hash_are_checked_before_decoding_state() {
 fn malformed_records_are_rejected() {
     let graph = || parse_provinces(MAP).unwrap();
     let mut save = saved();
-    save["schema_version"] = json!(7);
+    save["schema_version"] = json!(10);
     assert!(matches!(
         from_value(&save, graph()),
-        Err(SaveError::UnsupportedSchemaVersion(7))
+        Err(SaveError::UnsupportedSchemaVersion(10))
     ));
 
     let mut save = saved();

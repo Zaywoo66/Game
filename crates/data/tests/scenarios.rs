@@ -1,9 +1,13 @@
-use std::{collections::BTreeSet, fs, io, path::PathBuf};
+use std::{
+    collections::{BTreeMap, BTreeSet},
+    fs, io,
+    path::PathBuf,
+};
 
 use serde_json::{json, Value};
 use strategy_data::{
-    load_game, load_provinces, load_scenario, load_scenario_from_reader, parse_provinces,
-    save_game, state_hash, SaveError, ScenarioLoadError,
+    load_game, load_provinces, load_scenario, load_scenario_from_reader, parse_event_yaml,
+    parse_provinces, save_game, state_hash, SaveError, ScenarioLoadError,
 };
 use strategy_sim::{
     Controller, DiplomacyError, DiplomacyState, GameState, Opinion, ProvinceGraph, ProvinceKind,
@@ -56,6 +60,206 @@ fn scenario_opinions_resolve_country_keys_and_validate_bounds() {
     }
 }
 
+#[test]
+fn pre_marriage_save_without_sex_loads_as_unknown() {
+    let mut saved: Value = serde_json::from_slice(&save_game(&m3_state()).unwrap()).unwrap();
+    saved["schema_version"] = json!(2);
+    for character in saved["state"]["polity"]["characters"]
+        .as_array_mut()
+        .unwrap()
+    {
+        character.as_object_mut().unwrap().remove("sex");
+        character.as_object_mut().unwrap().remove("spouse");
+    }
+    for profile in saved["state"]["polity"]["ai_profiles"]
+        .as_array_mut()
+        .unwrap()
+    {
+        profile["thresholds"]
+            .as_object_mut()
+            .unwrap()
+            .remove("marriage_min_opinion");
+    }
+    let loaded = load_game(&serde_json::to_vec(&saved).unwrap(), graph()).unwrap();
+    assert!(loaded
+        .polity()
+        .unwrap()
+        .characters
+        .values()
+        .all(|character| character.sex == strategy_sim::Sex::Unknown));
+}
+
+#[test]
+fn character_v2_requires_binary_sex_content() {
+    for invalid_sex in [Value::Null, json!("unknown"), json!(1)] {
+        let loaded = load_scenario_from_reader(graph(), "1440", |logical| {
+            let bytes = legacy_read(logical)?;
+            if logical != "characters/henry_vi.json" {
+                return Ok(bytes);
+            }
+            let mut character: Value = serde_json::from_slice(&bytes).unwrap();
+            character["sex"] = invalid_sex.clone();
+            Ok(serde_json::to_vec(&character).unwrap())
+        });
+        assert!(loaded.is_err());
+    }
+}
+
+#[test]
+fn character_spouse_reference_requires_a_reciprocal_eligible_pair() {
+    let loaded = load_scenario_from_reader(graph(), "1440", |logical| {
+        let bytes = legacy_read(logical)?;
+        if logical != "characters/henry_vi.json" {
+            return Ok(bytes);
+        }
+        let mut character: Value = serde_json::from_slice(&bytes).unwrap();
+        character["spouse"] = json!("james_ii_scotland");
+        Ok(serde_json::to_vec(&character).unwrap())
+    });
+    assert!(loaded.is_err());
+}
+
+#[test]
+fn royal_marriage_save_preserves_spouse_and_effective_opinion() {
+    let original = m3_state();
+    let find = |tag: &str| {
+        original
+            .polity()
+            .unwrap()
+            .countries
+            .iter()
+            .find_map(|(&id, nation)| (nation.tag == tag).then_some(id))
+            .unwrap()
+    };
+    let from = find("fra");
+    let toward = find("cas");
+    let mut polity = original.polity().unwrap().clone();
+    let character = polity.countries[&from].succession.ruler.unwrap();
+    let partner = polity.countries[&toward].succession.ruler.unwrap();
+    polity.characters.get_mut(&partner).unwrap().sex = strategy_sim::Sex::Female;
+    let mut state = GameState::new(
+        *original.time(),
+        original.seed(),
+        graph(),
+        original
+            .countries()
+            .map(|(id, country)| (id, country.clone()))
+            .collect(),
+        [],
+    )
+    .unwrap()
+    .with_polity(polity)
+    .unwrap();
+    state
+        .apply(
+            strategy_sim::CommandActor::Ai(from),
+            &strategy_sim::Command::OfferRoyalMarriage {
+                country: from,
+                character,
+                toward,
+                partner,
+            },
+        )
+        .unwrap();
+    let pending = save_game(&state).unwrap();
+    let pending_json: Value = serde_json::from_slice(&pending).unwrap();
+    assert_eq!(pending_json["schema_version"], json!(7));
+    let mut wrong_version = pending_json.clone();
+    wrong_version["schema_version"] = json!(5);
+    assert!(matches!(
+        load_game(&serde_json::to_vec(&wrong_version).unwrap(), graph()),
+        Err(SaveError::VersionMarriageMismatch(5))
+    ));
+    let mut missing_sex = pending_json.clone();
+    missing_sex["state"]["polity"]["characters"][0]
+        .as_object_mut()
+        .unwrap()
+        .remove("sex");
+    let mixed = load_game(&serde_json::to_vec(&missing_sex).unwrap(), graph()).unwrap();
+    assert_eq!(
+        mixed
+            .polity()
+            .unwrap()
+            .characters
+            .values()
+            .next()
+            .unwrap()
+            .sex,
+        strategy_sim::Sex::Unknown
+    );
+    assert_eq!(
+        serde_json::from_slice::<Value>(&save_game(&mixed).unwrap()).unwrap(),
+        missing_sex
+    );
+    assert_eq!(load_game(&pending, graph()).unwrap(), state);
+    state
+        .apply(
+            strategy_sim::CommandActor::Ai(toward),
+            &strategy_sim::Command::AcceptRoyalMarriage {
+                country: toward,
+                from,
+                character,
+                partner,
+            },
+        )
+        .unwrap();
+    let married = save_game(&state).unwrap();
+    let restored = load_game(&married, graph()).unwrap();
+    assert_eq!(restored, state);
+    assert_eq!(restored.character(character).unwrap().spouse, Some(partner));
+    assert_eq!(
+        restored.effective_opinion(from, toward).unwrap().points(),
+        20
+    );
+    assert_ne!(
+        state_hash(&restored).unwrap(),
+        state_hash(&load_game(&pending, graph()).unwrap()).unwrap()
+    );
+
+    // A newer guarantee save must retain both earlier payloads and their hash.
+    state
+        .apply(
+            strategy_sim::CommandActor::Ai(from),
+            &strategy_sim::Command::Guarantee {
+                country: from,
+                protected: toward,
+            },
+        )
+        .unwrap();
+    let event = parse_event_yaml(include_str!(
+        "../../../tools/tests/fixtures/good_event/events/harvest.yaml"
+    ))
+    .unwrap();
+    let state = state
+        .with_events(BTreeMap::from([(event.key.clone(), event)]))
+        .unwrap();
+    let bytes = save_game(&state).unwrap();
+    let document: Value = serde_json::from_slice(&bytes).unwrap();
+    assert_eq!(document["schema_version"], json!(9));
+    assert!(document["state"]["events"].is_object());
+    assert_eq!(
+        document["state"]["diplomacy"]["guarantees"][0]["a"],
+        json!(from.get())
+    );
+    let restored = load_game(&bytes, graph()).unwrap();
+    assert_eq!(restored, state);
+    assert_eq!(save_game(&restored).unwrap(), bytes);
+    assert_eq!(state_hash(&restored).unwrap(), state_hash(&state).unwrap());
+
+    let mut wrong_version = document.clone();
+    wrong_version["schema_version"] = json!(8);
+    assert!(matches!(
+        load_game(&serde_json::to_vec(&wrong_version).unwrap(), graph()),
+        Err(SaveError::VersionGuaranteeMismatch(8))
+    ));
+    let mut missing_guarantee = document;
+    missing_guarantee["state"]["diplomacy"]["guarantees"] = json!([]);
+    assert!(matches!(
+        load_game(&serde_json::to_vec(&missing_guarantee).unwrap(), graph()),
+        Err(SaveError::VersionGuaranteeMismatch(9))
+    ));
+}
+
 fn data_root() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data")
 }
@@ -96,6 +300,47 @@ fn m3_state() -> GameState {
         scenario.as_object_mut().unwrap().remove("military");
     })
     .unwrap()
+}
+
+#[test]
+fn guarantee_save_round_trip_preserves_direction_order_and_hash() {
+    let base = original();
+    let country = |tag| {
+        *base
+            .polity()
+            .unwrap()
+            .countries
+            .iter()
+            .find(|(_, country)| country.tag == tag)
+            .unwrap()
+            .0
+    };
+    let portugal = country("por");
+    let castile = country("cas");
+    let england = country("eng");
+    let mut diplomacy = DiplomacyState::default();
+    diplomacy.guarantees.insert((portugal, england));
+    diplomacy.guarantees.insert((castile, england));
+    let state = base.with_diplomacy(diplomacy).unwrap();
+    let bytes = save_game(&state).unwrap();
+    let restored = load_game(&bytes, graph()).unwrap();
+    assert_eq!(restored, state);
+    assert_eq!(state_hash(&restored).unwrap(), state_hash(&state).unwrap());
+    let mut invalid: Value = serde_json::from_slice(&bytes).unwrap();
+    let guarantees = invalid["state"]["diplomacy"]["guarantees"]
+        .as_array_mut()
+        .unwrap();
+    guarantees.reverse();
+    assert!(matches!(
+        load_game(&serde_json::to_vec(&invalid).unwrap(), graph()),
+        Err(SaveError::UnorderedRecords("guarantees"))
+    ));
+    let mut invalid: Value = serde_json::from_slice(&bytes).unwrap();
+    invalid["state"]["diplomacy"]["guarantees"][0]["a"] = json!(0);
+    assert!(matches!(
+        load_game(&serde_json::to_vec(&invalid).unwrap(), graph()),
+        Err(SaveError::InvalidDiplomacy(DiplomacyError::InvalidState))
+    ));
 }
 
 fn edited_file(path: &str, edit: impl FnOnce(&mut Value)) -> Result<GameState, ScenarioLoadError> {
@@ -303,7 +548,7 @@ fn rejects_duplicate_human_slots_and_paths_outside_the_resolver_contract() {
 }
 
 #[test]
-fn save_v2_round_trips_country_economy_characters_profiles_and_rules() {
+fn current_save_round_trips_country_economy_characters_profiles_and_rules() {
     let mut state = m3_state();
     for _ in 0..62 {
         state.tick(|_, _| Vec::new()).unwrap();
@@ -316,7 +561,7 @@ fn save_v2_round_trips_country_economy_characters_profiles_and_rules() {
         .all(|country| country.economy.last_month.is_some()));
     let bytes = save_game(&state).unwrap();
     let fields: Value = serde_json::from_slice(&bytes).unwrap();
-    assert_eq!(fields["schema_version"], 2);
+    assert_eq!(fields["schema_version"], 7);
     assert!(fields["state"]["polity"].is_object());
 
     let restored = load_game(&bytes, graph()).unwrap();
@@ -380,11 +625,11 @@ fn m4_scenario_validates_fort_references_and_rules() {
 }
 
 #[test]
-fn save_v3_round_trips_military_rules_and_forts() {
+fn current_save_round_trips_military_rules_and_forts() {
     let state = original();
     let bytes = save_game(&state).unwrap();
     let json: Value = serde_json::from_slice(&bytes).unwrap();
-    assert_eq!(json["schema_version"], 3);
+    assert_eq!(json["schema_version"], 7);
     assert_eq!(
         json["state"]["military"]["forts"].as_array().unwrap().len(),
         7
@@ -420,6 +665,7 @@ fn save_v3_rejects_bad_versions_and_military_records() {
         Err(SaveError::InvalidMilitary(_))
     ));
 
+    save["schema_version"] = json!(3);
     save["state"].as_object_mut().unwrap().remove("military");
     assert!(matches!(
         load_game(&serde_json::to_vec(&save).unwrap(), graph()),
@@ -552,7 +798,7 @@ fn save_v3_preserves_active_armies_movement_sieges_and_treaties() {
         .unwrap();
     let coalition_bytes = save_game(&coalition_state).unwrap();
     let coalition_json: Value = serde_json::from_slice(&coalition_bytes).unwrap();
-    assert_eq!(coalition_json["schema_version"], json!(6));
+    assert_eq!(coalition_json["schema_version"], json!(7));
     assert_eq!(
         coalition_json["state"]["military"]["wars"][0]["attacker_supporters"],
         json!([castile.get()])

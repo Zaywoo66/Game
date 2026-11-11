@@ -18,7 +18,7 @@ fn identity() -> MapIdentity {
 #[test]
 fn handshake_rejects_each_incompatible_identity_component() {
     let map = identity();
-    assert_eq!(PROTOCOL_VERSION, 4);
+    assert_eq!(PROTOCOL_VERSION, 7);
     assert_eq!(validate_hello(PROTOCOL_VERSION, 2, [42; 32], map), Ok(()));
     assert_eq!(
         validate_hello(3, 2, [42; 32], map),
@@ -149,6 +149,37 @@ fn command_conversion_preserves_raw_fixed_units_and_validates_speed() {
             country: 4,
             other: 9,
         },
+        PlayerCommand::OfferRoyalMarriage {
+            country: 4,
+            character: 10,
+            toward: 9,
+            partner: 20,
+        },
+        PlayerCommand::AcceptRoyalMarriage {
+            country: 9,
+            from: 4,
+            character: 10,
+            partner: 20,
+        },
+        PlayerCommand::RejectRoyalMarriage {
+            country: 9,
+            from: 4,
+            character: 10,
+            partner: 20,
+        },
+        PlayerCommand::ChooseEvent {
+            country: 4,
+            key: "harvest_festival".into(),
+            option: 1,
+        },
+        PlayerCommand::Guarantee {
+            country: 4,
+            protected: 9,
+        },
+        PlayerCommand::RevokeGuarantee {
+            country: 4,
+            protected: 9,
+        },
         PlayerCommand::SetPaused { paused: true },
         PlayerCommand::SetSpeed { speed: 5 },
     ];
@@ -216,6 +247,21 @@ async fn loopback_tcp_exchanges_handshake_command_and_consecutive_frames() {
                 .unwrap();
             assert_eq!(
                 read_client(&mut stream).await.unwrap(),
+                Some(ClientMessage::Command {
+                    seq: 11,
+                    command: PlayerCommand::OfferRoyalMarriage {
+                        country: 1,
+                        character: 10,
+                        toward: 2,
+                        partner: 20
+                    },
+                })
+            );
+            write_server(&mut stream, &ServerMessage::CommandAccepted { seq: 11 })
+                .await
+                .unwrap();
+            assert_eq!(
+                read_client(&mut stream).await.unwrap(),
                 Some(ClientMessage::Ping { nonce: 9 })
             );
             write_server(&mut stream, &ServerMessage::Pong { nonce: 9 })
@@ -273,6 +319,24 @@ async fn loopback_tcp_exchanges_handshake_command_and_consecutive_frames() {
             assert_eq!(
                 read_server(&mut stream).await.unwrap(),
                 Some(ServerMessage::CommandAccepted { seq: 8 })
+            );
+            write_client(
+                &mut stream,
+                &ClientMessage::Command {
+                    seq: 11,
+                    command: PlayerCommand::OfferRoyalMarriage {
+                        country: 1,
+                        character: 10,
+                        toward: 2,
+                        partner: 20,
+                    },
+                },
+            )
+            .await
+            .unwrap();
+            assert_eq!(
+                read_server(&mut stream).await.unwrap(),
+                Some(ServerMessage::CommandAccepted { seq: 11 })
             );
             write_client(&mut stream, &ClientMessage::Ping { nonce: 9 })
                 .await
