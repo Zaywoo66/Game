@@ -1,5 +1,6 @@
 import { FormEvent, useState } from 'react';
 import { CharacterView, CountryView, GameCommand, GameSnapshot } from './host';
+import { flagUrl } from './flags';
 
 /** Money is an i64 in thousandths. Keep all three digits without Number conversion. */
 function fixedText(raw: string | bigint): string {
@@ -135,6 +136,7 @@ interface CountryPanelProps {
 }
 
 export function CountryPanel({ game, country, pending, onSelect, send }: CountryPanelProps) {
+  const flag = country && flagUrl(country.tag);
   return (
     <section className="country-panel" aria-label="Country and rulers">
       <label className="country-picker">
@@ -148,6 +150,7 @@ export function CountryPanel({ game, country, pending, onSelect, send }: Country
         <>
           <h2 className="country-name">
             <span aria-hidden="true" style={{ backgroundColor: country.color }} />
+            {flag && <img className="country-flag" src={flag} alt="" />}
             {country.name}
           </h2>
           <p>Capital · {country.capital}</p>

@@ -168,6 +168,11 @@ Country and character numeric IDs are assigned in sorted key order starting at 1
 | `start.treasury`, `start.monthly_spending` | Raw Fixed thousandths of a treasury unit. Spending is per game month. |
 | `start.tax_rate` | Raw Fixed fraction of taxable income. `250` means 25%. |
 
+The UI loads an optional licensed SVG from `ui/src/assets/flags/<tag>.svg`,
+where `<tag>` is the country's `tag` in this file. This is a static content
+asset convention; missing SVGs leave the country color swatch visible. Record
+each new SVG and its source in `docs/ASSETS.md`.
+
 ### World-map country extensions (planned for M13)
 
 `stub` is a boolean marking a placeholder country. MAP_SCALE.md defines the content requirements for stub countries. The current strict country loader predates this field.
