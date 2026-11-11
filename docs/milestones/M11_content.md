@@ -9,3 +9,9 @@ Docs: DATA_FORMATS.md, MAP_PIPELINE.md, ASSETS.md
 ## Acceptance
 - Data linter green; every country has capital, ruler, color, flag
 - Tracked per-batch (countries by region) so work can be split across small PRs
+
+## AI slice (required)
+Docs: AI.md
+- Each country needs an AI profile key (archetype) and optional overrides in its data file
+- Linter fails if a country lacks an AI profile
+- Tune profiles so historical big powers behave plausibly (soak statistics logged)

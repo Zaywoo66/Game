@@ -24,7 +24,21 @@
 - Every command: validate -> apply -> emit `Delta`. Validation failure returns a typed reason (UI shows it in tooltips).
 
 ## Tick order (document changes here)
-1. Date advance 2. Scheduled events/expiries 3. Characters (age, death, traits) 4. Economy 5. Diplomacy timers 6. Armies move 7. Combat/sieges 8. Navy 9. Events/triggers evaluation 10. AI decisions 11. Emit deltas.
+1. Date advance
+2. Scheduled events/expiries
+3. AI decisions. The host calls `ai::decide` for AI countries in ascending `CountryId` order, then validates and applies their commands.
+4. Characters (age, death, traits)
+5. Economy
+6. Diplomacy timers
+7. Armies move
+8. Combat/sieges
+9. Navy
+10. Events/triggers evaluation
+11. Emit deltas
+
+## AI support
+- AI query helpers are read-only. AI uses an RNG derived from `(seed, tick, country_id)`.
+- Each new simulation mechanic includes the query helpers and legal-command checks AI needs.
 
 ## Testing
 - Unit tests per mechanic; property/replay tests for determinism; golden save-file test (load -> N ticks -> compare hash).

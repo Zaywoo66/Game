@@ -19,6 +19,8 @@ Content files in `/data`, JSON or YAML, validated by `crates/data` on load and b
 ## Events (`data/events/*.yaml`)
 `key, title, desc, trigger: Trigger, mean_time_to_happen?, options:[{text, effects:[Effect], ai_weight}]`
 
+Every option requires an integer `ai_weight`, optionally conditioned by a trigger.
+
 ## Scenarios (`data/scenarios/<year>.yaml`)
 `start_date, seed, countries:[tags], ownership overrides, diplomacy start state`
 
@@ -32,3 +34,14 @@ Add new leaves here first, then implement.
 ## Rules
 - Localizable strings use keys; text lives in `data/loc/en.yaml`.
 - Every file has `schema_version`. Breaking change = bump version + migration note.
+
+## AI profiles (`data/ai/profiles/<key>.yaml`)
+- `key`
+- `weights: { aggression, expansion, caution, diplomacy, economy, naval, loyalty }` (integers 0–1000)
+- `thresholds: { war_min_score, peace_accept_score, alliance_min_opinion }`
+
+## Country AI fields (`data/countries/<tag>.yaml`)
+`ai: { profile: <profile_key>, overrides: { <weight>: <int> } }`
+
+## Scenario controllers (`data/scenarios/<year>.yaml`)
+`controllers: { <tag>: human | ai }`. The lobby assigns human slots to players.

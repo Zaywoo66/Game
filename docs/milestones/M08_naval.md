@@ -8,3 +8,8 @@ Docs: ARCHITECTURE.md, MAP_PIPELINE.md
 
 ## Acceptance
 - Scripted amphibious invasion test passes; blockade closes port income
+
+## AI slice (required)
+Docs: AI.md
+- **AI L3 (naval)**: build/maintain fleets, escort transports, run amphibious invasions, blockade, avoid attrition
+- Acceptance add-on: AI performs at least one amphibious landing in a scripted scenario; no fleets stuck forever

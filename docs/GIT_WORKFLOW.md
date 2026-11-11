@@ -19,6 +19,9 @@ Conventional style: `feat(sim): army pathfinding`, `fix(net): resync on checksum
 | Data schema and cross-reference checks | M1 |
 | Determinism test | M1 |
 | Map validation | M2 |
+| AI smoke test (10 game years, 3 seeds) | M4 |
+
+From M10, run the AI soak test through a scheduled or manual workflow.
 
 Release workflow on tag `v*`: build Windows/macOS/Linux bundles via Tauri, upload to GitHub Releases.
 

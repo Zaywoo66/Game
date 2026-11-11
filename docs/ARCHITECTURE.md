@@ -5,6 +5,7 @@
 /crates/sim    pure simulation (state, ticks, wars, economy, events)
 /crates/net    protocol + transport + LAN discovery
 /crates/data   load + validate data files -> sim types
+/crates/ai     bot decision logic (reads sim state, emits Commands)
 /app           Tauri shell (Rust): hosts sim/net, exposes IPC to UI
 /ui            React + TS: windows, HUD, event popups
 /ui/map        three.js: terrain, shaders, instanced units
@@ -12,7 +13,7 @@
 /tools         map generation, model export scripts (Python/Blender)
 /docs          these documents
 ```
-Dependency direction: `app -> net, data, sim`; `net -> sim` (types only); `data -> sim`; `sim -> nothing`.
+Dependency direction: `app -> net, data, sim, ai`; `ai -> sim`; `net -> sim` (types only); `data -> sim`; `sim -> nothing`.
 
 ## Process model
 - Host runs `sim` authoritatively inside the Tauri app. Client app connects to host over TCP and only sends commands.
@@ -25,6 +26,10 @@ Dependency direction: `app -> net, data, sim`; `net -> sim` (types only); `data 
 - `Delta`: list of changes produced by a tick for the UI.
 - Modifier system: all bonuses = `key -> value` modifiers from techs, ideas, traits, laws, events; effective value is an aggregation. See SIM_RULES.md.
 - Triggers/Effects: shared condition/effect language used by events, ideas, diplomacy availability, AI.
+
+## AI
+- The host runs deterministic AI. AI reads simulation state and acts through the same validated commands as a human player.
+- Countries store a controller, either `Human(player_id)` or `Ai(profile_key)`. See [AI.md](AI.md).
 
 ## Map model
 - Provinces form a graph (land, sea, lake). Edges carry cost/type (river, strait, port link).
