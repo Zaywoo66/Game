@@ -8,11 +8,11 @@ use crate::{
 
 use crate::{
     CharacterId, CharacterState, CountryId, CountryPolity, Date, DiplomacyError, DiplomacyState,
-    EconomyState, EdgeKind, Effect, EffectError, FiscalError, FiscalPolicy, Fixed, MapIdentity,
-    ModKey, ModifierInsertError, ModifierSourceId, ModifierStore, Opinion, OpinionStateError,
-    PlayerId, PolityError, PolityState, PolityTickFailure, PreparedModifier, ProvinceGraph,
-    ProvinceId, SeededRng, SimTime, Speed, SuccessionState, Tick, TimeActor, TimeCommand,
-    TimeError, TriggerView,
+    EconomyState, EdgeKind, Effect, EffectError, EventDefinition, EventError, EventState,
+    FiscalError, FiscalPolicy, Fixed, MapIdentity, MarriageError, ModKey, ModifierInsertError,
+    ModifierSourceId, ModifierStore, Opinion, OpinionStateError, PlayerId, PolityError,
+    PolityState, PolityTickFailure, PreparedModifier, ProvinceGraph, ProvinceId, SeededRng, Sex,
+    SimTime, Speed, SuccessionState, Tick, TimeActor, TimeCommand, TimeError, TriggerView,
 };
 
 /// Reference to a scenario's data-driven AI profile.
@@ -126,9 +126,32 @@ pub enum Command {
         country: CountryId,
         other: CountryId,
     },
+    ChooseEvent {
+        country: CountryId,
+        key: String,
+        option: u32,
+    },
+    OfferRoyalMarriage {
+        country: CountryId,
+        character: CharacterId,
+        toward: CountryId,
+        partner: CharacterId,
+    },
+    AcceptRoyalMarriage {
+        country: CountryId,
+        from: CountryId,
+        character: CharacterId,
+        partner: CharacterId,
+    },
+    RejectRoyalMarriage {
+        country: CountryId,
+        from: CountryId,
+        character: CharacterId,
+        partner: CharacterId,
+    },
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum CommandError {
     Time(TimeError),
     HostRequired,
@@ -139,6 +162,8 @@ pub enum CommandError {
     Fiscal(FiscalError),
     War(WarError),
     Diplomacy(DiplomacyError),
+    Event(EventError),
+    Marriage(MarriageError),
     InvalidHeir {
         country: CountryId,
         heir: CharacterId,
@@ -226,10 +251,33 @@ pub enum StateChange {
         b: CountryId,
         active: bool,
     },
+    MarriageOffered {
+        from: CharacterId,
+        toward: CharacterId,
+        expires_at: Date,
+    },
+    MarriageOfferRemoved {
+        from: CharacterId,
+        toward: CharacterId,
+    },
+    MarriageChanged {
+        a: CharacterId,
+        b: CharacterId,
+        active: bool,
+    },
     OpinionChanged {
         from: CountryId,
         toward: CountryId,
         opinion: Opinion,
+    },
+    EventFired {
+        country: CountryId,
+        key: String,
+    },
+    EventResolved {
+        country: CountryId,
+        key: String,
+        option: u32,
     },
 }
 
@@ -369,6 +417,7 @@ pub struct GameState {
     scheduled: ModifierSchedule,
     opinions: BTreeMap<(CountryId, CountryId), Opinion>,
     diplomacy: Option<DiplomacyState>,
+    events: Option<EventState>,
     polity: Option<PolityState>,
     war_state: Option<WarState>,
 }
@@ -380,6 +429,13 @@ enum PreparedCommand<'a> {
     NominateHeir(CountryId, Option<CharacterId>),
     Military(MilitaryAction),
     Diplomacy(DiplomacyAction),
+    ChooseEvent(
+        CountryId,
+        &'a str,
+        u32,
+        Vec<(ModifierSourceId, PreparedModifier)>,
+    ),
+    Marriage(MarriageAction),
 }
 
 enum DiplomacyAction {
@@ -387,6 +443,12 @@ enum DiplomacyAction {
     Accept(CountryId, CountryId),
     Reject(CountryId, CountryId),
     Break(CountryId, CountryId, Date),
+}
+
+enum MarriageAction {
+    Offer(CharacterId, CharacterId, Date),
+    Accept(CharacterId, CharacterId),
+    Reject(CharacterId, CharacterId),
 }
 
 impl GameState {
@@ -455,6 +517,7 @@ impl GameState {
             scheduled,
             opinions: BTreeMap::new(),
             diplomacy: None,
+            events: None,
             polity: None,
             war_state: None,
         })
@@ -534,6 +597,90 @@ impl GameState {
         })
     }
 
+    /// Base opinion plus a temporary royal-marriage bonus, clamped to the opinion range.
+    pub fn effective_opinion(&self, from: CountryId, toward: CountryId) -> Option<Opinion> {
+        let base = self.opinion(from, toward)?;
+        let married = self.polity.as_ref().is_some_and(|polity| {
+            polity.characters.values().any(|character| {
+                character.country == from
+                    && character.spouse.is_some_and(|spouse| {
+                        polity
+                            .characters
+                            .get(&spouse)
+                            .is_some_and(|partner| partner.country == toward)
+                    })
+            })
+        });
+        Some(if married { base.adjusted(20) } else { base })
+    }
+
+    /// Shared eligibility result for host validation, AI and UI previews.
+    pub fn marriage_eligibility(
+        &self,
+        from: CountryId,
+        character: CharacterId,
+        toward: CountryId,
+        partner: CharacterId,
+    ) -> Result<(), MarriageError> {
+        let polity = self.polity.as_ref().ok_or(MarriageError::InvalidState)?;
+        if from == toward {
+            return Err(MarriageError::SameCountry);
+        }
+        let a = polity
+            .characters
+            .get(&character)
+            .ok_or(MarriageError::UnknownCharacter(character))?;
+        let b = polity
+            .characters
+            .get(&partner)
+            .ok_or(MarriageError::UnknownCharacter(partner))?;
+        if a.country != from {
+            return Err(MarriageError::WrongCountry(character));
+        }
+        if b.country != toward {
+            return Err(MarriageError::WrongCountry(partner));
+        }
+        let now = self.time.date();
+        for (id, person) in [(character, a), (partner, b)] {
+            if person.name.trim().is_empty() {
+                return Err(MarriageError::Unnamed(id));
+            }
+            if !person.is_alive_on(now) {
+                return Err(MarriageError::NotAlive(id));
+            }
+            if person
+                .age_years(now)
+                .is_none_or(|age| age < u32::from(polity.rules.adulthood_years))
+            {
+                return Err(MarriageError::Underage(id));
+            }
+            if person.spouse.is_some() {
+                return Err(MarriageError::AlreadyMarried(id));
+            }
+        }
+        if a.sex == Sex::Unknown {
+            return Err(MarriageError::UnknownSex(character));
+        }
+        if b.sex == Sex::Unknown {
+            return Err(MarriageError::UnknownSex(partner));
+        }
+        if a.sex == b.sex {
+            return Err(MarriageError::SameSex);
+        }
+        let is_dynastic =
+            [(from, character), (toward, partner)]
+                .into_iter()
+                .any(|(country, id)| {
+                    polity.countries.get(&country).is_some_and(|nation| {
+                        nation.succession.ruler == Some(id) || nation.succession.heir == Some(id)
+                    })
+                });
+        if !is_dynastic {
+            return Err(MarriageError::NoRulerOrHeir);
+        }
+        Ok(())
+    }
+
     pub fn opinions(&self) -> impl Iterator<Item = (CountryId, CountryId, Opinion)> + '_ {
         self.opinions
             .iter()
@@ -549,12 +696,82 @@ impl GameState {
         {
             return Err(DiplomacyError::DirectWar);
         }
+        if !diplomacy.marriage_offers.is_empty() {
+            let Some(polity) = &self.polity else {
+                return Err(DiplomacyError::InvalidState);
+            };
+            for (&(from, toward), &expires) in &diplomacy.marriage_offers {
+                let (Some(a), Some(b)) =
+                    (polity.characters.get(&from), polity.characters.get(&toward))
+                else {
+                    return Err(DiplomacyError::InvalidState);
+                };
+                let eligibility = self.marriage_eligibility(a.country, from, b.country, toward);
+                if expires <= self.time.date()
+                    || !matches!(eligibility, Ok(()) | Err(MarriageError::NoRulerOrHeir))
+                {
+                    return Err(DiplomacyError::InvalidState);
+                }
+            }
+        }
         self.diplomacy = Some(diplomacy);
         Ok(self)
     }
 
     pub fn diplomacy(&self) -> Option<&DiplomacyState> {
         self.diplomacy.as_ref()
+    }
+
+    /// Copies validated YAML definitions into the authoritative game snapshot.
+    pub fn with_events(
+        mut self,
+        definitions: BTreeMap<String, EventDefinition>,
+    ) -> Result<Self, EventError> {
+        if self.events.is_some() {
+            return Err(EventError::AlreadyConfigured);
+        }
+        let highest_source = self.highest_modifier_source();
+        let next = highest_source
+            .checked_add(1)
+            .ok_or(EventError::ModifierSourceExhausted)?;
+        self.events = Some(EventState::new(definitions, next)?);
+        Ok(self)
+    }
+
+    /// Restores an event snapshot after the save decoder checks its encoding.
+    pub fn with_event_state(mut self, events: EventState) -> Result<Self, EventError> {
+        if self.events.is_some() {
+            return Err(EventError::AlreadyConfigured);
+        }
+        events.validate_saved(
+            self.time.tick(),
+            self.countries.keys().copied(),
+            self.highest_modifier_source(),
+        )?;
+        self.events = Some(events);
+        Ok(self)
+    }
+
+    pub fn events(&self) -> Option<&EventState> {
+        self.events.as_ref()
+    }
+
+    fn highest_modifier_source(&self) -> u32 {
+        self.countries
+            .values()
+            .flat_map(|country| {
+                country
+                    .modifiers()
+                    .sources()
+                    .map(|(source, _, _)| source.get())
+            })
+            .chain(
+                self.scheduled
+                    .values()
+                    .flat_map(|entries| entries.keys().map(|(_, source)| source.get())),
+            )
+            .max()
+            .unwrap_or(0)
     }
 
     pub fn allied(&self, a: CountryId, b: CountryId) -> bool {
@@ -872,6 +1089,78 @@ impl GameState {
                     }
                 }
             }
+            PreparedCommand::ChooseEvent(country, key, option, prepared) => {
+                let used = prepared.len();
+                for (source, grant) in prepared {
+                    self.countries
+                        .get_mut(&country)
+                        .expect("validated event country")
+                        .modifiers
+                        .insert_source(source, grant.expires_at, vec![grant.modifier.clone()])
+                        .expect("validated event source");
+                    delta
+                        .changes
+                        .push(StateChange::ModifierSourceActivated { country, grant });
+                }
+                self.events
+                    .as_mut()
+                    .expect("validated event state")
+                    .resolve(country, key, self.time.tick(), used);
+                delta.changes.push(StateChange::EventResolved {
+                    country,
+                    key: key.into(),
+                    option,
+                });
+            }
+            PreparedCommand::Marriage(action) => {
+                let diplomacy = self.diplomacy.get_or_insert_with(DiplomacyState::default);
+                match action {
+                    MarriageAction::Offer(from, toward, expires_at) => {
+                        diplomacy.marriage_offers.insert((from, toward), expires_at);
+                        delta.changes.push(StateChange::MarriageOffered {
+                            from,
+                            toward,
+                            expires_at,
+                        });
+                    }
+                    MarriageAction::Accept(from, toward) => {
+                        let removed: Vec<_> = diplomacy
+                            .marriage_offers
+                            .keys()
+                            .copied()
+                            .filter(|&(a, b)| a == from || b == from || a == toward || b == toward)
+                            .collect();
+                        for (a, b) in removed {
+                            diplomacy.marriage_offers.remove(&(a, b));
+                            delta
+                                .changes
+                                .push(StateChange::MarriageOfferRemoved { from: a, toward: b });
+                        }
+                        let polity = self.polity.as_mut().expect("marriage polity validated");
+                        polity
+                            .characters
+                            .get_mut(&from)
+                            .expect("proposer validated")
+                            .spouse = Some(toward);
+                        polity
+                            .characters
+                            .get_mut(&toward)
+                            .expect("partner validated")
+                            .spouse = Some(from);
+                        delta.changes.push(StateChange::MarriageChanged {
+                            a: from,
+                            b: toward,
+                            active: true,
+                        });
+                    }
+                    MarriageAction::Reject(from, toward) => {
+                        diplomacy.marriage_offers.remove(&(from, toward));
+                        delta
+                            .changes
+                            .push(StateChange::MarriageOfferRemoved { from, toward });
+                    }
+                }
+            }
         }
         Ok(delta)
     }
@@ -977,7 +1266,105 @@ impl GameState {
             Command::BreakAlliance { country, other } => {
                 self.prepare_diplomacy(actor, *country, *other, 3)
             }
+            Command::ChooseEvent {
+                country,
+                key,
+                option,
+            } => {
+                self.authorized_country(actor, *country)?;
+                let prepared = self
+                    .events
+                    .as_ref()
+                    .ok_or_else(|| CommandError::Event(EventError::UnknownEvent(key.clone())))?
+                    .prepare_choice(*country, key, *option, self.time.tick())
+                    .map_err(CommandError::Event)?;
+                Ok(PreparedCommand::ChooseEvent(
+                    *country, key, *option, prepared,
+                ))
+            }
+            Command::OfferRoyalMarriage {
+                country,
+                character,
+                toward,
+                partner,
+            } => self.prepare_marriage(actor, *country, *character, *toward, *partner, 0),
+            Command::AcceptRoyalMarriage {
+                country,
+                from,
+                character,
+                partner,
+            } => self.prepare_marriage(actor, *from, *character, *country, *partner, 1),
+            Command::RejectRoyalMarriage {
+                country,
+                from,
+                character,
+                partner,
+            } => self.prepare_marriage(actor, *from, *character, *country, *partner, 2),
         }
+    }
+
+    fn prepare_marriage(
+        &self,
+        actor: CommandActor,
+        from: CountryId,
+        character: CharacterId,
+        toward: CountryId,
+        partner: CharacterId,
+        kind: u8,
+    ) -> Result<PreparedCommand<'static>, CommandError> {
+        self.authorized_polity(actor, if kind == 0 { from } else { toward })?;
+        let now = self.time.date();
+        let action = match kind {
+            0 => {
+                self.marriage_eligibility(from, character, toward, partner)
+                    .map_err(CommandError::Marriage)?;
+                if self.diplomacy.as_ref().is_some_and(|d| {
+                    d.marriage_offers.contains_key(&(character, partner))
+                        || d.marriage_offers.contains_key(&(partner, character))
+                }) {
+                    return Err(CommandError::Marriage(MarriageError::OfferAlreadyPending));
+                }
+                MarriageAction::Offer(
+                    character,
+                    partner,
+                    now.checked_add_days(30)
+                        .ok_or(CommandError::Marriage(MarriageError::DateOverflow))?,
+                )
+            }
+            _ => {
+                let valid = self
+                    .diplomacy
+                    .as_ref()
+                    .and_then(|d| d.marriage_offer(character, partner))
+                    .is_some_and(|offer| offer.expires_at > now);
+                if !valid {
+                    return Err(CommandError::Marriage(MarriageError::NoOffer));
+                }
+                let polity = self
+                    .polity
+                    .as_ref()
+                    .ok_or(CommandError::PolityUnavailable)?;
+                if polity
+                    .characters
+                    .get(&partner)
+                    .is_none_or(|person| person.country != toward)
+                    || polity
+                        .characters
+                        .get(&character)
+                        .is_none_or(|person| person.country != from)
+                {
+                    return Err(CommandError::Marriage(MarriageError::InvalidState));
+                }
+                if kind == 1 {
+                    self.marriage_eligibility(from, character, toward, partner)
+                        .map_err(CommandError::Marriage)?;
+                    MarriageAction::Accept(character, partner)
+                } else {
+                    MarriageAction::Reject(character, partner)
+                }
+            }
+        };
+        Ok(PreparedCommand::Marriage(action))
     }
 
     fn prepare_diplomacy(
@@ -1118,6 +1505,15 @@ impl GameState {
         actor: CommandActor,
         country: CountryId,
     ) -> Result<&PolityState, CommandError> {
+        self.authorized_country(actor, country)?;
+        self.polity().ok_or(CommandError::PolityUnavailable)
+    }
+
+    fn authorized_country(
+        &self,
+        actor: CommandActor,
+        country: CountryId,
+    ) -> Result<(), CommandError> {
         let base = self
             .country(country)
             .ok_or(CommandError::UnknownCountry(country))?;
@@ -1132,7 +1528,7 @@ impl GameState {
         if !authorized {
             return Err(CommandError::NotCountryController(country));
         }
-        self.polity().ok_or(CommandError::PolityUnavailable)
+        Ok(())
     }
 
     /// Advances time, processes due effects, dispatches AI, then updates countries.
@@ -1205,8 +1601,31 @@ impl GameState {
                         toward: offer.toward,
                     });
             }
+            if let Some(polity) = &self.polity {
+                for offer in diplomacy.expire_marriages(self.time.date(), &polity.characters) {
+                    report
+                        .delta
+                        .changes
+                        .push(StateChange::MarriageOfferRemoved {
+                            from: offer.from,
+                            toward: offer.toward,
+                        });
+                }
+            }
         }
         self.advance_military(&mut report);
+        if let Some(events) = &mut self.events {
+            let countries = self
+                .countries
+                .iter()
+                .map(|(&id, state)| (id, state as &dyn TriggerView));
+            for (country, key) in events.fire_due(self.seed, tick, countries) {
+                report
+                    .delta
+                    .changes
+                    .push(StateChange::EventFired { country, key });
+            }
+        }
         Ok(report)
     }
 

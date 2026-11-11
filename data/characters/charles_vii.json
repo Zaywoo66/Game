@@ -1,9 +1,10 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "key": "charles_vii",
   "country": "fra",
   "name": "Charles VII",
   "dynasty": "valois",
+  "sex": "male",
   "birth": [
     1403,
     2,

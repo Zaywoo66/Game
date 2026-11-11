@@ -158,6 +158,8 @@ Country and character numeric IDs are assigned in sorted key order starting at 1
 |---|---|
 | `tag` | Country key and filename stem. |
 | `name` | Nonempty display name. |
+| `sex` | Required `male` or `female`. This content value is checked against biographical sources for historical characters. |
+| `spouse` | Optional key of another character in the scenario. Both character files must point to each other; the pair must be living, adult, from different countries and of opposite sex at scenario start. Omission means no modeled spouse. |
 | `color` | Three unsigned 8-bit RGB channel values in the order red, green, blue. |
 | `capital` | Province key referring to one of this country's land provinces. |
 | `ai_profile` | Profile key. |
@@ -172,6 +174,10 @@ Country and character numeric IDs are assigned in sorted key order starting at 1
 
 ## Characters (`data/characters/<key>.json`)
 
+Character schema v2 makes `sex` mandatory. Schema v1 character content is
+rejected during scenario loading; old saved games remain readable as described
+below.
+
 | Character field | Representation and unit |
 |---|---|
 | `key`, `country`, `dynasty` | Character filename stem, country tag, dynasty key. |
@@ -179,6 +185,8 @@ Country and character numeric IDs are assigned in sorted key order starting at 1
 | `birth`, `death` | Gregorian `[year, month, day]` as in saves. Omit `death` or use null if unspecified. |
 | `stats.adm`, `stats.dip`, `stats.mil` | Whole unsigned 8-bit skill points. |
 | `traits` | Unique keys from the scenario's trait map. |
+
+The 13 existing `male` entries were checked against the [UK Royal Family biographies](https://www.royal.uk/henry-vi) (Henry VI, Edward IV, Humphrey of Gloucester, James II and James III), [France's Larousse biographies](https://www.larousse.fr/encyclopedie/personnage/Charles_VII/112825) (Charles VII and Louis XI), the [Spanish national archives](https://pares.cultura.gob.es/ParesBusquedas20/catalogo/autoridad/46221) (John II of Aragon, Alfonso V of Aragon, John II and Henry IV of Castile), and the [Portuguese expansion encyclopedia](https://eve.fcsh.unl.pt/en/people/prince-dom-fernando-1433-1470) (Ferdinand of Viseu and Afonso V of Portugal). No female historic character has been added to the 1440 slice; that content review belongs to M11.
 
 ## Technologies (`data/techs/<branch>.yaml`) — DAG
 
@@ -238,9 +246,25 @@ implemented in a separate M7 task.
 `strategy_data::parse_event_yaml` converts one file to typed `Trigger` and
 `Effect` values; `strategy_data::load_events_from_dir` reads files in filename
 order and returns a key-ordered map, rejecting duplicate event keys. Text
-fields remain localization-key references; checking their presence in an event
-locale catalog belongs to the M7 content task. The Rust loader uses pinned
+fields remain localization-key references; the data linter checks their presence
+in `data/locales/events.en.json`. The Rust loader uses pinned
 `yaml_serde` 0.10.7.
+The authoritative game copies these validated definitions into its state. On
+each game day it evaluates definitions in event-key order and countries in
+numeric ID order. The keyed seeded draw gives each eligible country-event pair
+a daily probability of `1 / mean_time_to_happen`. A pending choice suppresses
+duplicates. One-shot events never fire again after resolution; repeatable
+events wait `cooldown_days` from the resolution tick. The option index is
+zero-based. Each effect receives a unique monotonically increasing modifier
+source ID so timed modifiers can expire independently.
+
+The event locale catalog is a flat JSON mapping from ASCII snake_case keys to
+nonempty English display strings. Every `title`, `desc`, and option `text` key
+used by a valid event must be present. Duplicate keys, empty strings, and
+missing references fail data lint. Vite serves the English catalog at
+`/locales/events.en.json` in development and includes it in production UI
+builds. The popup UI consumes this route in a separate M7 task; other
+languages remain open.
 
 | Field | Representation and unit |
 |---|---|
@@ -276,6 +300,11 @@ options:
     ai_weight: 1
     effects: []
 ```
+
+The 1440 starter pack currently has three generic events in `data/events/`:
+`court_auditors`, `harvest_surplus`, and `frontier_patrol`. They use only the
+current `at_war` trigger and existing `tax_income`, `army_combat`, and
+`army_morale` modifier keys. This content is not a historical claim.
 
 ## Scenarios (`data/scenarios/<year>.json`)
 
@@ -349,7 +378,7 @@ Add new leaves here first, then implement.
 |---|---|
 | `key` | Profile key and filename stem. |
 | `weights.aggression`, `expansion`, `caution`, `diplomacy`, `economy`, `naval`, `loyalty` | Whole weight points from 0 through 1000. |
-| `thresholds.war_min_score`, `peace_accept_score`, `alliance_min_opinion` | Signed 32-bit whole decision score points. |
+| `thresholds.war_min_score`, `peace_accept_score`, `alliance_min_opinion`, `marriage_min_opinion` | Signed 32-bit whole decision score points. The 1440 marriage threshold is 20 effective opinion points. |
 | `preferred_tax_rate` | Raw Fixed fraction within scenario tax limits. |
 | `preferred_monthly_spending` | Raw Fixed treasury amount per month within scenario spending limits. |
 
@@ -476,3 +505,39 @@ original leaders. Empty arrays are omitted. The original leader pair stays
 in `military.treaties`. A peace creates a truce for every opposing pair, all
 using the same `military.rules.truce_ticks` duration. V1 through v5 saves
 remain readable with their original map identity.
+
+## Saved games (schema version 7)
+
+V7 uses hash domain `strategy:game-state:v7` followed by NUL and canonical
+save bytes. New scenario states with known character sex use v7 even before a
+marriage is offered. Older saves keep their earlier version and hash.
+
+New character snapshots store `sex` (`male` or `female`) and `spouse` (omitted
+when unmarried, otherwise another character ID). Spouse links are reciprocal,
+cross-country, opposite-sex, living and adult on the saved date. Pending
+marriage offers are directed character-ID pairs with a Gregorian expiry, valid
+for 30 game days. A marriage temporarily adds 20 points to each country's
+effective opinion, clamped to the normal opinion range; it never changes base
+opinion. Character death clears both spouse links. Old v1–v6 saves lacking
+`sex` load with internal `Unknown`. Mixed v7 saves may omit `sex` for these
+legacy characters while storing known values on others. Unknown characters
+cannot enter a new royal marriage. New scenario content must always provide
+`male` or `female`. The first
+1440 slice has no female character entry, so historical marriage content awaits
+M11.
+
+## Saved games (schema version 8)
+
+V8 uses hash domain `strategy:game-state:v8` followed by NUL and the canonical
+save bytes when a validated event catalog is attached. `state.events` embeds
+definitions in event-key order, pending and resolved entries ordered by
+numeric country ID then event key, and `next_source_id` as a positive unsigned
+32-bit modifier-source sequence. Each pending or resolved entry records a
+country ID, event key and unsigned 64-bit game tick no later than the saved
+tick. A pending repeatable event may coexist with its earlier resolution only
+after the configured cooldown. Invalid references, order, source IDs and
+version/payload combinations are rejected on load. The embedded definitions
+include localization keys, triggers, effects, option weights and timing; a
+running save therefore keeps its event rules if external YAML later changes.
+Saves v1–v7 remain readable without event state. LAN protocol v6 transports
+the same canonical snapshot and the validated zero-based event choice command.

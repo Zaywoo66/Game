@@ -151,3 +151,14 @@ fn rejects_duplicate_yaml_fields() {
     let duplicated = VALID.replace("ai_weight: 10", "ai_weight: 10\n    ai_weight: 20");
     assert!(parse_event_yaml(&duplicated).is_err());
 }
+
+#[test]
+fn production_event_pack_loads_with_ai_choices() {
+    let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/events");
+    let events = load_events_from_dir(&dir).unwrap();
+    assert!(events.len() >= 3, "expected a playable event starter pack");
+    for event in events.values() {
+        assert!(event.mean_time_to_happen.is_some());
+        assert!(event.options.iter().any(|option| option.ai_weight > 0));
+    }
+}
