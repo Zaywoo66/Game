@@ -87,6 +87,12 @@ class DataLintTest(unittest.TestCase):
         self.assertEqual(result.returncode, 1, result)
         self.assertIn("$.key: expected an ASCII snake_case", result.stderr)
 
+    def test_rejects_yaml_11_boolean_aliases_in_events(self):
+        result = run_lint("bad_event_bool")
+        self.assertEqual(result.returncode, 1, result)
+        self.assertIn("boolean token 'yes' must be lowercase true or false", result.stderr)
+        self.assertIn("boolean token 'TRUE' must be lowercase true or false", result.stderr)
+
 
 def run_lint(fixture):
     test_dir = Path(__file__).resolve().parent

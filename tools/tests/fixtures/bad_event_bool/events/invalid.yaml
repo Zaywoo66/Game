@@ -1,0 +1,10 @@
+key: bad_boolean
+title: event_bad_boolean_title
+desc: event_bad_boolean_desc
+trigger: {at_war: yes}
+repeatable: TRUE
+cooldown_days: 30
+options:
+  - text: event_bad_boolean_choice
+    ai_weight: 1
+    effects: []
