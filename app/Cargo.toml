@@ -5,6 +5,9 @@ edition.workspace = true
 rust-version.workspace = true
 build = "build.rs"
 
+[features]
+custom-protocol = ["tauri/custom-protocol"]
+
 [dependencies]
 tauri = "=2.12.5"
 strategy-sim = { path = "../crates/sim" }

@@ -1,11 +1,18 @@
 """Syntax check for foundation data files; schema checks arrive with content."""
 
-from pathlib import Path
+import argparse
 import json
+from pathlib import Path
 import sys
 
 
-root = Path(__file__).resolve().parents[1] / "data"
+parser = argparse.ArgumentParser(description=__doc__)
+parser.add_argument(
+    "root", type=Path, nargs="?", default=Path(__file__).resolve().parents[1] / "data"
+)
+root = parser.parse_args().root
+if not root.is_dir():
+    parser.error(f"data directory does not exist: {root}")
 errors = []
 checked = 0
 for path in sorted(root.rglob("*.json")):

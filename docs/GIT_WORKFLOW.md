@@ -9,7 +9,17 @@
 Conventional style: `feat(sim): army pathfinding`, `fix(net): resync on checksum mismatch`.
 
 ## CI (GitHub Actions)
-1. `cargo fmt --check` 2. `cargo clippy --all-targets -- -D warnings` 3. `cargo test --workspace` 4. UI: install, lint, typecheck, build 5. Data linter (schemas + cross-refs) 6. Determinism test.
+| CI gate | First enabled |
+|---|---|
+| `cargo fmt --check` | M0 |
+| `cargo clippy --all-targets -- -D warnings` | M0 |
+| `cargo test --workspace` | M0 |
+| UI install, lint, typecheck, and build | M0 |
+| Data lint command, JSON syntax, and invalid fixture test | M0 |
+| Data schema and cross-reference checks | M1 |
+| Determinism test | M1 |
+| Map validation | M2 |
+
 Release workflow on tag `v*`: build Windows/macOS/Linux bundles via Tauri, upload to GitHub Releases.
 
 ## PR template

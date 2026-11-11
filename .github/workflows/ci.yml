@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main, feat/app-foundation]
+    branches: [main]
   pull_request:
     branches: [main]
 
@@ -35,4 +35,11 @@ jobs:
       - run: cargo clippy --all-targets -- -D warnings
       - run: cargo test --workspace
       - run: python tools/lint_data.py
+      - run: python -B -m unittest discover -s tools/tests
+      - run: cargo build --locked -p strategy-app --features custom-protocol
+      - uses: actions/upload-artifact@v4
+        with:
+          name: strategy-m0-windows-x64
+          path: target/debug/strategy-app.exe
+          if-no-files-found: error
 
