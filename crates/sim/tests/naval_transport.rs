@@ -116,6 +116,7 @@ fn setup(ships: u32) -> GameState {
                 thresholds: AiThresholds::default(),
                 preferred_tax_rate: Fixed::ZERO,
                 preferred_monthly_spending: Fixed::ZERO,
+                tech_branch_weights: BTreeMap::new(),
             },
         )]),
     };
