@@ -746,6 +746,7 @@ fn save_v3_preserves_active_armies_movement_sieges_and_treaties() {
             attacker_supporters: Default::default(),
             defender_supporters: Default::default(),
             goal,
+            independence: false,
             started_at: Tick::ZERO,
             score: -15,
             occupations: BTreeMap::from([(province("yorkshire"), defender)]),

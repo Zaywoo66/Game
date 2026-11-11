@@ -347,7 +347,8 @@ impl PolityState {
             }
         }
 
-        for (&country, state) in &mut self.countries {
+        let mut computed = BTreeMap::new();
+        for (&country, state) in &self.countries {
             let ruler_traits = state
                 .succession
                 .ruler
@@ -363,12 +364,24 @@ impl PolityState {
                 paid.get(&country).copied().unwrap_or(Fixed::ZERO),
                 received.get(&country).copied().unwrap_or(Fixed::ZERO),
             ) {
-                Ok(economy) if economy != state.economy => {
-                    state.economy = economy;
-                    changes.push(StateChange::EconomyChanged { country, economy });
+                Ok(economy) => {
+                    computed.insert(country, economy);
                 }
-                Ok(_) => {}
                 Err(error) => failures.push(PolityTickFailure { country, error }),
+            }
+        }
+        if !failures.is_empty() {
+            return (changes, failures);
+        }
+        for (country, economy) in computed {
+            let state = &mut self
+                .countries
+                .get_mut(&country)
+                .expect("country computed")
+                .economy;
+            if *state != economy {
+                *state = economy;
+                changes.push(StateChange::EconomyChanged { country, economy });
             }
         }
         (changes, failures)

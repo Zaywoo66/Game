@@ -14,7 +14,8 @@
     "war_min_score": 250,
     "peace_accept_score": 75,
     "alliance_min_opinion": 30,
-    "marriage_min_opinion": 20
+    "marriage_min_opinion": 20,
+    "vassal_min_opinion": 20
   },
   "preferred_tax_rate": 270,
   "preferred_monthly_spending": 4500

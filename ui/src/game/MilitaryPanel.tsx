@@ -116,13 +116,13 @@ function ActiveWar({
       <p>Attacker war score · {war.score}</p>
       {war.occupations.length > 0 && <p>Occupied provinces · {war.occupations.length}</p>}
       {war.offer && (
-        <p>{countryName(war.offer.offered_by)} offered {war.offer.cede_goal ? 'cession of the war goal' : 'white peace'}.</p>
+        <p>{countryName(war.offer.offered_by)} offered {war.offer.cede_goal ? (war.independence ? 'independence' : 'cession of the war goal') : 'white peace'}.</p>
       )}
       {involved && (
         <div className="military-actions">
           <button type="button" disabled={pending} onClick={() => offer(false)}>Offer white peace</button>
           <button type="button" disabled={pending} onClick={() => offer(true)}>
-            {local === war.attacker_id ? 'Demand war goal' : 'Offer war goal'}
+            {war.independence ? 'Enforce independence' : local === war.attacker_id ? 'Demand war goal' : 'Offer war goal'}
           </button>
           {war.offer && war.offer.offered_by !== local && local !== null && (
             <button type="button" disabled={pending}

@@ -101,6 +101,9 @@ pub enum Command {
         defender: CountryId,
         goal: ProvinceId,
     },
+    DeclareIndependence {
+        country: CountryId,
+    },
     OfferPeace {
         country: CountryId,
         war: WarId,
@@ -168,6 +171,10 @@ pub enum Command {
     RejectVassalage {
         country: CountryId,
         from: CountryId,
+    },
+    ReleaseVassal {
+        country: CountryId,
+        subject: CountryId,
     },
 }
 
@@ -466,7 +473,11 @@ enum PreparedCommand<'a> {
     SetController(CountryId, &'a Controller),
     SetFiscalPolicy(CountryId, FiscalPolicy),
     NominateHeir(CountryId, Option<CharacterId>),
-    Military(MilitaryAction, Vec<(CountryId, CountryId)>),
+    Military(
+        MilitaryAction,
+        Vec<(CountryId, CountryId)>,
+        Option<(CountryId, CountryId)>,
+    ),
     Diplomacy(DiplomacyAction),
     ChooseEvent(
         CountryId,
@@ -487,6 +498,7 @@ enum DiplomacyAction {
     OfferVassalage(CountryId, CountryId, Date),
     AcceptVassalage(CountryId, CountryId),
     RejectVassalage(CountryId, CountryId),
+    ReleaseVassal(CountryId, CountryId),
 }
 
 enum MarriageAction {
@@ -739,6 +751,13 @@ impl GameState {
             .any(|&(a, b)| self.directly_at_war(a, b))
         {
             return Err(DiplomacyError::DirectWar);
+        }
+        if self.war_state.as_ref().is_some_and(|military| {
+            military.wars.values().any(|war| {
+                war.independence && diplomacy.overlord_of(war.attacker) != Some(war.defender)
+            })
+        }) {
+            return Err(DiplomacyError::InvalidState);
         }
         if !diplomacy.marriage_offers.is_empty() {
             let Some(polity) = &self.polity else {
@@ -1077,13 +1096,24 @@ impl GameState {
                     });
                 }
             }
-            PreparedCommand::Military(action, failed_guarantees) => {
+            PreparedCommand::Military(action, failed_guarantees, failed_vassal) => {
+                let independence_won = match &action {
+                    MilitaryAction::Accept(id, _) => self
+                        .war_state
+                        .as_ref()
+                        .and_then(|military| military.wars.get(id))
+                        .filter(|war| {
+                            war.independence && war.offer.is_some_and(|offer| offer.cede_goal)
+                        })
+                        .map(|war| (war.attacker, war.defender)),
+                    _ => None,
+                };
                 let war_state = self.war_state.as_mut().expect("military state validated");
                 let polity = self.polity.as_mut().expect("polity validated");
                 delta.changes.extend(war_state.apply(polity, action));
                 if !failed_guarantees.is_empty() {
                     let diplomacy = self.diplomacy.as_mut().expect("guarantees validated");
-                    for (guarantor, protected) in failed_guarantees {
+                    for (guarantor, protected) in failed_guarantees.iter().copied() {
                         diplomacy.guarantees.remove(&(guarantor, protected));
                         delta.changes.push(StateChange::GuaranteeChanged {
                             guarantor,
@@ -1103,6 +1133,36 @@ impl GameState {
                             opinion,
                         });
                     }
+                }
+                if let Some((subject, overlord)) = failed_vassal {
+                    // One broken defensive promise costs 25, even if the same
+                    // overlord also held a guarantee that has just expired.
+                    if !failed_guarantees.contains(&(overlord, subject)) {
+                        let opinion = self
+                            .opinions
+                            .get(&(subject, overlord))
+                            .copied()
+                            .unwrap_or(Opinion::NEUTRAL)
+                            .adjusted(-25);
+                        self.opinions.insert((subject, overlord), opinion);
+                        delta.changes.push(StateChange::OpinionChanged {
+                            from: subject,
+                            toward: overlord,
+                            opinion,
+                        });
+                    }
+                }
+                if let Some((subject, overlord)) = independence_won {
+                    self.diplomacy
+                        .as_mut()
+                        .expect("independence bond validated")
+                        .vassals
+                        .remove(&subject);
+                    delta.changes.push(StateChange::VassalageChanged {
+                        overlord,
+                        subject,
+                        active: false,
+                    });
                 }
                 self.sync_war_flags();
             }
@@ -1225,6 +1285,14 @@ impl GameState {
                         delta
                             .changes
                             .push(StateChange::VassalageOfferRemoved { overlord, subject });
+                    }
+                    DiplomacyAction::ReleaseVassal(overlord, subject) => {
+                        diplomacy.vassals.remove(&subject);
+                        delta.changes.push(StateChange::VassalageChanged {
+                            overlord,
+                            subject,
+                            active: false,
+                        });
                     }
                 }
             }
@@ -1385,6 +1453,7 @@ impl GameState {
                 defender,
                 goal,
             } => self.prepare_military(actor, *country, MilitaryOrder::Declare(*defender, *goal)),
+            Command::DeclareIndependence { country } => self.prepare_independence(actor, *country),
             Command::OfferPeace {
                 country,
                 war,
@@ -1453,6 +1522,9 @@ impl GameState {
             }
             Command::RejectVassalage { country, from } => {
                 self.prepare_diplomacy(actor, *country, *from, 8)
+            }
+            Command::ReleaseVassal { country, subject } => {
+                self.prepare_diplomacy(actor, *country, *subject, 9)
             }
         }
     }
@@ -1673,6 +1745,15 @@ impl GameState {
                     DiplomacyAction::RejectVassalage(other, country)
                 }
             }
+            9 => {
+                if diplomacy.and_then(|d| d.overlord_of(other)) != Some(country) {
+                    return Err(CommandError::Diplomacy(DiplomacyError::NotVassal));
+                }
+                if self.country_at_war(country) || self.country_at_war(other) {
+                    return Err(CommandError::Diplomacy(DiplomacyError::AtWar));
+                }
+                DiplomacyAction::ReleaseVassal(country, other)
+            }
             _ => unreachable!("known diplomacy command"),
         };
         Ok(PreparedCommand::Diplomacy(action))
@@ -1732,6 +1813,7 @@ impl GameState {
             )
             .map_err(CommandError::War)?;
         let mut failed_guarantees = Vec::new();
+        let mut failed_vassal = None;
         if let MilitaryAction::Declare(_, declared) = &mut action {
             if let Some(diplomacy) = &self.diplomacy {
                 for guarantor in diplomacy.guarantors_of(declared.defender) {
@@ -1741,9 +1823,58 @@ impl GameState {
                         declared.defender_supporters.insert(guarantor);
                     }
                 }
+                if let Some(overlord) = diplomacy.overlord_of(declared.defender) {
+                    if war.war_for(overlord).is_some() || self.allied(overlord, country) {
+                        failed_vassal = Some((declared.defender, overlord));
+                    } else {
+                        declared.defender_supporters.insert(overlord);
+                    }
+                }
             }
         }
-        Ok(PreparedCommand::Military(action, failed_guarantees))
+        Ok(PreparedCommand::Military(
+            action,
+            failed_guarantees,
+            failed_vassal,
+        ))
+    }
+
+    fn prepare_independence(
+        &self,
+        actor: CommandActor,
+        subject: CountryId,
+    ) -> Result<PreparedCommand<'static>, CommandError> {
+        let polity = self.authorized_polity(actor, subject)?;
+        let overlord = self
+            .diplomacy
+            .as_ref()
+            .and_then(|d| d.overlord_of(subject))
+            .ok_or(CommandError::Diplomacy(DiplomacyError::NotVassal))?;
+        if self.allied(subject, overlord) {
+            return Err(CommandError::Diplomacy(DiplomacyError::MustBreakAlliance));
+        }
+        if self
+            .diplomacy
+            .as_ref()
+            .is_some_and(|d| d.guarantees(subject, overlord))
+        {
+            return Err(CommandError::Diplomacy(DiplomacyError::MustRevokeGuarantee));
+        }
+        let capital = polity.countries[&overlord].capital;
+        let war = self
+            .war_state()
+            .ok_or(CommandError::War(WarError::Unavailable))?;
+        let action = war
+            .prepare(
+                &self.province_graph,
+                polity,
+                self.time.tick(),
+                subject,
+                MilitaryOrder::DeclareIndependence(overlord, capital),
+                None,
+            )
+            .map_err(CommandError::War)?;
+        Ok(PreparedCommand::Military(action, Vec::new(), None))
     }
 
     fn military_modifier(&self, country: CountryId, base: Fixed, key: &ModKey) -> Option<Fixed> {

@@ -268,6 +268,88 @@ mod tests {
     }
 
     #[test]
+    fn vassal_response_uses_profile_opinion_and_strict_army_advantage() {
+        let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+        let graph = parse_provinces(
+            &std::fs::read(root.join("data/map/western_europe/provinces.json")).unwrap(),
+        )
+        .unwrap();
+        let scenario = load_scenario(graph, root.join("data/scenarios/1440.json")).unwrap();
+        let ai: Vec<_> = scenario
+            .countries()
+            .filter_map(|(id, state)| matches!(state.controller(), Controller::Ai(_)).then_some(id))
+            .collect();
+        let (overlord, subject) = (ai[0], ai[1]);
+        for (opinion, overlord_soldiers, subject_soldiers, accepts) in [
+            (20, 100, 50, true),
+            (19, 100, 50, false),
+            (20, 50, 50, false),
+        ] {
+            let mut military = scenario.war_state().unwrap().clone();
+            military.armies.clear();
+            military.next_army_id = 3;
+            for (id, country, soldiers) in [
+                (1, overlord, overlord_soldiers),
+                (2, subject, subject_soldiers),
+            ] {
+                military.armies.insert(
+                    ArmyId::new(id),
+                    Army {
+                        country,
+                        province: scenario.country_polity(country).unwrap().capital,
+                        soldiers,
+                        morale: military.rules.max_morale,
+                        movement: None,
+                    },
+                );
+            }
+            let mut diplomacy = DiplomacyState::default();
+            diplomacy.vassal_offers.insert(
+                (overlord, subject),
+                scenario.time().date().checked_add_days(30).unwrap(),
+            );
+            let state = GameState::new(
+                *scenario.time(),
+                scenario.seed(),
+                scenario.province_graph().clone(),
+                scenario
+                    .countries()
+                    .map(|(id, country)| (id, country.clone()))
+                    .collect(),
+                [],
+            )
+            .unwrap()
+            .with_polity(scenario.polity().unwrap().clone())
+            .unwrap()
+            .with_war_state(military)
+            .unwrap()
+            .with_opinions([(subject, overlord, Opinion::new(opinion).unwrap())])
+            .unwrap()
+            .with_diplomacy(diplomacy)
+            .unwrap();
+            let profile_key = match state.country(subject).unwrap().controller() {
+                Controller::Ai(key) => key,
+                _ => unreachable!(),
+            };
+            let profile = &state.polity().unwrap().ai_profiles[profile_key.as_str()];
+            assert_eq!(profile.thresholds.vassal_min_opinion, 20);
+            let factors = vassal_acceptance_factors(&state, overlord, subject, profile);
+            assert_eq!(factors[0].value, opinion);
+            let mut context = AiContext::new(&state, subject);
+            let (command, reason) = decide(&state, subject, profile, &mut context).unwrap();
+            assert_eq!(matches!(command, Command::AcceptVassalage { .. }), accepts);
+            assert_eq!(
+                reason,
+                if accepts {
+                    Reason::VassalageAccepted
+                } else {
+                    Reason::VassalageRejected
+                }
+            );
+        }
+    }
+
+    #[test]
     fn hostile_acceptance_is_seeded_and_requires_the_shared_threat() {
         let mut first = SeededRng::new(1440);
         let mut second = SeededRng::new(1440);

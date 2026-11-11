@@ -164,6 +164,7 @@ struct WarView {
     attacker_supporters: Vec<u32>,
     defender_supporters: Vec<u32>,
     goal_province_id: u32,
+    independence: bool,
     score: i32,
     occupations: Vec<OwnerView>,
     offer: Option<PeaceView>,
@@ -306,6 +307,9 @@ pub(crate) enum UiCommand {
         defender_id: u32,
         goal_province_id: u32,
     },
+    DeclareIndependence {
+        country_id: u32,
+    },
     OfferPeace {
         country_id: u32,
         war_id: u32,
@@ -339,6 +343,10 @@ pub(crate) enum UiCommand {
     RejectVassalage {
         country_id: u32,
         from_id: u32,
+    },
+    ReleaseVassal {
+        country_id: u32,
+        subject_id: u32,
     },
 }
 
@@ -418,6 +426,9 @@ impl UiCommand {
                 defender: CountryId::new(defender_id),
                 goal: ProvinceId::new(goal_province_id),
             },
+            Self::DeclareIndependence { country_id } => Command::DeclareIndependence {
+                country: CountryId::new(country_id),
+            },
             Self::OfferPeace {
                 country_id,
                 war_id,
@@ -474,6 +485,13 @@ impl UiCommand {
             } => Command::RejectVassalage {
                 country: CountryId::new(country_id),
                 from: CountryId::new(from_id),
+            },
+            Self::ReleaseVassal {
+                country_id,
+                subject_id,
+            } => Command::ReleaseVassal {
+                country: CountryId::new(country_id),
+                subject: CountryId::new(subject_id),
             },
         })
     }
@@ -1227,6 +1245,7 @@ fn military_view(game: &GameState) -> MilitaryView {
                             .map(|id| id.get())
                             .collect(),
                         goal_province_id: war.goal.get(),
+                        independence: war.independence,
                         score: war.score,
                         occupations: war
                             .occupations

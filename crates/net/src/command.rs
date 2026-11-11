@@ -61,6 +61,9 @@ pub enum PlayerCommand {
         defender: u32,
         goal: u32,
     },
+    DeclareIndependence {
+        country: u32,
+    },
     OfferPeace {
         country: u32,
         war: u32,
@@ -128,6 +131,10 @@ pub enum PlayerCommand {
     RejectVassalage {
         country: u32,
         from: u32,
+    },
+    ReleaseVassal {
+        country: u32,
+        subject: u32,
     },
 }
 
@@ -243,6 +250,9 @@ impl From<&Command> for PlayerCommand {
                 defender: defender.get(),
                 goal: goal.get(),
             },
+            Command::DeclareIndependence { country } => Self::DeclareIndependence {
+                country: country.get(),
+            },
             Command::OfferPeace {
                 country,
                 war,
@@ -333,6 +343,10 @@ impl From<&Command> for PlayerCommand {
             Command::RejectVassalage { country, from } => Self::RejectVassalage {
                 country: country.get(),
                 from: from.get(),
+            },
+            Command::ReleaseVassal { country, subject } => Self::ReleaseVassal {
+                country: country.get(),
+                subject: subject.get(),
             },
         }
     }
@@ -429,6 +443,9 @@ impl TryFrom<PlayerCommand> for Command {
                 defender: CountryId::new(defender),
                 goal: ProvinceId::new(goal),
             },
+            PlayerCommand::DeclareIndependence { country } => Self::DeclareIndependence {
+                country: CountryId::new(country),
+            },
             PlayerCommand::OfferPeace {
                 country,
                 war,
@@ -519,6 +536,10 @@ impl TryFrom<PlayerCommand> for Command {
             PlayerCommand::RejectVassalage { country, from } => Self::RejectVassalage {
                 country: CountryId::new(country),
                 from: CountryId::new(from),
+            },
+            PlayerCommand::ReleaseVassal { country, subject } => Self::ReleaseVassal {
+                country: CountryId::new(country),
+                subject: CountryId::new(subject),
             },
         })
     }

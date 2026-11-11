@@ -56,6 +56,7 @@ export interface WarView {
   attacker_supporters: number[];
   defender_supporters: number[];
   goal_province_id: number;
+  independence: boolean;
   score: number;
   occupations: { province_id: number; country_id: number }[];
   offer: { offered_by: number; cede_goal: boolean } | null;
@@ -132,12 +133,14 @@ export type GameCommand =
   | { type: 'split_army'; country_id: number; army_id: number; soldiers: number }
   | { type: 'move_army' | 'retreat_army'; country_id: number; army_id: number; destination: number }
   | { type: 'declare_war'; country_id: number; defender_id: number; goal_province_id: number }
+  | { type: 'declare_independence'; country_id: number }
   | { type: 'offer_peace'; country_id: number; war_id: number; cede_goal: boolean }
   | { type: 'accept_peace'; country_id: number; war_id: number }
   | { type: 'choose_event'; country_id: number; key: string; option: number }
   | { type: 'guarantee' | 'revoke_guarantee'; country_id: number; protected_id: number }
   | { type: 'offer_vassalage'; country_id: number; toward_id: number }
-  | { type: 'accept_vassalage' | 'reject_vassalage'; country_id: number; from_id: number };
+  | { type: 'accept_vassalage' | 'reject_vassalage'; country_id: number; from_id: number }
+  | { type: 'release_vassal'; country_id: number; subject_id: number };
 
 interface TauriBridge {
   core: { invoke<T>(name: string, args?: Record<string, unknown>): Promise<T> };

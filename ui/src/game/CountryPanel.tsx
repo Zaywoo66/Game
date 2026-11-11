@@ -135,6 +135,10 @@ interface CountryPanelProps {
 }
 
 export function CountryPanel({ game, country, pending, onSelect, send }: CountryPanelProps) {
+  const local = game.local_country_id;
+  const rulerOf = (id: number) => game.countries.find((row) => row.id === id)?.name ?? 'Country ' + id;
+  const subjectBond = country && game.vassals.find((bond) => bond.subject_id === country.id);
+  const incoming = game.vassal_offers.filter((offer) => offer.subject_id === local);
   return (
     <section className="country-panel" aria-label="Country and rulers">
       <label className="country-picker">
@@ -164,6 +168,32 @@ export function CountryPanel({ game, country, pending, onSelect, send }: Country
             <FiscalPolicyForm key={country.id + ':' + country.tax_rate + ':' + country.monthly_spending}
               country={country} game={game} pending={pending} send={send} />
           )}
+          <section aria-label="Vassalage">
+            <h3>Vassalage</h3>
+            {subjectBond ? <p>Overlord · {rulerOf(subjectBond.overlord_id)}</p> : <p>Independent</p>}
+            {game.vassals.filter((bond) => bond.overlord_id === country.id).map((bond) => (
+              <p key={bond.subject_id}>Subject · {rulerOf(bond.subject_id)}</p>
+            ))}
+            {local === country.id && subjectBond && (
+              <button type="button" disabled={pending || game.wars?.some((war) => war.attacker_id === local || war.defender_id === local)}
+                onClick={() => void send({ type: 'declare_independence', country_id: local })}>Declare independence</button>
+            )}
+            {local !== null && local !== country.id && !subjectBond && !game.vassals.some((bond) => bond.subject_id === local) && (
+              <button type="button" disabled={pending || game.vassal_offers.some((offer) => offer.overlord_id === local && offer.subject_id === country.id)}
+                onClick={() => void send({ type: 'offer_vassalage', country_id: local, toward_id: country.id })}>Offer vassalage</button>
+            )}
+            {local !== null && subjectBond?.overlord_id === local && (
+              <button type="button" disabled={pending || game.wars?.some((war) => [war.attacker_id, war.defender_id, ...war.attacker_supporters, ...war.defender_supporters].includes(local) || [war.attacker_id, war.defender_id, ...war.attacker_supporters, ...war.defender_supporters].includes(country.id))}
+                onClick={() => void send({ type: 'release_vassal', country_id: local, subject_id: country.id })}>Release subject</button>
+            )}
+            {local === country.id && incoming.map((offer) => (
+              <div key={offer.overlord_id}>
+                <p>{rulerOf(offer.overlord_id)} offers vassalage until {offer.expires_at}</p>
+                <button type="button" disabled={pending} onClick={() => void send({ type: 'accept_vassalage', country_id: local, from_id: offer.overlord_id })}>Accept</button>
+                <button type="button" disabled={pending} onClick={() => void send({ type: 'reject_vassalage', country_id: local, from_id: offer.overlord_id })}>Reject</button>
+              </div>
+            ))}
+          </section>
           {country.regency && <p className="game-regency">Regency in effect</p>}
           <CharacterPanel title="Ruler" character={country.ruler} date={game.clock.date} />
           <CharacterPanel title="Heir" character={country.heir} date={game.clock.date} />
