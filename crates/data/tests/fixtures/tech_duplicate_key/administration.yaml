@@ -1,0 +1,8 @@
+schema_version: 1
+branch: administration
+technologies:
+  - key: recordkeeping
+    cost: 10
+    requires: []
+    pos: {x: 0, y: 0}
+    effects: []
