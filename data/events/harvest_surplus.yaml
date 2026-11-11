@@ -1,0 +1,16 @@
+key: harvest_surplus
+title: event_harvest_surplus_title
+desc: event_harvest_surplus_desc
+trigger: {not: {at_war: true}}
+mean_time_to_happen: 720
+repeatable: true
+cooldown_days: 365
+options:
+  - text: event_harvest_surplus_collect
+    ai_weight: 5
+    effects:
+      - add_modifier: {key: tax_income, value: 150, kind: multiplicative, duration_days: 60}
+  - text: event_harvest_surplus_store
+    ai_weight: 4
+    effects:
+      - add_modifier: {key: tax_income, value: 50, kind: multiplicative, duration_days: 180}
