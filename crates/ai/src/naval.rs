@@ -1,4 +1,6 @@
-use strategy_sim::{Command, CommandActor, CountryId, CountryPolity, EdgeKind, GameState, WarSide};
+use strategy_sim::{
+    Command, CommandActor, CountryId, CountryPolity, EdgeKind, GameState, ProvinceId, WarSide,
+};
 
 use crate::{NavalReason, Reason};
 
@@ -28,11 +30,23 @@ pub(super) fn decide(
         if fleet.country != country || fleet.movement.is_some() {
             continue;
         }
-        let Some(&target_sea) = goal
-            .ports
-            .iter()
-            .find(|&&sea| graph.sea_route(fleet.sea, sea).is_some())
-        else {
+        // Avoid ordering a transport into a sea battle it cannot win. A
+        // stronger escort may still enter through the ordinary MoveFleet
+        // command and the host resolves the battle on arrival.
+        let safe_to_sail = |target: ProvinceId| {
+            graph.sea_route(fleet.sea, target).is_some_and(|route| {
+                route.iter().all(|edge| {
+                    let enemy_ships: u64 = navy
+                        .fleets
+                        .values()
+                        .filter(|other| other.sea == edge.to && war.opposed(country, other.country))
+                        .map(|other| u64::from(other.ships))
+                        .sum();
+                    u64::from(fleet.ships) > enemy_ships
+                })
+            })
+        };
+        let Some(&target_sea) = goal.ports.iter().find(|&&sea| safe_to_sail(sea)) else {
             continue;
         };
         if fleet.cargo.is_some() {
@@ -72,11 +86,7 @@ pub(super) fn decide(
             }
             for &port_id in &nation.provinces {
                 let port = graph.get(port_id)?;
-                let Some(&port_sea) = port
-                    .ports
-                    .iter()
-                    .find(|&&sea| graph.sea_route(fleet.sea, sea).is_some())
-                else {
+                let Some(&port_sea) = port.ports.iter().find(|&&sea| safe_to_sail(sea)) else {
                     continue;
                 };
                 if port

@@ -2,7 +2,7 @@
 Docs: ARCHITECTURE.md, MAP_PIPELINE.md
 
 Progress: sea graph and strict v3 port validation are implemented. The first
-fleet/transport slice is in progress. Naval battles, blockade, attrition,
+fleet/transport slice is in progress. Deterministic naval battles are implemented; blockade, attrition,
 construction, ship models and complete AI L3 remain open.
 The current 1440 scenario owns no coastal port for France, so its starting
 fleet remains a M11 ownership/content gap rather than an invented harbor.

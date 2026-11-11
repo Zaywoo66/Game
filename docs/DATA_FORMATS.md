@@ -339,10 +339,19 @@ current `at_war` trigger and existing `tax_income`, `army_combat`, and
 M8.2 has one transport ship type. Each ship holds 1,000 whole soldiers; an
 army boards as one unit and must fit in one fleet. Fleets start in the
 specified sea cell, travel only by `normal` or `strait` sea-to-sea edges, and
-spend each edge's positive whole tick cost in game days. A fleet that would
-enter a sea cell occupied by a wartime opponent stops in its previous cell,
-cancels its route and emits `FleetBlocked` with the blocking fleet ID. Naval
-battles, attrition, blockades and ship construction follow in separate M8/M9
+spend each edge's positive whole tick cost in game days. Wartime opponents
+fight when they share a sea cell. One battle per war and sea cell resolves each
+day, sorted by war ID then sea ID. Each side sums its ships. The larger side
+wins, losing `ceil(ships * 10 / 100)` while the loser loses
+`ceil(ships * 25 / 100)`. A tie costs both sides 10%. Losses consume fleets
+by ascending fleet ID. Losers, or both sides in a tie, cancel routes and
+retreat to their previous safe sea cell, otherwise the adjacent safe cell
+with the lowest ID. A fleet with no safe cell remains until the next day.
+Zero-ship fleets are removed. An embarked army is lost if its fleet sinks or
+the surviving ships cannot carry its full strength. Disembarkation is blocked
+while an opposing wartime fleet occupies the same sea cell; the host returns
+the blocking fleet ID. Peaceful fleets may share
+a sea cell. Attrition, blockades and ship construction follow in separate M8/M9
 tasks. Peacetime alliance alone grants no port access. Embarkation requires a
 port owned by the country or a participant on its side of the same war;
 landing may use such a port or an enemy port during war, with land combat

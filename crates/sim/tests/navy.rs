@@ -1,8 +1,10 @@
 use std::num::NonZeroU32;
 
+use std::collections::{BTreeMap, BTreeSet};
 use strategy_sim::{
     ArmyId, CountryId, EdgeKind, Fleet, FleetId, MapIdentity, NavyError, NavyState, Province,
-    ProvinceEdge, ProvinceGraph, ProvinceId, ProvinceKind, SHIP_CAPACITY,
+    ProvinceEdge, ProvinceGraph, ProvinceId, ProvinceKind, Tick, War, WarId, WarSide,
+    SHIP_CAPACITY,
 };
 
 fn sea(id: u32) -> Province {
@@ -58,6 +60,20 @@ fn fleet() -> (FleetId, NavyState) {
     (id, navy)
 }
 
+fn war() -> War {
+    War {
+        attacker: CountryId::new(1),
+        defender: CountryId::new(2),
+        attacker_supporters: BTreeSet::new(),
+        defender_supporters: BTreeSet::new(),
+        goal: ProvinceId::new(1),
+        started_at: Tick::ZERO,
+        score: 0,
+        occupations: BTreeMap::new(),
+        offer: None,
+    }
+}
+
 #[test]
 fn sea_movement_uses_whole_daily_cost_and_validates_ownership() {
     let graph = graph();
@@ -74,12 +90,12 @@ fn sea_movement_uses_whole_daily_cost_and_validates_ownership() {
         route,
         elapsed_ticks: 0,
     });
-    assert_eq!(navy.advance(|_, _| false), [(id, None)]);
+    assert_eq!(navy.advance(), [(id, ProvinceId::new(1))].into());
     assert_eq!(navy.fleets[&id].sea, ProvinceId::new(1));
-    assert_eq!(navy.advance(|_, _| false), [(id, None)]);
+    assert_eq!(navy.advance(), [(id, ProvinceId::new(1))].into());
     assert_eq!(navy.fleets[&id].sea, ProvinceId::new(2));
     assert!(navy.fleets[&id].movement.is_none());
-    assert_eq!(navy.advance(|_, _| false), []);
+    assert!(navy.advance().is_empty());
 }
 
 #[test]
@@ -107,7 +123,7 @@ fn cargo_validation_rejects_over_capacity_and_duplicates() {
 }
 
 #[test]
-fn enemy_in_next_sea_zone_blocks_entry_with_explicit_fleet_id() {
+fn enemy_in_next_sea_zone_is_reached_for_battle() {
     let graph = graph();
     let (id, mut navy) = fleet();
     let enemy = FleetId::new(2);
@@ -129,7 +145,124 @@ fn enemy_in_next_sea_zone_blocks_entry_with_explicit_fleet_id() {
         route,
         elapsed_ticks: 1,
     });
-    assert_eq!(navy.advance(|a, b| a != b), [(id, Some(enemy))]);
-    assert_eq!(navy.fleets[&id].sea, ProvinceId::new(1));
+    assert_eq!(navy.advance(), [(id, ProvinceId::new(1))].into());
+    assert_eq!(navy.fleets[&id].sea, ProvinceId::new(2));
     assert!(navy.fleets[&id].movement.is_none());
+}
+
+#[test]
+fn stronger_side_wins_with_ceil_losses_and_loser_retreats() {
+    let graph = graph();
+    let (_, mut navy) = fleet();
+    navy.fleets.get_mut(&FleetId::new(1)).unwrap().ships = 20;
+    navy.fleets.get_mut(&FleetId::new(1)).unwrap().sea = ProvinceId::new(2);
+    navy.fleets.insert(
+        FleetId::new(2),
+        Fleet {
+            country: CountryId::new(2),
+            sea: ProvinceId::new(2),
+            ships: 10,
+            movement: None,
+            cargo: None,
+        },
+    );
+    navy.next_fleet_id = 3;
+    let war = war();
+    let previous = BTreeMap::from([(FleetId::new(2), ProvinceId::new(1))]);
+    let battles = navy.resolve_battles(&graph, [(WarId::new(1), &war)], &previous, |_| None);
+    assert_eq!(battles.len(), 1);
+    assert_eq!(battles[0].winner, Some(WarSide::Attacker));
+    assert_eq!(
+        (battles[0].attacker_losses, battles[0].defender_losses),
+        (2, 3)
+    );
+    assert_eq!(navy.fleets[&FleetId::new(1)].ships, 18);
+    assert_eq!(navy.fleets[&FleetId::new(2)].ships, 7);
+    assert_eq!(navy.fleets[&FleetId::new(2)].sea, ProvinceId::new(1));
+}
+
+#[test]
+fn sunk_transport_loses_its_full_army() {
+    let graph = graph();
+    let (_, mut navy) = fleet();
+    navy.fleets.get_mut(&FleetId::new(1)).unwrap().ships = 1;
+    navy.fleets.get_mut(&FleetId::new(1)).unwrap().cargo = Some(ArmyId::new(1));
+    navy.fleets.insert(
+        FleetId::new(2),
+        Fleet {
+            country: CountryId::new(2),
+            sea: ProvinceId::new(1),
+            ships: 2,
+            movement: None,
+            cargo: None,
+        },
+    );
+    navy.next_fleet_id = 3;
+    let war = war();
+    let battles = navy.resolve_battles(&graph, [(WarId::new(1), &war)], &BTreeMap::new(), |_| {
+        Some(500)
+    });
+    assert_eq!(battles[0].lost_armies, [ArmyId::new(1)]);
+    assert_eq!(battles[0].attacker_losses, 1);
+    assert!(!navy.fleets.contains_key(&FleetId::new(1)));
+}
+
+#[test]
+fn tied_fleets_both_lose_ten_percent_without_randomness() {
+    let graph = graph();
+    let (_, mut navy) = fleet();
+    navy.fleets.get_mut(&FleetId::new(1)).unwrap().ships = 10;
+    navy.fleets.insert(
+        FleetId::new(2),
+        Fleet {
+            country: CountryId::new(2),
+            sea: ProvinceId::new(1),
+            ships: 10,
+            movement: None,
+            cargo: None,
+        },
+    );
+    navy.next_fleet_id = 3;
+    let war = war();
+    let battles = navy.resolve_battles(&graph, [(WarId::new(1), &war)], &BTreeMap::new(), |_| None);
+    assert_eq!(battles[0].winner, None);
+    assert_eq!(
+        (battles[0].attacker_losses, battles[0].defender_losses),
+        (1, 1)
+    );
+    assert_eq!(navy.fleets[&FleetId::new(1)].ships, 9);
+    assert_eq!(navy.fleets[&FleetId::new(2)].ships, 9);
+}
+
+#[test]
+fn ship_losses_follow_fleet_id_order_within_each_side() {
+    let graph = graph();
+    let (_, mut navy) = fleet();
+    navy.fleets.get_mut(&FleetId::new(1)).unwrap().ships = 1;
+    navy.fleets.insert(
+        FleetId::new(2),
+        Fleet {
+            country: CountryId::new(2),
+            sea: ProvinceId::new(1),
+            ships: 10,
+            movement: None,
+            cargo: None,
+        },
+    );
+    navy.fleets.insert(
+        FleetId::new(3),
+        Fleet {
+            country: CountryId::new(1),
+            sea: ProvinceId::new(1),
+            ships: 19,
+            movement: None,
+            cargo: None,
+        },
+    );
+    navy.next_fleet_id = 4;
+    let war = war();
+    let battle = navy.resolve_battles(&graph, [(WarId::new(1), &war)], &BTreeMap::new(), |_| None);
+    assert_eq!(battle[0].attacker_losses, 2);
+    assert!(!navy.fleets.contains_key(&FleetId::new(1)));
+    assert_eq!(navy.fleets[&FleetId::new(3)].ships, 18);
 }
