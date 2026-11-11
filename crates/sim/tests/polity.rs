@@ -421,6 +421,143 @@ fn vacant_country_can_gain_a_ruler_when_a_local_candidate_is_born() {
     assert_eq!(state.is_in_regency(ALPHA), Some(true));
 }
 
+#[test]
+fn royal_marriage_offer_acceptance_opinion_and_death() {
+    let mut state = setup(date(1440, 1, 1), |polity| {
+        let bride = polity.characters.get_mut(&BETA_RULER).unwrap();
+        bride.sex = strategy_sim::Sex::Female;
+        bride.death = Some(date(1440, 1, 3));
+    })
+    .unwrap();
+    let offer = Command::OfferRoyalMarriage {
+        country: ALPHA,
+        character: ALPHA_RULER,
+        toward: BETA,
+        partner: BETA_RULER,
+    };
+    assert!(state
+        .apply(OWNER, &offer)
+        .unwrap()
+        .changes()
+        .iter()
+        .any(|change| matches!(change, StateChange::MarriageOffered { .. })));
+    assert_eq!(
+        state.apply(
+            OWNER,
+            &Command::AcceptRoyalMarriage {
+                country: BETA,
+                from: ALPHA,
+                character: ALPHA_RULER,
+                partner: BETA_RULER
+            }
+        ),
+        Err(CommandError::NotCountryController(BETA))
+    );
+    let accepted = state
+        .apply(
+            CommandActor::Ai(BETA),
+            &Command::AcceptRoyalMarriage {
+                country: BETA,
+                from: ALPHA,
+                character: ALPHA_RULER,
+                partner: BETA_RULER,
+            },
+        )
+        .unwrap();
+    assert!(accepted
+        .changes()
+        .iter()
+        .any(|change| matches!(change, StateChange::MarriageChanged { active: true, .. })));
+    assert_eq!(state.opinion(ALPHA, BETA).unwrap().points(), 0);
+    assert_eq!(state.effective_opinion(ALPHA, BETA).unwrap().points(), 20);
+    assert_eq!(state.effective_opinion(BETA, ALPHA).unwrap().points(), 20);
+    assert_eq!(
+        state.character(ALPHA_RULER).unwrap().spouse,
+        Some(BETA_RULER)
+    );
+    advance_to(&mut state, date(1440, 1, 3));
+    assert_eq!(state.character(ALPHA_RULER).unwrap().spouse, None);
+    assert_eq!(state.effective_opinion(ALPHA, BETA).unwrap().points(), 0);
+}
+
+#[test]
+fn royal_marriage_rejects_legacy_unknown_sex_and_expires() {
+    let mut legacy = setup(date(1440, 1, 1), |polity| {
+        polity.characters.get_mut(&BETA_RULER).unwrap().sex = strategy_sim::Sex::Unknown;
+    })
+    .unwrap();
+    assert_eq!(
+        legacy.apply(
+            OWNER,
+            &Command::OfferRoyalMarriage {
+                country: ALPHA,
+                character: ALPHA_RULER,
+                toward: BETA,
+                partner: BETA_RULER
+            }
+        ),
+        Err(CommandError::Marriage(
+            strategy_sim::MarriageError::UnknownSex(BETA_RULER)
+        ))
+    );
+    let mut state = setup(date(1440, 1, 1), |polity| {
+        polity.characters.get_mut(&BETA_RULER).unwrap().sex = strategy_sim::Sex::Female;
+    })
+    .unwrap();
+    state
+        .apply(
+            OWNER,
+            &Command::OfferRoyalMarriage {
+                country: ALPHA,
+                character: ALPHA_RULER,
+                toward: BETA,
+                partner: BETA_RULER,
+            },
+        )
+        .unwrap();
+    advance_to(&mut state, date(1440, 1, 31));
+    assert!(state.diplomacy().unwrap().marriage_offers.is_empty());
+    assert_eq!(
+        state.apply(
+            CommandActor::Ai(BETA),
+            &Command::AcceptRoyalMarriage {
+                country: BETA,
+                from: ALPHA,
+                character: ALPHA_RULER,
+                partner: BETA_RULER
+            }
+        ),
+        Err(CommandError::Marriage(strategy_sim::MarriageError::NoOffer))
+    );
+}
+
+#[test]
+fn royal_marriage_rejects_minor_and_same_sex_with_typed_reasons() {
+    let mut minor = setup(date(1440, 1, 1), |polity| {
+        let bride = polity.characters.get_mut(&BETA_RULER).unwrap();
+        bride.sex = strategy_sim::Sex::Female;
+        bride.birth = date(1425, 1, 1);
+    })
+    .unwrap();
+    let offer = Command::OfferRoyalMarriage {
+        country: ALPHA,
+        character: ALPHA_RULER,
+        toward: BETA,
+        partner: BETA_RULER,
+    };
+    assert_eq!(
+        minor.apply(OWNER, &offer),
+        Err(CommandError::Marriage(
+            strategy_sim::MarriageError::Underage(BETA_RULER)
+        ))
+    );
+    let mut same_sex = setup(date(1440, 1, 1), |_| {}).unwrap();
+    assert_eq!(
+        same_sex.apply(OWNER, &offer),
+        Err(CommandError::Marriage(strategy_sim::MarriageError::SameSex))
+    );
+}
+
 fn setup(start: Date, edit: impl FnOnce(&mut PolityState)) -> Result<GameState, PolityError> {
     let base = GameState::new(
         SimTime::new(start, Speed::One, false),
@@ -490,6 +627,8 @@ fn setup(start: Date, edit: impl FnOnce(&mut PolityState)) -> Result<GameState, 
 
 fn character(country: CountryId, dynasty: &str, birth: Date) -> CharacterState {
     CharacterState {
+        sex: strategy_sim::Sex::Male,
+        spouse: None,
         name: "Test Character".to_owned(),
         country,
         dynasty: dynasty.to_owned(),

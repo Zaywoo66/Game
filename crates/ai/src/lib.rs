@@ -6,6 +6,7 @@ use strategy_sim::{
 };
 
 mod diplomacy;
+mod marriage;
 mod military;
 
 /// Fresh context for one country's decision on one simulation tick.
@@ -36,6 +37,9 @@ pub enum Reason {
     AllianceRejected,
     AllianceProposed,
     EventOption,
+    MarriageAccepted,
+    MarriageRejected,
+    MarriageProposed,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -64,6 +68,9 @@ impl Reason {
             Self::AllianceRejected => "AllianceRejected",
             Self::AllianceProposed => "AllianceProposed",
             Self::EventOption => "EventOption",
+            Self::MarriageAccepted => "MarriageAccepted",
+            Self::MarriageRejected => "MarriageRejected",
+            Self::MarriageProposed => "MarriageProposed",
             Self::Military { action, .. } => match action {
                 MilitaryReason::RaiseArmy => "RaiseArmy",
                 MilitaryReason::CombineArmies => "CombineArmies",
@@ -178,10 +185,14 @@ pub fn decide(
     if let Some(command) = diplomacy::decide(state, country, profile, ctx) {
         commands.push(command);
     }
+    if let Some(command) = marriage::decide(state, country, profile) {
+        commands.push(command);
+    }
     commands
 }
 
 pub use diplomacy::{alliance_acceptance_factors, AllianceAcceptanceFactor};
+pub use marriage::{marriage_acceptance_factors, MarriageAcceptanceFactor};
 
 fn fiscal_decision(
     state: &GameState,

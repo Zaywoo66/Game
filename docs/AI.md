@@ -63,6 +63,15 @@ weights are zero. A keyed seeded draw selects the option, and the AI submits a
 `ChooseEvent` command through the ordinary validation path. It never changes
 the pending event directly.
 
+Royal-marriage AI uses a separate read-only factor list: effective opinion
+toward the proposer, `marriage_min_opinion`, and legal named-character pair.
+It accepts a legal offer when effective opinion meets the data profile's
+threshold, otherwise rejects. Human acceptance has no opinion threshold.
+On the same staggered 31-tick L2 cadence, an AI may offer a legal marriage
+to the highest-opinion country; stable character ID order breaks ties. This
+choice uses no random draw. The current 1440 content has no eligible woman,
+so the behavior is covered with a synthetic scenario until M11 content work.
+
 Run the same host tick without a window with
 `cargo run --locked -p strategy-app --bin ai-smoke -- 3653 1440 1441 1442`.
 The arguments are the daily tick count followed by one or more seeds.

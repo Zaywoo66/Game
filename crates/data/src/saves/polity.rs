@@ -200,6 +200,10 @@ struct CharacterFile {
     name: String,
     country: u32,
     dynasty: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    sex: Option<CharacterSexFile>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    spouse: Option<u32>,
     birth: (u32, u8, u8),
     #[serde(deserialize_with = "required_optional")]
     death: Option<(u32, u8, u8)>,
@@ -209,6 +213,13 @@ struct CharacterFile {
     sources: Vec<SourceFile>,
 }
 
+#[derive(Clone, Copy, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+enum CharacterSexFile {
+    Male,
+    Female,
+}
+
 impl CharacterFile {
     fn snapshot(id: CharacterId, character: &CharacterState) -> Self {
         Self {
@@ -216,6 +227,12 @@ impl CharacterFile {
             name: character.name.clone(),
             country: character.country.get(),
             dynasty: character.dynasty.clone(),
+            sex: match character.sex {
+                strategy_sim::Sex::Unknown => None,
+                strategy_sim::Sex::Male => Some(CharacterSexFile::Male),
+                strategy_sim::Sex::Female => Some(CharacterSexFile::Female),
+            },
+            spouse: character.spouse.map(CharacterId::get),
             birth: character.birth.components(),
             death: character.death.map(Date::components),
             stats: character.stats,
@@ -235,6 +252,12 @@ impl CharacterFile {
                 name: self.name,
                 country: CountryId::new(self.country),
                 dynasty: self.dynasty,
+                sex: match self.sex {
+                    None => strategy_sim::Sex::Unknown,
+                    Some(CharacterSexFile::Male) => strategy_sim::Sex::Male,
+                    Some(CharacterSexFile::Female) => strategy_sim::Sex::Female,
+                },
+                spouse: self.spouse.map(CharacterId::new),
                 birth: date(self.birth)?,
                 death: self.death.map(date).transpose()?,
                 stats: self.stats,

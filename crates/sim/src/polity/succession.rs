@@ -11,11 +11,20 @@ pub struct CharacterStats {
     pub mil: u8,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Sex {
+    Unknown,
+    Male,
+    Female,
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct CharacterState {
     pub name: String,
     pub country: CountryId,
     pub dynasty: String,
+    pub sex: Sex,
+    pub spouse: Option<CharacterId>,
     pub birth: Date,
     pub death: Option<Date>,
     pub stats: CharacterStats,
@@ -101,6 +110,29 @@ impl PolityState {
 
     pub(super) fn advance_characters(&mut self, previous: Date, date: Date) -> Vec<StateChange> {
         let mut changes = Vec::new();
+        let ended: BTreeSet<_> = self
+            .characters
+            .iter()
+            .filter_map(|(&id, state)| {
+                let spouse = state.spouse?;
+                (state.death == Some(date) && id < spouse)
+                    .then_some((id, spouse))
+                    .or_else(|| (state.death == Some(date) && spouse < id).then_some((spouse, id)))
+            })
+            .collect();
+        for (a, b) in ended {
+            if let Some(state) = self.characters.get_mut(&a) {
+                state.spouse = None;
+            }
+            if let Some(state) = self.characters.get_mut(&b) {
+                state.spouse = None;
+            }
+            changes.push(StateChange::MarriageChanged {
+                a,
+                b,
+                active: false,
+            });
+        }
         for (&character, state) in &self.characters {
             if state.death == Some(date) {
                 changes.push(StateChange::CharacterDied {

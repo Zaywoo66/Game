@@ -13,7 +13,8 @@
   "thresholds": {
     "war_min_score": 0,
     "peace_accept_score": 75,
-    "alliance_min_opinion": 30
+    "alliance_min_opinion": 30,
+    "marriage_min_opinion": 20
   },
   "preferred_tax_rate": 230,
   "preferred_monthly_spending": 6000
