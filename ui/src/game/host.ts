@@ -73,12 +73,21 @@ export interface AiLogEntry {
   score: number | null;
 }
 
+export interface EventView {
+  country_id: number;
+  key: string;
+  title_key: string;
+  desc_key: string;
+  options: { text_key: string }[];
+}
+
 export interface GameSnapshot {
   generation?: number;
   sequence: number;
   clock: ClockView;
   local_country_id: number | null;
   countries: CountryView[];
+  pending_events?: EventView[];
   owners: { province_id: number; country_id: number }[];
   max_tax_rate: number;
   max_monthly_spending: string;
@@ -95,6 +104,7 @@ interface GameUpdate {
   sequence: number;
   clock: ClockView;
   countries: CountryView[];
+  pending_events?: EventView[] | null;
   armies?: ArmyView[];
   removed_armies?: number[];
   wars?: WarView[];
@@ -113,7 +123,8 @@ export type GameCommand =
   | { type: 'move_army' | 'retreat_army'; country_id: number; army_id: number; destination: number }
   | { type: 'declare_war'; country_id: number; defender_id: number; goal_province_id: number }
   | { type: 'offer_peace'; country_id: number; war_id: number; cede_goal: boolean }
-  | { type: 'accept_peace'; country_id: number; war_id: number };
+  | { type: 'accept_peace'; country_id: number; war_id: number }
+  | { type: 'choose_event'; country_id: number; key: string; option: number };
 
 interface TauriBridge {
   core: { invoke<T>(name: string, args?: Record<string, unknown>): Promise<T> };
@@ -156,6 +167,7 @@ function applyUpdate(snapshot: GameSnapshot, update: GameUpdate): GameSnapshot {
     sequence: update.sequence,
     clock: update.clock,
     countries: updateRows(snapshot.countries, update.countries) ?? snapshot.countries,
+    pending_events: update.pending_events ?? snapshot.pending_events,
     owners,
     armies: updateRows(snapshot.armies, update.armies, update.removed_armies),
     wars: updateRows(snapshot.wars, update.wars, update.removed_wars),

@@ -33,6 +33,7 @@ pub(crate) struct Session {
     game: GameState,
     sequence: u64,
     visible_countries: BTreeMap<u32, CountryView>,
+    visible_events: Vec<EventView>,
     visible_owners: BTreeMap<u32, u32>,
     military: MilitaryView,
     ai_log: AiDecisionLog,
@@ -117,6 +118,20 @@ struct CountryView {
 }
 
 #[derive(Clone, PartialEq, Eq, Serialize)]
+struct EventView {
+    country_id: u32,
+    key: String,
+    title_key: String,
+    desc_key: String,
+    options: Vec<EventOptionView>,
+}
+
+#[derive(Clone, PartialEq, Eq, Serialize)]
+struct EventOptionView {
+    text_key: String,
+}
+
+#[derive(Clone, PartialEq, Eq, Serialize)]
 struct OwnerView {
     province_id: u32,
     country_id: Option<u32>,
@@ -179,6 +194,7 @@ pub(crate) struct Snapshot {
     clock: ClockView,
     local_country_id: Option<u32>,
     countries: Vec<CountryView>,
+    pending_events: Vec<EventView>,
     owners: Vec<OwnerView>,
     max_tax_rate: i64,
     max_monthly_spending: String,
@@ -196,6 +212,7 @@ struct Update {
     generation: u64,
     clock: ClockView,
     countries: Vec<CountryView>,
+    pending_events: Option<Vec<EventView>>,
     owners: Vec<OwnerView>,
     armies: Vec<ArmyView>,
     removed_armies: Vec<u32>,
@@ -268,6 +285,11 @@ pub(crate) enum UiCommand {
     AcceptPeace {
         country_id: u32,
         war_id: u32,
+    },
+    ChooseEvent {
+        country_id: u32,
+        key: String,
+        option: u32,
     },
 }
 
@@ -360,6 +382,15 @@ impl UiCommand {
                 country: CountryId::new(country_id),
                 war: WarId::new(war_id),
             },
+            Self::ChooseEvent {
+                country_id,
+                key,
+                option,
+            } => Command::ChooseEvent {
+                country: CountryId::new(country_id),
+                key,
+                option,
+            },
         })
     }
 }
@@ -388,12 +419,14 @@ pub(crate) fn setup(app: &mut App) -> Result<(), Box<dyn std::error::Error>> {
     app.manage(Arc::clone(&lifecycle));
     let game = load_embedded_scenario().map_err(std::io::Error::other)?;
     let visible_countries = country_views(&game);
+    let visible_events = event_views(&game, HOST);
     let visible_owners = owner_views(&game);
     let military = military_view(&game);
     app.manage(Mutex::new(Session {
         game,
         sequence: 0,
         visible_countries,
+        visible_events,
         visible_owners,
         military,
         ai_log: AiDecisionLog::default(),
@@ -502,11 +535,7 @@ pub(crate) fn game_snapshot(state: State<'_, Mutex<Session>>) -> Result<Snapshot
         .game
         .polity()
         .ok_or("The scenario is unavailable.")?;
-    let player = if matches!(session.mode, Mode::Guest(_)) {
-        GUEST
-    } else {
-        HOST
-    };
+    let player = local_player(&session.mode);
     let local_country_id = session.game.countries().find_map(|(id, country)| {
         (country.controller() == &Controller::Human(player)).then_some(id.get())
     });
@@ -517,6 +546,7 @@ pub(crate) fn game_snapshot(state: State<'_, Mutex<Session>>) -> Result<Snapshot
         clock: clock_view(&session.game),
         local_country_id,
         countries: session.visible_countries.values().cloned().collect(),
+        pending_events: event_views(&session.game, player),
         owners: session
             .visible_owners
             .iter()
@@ -843,6 +873,7 @@ fn reset_game(session: &mut Session, game: &GameState, sequence: u64) {
     session.network_sequence = sequence;
     session.game = game.clone();
     session.visible_countries = country_views(game);
+    session.visible_events = event_views(game, local_player(&session.mode));
     session.visible_owners = owner_views(game);
     session.military = military_view(game);
     session.ai_log = AiDecisionLog::default();
@@ -957,6 +988,7 @@ fn emit_lan_status(app: &AppHandle, session: &mut Session) -> LanStatus {
 
 fn publish(app: &AppHandle, session: &mut Session) {
     let countries = country_views(&session.game);
+    let events = event_views(&session.game, local_player(&session.mode));
     let owners = owner_views(&session.game);
     let military = military_view(&session.game);
     session.sequence += 1;
@@ -965,6 +997,7 @@ fn publish(app: &AppHandle, session: &mut Session) {
         generation: session.generation,
         clock: clock_view(&session.game),
         countries: changed_rows(&session.visible_countries, &countries),
+        pending_events: (session.visible_events != events).then(|| events.clone()),
         owners: owners
             .iter()
             .filter(|(id, owner)| session.visible_owners.get(id) != Some(*owner))
@@ -988,6 +1021,7 @@ fn publish(app: &AppHandle, session: &mut Session) {
         sieges: (session.military.sieges != military.sieges).then(|| military.sieges.clone()),
     };
     session.visible_countries = countries;
+    session.visible_events = events;
     session.visible_owners = owners;
     session.military = military;
     if let Err(error) = app.emit(UPDATE_EVENT, update) {
@@ -1090,6 +1124,43 @@ fn military_view(game: &GameState) -> MilitaryView {
     }
 }
 
+fn local_player(mode: &Mode) -> PlayerId {
+    if matches!(mode, Mode::Guest(_)) {
+        GUEST
+    } else {
+        HOST
+    }
+}
+
+fn event_views(game: &GameState, player: PlayerId) -> Vec<EventView> {
+    let Some(events) = game.events() else {
+        return Vec::new();
+    };
+    events
+        .pending
+        .iter()
+        .filter_map(|((country, key), _)| {
+            let is_local = game.countries().any(|(id, state)| {
+                id == *country && state.controller() == &Controller::Human(player)
+            });
+            let definition = events.definitions.get(key)?;
+            is_local.then(|| EventView {
+                country_id: country.get(),
+                key: key.clone(),
+                title_key: definition.title_key.clone(),
+                desc_key: definition.desc_key.clone(),
+                options: definition
+                    .options
+                    .iter()
+                    .map(|option| EventOptionView {
+                        text_key: option.text_key.clone(),
+                    })
+                    .collect(),
+            })
+        })
+        .collect()
+}
+
 fn country_views(game: &GameState) -> BTreeMap<u32, CountryView> {
     let Some(polity) = game.polity() else {
         return BTreeMap::new();
@@ -1173,7 +1244,16 @@ fn money(value: Fixed) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::Startup;
+    use super::{event_views, Startup, UiCommand, GUEST, HOST};
+    use std::{
+        collections::{BTreeMap, BTreeSet},
+        num::{NonZeroU32, NonZeroU64},
+    };
+    use strategy_data::parse_event_yaml;
+    use strategy_sim::{
+        Command, Controller, CountryId, CountryState, Date, GameState, MapIdentity, ModifierStore,
+        ProvinceGraph, SimTime, Speed, Trigger,
+    };
 
     #[test]
     fn normal_launch_and_guest_startup_arguments_are_validated() {
@@ -1192,5 +1272,80 @@ mod tests {
         ] {
             assert!(Startup::parse(args.into_iter().map(String::from)).is_err());
         }
+    }
+
+    #[test]
+    fn pending_event_projection_is_local_and_choice_maps_to_host_command() {
+        let mut definition = parse_event_yaml(include_str!(
+            "../../tools/tests/fixtures/good_event/events/harvest.yaml"
+        ))
+        .unwrap();
+        definition.trigger = Trigger::All(Vec::new());
+        definition.mean_time_to_happen = NonZeroU64::new(1);
+        let graph = ProvinceGraph::try_new(
+            MapIdentity {
+                version: NonZeroU32::new(1).unwrap(),
+                sha256: [7; 32],
+            },
+            [],
+        )
+        .unwrap();
+        let countries = [HOST, GUEST]
+            .into_iter()
+            .enumerate()
+            .map(|(index, player)| {
+                (
+                    CountryId::new(index as u32 + 1),
+                    CountryState::new(
+                        Controller::Human(player),
+                        BTreeSet::new(),
+                        false,
+                        ModifierStore::default(),
+                    ),
+                )
+            })
+            .collect();
+        let mut game = GameState::new(
+            SimTime::new(Date::new(1440, 1, 1).unwrap(), Speed::One, false),
+            42,
+            graph,
+            countries,
+            [],
+        )
+        .unwrap()
+        .with_events(BTreeMap::from([(definition.key.clone(), definition)]))
+        .unwrap();
+        game.tick(|_, _| Vec::new()).unwrap();
+        let host_country = game
+            .countries()
+            .find_map(|(id, country)| {
+                (country.controller() == &Controller::Human(HOST)).then_some(id.get())
+            })
+            .unwrap();
+        let guest_country = game
+            .countries()
+            .find_map(|(id, country)| {
+                (country.controller() == &Controller::Human(GUEST)).then_some(id.get())
+            })
+            .unwrap();
+        let host_events = event_views(&game, HOST);
+        let guest_events = event_views(&game, GUEST);
+        assert_eq!(host_events.len(), 1);
+        assert_eq!(guest_events.len(), 1);
+        assert_eq!(host_events[0].country_id, host_country);
+        assert_eq!(guest_events[0].country_id, guest_country);
+        assert_eq!(host_events[0].key, "harvest_festival");
+        assert_eq!(host_events[0].options.len(), 2);
+        let command = UiCommand::ChooseEvent {
+            country_id: host_country,
+            key: host_events[0].key.clone(),
+            option: 1,
+        }
+        .into_sim()
+        .unwrap();
+        assert!(
+            matches!(command, Command::ChooseEvent { country, option: 1, .. }
+            if country.get() == host_country)
+        );
     }
 }
