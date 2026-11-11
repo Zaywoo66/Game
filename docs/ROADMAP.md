@@ -19,6 +19,10 @@ Status: [ ] todo, [~] in progress, [x] done. Update in the PR that changes it. W
 | M12 | Beta release | [ ] | milestones/M12_release.md |
 | M13 | World map (post-beta) | [ ] | milestones/M13_world.md |
 
+M5b political-source audit: generated 1440 overlap evidence covers every
+land province and marks unknown or coarse matches. Scenario ownership and
+visual acceptance remain in progress.
+
 AI levels L0–L3 are delivered inside M3, M4, M6, M7–M9 (see each milestone's AI slice); M10 only completes L4.
 
 After the 5b.2 dense-map rebuild passes CI, M6–M11 may proceed while physical two-PC M5 acceptance and the remaining M5b visual/UI checks are open. M12 cannot start until M5 and M5b are accepted. Local loopback and accelerated runs support development but do not close the two-PC acceptance.
