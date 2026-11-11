@@ -144,6 +144,8 @@ struct WarView {
     id: u32,
     attacker_id: u32,
     defender_id: u32,
+    attacker_supporters: Vec<u32>,
+    defender_supporters: Vec<u32>,
     goal_province_id: u32,
     score: i32,
     occupations: Vec<OwnerView>,
@@ -165,6 +167,12 @@ struct FortView {
     level: u8,
 }
 
+#[derive(Clone, PartialEq, Eq, Serialize)]
+struct GuaranteeView {
+    guarantor_id: u32,
+    protected_id: u32,
+}
+
 #[derive(Default)]
 struct MilitaryView {
     armies: BTreeMap<u32, ArmyView>,
@@ -182,6 +190,7 @@ pub(crate) struct Snapshot {
     owners: Vec<OwnerView>,
     max_tax_rate: i64,
     max_monthly_spending: String,
+    guarantees: Vec<GuaranteeView>,
     armies: Vec<ArmyView>,
     wars: Vec<WarView>,
     sieges: Vec<SiegeView>,
@@ -196,6 +205,7 @@ struct Update {
     generation: u64,
     clock: ClockView,
     countries: Vec<CountryView>,
+    guarantees: Vec<GuaranteeView>,
     owners: Vec<OwnerView>,
     armies: Vec<ArmyView>,
     removed_armies: Vec<u32>,
@@ -268,6 +278,14 @@ pub(crate) enum UiCommand {
     AcceptPeace {
         country_id: u32,
         war_id: u32,
+    },
+    Guarantee {
+        country_id: u32,
+        protected_id: u32,
+    },
+    RevokeGuarantee {
+        country_id: u32,
+        protected_id: u32,
     },
 }
 
@@ -359,6 +377,20 @@ impl UiCommand {
             Self::AcceptPeace { country_id, war_id } => Command::AcceptPeace {
                 country: CountryId::new(country_id),
                 war: WarId::new(war_id),
+            },
+            Self::Guarantee {
+                country_id,
+                protected_id,
+            } => Command::Guarantee {
+                country: CountryId::new(country_id),
+                protected: CountryId::new(protected_id),
+            },
+            Self::RevokeGuarantee {
+                country_id,
+                protected_id,
+            } => Command::RevokeGuarantee {
+                country: CountryId::new(country_id),
+                protected: CountryId::new(protected_id),
             },
         })
     }
@@ -527,6 +559,7 @@ pub(crate) fn game_snapshot(state: State<'_, Mutex<Session>>) -> Result<Snapshot
             .collect(),
         max_tax_rate: polity.rules.max_tax_rate.raw(),
         max_monthly_spending: money(polity.rules.max_monthly_spending),
+        guarantees: guarantee_views(&session.game),
         armies: session.military.armies.values().cloned().collect(),
         wars: session.military.wars.values().cloned().collect(),
         sieges: session.military.sieges.clone(),
@@ -965,6 +998,7 @@ fn publish(app: &AppHandle, session: &mut Session) {
         generation: session.generation,
         clock: clock_view(&session.game),
         countries: changed_rows(&session.visible_countries, &countries),
+        guarantees: guarantee_views(&session.game),
         owners: owners
             .iter()
             .filter(|(id, owner)| session.visible_owners.get(id) != Some(*owner))
@@ -1006,6 +1040,17 @@ fn removed_rows<T>(old: &BTreeMap<u32, T>, new: &BTreeMap<u32, T>) -> Vec<u32> {
     old.keys()
         .copied()
         .filter(|id| !new.contains_key(id))
+        .collect()
+}
+
+fn guarantee_views(game: &GameState) -> Vec<GuaranteeView> {
+    game.diplomacy()
+        .into_iter()
+        .flat_map(|diplomacy| &diplomacy.guarantees)
+        .map(|&(guarantor, protected)| GuaranteeView {
+            guarantor_id: guarantor.get(),
+            protected_id: protected.get(),
+        })
         .collect()
 }
 
@@ -1058,6 +1103,16 @@ fn military_view(game: &GameState) -> MilitaryView {
                         id: id.get(),
                         attacker_id: war.attacker.get(),
                         defender_id: war.defender.get(),
+                        attacker_supporters: war
+                            .attacker_supporters
+                            .iter()
+                            .map(|id| id.get())
+                            .collect(),
+                        defender_supporters: war
+                            .defender_supporters
+                            .iter()
+                            .map(|id| id.get())
+                            .collect(),
                         goal_province_id: war.goal.get(),
                         score: war.score,
                         occupations: war
@@ -1173,7 +1228,41 @@ fn money(value: Fixed) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::Startup;
+    use super::{Startup, UiCommand};
+    use strategy_sim::{Command, CountryId};
+
+    #[test]
+    fn guarantee_ui_commands_preserve_direction_and_country_ids() {
+        for (json, revoke) in [
+            (
+                r#"{"type":"guarantee","country_id":3,"protected_id":2}"#,
+                false,
+            ),
+            (
+                r#"{"type":"revoke_guarantee","country_id":3,"protected_id":2}"#,
+                true,
+            ),
+        ] {
+            let command = serde_json::from_str::<UiCommand>(json)
+                .unwrap()
+                .into_sim()
+                .unwrap();
+            assert_eq!(
+                command,
+                if revoke {
+                    Command::RevokeGuarantee {
+                        country: CountryId::new(3),
+                        protected: CountryId::new(2),
+                    }
+                } else {
+                    Command::Guarantee {
+                        country: CountryId::new(3),
+                        protected: CountryId::new(2),
+                    }
+                }
+            );
+        }
+    }
 
     #[test]
     fn normal_launch_and_guest_startup_arguments_are_validated() {

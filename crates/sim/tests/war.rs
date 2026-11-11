@@ -317,6 +317,7 @@ fn declaring_war_requires_breaking_the_alliance_first() {
 const A: CountryId = CountryId::new(1);
 const B: CountryId = CountryId::new(2);
 const C: CountryId = CountryId::new(3);
+const D: CountryId = CountryId::new(4);
 const HOST: CommandActor = CommandActor::Host(PlayerId::new(1));
 const GUEST: CommandActor = CommandActor::Guest(PlayerId::new(2));
 const FIRST_ARMY: ArmyId = ArmyId::new(1);
@@ -692,6 +693,322 @@ fn supporter_fights_and_besieges_but_only_leaders_make_peace_and_all_opponents_g
 }
 
 #[test]
+fn guarantee_is_directed_indefinite_and_revocation_has_one_way_penalty_without_cooldown() {
+    let mut state = setup_guarantee(|_| {});
+    let c_actor = CommandActor::Host(PlayerId::new(3));
+    let guarantee = Command::Guarantee {
+        country: C,
+        protected: B,
+    };
+    assert_eq!(
+        state.validate_command(
+            c_actor,
+            &Command::Guarantee {
+                country: C,
+                protected: C
+            }
+        ),
+        Err(CommandError::Diplomacy(DiplomacyError::SameCountry))
+    );
+    assert_eq!(
+        state.validate_command(
+            c_actor,
+            &Command::Guarantee {
+                country: C,
+                protected: CountryId::new(99)
+            }
+        ),
+        Err(CommandError::Diplomacy(DiplomacyError::UnknownCountry(
+            CountryId::new(99)
+        )))
+    );
+    assert_eq!(
+        state.validate_command(HOST, &guarantee),
+        Err(CommandError::NotCountryController(C))
+    );
+    apply(&mut state, c_actor, guarantee.clone());
+    assert!(state.diplomacy().unwrap().guarantees(C, B));
+    assert!(!state.diplomacy().unwrap().guarantees(B, C));
+    assert_eq!(
+        state.validate_command(c_actor, &guarantee),
+        Err(CommandError::Diplomacy(DiplomacyError::AlreadyGuaranteed))
+    );
+    apply(
+        &mut state,
+        c_actor,
+        Command::RevokeGuarantee {
+            country: C,
+            protected: B,
+        },
+    );
+    assert!(!state.diplomacy().unwrap().guarantees(C, B));
+    assert_eq!(state.opinion(B, C).unwrap().points(), -10);
+    assert_eq!(state.opinion(C, B).unwrap().points(), 0);
+    apply(&mut state, c_actor, guarantee);
+    assert!(state.diplomacy().unwrap().guarantees(C, B));
+}
+
+#[test]
+fn defensive_guarantor_joins_war_and_receives_pairwise_truce_after_leader_peace() {
+    let mut state = setup_guarantee(|_| {});
+    let c_actor = CommandActor::Host(PlayerId::new(3));
+    apply(
+        &mut state,
+        c_actor,
+        Command::Guarantee {
+            country: C,
+            protected: B,
+        },
+    );
+    let mut replay = state.clone();
+    let declaration = Command::DeclareWar {
+        country: A,
+        defender: B,
+        goal: province(5),
+    };
+    apply(&mut state, HOST, declaration.clone());
+    apply(&mut replay, HOST, declaration);
+    for _ in 0..3 {
+        assert_eq!(day(&mut state), day(&mut replay));
+    }
+    assert_eq!(state, replay);
+    let war = &state.war_state().unwrap().wars[&WAR];
+    assert!(war.defender_supporters.contains(&C));
+    assert!(state.country_at_war(C));
+    raise(&mut state, c_actor, C, 6, 100);
+    assert!(state
+        .validate_command(
+            c_actor,
+            &Command::MoveArmy {
+                country: C,
+                army: FIRST_ARMY,
+                destination: province(3),
+            }
+        )
+        .is_ok());
+    assert_eq!(
+        state.validate_command(
+            c_actor,
+            &Command::OfferPeace {
+                country: C,
+                war: WAR,
+                cede_goal: false,
+            }
+        ),
+        Err(CommandError::War(WarError::NotWarLeader))
+    );
+    apply(
+        &mut state,
+        HOST,
+        Command::OfferPeace {
+            country: A,
+            war: WAR,
+            cede_goal: false,
+        },
+    );
+    apply(
+        &mut state,
+        GUEST,
+        Command::AcceptPeace {
+            country: B,
+            war: WAR,
+        },
+    );
+    assert!(!state.country_at_war(C));
+    assert_eq!(
+        state.war_state().unwrap().coalition_truces.get(&(A, C)),
+        Some(&state.time().tick())
+    );
+    assert!(state.diplomacy().unwrap().guarantees(C, B));
+}
+
+#[test]
+fn allied_attacker_causes_guarantee_failure_but_keeps_alliance() {
+    let mut state = setup_guarantee(|_| {});
+    let c_actor = CommandActor::Host(PlayerId::new(3));
+    apply(
+        &mut state,
+        c_actor,
+        Command::Guarantee {
+            country: C,
+            protected: B,
+        },
+    );
+    apply(
+        &mut state,
+        HOST,
+        Command::OfferAlliance {
+            country: A,
+            toward: C,
+        },
+    );
+    apply(
+        &mut state,
+        c_actor,
+        Command::AcceptAlliance {
+            country: C,
+            from: A,
+        },
+    );
+    apply(
+        &mut state,
+        HOST,
+        Command::DeclareWar {
+            country: A,
+            defender: B,
+            goal: province(5),
+        },
+    );
+    assert!(state.allied(A, C));
+    assert!(!state.diplomacy().unwrap().guarantees(C, B));
+    assert_eq!(state.opinion(B, C).unwrap().points(), -25);
+    assert_eq!(state.opinion(C, B).unwrap().points(), 0);
+    assert!(!state.country_at_war(C));
+}
+
+#[test]
+fn multiple_guarantors_include_an_ally_of_the_protected_country() {
+    let mut state = setup_guarantee_four(|_| {});
+    let c_actor = CommandActor::Host(PlayerId::new(3));
+    let d_actor = CommandActor::Host(PlayerId::new(4));
+    apply(
+        &mut state,
+        c_actor,
+        Command::Guarantee {
+            country: C,
+            protected: B,
+        },
+    );
+    apply(
+        &mut state,
+        d_actor,
+        Command::Guarantee {
+            country: D,
+            protected: B,
+        },
+    );
+    apply(
+        &mut state,
+        GUEST,
+        Command::OfferAlliance {
+            country: B,
+            toward: C,
+        },
+    );
+    apply(
+        &mut state,
+        c_actor,
+        Command::AcceptAlliance {
+            country: C,
+            from: B,
+        },
+    );
+    apply(
+        &mut state,
+        HOST,
+        Command::DeclareWar {
+            country: A,
+            defender: B,
+            goal: province(5),
+        },
+    );
+    assert_eq!(
+        state.war_state().unwrap().wars[&WAR].defender_supporters,
+        BTreeSet::from([C, D])
+    );
+    assert!(state.allied(B, C));
+    assert!(state.country_at_war(C) && state.country_at_war(D));
+}
+
+#[test]
+fn guarantor_busy_in_another_war_fails_and_create_requires_both_at_peace() {
+    let mut state = setup_guarantee_four(|_| {});
+    let c_actor = CommandActor::Host(PlayerId::new(3));
+    apply(
+        &mut state,
+        c_actor,
+        Command::Guarantee {
+            country: C,
+            protected: B,
+        },
+    );
+    apply(
+        &mut state,
+        c_actor,
+        Command::DeclareWar {
+            country: C,
+            defender: D,
+            goal: province(8),
+        },
+    );
+    assert_eq!(
+        state.validate_command(
+            HOST,
+            &Command::Guarantee {
+                country: A,
+                protected: B
+            }
+        ),
+        Ok(())
+    );
+    assert_eq!(
+        state.validate_command(
+            HOST,
+            &Command::Guarantee {
+                country: A,
+                protected: C
+            }
+        ),
+        Err(CommandError::Diplomacy(DiplomacyError::AtWar))
+    );
+    apply(
+        &mut state,
+        HOST,
+        Command::DeclareWar {
+            country: A,
+            defender: B,
+            goal: province(5),
+        },
+    );
+    assert!(!state.diplomacy().unwrap().guarantees(C, B));
+    assert_eq!(state.opinion(B, C).unwrap().points(), -25);
+    assert_eq!(state.war_state().unwrap().wars.len(), 2);
+    assert_eq!(state.war_state().unwrap().war_for(C).unwrap().0, WAR);
+}
+
+#[test]
+fn declaring_war_on_a_guaranteed_country_requires_explicit_revoke() {
+    let mut state = setup_guarantee(|_| {});
+    let war = Command::DeclareWar {
+        country: A,
+        defender: B,
+        goal: province(5),
+    };
+    apply(
+        &mut state,
+        HOST,
+        Command::Guarantee {
+            country: A,
+            protected: B,
+        },
+    );
+    assert_eq!(
+        state.validate_command(HOST, &war),
+        Err(CommandError::Diplomacy(DiplomacyError::MustRevokeGuarantee))
+    );
+    apply(
+        &mut state,
+        HOST,
+        Command::RevokeGuarantee {
+            country: A,
+            protected: B,
+        },
+    );
+    assert_eq!(state.opinion(B, A).unwrap().points(), -10);
+    assert!(state.validate_command(HOST, &war).is_ok());
+}
+
+#[test]
 fn splitting_does_not_create_more_supply_for_the_same_country_and_province() {
     let mut state = setup(|rules| {
         rules.base_supply = 4;
@@ -742,54 +1059,79 @@ fn day(state: &mut GameState) -> TickReport {
 }
 
 fn setup(tune: impl FnOnce(&mut WarRules)) -> GameState {
-    setup_internal(tune, false)
+    setup_internal(tune, 2, false)
 }
 
 fn setup_coalition(tune: impl FnOnce(&mut WarRules)) -> GameState {
-    setup_internal(tune, true)
+    setup_internal(tune, 3, true)
 }
 
-fn setup_internal(tune: impl FnOnce(&mut WarRules), coalition: bool) -> GameState {
-    let graph = ProvinceGraph::try_new(
-        identity(),
-        [
-            node(1, &[(2, EdgeKind::Normal, 2), (3, EdgeKind::Strait, 9)]),
-            node(
-                2,
-                &[
-                    (1, EdgeKind::Normal, 2),
-                    (3, EdgeKind::River, 3),
-                    (6, EdgeKind::Port, 1),
-                ],
-            ),
-            node(
-                3,
-                &[
-                    (1, EdgeKind::Strait, 9),
-                    (2, EdgeKind::River, 3),
-                    (4, EdgeKind::Normal, 1),
-                ],
-            ),
-            node(
-                4,
-                &[
-                    (3, EdgeKind::Normal, 1),
-                    (5, EdgeKind::Normal, 2),
-                    (6, EdgeKind::Normal, 1),
-                ],
-            ),
-            node(5, &[(4, EdgeKind::Normal, 2), (6, EdgeKind::Normal, 1)]),
-            node(
-                6,
-                &[
+fn setup_guarantee(tune: impl FnOnce(&mut WarRules)) -> GameState {
+    setup_internal(tune, 3, false)
+}
+
+fn setup_guarantee_four(tune: impl FnOnce(&mut WarRules)) -> GameState {
+    setup_internal(tune, 4, false)
+}
+
+fn setup_internal(
+    tune: impl FnOnce(&mut WarRules),
+    country_count: usize,
+    coalition: bool,
+) -> GameState {
+    let mut nodes = vec![
+        node(1, &[(2, EdgeKind::Normal, 2), (3, EdgeKind::Strait, 9)]),
+        node(
+            2,
+            &[
+                (1, EdgeKind::Normal, 2),
+                (3, EdgeKind::River, 3),
+                (6, EdgeKind::Port, 1),
+            ],
+        ),
+        node(
+            3,
+            &[
+                (1, EdgeKind::Strait, 9),
+                (2, EdgeKind::River, 3),
+                (4, EdgeKind::Normal, 1),
+            ],
+        ),
+        node(
+            4,
+            &[
+                (3, EdgeKind::Normal, 1),
+                (5, EdgeKind::Normal, 2),
+                (6, EdgeKind::Normal, 1),
+            ],
+        ),
+        node(5, &[(4, EdgeKind::Normal, 2), (6, EdgeKind::Normal, 1)]),
+        node(
+            6,
+            &if country_count == 4 {
+                vec![
                     (2, EdgeKind::Port, 1),
                     (4, EdgeKind::Normal, 1),
                     (5, EdgeKind::Normal, 1),
-                ],
-            ),
-        ],
-    )
-    .unwrap();
+                    (7, EdgeKind::Normal, 1),
+                ]
+            } else {
+                vec![
+                    (2, EdgeKind::Port, 1),
+                    (4, EdgeKind::Normal, 1),
+                    (5, EdgeKind::Normal, 1),
+                ]
+            },
+        ),
+    ];
+    if country_count == 4 {
+        nodes.push(node(
+            7,
+            &[(6, EdgeKind::Normal, 1), (8, EdgeKind::Normal, 1)],
+        ));
+        nodes.push(node(8, &[(7, EdgeKind::Normal, 1)]));
+    }
+    let graph = ProvinceGraph::try_new(identity(), nodes).unwrap();
     let country = |id| {
         CountryState::new(
             Controller::Human(PlayerId::new(id)),
@@ -815,11 +1157,22 @@ fn setup_internal(tune: impl FnOnce(&mut WarRules), coalition: bool) -> GameStat
         (A, polity_country("first", 1, &[1, 2, 3])),
         (
             B,
-            polity_country("second", 4, if coalition { &[4, 5] } else { &[4, 5, 6] }),
+            polity_country(
+                "second",
+                4,
+                if country_count >= 3 {
+                    &[4, 5]
+                } else {
+                    &[4, 5, 6]
+                },
+            ),
         ),
     ]);
-    if coalition {
+    if country_count >= 3 {
         polity_countries.insert(C, polity_country("third", 6, &[6]));
+    }
+    if country_count == 4 {
+        polity_countries.insert(D, polity_country("fourth", 7, &[7, 8]));
     }
     let polity = PolityState {
         rules: PolityRules {
@@ -865,8 +1218,11 @@ fn setup_internal(tune: impl FnOnce(&mut WarRules), coalition: bool) -> GameStat
     };
     tune(&mut rules);
     let mut country_states = BTreeMap::from([(A, country(1)), (B, country(2))]);
-    if coalition {
+    if country_count >= 3 {
         country_states.insert(C, country(3));
+    }
+    if country_count == 4 {
+        country_states.insert(D, country(4));
     }
     let mut military = WarState::new(rules, BTreeMap::from([(province(5), 2)]));
     if coalition {

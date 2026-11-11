@@ -149,6 +149,14 @@ pub enum Command {
         character: CharacterId,
         partner: CharacterId,
     },
+    Guarantee {
+        country: CountryId,
+        protected: CountryId,
+    },
+    RevokeGuarantee {
+        country: CountryId,
+        protected: CountryId,
+    },
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -263,6 +271,11 @@ pub enum StateChange {
     MarriageChanged {
         a: CharacterId,
         b: CharacterId,
+        active: bool,
+    },
+    GuaranteeChanged {
+        guarantor: CountryId,
+        protected: CountryId,
         active: bool,
     },
     OpinionChanged {
@@ -427,7 +440,7 @@ enum PreparedCommand<'a> {
     SetController(CountryId, &'a Controller),
     SetFiscalPolicy(CountryId, FiscalPolicy),
     NominateHeir(CountryId, Option<CharacterId>),
-    Military(MilitaryAction),
+    Military(MilitaryAction, Vec<(CountryId, CountryId)>),
     Diplomacy(DiplomacyAction),
     ChooseEvent(
         CountryId,
@@ -443,6 +456,8 @@ enum DiplomacyAction {
     Accept(CountryId, CountryId),
     Reject(CountryId, CountryId),
     Break(CountryId, CountryId, Date),
+    Guarantee(CountryId, CountryId),
+    RevokeGuarantee(CountryId, CountryId),
 }
 
 enum MarriageAction {
@@ -1028,10 +1043,33 @@ impl GameState {
                     });
                 }
             }
-            PreparedCommand::Military(action) => {
+            PreparedCommand::Military(action, failed_guarantees) => {
                 let war_state = self.war_state.as_mut().expect("military state validated");
                 let polity = self.polity.as_mut().expect("polity validated");
                 delta.changes.extend(war_state.apply(polity, action));
+                if !failed_guarantees.is_empty() {
+                    let diplomacy = self.diplomacy.as_mut().expect("guarantees validated");
+                    for (guarantor, protected) in failed_guarantees {
+                        diplomacy.guarantees.remove(&(guarantor, protected));
+                        delta.changes.push(StateChange::GuaranteeChanged {
+                            guarantor,
+                            protected,
+                            active: false,
+                        });
+                        let opinion = self
+                            .opinions
+                            .get(&(protected, guarantor))
+                            .copied()
+                            .unwrap_or(Opinion::NEUTRAL)
+                            .adjusted(-25);
+                        self.opinions.insert((protected, guarantor), opinion);
+                        delta.changes.push(StateChange::OpinionChanged {
+                            from: protected,
+                            toward: guarantor,
+                            opinion,
+                        });
+                    }
+                }
                 self.sync_war_flags();
             }
             PreparedCommand::Diplomacy(action) => {
@@ -1086,6 +1124,34 @@ impl GameState {
                                 opinion,
                             });
                         }
+                    }
+                    DiplomacyAction::Guarantee(guarantor, protected) => {
+                        diplomacy.guarantees.insert((guarantor, protected));
+                        delta.changes.push(StateChange::GuaranteeChanged {
+                            guarantor,
+                            protected,
+                            active: true,
+                        });
+                    }
+                    DiplomacyAction::RevokeGuarantee(guarantor, protected) => {
+                        diplomacy.guarantees.remove(&(guarantor, protected));
+                        delta.changes.push(StateChange::GuaranteeChanged {
+                            guarantor,
+                            protected,
+                            active: false,
+                        });
+                        let opinion = self
+                            .opinions
+                            .get(&(protected, guarantor))
+                            .copied()
+                            .unwrap_or(Opinion::NEUTRAL)
+                            .adjusted(-10);
+                        self.opinions.insert((protected, guarantor), opinion);
+                        delta.changes.push(StateChange::OpinionChanged {
+                            from: protected,
+                            toward: guarantor,
+                            opinion,
+                        });
                     }
                 }
             }
@@ -1300,6 +1366,12 @@ impl GameState {
                 character,
                 partner,
             } => self.prepare_marriage(actor, *from, *character, *country, *partner, 2),
+            Command::Guarantee { country, protected } => {
+                self.prepare_diplomacy(actor, *country, *protected, 4)
+            }
+            Command::RevokeGuarantee { country, protected } => {
+                self.prepare_diplomacy(actor, *country, *protected, 5)
+            }
         }
     }
 
@@ -1431,7 +1503,7 @@ impl GameState {
                     DiplomacyAction::Reject(other, country)
                 }
             }
-            _ => {
+            3 => {
                 if !allied {
                     return Err(CommandError::Diplomacy(DiplomacyError::NotAllied));
                 }
@@ -1440,6 +1512,22 @@ impl GameState {
                     .ok_or(CommandError::Diplomacy(DiplomacyError::DateOverflow))?;
                 DiplomacyAction::Break(country, other, until)
             }
+            4 => {
+                if self.country_at_war(country) || self.country_at_war(other) {
+                    return Err(CommandError::Diplomacy(DiplomacyError::AtWar));
+                }
+                if diplomacy.is_some_and(|state| state.guarantees(country, other)) {
+                    return Err(CommandError::Diplomacy(DiplomacyError::AlreadyGuaranteed));
+                }
+                DiplomacyAction::Guarantee(country, other)
+            }
+            5 => {
+                if !diplomacy.is_some_and(|state| state.guarantees(country, other)) {
+                    return Err(CommandError::Diplomacy(DiplomacyError::NotGuaranteed));
+                }
+                DiplomacyAction::RevokeGuarantee(country, other)
+            }
+            _ => unreachable!("known diplomacy command"),
         };
         Ok(PreparedCommand::Diplomacy(action))
     }
@@ -1455,6 +1543,13 @@ impl GameState {
             if self.allied(country, defender) {
                 return Err(CommandError::Diplomacy(DiplomacyError::MustBreakAlliance));
             }
+            if self
+                .diplomacy
+                .as_ref()
+                .is_some_and(|diplomacy| diplomacy.guarantees(country, defender))
+            {
+                return Err(CommandError::Diplomacy(DiplomacyError::MustRevokeGuarantee));
+            }
         }
         let war = self
             .war_state()
@@ -1464,16 +1559,29 @@ impl GameState {
         } else {
             None
         };
-        war.prepare(
-            &self.province_graph,
-            polity,
-            self.time.tick(),
-            country,
-            order,
-            raise_morale,
-        )
-        .map(PreparedCommand::Military)
-        .map_err(CommandError::War)
+        let mut action = war
+            .prepare(
+                &self.province_graph,
+                polity,
+                self.time.tick(),
+                country,
+                order,
+                raise_morale,
+            )
+            .map_err(CommandError::War)?;
+        let mut failed_guarantees = Vec::new();
+        if let MilitaryAction::Declare(_, declared) = &mut action {
+            if let Some(diplomacy) = &self.diplomacy {
+                for guarantor in diplomacy.guarantors_of(declared.defender) {
+                    if war.war_for(guarantor).is_some() || self.allied(guarantor, country) {
+                        failed_guarantees.push((guarantor, declared.defender));
+                    } else if guarantor != country {
+                        declared.defender_supporters.insert(guarantor);
+                    }
+                }
+            }
+        }
+        Ok(PreparedCommand::Military(action, failed_guarantees))
     }
 
     fn military_modifier(&self, country: CountryId, base: Fixed, key: &ModKey) -> Option<Fixed> {
