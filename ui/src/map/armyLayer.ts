@@ -7,6 +7,7 @@ export interface ArmyMarker {
   destination: number | null;
   progress: number;
   color: string;
+  soldiers: number;
 }
 
 interface Motion {
@@ -15,6 +16,7 @@ interface Motion {
   angle: number;
   color: THREE.Color;
   started: number;
+  destination: THREE.Vector3 | null;
 }
 
 const transitionMs = 180;
@@ -24,6 +26,7 @@ export function createArmyLayer(
   scene: THREE.Scene,
   viewport: HTMLElement,
   provinceAnchor: (id: number) => THREE.Vector3 | null,
+  camera: THREE.Camera,
 ) {
   let disposed = false;
   let requested = false;
@@ -41,6 +44,13 @@ export function createArmyLayer(
   const selectedColor = new THREE.Color('#ffe2a0');
   const light = new THREE.HemisphereLight('#f7f3e8', '#546b61', 2.1);
   scene.add(light);
+  const overlay = document.createElement('div');
+  overlay.className = 'map-army-overlay';
+  viewport.appendChild(overlay);
+  const path = document.createElement('div');
+  path.className = 'map-army-path';
+  overlay.appendChild(path);
+  const badges = new Map<number, HTMLSpanElement>();
 
   function rebuildInstances() {
     if (!geometry || !material) return;
@@ -127,16 +137,62 @@ export function createArmyLayer(
         next.set(marker.id, {
           from: previous ? currentPosition(previous, now, new THREE.Vector3()) : to.clone(),
           to, angle, color, started: now,
+          destination: target,
         });
       }
     }
     motions = next;
     ids = [...next.keys()];
+    for (const [id, badge] of badges) {
+      if (!next.has(id)) { badge.remove(); badges.delete(id); }
+    }
+    for (const marker of markers) {
+      if (!next.has(marker.id)) continue;
+      let badge = badges.get(marker.id);
+      if (!badge) {
+        badge = document.createElement('span');
+        badge.className = 'map-army-badge';
+        badge.dataset.armyId = String(marker.id);
+        overlay.appendChild(badge);
+        badges.set(marker.id, badge);
+      }
+      badge.textContent = `⚔ ${marker.soldiers.toLocaleString('en-US')}`;
+    }
     if (ids.length > 0) loadModel();
     rebuildInstances();
   }
 
   function update(now: number) {
+    const rect = viewport.getBoundingClientRect();
+    const projected = new THREE.Vector3();
+    let selectedPoint: THREE.Vector3 | null = null;
+    let selectedTarget: THREE.Vector3 | null = null;
+    for (const [id, motion] of motions) {
+      const badge = badges.get(id);
+      if (!badge) continue;
+      currentPosition(motion, now, projected).project(camera);
+      const visible = Math.abs(projected.x) <= 1 && Math.abs(projected.y) <= 1 && Math.abs(projected.z) <= 1;
+      badge.hidden = !visible;
+      if (!visible) continue;
+      const x = (projected.x + 1) * rect.width / 2;
+      const y = (1 - projected.y) * rect.height / 2;
+      badge.style.left = `${x}px`;
+      badge.style.top = `${y}px`;
+      badge.dataset.selected = String(id === selected);
+      if (id === selected && motion.destination) {
+        selectedPoint = new THREE.Vector3(x, y, 0);
+        const target = motion.destination.clone().project(camera);
+        selectedTarget = new THREE.Vector3((target.x + 1) * rect.width / 2, (1 - target.y) * rect.height / 2, 0);
+      }
+    }
+    path.hidden = !selectedPoint || !selectedTarget;
+    if (selectedPoint && selectedTarget) {
+      const delta = selectedTarget.clone().sub(selectedPoint);
+      path.style.left = `${selectedPoint.x}px`;
+      path.style.top = `${selectedPoint.y}px`;
+      path.style.width = `${delta.length()}px`;
+      path.style.transform = `rotate(${Math.atan2(delta.y, delta.x)}rad)`;
+    }
     if (!mesh || !ids.length || !dirty) return;
     // Keep one final update after crossing the interpolation end.
     let moving = false;
@@ -187,6 +243,7 @@ export function createArmyLayer(
       geometry?.dispose();
       material?.map?.dispose();
       material?.dispose();
+      overlay.remove();
     },
   };
 }

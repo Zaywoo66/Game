@@ -58,6 +58,8 @@ scheduled for M8.
 - Camera: pan, zoom, tilt limits. Map wraps are NOT supported in beta.
 - Update ownership by writing bytes to the lookup texture, never regenerate the map texture.
 - Capture four repeatable 1920 × 1080 browser screenshots with `cd ui && npm run capture:map`; output is `docs/screenshots/m5b4/`. The capture uses Chromium's software WebGL renderer and is visual review evidence, not a hardware FPS result.
+- M5b.5 adds Game political, Terrain and Historical 1440 display modes. Without a game snapshot, the map starts in Historical 1440 with a visible reference-only legend. Once an active game snapshot arrives, it defaults to Game political unless the player manually chose a mode. Game political colors still come only from host `GameSnapshot.owners`; the historical view uses a separate lookup from `polities_1440.json` after map-version/hash validation. Unknown matches are neutral, and coarse groups carry a low-precision label. The presentation overlay uses `names.en.json` for province names; Russian localization has not been authored. Sea-cell outlines are subdued in ordinary modes while raster picking remains active.
+- Capture four named Historical/Terrain views and one visual-only army marker demonstration with `cd ui && npm run capture:map-modes`; output is `docs/screenshots/m5b5/` (Chromium software renderer, not hardware FPS evidence).
 
 ## Budgets
 Province raster for beta region <= ~4096x2048. To measure the 1080p viewport, run the built Windows executable with `--map-benchmark`. It opens fullscreen and displays the actual drawing-buffer size and frame timings. Record measured RAM and FPS in DECISIONS.md with the GPU and method.

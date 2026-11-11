@@ -75,7 +75,7 @@ requires the generated map to pass validation.
 | `provinces[].area` | Stable area key referencing `areas.yaml`. |
 | `data/map/<region>/areas.yaml` | Schema v1, reference year, assignment method and area records with `key`, `name_key`, `name`, `region`, `kind` and a source URL when historically classified. |
 | `data/map/<region>/regions.yaml` | Schema v1 and region records with `key`, `name_key` and `name`. |
-| `data/map/<region>/names.en.json` | Schema v1 and English fallback names keyed by localization key. |
+| `data/map/<region>/names.en.json` | Flat v1 localization key→English fallback name mapping, with no `schema_version` field. |
 
 MAP_SCALE.md defines the hierarchy and reserved ID ranges. The generated Western Europe map uses `map_version: 3`. The loader still verifies schema v1/v2 maps with their original hash rules. Older saves are accepted only when loaded against their own map identity.
 

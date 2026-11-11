@@ -10,6 +10,8 @@ const files = new Map([
   ['heightmap.png', 'image/png'],
   ['terrain.png', 'image/png'],
   ['rivers.png', 'image/png'],
+  ['names.en.json', 'application/json'],
+  ['polities_1440.json', 'application/json'],
 ]);
 
 function readMapAsset(file) {

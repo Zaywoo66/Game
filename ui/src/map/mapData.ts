@@ -140,10 +140,22 @@ export interface Province {
   centroid: [number, number];
   neighbors: { id: number; edge: string }[];
   area?: string;
+  name_key?: string;
+}
+
+export interface PolityAttribution {
+  province_id: number;
+  province_key: string;
+  polity_name: string | null;
+  resolution: 'polygon' | 'coarse_group' | 'unmatched';
+  overlap_pixels: number;
+  province_pixels: number;
 }
 
 export interface MapAssets {
   provinces: Map<number, Province>;
+  names: ReadonlyMap<string, string>;
+  polityAttributions: ReadonlyMap<number, PolityAttribution>;
   raster: Raster;
   heightmap: Heightmap;
   terrain: Raster;
@@ -176,12 +188,17 @@ export async function loadMapAssets(base: string, signal: AbortSignal): Promise<
     }
   }
 
-  const [metadata, provincesRaster, heightmap, terrain, rivers] = await Promise.all([
-    file('provinces.json').then((response) => response.json()) as Promise<{ provinces: Province[] }>,
+  const [metadata, provincesRaster, heightmap, terrain, rivers, rawNames, evidence] = await Promise.all([
+    file('provinces.json').then((response) => response.json()) as Promise<{ map_version: number; map_hash: string; provinces: Province[] }>,
     raster('provinces.png'),
     file('heightmap.png').then((response) => response.arrayBuffer()).then(decodeHeightmap16),
     raster('terrain.png'),
     raster('rivers.png'),
+    file('names.en.json').then((response) => response.json()) as Promise<Record<string, unknown>>,
+    file('polities_1440.json').then((response) => response.json()) as Promise<{
+      schema_version: number; map_version: number; map_hash: string; reference_year: number;
+      assignments: PolityAttribution[];
+    }>,
   ]);
   const { width, height } = provincesRaster;
   if ([heightmap, terrain, rivers].some((layer) => layer.width !== width || layer.height !== height)) {
@@ -193,5 +210,36 @@ export async function loadMapAssets(base: string, signal: AbortSignal): Promise<
     || [...provinces.keys()].some((id) => !Number.isInteger(id) || id <= 0 || id > 0xffffff)) {
     throw new Error('Map metadata has invalid RGB province IDs');
   }
-  return { provinces, raster: provincesRaster, heightmap, terrain, rivers };
+  if (!Number.isInteger(metadata.map_version) || !/^[0-9a-f]{64}$/.test(metadata.map_hash)
+    || evidence.schema_version !== 1 || evidence.reference_year !== 1440
+    || evidence.map_version !== metadata.map_version || evidence.map_hash !== metadata.map_hash
+    || !Array.isArray(evidence.assignments)) {
+    throw new Error('Historical polity evidence does not match the loaded map identity');
+  }
+  const polityAttributions = new Map<number, PolityAttribution>();
+  for (const entry of evidence.assignments) {
+    const province = provinces.get(entry.province_id);
+    if (!province || province.kind !== 'land' || province.key !== entry.province_key
+      || polityAttributions.has(entry.province_id)
+      || !['polygon', 'coarse_group', 'unmatched'].includes(entry.resolution)
+      || (entry.resolution === 'unmatched') !== (entry.polity_name === null)
+      || (entry.polity_name !== null && (typeof entry.polity_name !== 'string' || !entry.polity_name.trim()))
+      || !Number.isInteger(entry.overlap_pixels) || !Number.isInteger(entry.province_pixels)
+      || entry.overlap_pixels < 0 || entry.province_pixels <= 0
+      || entry.overlap_pixels > entry.province_pixels) {
+      throw new Error('Invalid 1440 polity attribution for province ' + entry.province_id);
+    }
+    polityAttributions.set(entry.province_id, entry);
+  }
+  if ([...provinces.values()].some((province) => province.kind === 'land' && !polityAttributions.has(province.id))) {
+    throw new Error('Historical polity evidence omits a land province');
+  }
+  if (Object.values(rawNames).some((name) => typeof name !== 'string' || !name.trim())) {
+    throw new Error('Invalid map localization entry');
+  }
+  const names = new Map(Object.entries(rawNames) as [string, string][]);
+  if ([...provinces.values()].some((province) => !province.name_key || !names.has(province.name_key))) {
+    throw new Error('A province has no localized display name');
+  }
+  return { provinces, names, polityAttributions, raster: provincesRaster, heightmap, terrain, rivers };
 }
