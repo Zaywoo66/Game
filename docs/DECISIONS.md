@@ -9,6 +9,7 @@
 - D14 Far-region countries as stub countries first. ASSUMED: yes.
 
 ## Decided
+- M6 alliance: indefinite; either party may break during peace or war, losing 25 mutual opinion points (clamped to -100..100). A new offer between the same pair is blocked until two Gregorian calendar months pass, clamping the day to the final day of the target month. Offers expire after 30 game days. Direct wartime enemies cannot ally; a postwar truce does not block alliance. Humans can accept despite negative opinion. At negative opinion, AI accepts only with a shared stronger land neighbor, then with 10% deterministic chance. The shared neighbor borders both parties by normal or river edge and has strictly more total active soldiers than each; this leaves the one-war-per-country M4 model unchanged.
 - D1 Time mode: real-time with pause. Each tick advances one day in the proleptic Gregorian calendar.
 - D2 Time controls: either human player may pause or resume. Only the host sets speed.
 - D0 Stack: Rust sim/net, Tauri 2, React/TS UI, three.js map. Fallback if WebView/WebGL fails: Godot.

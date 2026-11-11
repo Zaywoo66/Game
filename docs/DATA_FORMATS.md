@@ -322,3 +322,17 @@ An absent pair has opinion 0. A v4 save requires at least one explicit pair;
 states without explicit opinions retain their previous save version and bytes.
 The v4 state hash uses `strategy:game-state:v4`, a NUL byte, then canonical
 save bytes. Opinion does not decay automatically.
+
+## Saved games (schema version 5)
+
+The first alliance offer creates `state.diplomacy` with three sorted arrays:
+`alliances` (`{a,b}`), `offers` (`{a,b,until}`), and `cooldowns`
+(`{a,b,until}`). Country IDs `a` and `b` are positive unsigned 32-bit IDs.
+Alliance and cooldown pairs are ordered with `a < b`; offers are directed
+from `a` to `b`. `until` is a Gregorian `[year,month,day]` date. Offers are
+valid before `until`; cooldowns prohibit new offers before `until`.
+Each pair must exist in the saved countries. Duplicate or unsorted records,
+self-pairs, expired timers, simultaneous alliance and offer/cooldown, and
+opposing simultaneous offers are rejected. A state with diplomacy uses
+schema v5 and hash domain `strategy:game-state:v5` followed by NUL and the
+canonical bytes; older versions retain their prior encoding and hash.

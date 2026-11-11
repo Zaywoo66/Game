@@ -5,6 +5,7 @@ use strategy_sim::{
     SeededRng,
 };
 
+mod diplomacy;
 mod military;
 
 /// Fresh context for one country's decision on one simulation tick.
@@ -31,6 +32,9 @@ pub enum Reason {
     RecoverDebt,
     NominateSuccessor,
     Military { action: MilitaryReason, score: i32 },
+    AllianceAccepted,
+    AllianceRejected,
+    AllianceProposed,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -55,6 +59,9 @@ impl Reason {
             Self::AvoidDebt => "AvoidDebt",
             Self::RecoverDebt => "RecoverDebt",
             Self::NominateSuccessor => "NominateSuccessor",
+            Self::AllianceAccepted => "AllianceAccepted",
+            Self::AllianceRejected => "AllianceRejected",
+            Self::AllianceProposed => "AllianceProposed",
             Self::Military { action, .. } => match action {
                 MilitaryReason::RaiseArmy => "RaiseArmy",
                 MilitaryReason::CombineArmies => "CombineArmies",
@@ -142,8 +149,13 @@ pub fn decide(
     if let Some(command) = military::decide(state, country, nation, profile, ctx) {
         commands.push(command);
     }
+    if let Some(command) = diplomacy::decide(state, country, profile, ctx) {
+        commands.push(command);
+    }
     commands
 }
+
+pub use diplomacy::{alliance_acceptance_factors, AllianceAcceptanceFactor};
 
 fn fiscal_decision(
     state: &GameState,

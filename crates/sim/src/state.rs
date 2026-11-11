@@ -7,11 +7,12 @@ use crate::{
 };
 
 use crate::{
-    CharacterId, CharacterState, CountryId, CountryPolity, Date, EconomyState, Effect, EffectError,
-    FiscalError, FiscalPolicy, Fixed, MapIdentity, ModKey, ModifierInsertError, ModifierSourceId,
-    ModifierStore, Opinion, OpinionStateError, PlayerId, PolityError, PolityState,
-    PolityTickFailure, PreparedModifier, ProvinceGraph, ProvinceId, SeededRng, SimTime, Speed,
-    SuccessionState, Tick, TimeActor, TimeCommand, TimeError, TriggerView,
+    CharacterId, CharacterState, CountryId, CountryPolity, Date, DiplomacyError, DiplomacyState,
+    EconomyState, EdgeKind, Effect, EffectError, FiscalError, FiscalPolicy, Fixed, MapIdentity,
+    ModKey, ModifierInsertError, ModifierSourceId, ModifierStore, Opinion, OpinionStateError,
+    PlayerId, PolityError, PolityState, PolityTickFailure, PreparedModifier, ProvinceGraph,
+    ProvinceId, SeededRng, SimTime, Speed, SuccessionState, Tick, TimeActor, TimeCommand,
+    TimeError, TriggerView,
 };
 
 /// Reference to a scenario's data-driven AI profile.
@@ -109,6 +110,22 @@ pub enum Command {
         country: CountryId,
         war: WarId,
     },
+    OfferAlliance {
+        country: CountryId,
+        toward: CountryId,
+    },
+    AcceptAlliance {
+        country: CountryId,
+        from: CountryId,
+    },
+    RejectAlliance {
+        country: CountryId,
+        from: CountryId,
+    },
+    BreakAlliance {
+        country: CountryId,
+        other: CountryId,
+    },
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -121,6 +138,7 @@ pub enum CommandError {
     UnknownAiProfile(CountryId),
     Fiscal(FiscalError),
     War(WarError),
+    Diplomacy(DiplomacyError),
     InvalidHeir {
         country: CountryId,
         heir: CharacterId,
@@ -193,6 +211,25 @@ pub enum StateChange {
         attacker: CountryId,
         defender: CountryId,
         ceded: Option<ProvinceId>,
+    },
+    AllianceOffered {
+        from: CountryId,
+        toward: CountryId,
+        expires_at: Date,
+    },
+    AllianceOfferRemoved {
+        from: CountryId,
+        toward: CountryId,
+    },
+    AllianceChanged {
+        a: CountryId,
+        b: CountryId,
+        active: bool,
+    },
+    OpinionChanged {
+        from: CountryId,
+        toward: CountryId,
+        opinion: Opinion,
     },
 }
 
@@ -331,6 +368,7 @@ pub struct GameState {
     countries: BTreeMap<CountryId, CountryState>,
     scheduled: ModifierSchedule,
     opinions: BTreeMap<(CountryId, CountryId), Opinion>,
+    diplomacy: Option<DiplomacyState>,
     polity: Option<PolityState>,
     war_state: Option<WarState>,
 }
@@ -341,6 +379,14 @@ enum PreparedCommand<'a> {
     SetFiscalPolicy(CountryId, FiscalPolicy),
     NominateHeir(CountryId, Option<CharacterId>),
     Military(MilitaryAction),
+    Diplomacy(DiplomacyAction),
+}
+
+enum DiplomacyAction {
+    Offer(CountryId, CountryId, Date),
+    Accept(CountryId, CountryId),
+    Reject(CountryId, CountryId),
+    Break(CountryId, CountryId, Date),
 }
 
 impl GameState {
@@ -408,6 +454,7 @@ impl GameState {
             countries,
             scheduled,
             opinions: BTreeMap::new(),
+            diplomacy: None,
             polity: None,
             war_state: None,
         })
@@ -491,6 +538,78 @@ impl GameState {
         self.opinions
             .iter()
             .map(|(&(from, toward), &opinion)| (from, toward, opinion))
+    }
+
+    pub fn with_diplomacy(mut self, diplomacy: DiplomacyState) -> Result<Self, DiplomacyError> {
+        diplomacy.validate(self.countries.keys().copied(), self.time.date())?;
+        self.diplomacy = Some(diplomacy);
+        Ok(self)
+    }
+
+    pub fn diplomacy(&self) -> Option<&DiplomacyState> {
+        self.diplomacy.as_ref()
+    }
+
+    pub fn allied(&self, a: CountryId, b: CountryId) -> bool {
+        self.diplomacy
+            .as_ref()
+            .is_some_and(|state| state.allied(a, b))
+    }
+
+    pub fn directly_at_war(&self, a: CountryId, b: CountryId) -> bool {
+        self.war_state.as_ref().is_some_and(|state| {
+            state.wars.values().any(|war| {
+                (war.attacker == a && war.defender == b) || (war.attacker == b && war.defender == a)
+            })
+        })
+    }
+
+    /// A third country with land borders to both parties and more active soldiers
+    /// than each individually is a shared threat for AI diplomacy.
+    pub fn common_stronger_neighbor(&self, a: CountryId, b: CountryId) -> bool {
+        let (Some(polity), Some(war)) = (&self.polity, &self.war_state) else {
+            return false;
+        };
+        let soldiers = |id| {
+            war.armies
+                .values()
+                .filter(|army| army.country == id)
+                .fold(0_u64, |total, army| {
+                    total.saturating_add(u64::from(army.soldiers))
+                })
+        };
+        let a_strength = soldiers(a);
+        let b_strength = soldiers(b);
+        polity
+            .countries
+            .keys()
+            .copied()
+            .filter(|&third| third != a && third != b)
+            .any(|third| {
+                let strength = soldiers(third);
+                strength > a_strength
+                    && strength > b_strength
+                    && self.land_border(a, third)
+                    && self.land_border(b, third)
+            })
+    }
+
+    fn land_border(&self, a: CountryId, b: CountryId) -> bool {
+        let (Some(a_provinces), Some(b_provinces)) =
+            (self.country_polity(a), self.country_polity(b))
+        else {
+            return false;
+        };
+        a_provinces.provinces.iter().any(|&province| {
+            self.province_graph
+                .neighbors(province)
+                .is_some_and(|edges| {
+                    edges.iter().any(|edge| {
+                        matches!(edge.kind, EdgeKind::Normal | EdgeKind::River)
+                            && b_provinces.provinces.contains(&edge.to)
+                    })
+                })
+        })
     }
 
     /// Attaches validated military scenario or save data and derives war flags.
@@ -685,6 +804,61 @@ impl GameState {
                 delta.changes.extend(war_state.apply(polity, action));
                 self.sync_war_flags();
             }
+            PreparedCommand::Diplomacy(action) => {
+                let diplomacy = self.diplomacy.get_or_insert_with(DiplomacyState::default);
+                match action {
+                    DiplomacyAction::Offer(from, toward, expires_at) => {
+                        diplomacy.offers.insert((from, toward), expires_at);
+                        delta.changes.push(StateChange::AllianceOffered {
+                            from,
+                            toward,
+                            expires_at,
+                        });
+                    }
+                    DiplomacyAction::Accept(from, toward) => {
+                        diplomacy.offers.remove(&(from, toward));
+                        diplomacy.offers.remove(&(toward, from));
+                        let (a, b) = crate::diplomacy::pair(from, toward);
+                        diplomacy.alliances.insert((a, b));
+                        delta
+                            .changes
+                            .push(StateChange::AllianceOfferRemoved { from, toward });
+                        delta
+                            .changes
+                            .push(StateChange::AllianceChanged { a, b, active: true });
+                    }
+                    DiplomacyAction::Reject(from, toward) => {
+                        diplomacy.offers.remove(&(from, toward));
+                        delta
+                            .changes
+                            .push(StateChange::AllianceOfferRemoved { from, toward });
+                    }
+                    DiplomacyAction::Break(a, b, until) => {
+                        let pair = crate::diplomacy::pair(a, b);
+                        diplomacy.alliances.remove(&pair);
+                        diplomacy.cooldowns.insert(pair, until);
+                        delta.changes.push(StateChange::AllianceChanged {
+                            a: pair.0,
+                            b: pair.1,
+                            active: false,
+                        });
+                        for (from, toward) in [(a, b), (b, a)] {
+                            let opinion = self
+                                .opinions
+                                .get(&(from, toward))
+                                .copied()
+                                .unwrap_or(Opinion::NEUTRAL)
+                                .adjusted(-25);
+                            self.opinions.insert((from, toward), opinion);
+                            delta.changes.push(StateChange::OpinionChanged {
+                                from,
+                                toward,
+                                opinion,
+                            });
+                        }
+                    }
+                }
+            }
         }
         Ok(delta)
     }
@@ -778,7 +952,96 @@ impl GameState {
             Command::AcceptPeace { country, war } => {
                 self.prepare_military(actor, *country, MilitaryOrder::Accept(*war))
             }
+            Command::OfferAlliance { country, toward } => {
+                self.prepare_diplomacy(actor, *country, *toward, 0)
+            }
+            Command::AcceptAlliance { country, from } => {
+                self.prepare_diplomacy(actor, *country, *from, 1)
+            }
+            Command::RejectAlliance { country, from } => {
+                self.prepare_diplomacy(actor, *country, *from, 2)
+            }
+            Command::BreakAlliance { country, other } => {
+                self.prepare_diplomacy(actor, *country, *other, 3)
+            }
         }
+    }
+
+    fn prepare_diplomacy(
+        &self,
+        actor: CommandActor,
+        country: CountryId,
+        other: CountryId,
+        kind: u8,
+    ) -> Result<PreparedCommand<'static>, CommandError> {
+        self.authorized_polity(actor, country)?;
+        if !self.countries.contains_key(&other) {
+            return Err(CommandError::Diplomacy(DiplomacyError::UnknownCountry(
+                other,
+            )));
+        }
+        if country == other {
+            return Err(CommandError::Diplomacy(DiplomacyError::SameCountry));
+        }
+        let now = self.time.date();
+        let diplomacy = self.diplomacy.as_ref();
+        let allied = self.allied(country, other);
+        let action = match kind {
+            0 => {
+                if self.directly_at_war(country, other) {
+                    return Err(CommandError::Diplomacy(DiplomacyError::DirectWar));
+                }
+                if allied {
+                    return Err(CommandError::Diplomacy(DiplomacyError::AlreadyAllied));
+                }
+                if let Some(until) = diplomacy
+                    .and_then(|state| state.cooldowns.get(&crate::diplomacy::pair(country, other)))
+                    .copied()
+                    .filter(|&until| until > now)
+                {
+                    return Err(CommandError::Diplomacy(DiplomacyError::Cooldown(until)));
+                }
+                if diplomacy.is_some_and(|state| {
+                    state.offers.contains_key(&(country, other))
+                        || state.offers.contains_key(&(other, country))
+                }) {
+                    return Err(CommandError::Diplomacy(DiplomacyError::OfferAlreadyPending));
+                }
+                let expiry = now
+                    .checked_add_days(30)
+                    .ok_or(CommandError::Diplomacy(DiplomacyError::DateOverflow))?;
+                DiplomacyAction::Offer(country, other, expiry)
+            }
+            1 | 2 => {
+                if diplomacy
+                    .and_then(|state| state.offer(other, country))
+                    .is_none_or(|offer| offer.expires_at <= now)
+                {
+                    return Err(CommandError::Diplomacy(DiplomacyError::NoOffer));
+                }
+                if kind == 1 {
+                    if self.directly_at_war(country, other) {
+                        return Err(CommandError::Diplomacy(DiplomacyError::DirectWar));
+                    }
+                    if allied {
+                        return Err(CommandError::Diplomacy(DiplomacyError::AlreadyAllied));
+                    }
+                    DiplomacyAction::Accept(other, country)
+                } else {
+                    DiplomacyAction::Reject(other, country)
+                }
+            }
+            _ => {
+                if !allied {
+                    return Err(CommandError::Diplomacy(DiplomacyError::NotAllied));
+                }
+                let until = now
+                    .checked_add_months(2)
+                    .ok_or(CommandError::Diplomacy(DiplomacyError::DateOverflow))?;
+                DiplomacyAction::Break(country, other, until)
+            }
+        };
+        Ok(PreparedCommand::Diplomacy(action))
     }
 
     fn prepare_military(
@@ -913,6 +1176,17 @@ impl GameState {
             );
             report.delta.changes.extend(changes);
             report.polity_failures = failures;
+        }
+        if let Some(diplomacy) = &mut self.diplomacy {
+            for offer in diplomacy.expire(self.time.date()) {
+                report
+                    .delta
+                    .changes
+                    .push(StateChange::AllianceOfferRemoved {
+                        from: offer.from,
+                        toward: offer.toward,
+                    });
+            }
         }
         self.advance_military(&mut report);
         Ok(report)

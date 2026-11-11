@@ -4,10 +4,10 @@ use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 use strategy_data::{load_game, parse_provinces, save_game, state_hash, SaveError};
 use strategy_sim::{
-    AiProfileKey, Command, CommandActor, Controller, CountryId, CountryState, Date, Effect, Fixed,
-    GameState, ModKey, Modifier, ModifierInsertError, ModifierKind, ModifierSourceId,
-    ModifierStore, Opinion, PlayerId, ProvinceGraph, ScheduleError, ScheduledEffect, SeededRng,
-    SimTime, Speed, Tick, TimeCommand, TriggerView,
+    AiProfileKey, Command, CommandActor, Controller, CountryId, CountryState, Date, DiplomacyState,
+    Effect, Fixed, GameState, ModKey, Modifier, ModifierInsertError, ModifierKind,
+    ModifierSourceId, ModifierStore, Opinion, PlayerId, ProvinceGraph, ScheduleError,
+    ScheduledEffect, SeededRng, SimTime, Speed, Tick, TimeCommand, TriggerView,
 };
 
 const MAP: &[u8] = include_bytes!("fixtures/provinces.json");
@@ -17,6 +17,45 @@ const HOST: CommandActor = CommandActor::Host(PlayerId::new(1));
 const GUEST: CommandActor = CommandActor::Guest(PlayerId::new(2));
 const SEED: u64 = 123_456;
 const CURRENT_RNG: u64 = 0xb305_d1f6_8b05_1e4c;
+
+#[test]
+fn alliance_save_v5_preserves_offers_cooldowns_and_opinions() {
+    let state = setup()
+        .with_opinions([(COUNTRY, GUEST_COUNTRY, Opinion::new(-25).unwrap())])
+        .unwrap();
+    let mut diplomacy = DiplomacyState::default();
+    diplomacy.offers.insert(
+        (COUNTRY, GUEST_COUNTRY),
+        state.time().date().checked_add_days(30).unwrap(),
+    );
+    let state = state.with_diplomacy(diplomacy).unwrap();
+    let encoded = save_game(&state).unwrap();
+    let document: Value = serde_json::from_slice(&encoded).unwrap();
+    assert_eq!(document["schema_version"], 5);
+    let loaded = load_game(&encoded, parse_provinces(MAP).unwrap()).unwrap();
+    assert_eq!(loaded, state);
+    assert_eq!(save_game(&loaded).unwrap(), encoded);
+    assert_eq!(state_hash(&loaded).unwrap(), state_hash(&state).unwrap());
+    let mut corrupt: Value = serde_json::from_slice(&encoded).unwrap();
+    corrupt["state"]["diplomacy"]["offers"][0]["until"] = json!([1440, 1, 1]);
+    assert!(matches!(
+        load_game(
+            &serde_json::to_vec(&corrupt).unwrap(),
+            parse_provinces(MAP).unwrap()
+        ),
+        Err(SaveError::InvalidDiplomacy(_))
+    ));
+
+    let mut cooldown = DiplomacyState::default();
+    cooldown.cooldowns.insert(
+        (COUNTRY, GUEST_COUNTRY),
+        state.time().date().checked_add_months(2).unwrap(),
+    );
+    let state = setup().with_diplomacy(cooldown).unwrap();
+    let encoded = save_game(&state).unwrap();
+    let loaded = load_game(&encoded, parse_provinces(MAP).unwrap()).unwrap();
+    assert_eq!(loaded, state);
+}
 
 #[test]
 fn directional_opinions_round_trip_in_version_four_and_reject_invalid_records() {
@@ -263,10 +302,10 @@ fn map_version_and_hash_are_checked_before_decoding_state() {
 fn malformed_records_are_rejected() {
     let graph = || parse_provinces(MAP).unwrap();
     let mut save = saved();
-    save["schema_version"] = json!(5);
+    save["schema_version"] = json!(6);
     assert!(matches!(
         from_value(&save, graph()),
-        Err(SaveError::UnsupportedSchemaVersion(5))
+        Err(SaveError::UnsupportedSchemaVersion(6))
     ));
 
     let mut save = saved();

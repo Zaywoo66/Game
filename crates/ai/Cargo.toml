@@ -6,3 +6,6 @@ rust-version.workspace = true
 
 [dependencies]
 strategy-sim = { path = "../sim" }
+
+[dev-dependencies]
+strategy-data = { path = "../data" }

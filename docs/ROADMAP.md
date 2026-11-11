@@ -23,5 +23,7 @@ AI levels L0–L3 are delivered inside M3, M4, M6, M7–M9 (see each milestone's
 
 After the 5b.2 dense-map rebuild passes CI, M6–M11 may proceed while physical two-PC M5 acceptance and the remaining M5b visual/UI checks are open. M12 cannot start until M5 and M5b are accepted. Local loopback and accelerated runs support development but do not close the two-PC acceptance.
 
+M6 alliance slice in progress: validated offers, acceptance/rejection, indefinite alliance, voluntary break penalty/cooldown, AI response and network/save transport. Guarantee, vassalage, marriage, truce proposals and the diplomacy UI remain open.
+
 M13 is the first post-beta milestone; colonization, trade, religion and later eras follow.
 Vertical slice = M2–M7 on the small test region (see DECISIONS D5), then expand to beta map in M11.

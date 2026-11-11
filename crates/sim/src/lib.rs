@@ -1,5 +1,6 @@
 //! Deterministic simulation core.
 
+mod diplomacy;
 mod effect;
 mod fixed;
 mod ids;
@@ -13,6 +14,7 @@ mod time;
 mod trigger;
 mod war;
 
+pub use diplomacy::{AllianceOffer, DiplomacyError, DiplomacyState};
 pub use effect::{Effect, EffectError, PreparedModifier};
 pub use fixed::Fixed;
 pub use ids::{ArmyId, CharacterId, CountryId, PlayerId, ProvinceId, WarId};
