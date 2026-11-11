@@ -1,0 +1,9 @@
+key: notice
+title: event_notice_title
+desc: event_notice_desc
+trigger: {at_war: false}
+mean_time_to_happen: 100
+options:
+  - text: event_notice_ack
+    ai_weight: 1
+    effects: []

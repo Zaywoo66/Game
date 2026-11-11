@@ -29,8 +29,9 @@ After the 5b.2 dense-map rebuild passes CI, M6–M11 may proceed while physical 
 The owner authorized independent small M6–M11 PRs in parallel on 2026-11-11. M7 has begun with the event data contract and linter; event runtime, content and multiplayer acceptance remain open.
 The M7 data loader maps event YAML to typed simulation triggers/effects. The
 event runtime adds deterministic daily firing, pending choices and AI weighted
-responses; historical/random content, popup UI and multiplayer acceptance
-remain open.
+responses. Starter content adds three generic YAML events and an English
+localization catalog with linted references; the 20–40 event target, Russian
+translation, popup UI, and multiplayer acceptance remain open.
 M5b.4 camera, water, borders and terrain have browser screenshot evidence; native 1080p FPS/RAM and owner visual review remain open for M5b acceptance.
 M5b.5 map modes, historical evidence display, English fallback labels and army badges have browser checks; Russian localization, fleet UI, native performance and owner visual acceptance remain open.
 

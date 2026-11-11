@@ -2,8 +2,9 @@
 Docs: DATA_FORMATS.md, SIM_RULES.md
 
 Progress: event YAML contract and typed loader, deterministic firing and choice
-commands, and AI weighted responses are in progress. Event content, popup UI
-and multiplayer acceptance remain open.
+commands, AI weighted responses, and a three-event generic 1440 starter pack
+with English localization are in progress. The 20–40 event content target,
+popup UI, AI-only content run, and multiplayer acceptance remain open.
 
 ## Tasks
 - Event engine: triggers, mean time to happen, options, effects, popup UI
