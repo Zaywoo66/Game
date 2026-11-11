@@ -5,7 +5,7 @@
 - D8 Disconnect policy. ASSUMED: hold the country for a grace period, then the host may enable temporary AI. M5 exposes a host-selected 0–60 minute grace, initially 2 minutes. Resume tokens last for the running guest process and reserve its seat for the room lifetime. A permanent guest app exit requires recreating the room. This remains a prototype policy for review.
 - D9 AI visibility. ASSUMED: AI sees the full state in beta, with no fog of war.
 - D10 AI difficulty. ASSUMED: no cheats by default. Bonuses require explicit modifiers.
-- D13 Horizontal wrap on the world map. ASSUMED: decide in M13.
+- D13 Horizontal wrap on the world map. The owner decides at the end of M12, before M13 starts. M13 implements the decision.
 - D14 Far-region countries as stub countries first. ASSUMED: yes.
 
 ## Decided

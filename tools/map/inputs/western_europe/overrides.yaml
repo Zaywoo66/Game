@@ -1,0 +1,88 @@
+map_version: 3
+movement_costs:
+  normal: 2
+  river: 3
+  strait: 5
+  port: 2
+required_cities:
+- zaragoza
+- valladolid
+- london
+- paris
+- lisbon
+- edinburgh
+- rouen
+sea_grid:
+  columns: 9
+  rows: 10
+  minimum_coverage_percent: 25
+lake:
+  lake_geneva:
+  - 6.53
+  - 46.43
+straits: []
+port_provinces:
+- southend_on_sea
+- plymouth
+- lisbon
+- porto
+- cadiz
+- valencia
+- barcelona
+- brest
+- brugge
+- belfast
+- cork
+- marseille
+country_polities:
+  Crown of Aragon: ara
+  Crown of Castile: cas
+  Kingdom of England: eng
+  Kingdom of France: fra
+  Kingdom of Portugal: por
+  Kingdom of Scotland: sco
+place_keys:
+  "B\xE9ja": beja_tunisia
+ownership_overrides:
+  aberdeen:
+    owner: sco
+    source: https://books.socantscot.org/digital-books/catalog/book/25
+  ajaccio:
+    owner: null
+    source: https://www.treccani.it/enciclopedia/corsica/
+  alicante:
+    owner: ara
+    source: https://www.aragon.es/estatuto-de-autonomia/reyes-de-aragon
+  andorra:
+    owner: null
+    source: https://www.govern.ad/ca/w/arxius-en-linia-amplia-els-fons-de-consulta-amb-22-documents-textuals-1
+  barcelona:
+    owner: ara
+    source: https://www.aragon.es/estatuto-de-autonomia/reyes-de-aragon
+  bastia:
+    owner: null
+    source: https://www.treccani.it/enciclopedia/corsica/
+  cadiz:
+    owner: cas
+    source: https://tesauros.cultura.gob.es/tesauros/contextosculturales/1172659.html
+  cartagena:
+    owner: cas
+    source: https://tesauros.cultura.gob.es/tesauros/contextosculturales/1172659.html
+  castello:
+    owner: ara
+    source: https://www.aragon.es/estatuto-de-autonomia/reyes-de-aragon
+  faro:
+    owner: por
+    source: https://journals.openedition.org/medievalista/pdf/6324
+  mataro:
+    owner: ara
+    source: https://www.aragon.es/estatuto-de-autonomia/reyes-de-aragon
+  pamplona:
+    owner: null
+    source: https://www.pamplona.es/en/turismo/palacioreal
+  rouen:
+    owner: eng
+    source: https://rouen.fr/index.php/fr/moyen-age
+  tarragona:
+    owner: ara
+    source: https://www.aragon.es/estatuto-de-autonomia/reyes-de-aragon

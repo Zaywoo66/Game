@@ -11,7 +11,7 @@ from PIL import Image
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from map_common import OUTPUT, json_bytes, map_hash, read_json
+from map_common import OUTPUT, json_bytes, map_hash, read_json, read_yaml, yaml_bytes
 from validate import validate_directory
 
 
@@ -20,13 +20,18 @@ class MapValidationTests(unittest.TestCase):
         temporary = TemporaryDirectory(prefix="strategy-map-test-")
         self.addCleanup(temporary.cleanup)
         self.directory = Path(temporary.name)
-        for name in ("provinces.json", "provinces.png", "heightmap.png", "terrain.png", "rivers.png"):
+        for name in (
+            "provinces.json", "provinces.png", "heightmap.png", "terrain.png", "rivers.png",
+            "areas.yaml", "regions.yaml", "names.en.json",
+        ):
             shutil.copyfile(OUTPUT / name, self.directory / name)
         self.metadata = read_json(self.directory / "provinces.json")
 
     def write_metadata(self, *, rehash=True):
         if rehash:
-            self.metadata["map_hash"] = map_hash(self.metadata["provinces"])
+            self.metadata["map_hash"] = map_hash(
+                self.metadata["provinces"], projection=self.metadata["projection"],
+            )
         (self.directory / "provinces.json").write_bytes(json_bytes(self.metadata, pretty=True))
 
     def png(self, name):
@@ -42,8 +47,49 @@ class MapValidationTests(unittest.TestCase):
     def test_valid_slice(self):
         self.assertEqual(
             validate_directory(self.directory),
-            {"land": 42, "sea": 6, "lake": 1},
+            {"land": 362, "sea": 66, "lake": 1},
         )
+
+    def test_unknown_area_is_rejected(self):
+        self.metadata["provinces"][0]["area"] = "missing_area"
+        self.write_metadata()
+        with self.assertRaisesRegex(ValueError, "unknown area missing_area"):
+            validate_directory(self.directory)
+
+    def test_historical_area_requires_source(self):
+        path = self.directory / "areas.yaml"
+        hierarchy = read_yaml(path)
+        historical = next(area for area in hierarchy["areas"] if area["kind"] == "historical_administration")
+        historical["source"] = None
+        path.write_bytes(yaml_bytes(hierarchy))
+        with self.assertRaisesRegex(ValueError, "missing historical source"):
+            validate_directory(self.directory)
+
+    def test_wrong_projection_origin_is_rejected(self):
+        self.metadata["projection"]["origin"][0] += 1
+        self.write_metadata()
+        with self.assertRaisesRegex(ValueError, "incorrect projection"):
+            validate_directory(self.directory)
+
+    def test_islands_do_not_gain_an_army_crossing(self):
+        entries = self.metadata["provinces"]
+        keys = {entry["id"]: entry["key"] for entry in entries}
+        self.assertFalse(any(
+            edge["edge"] == "strait" for entry in entries for edge in entry["neighbors"]
+        ))
+        land = {entry["key"]: entry for entry in entries if entry["kind"] == "land"}
+        starts = {"london", "paris", "dublin", "palma", "cagliari", "ajaccio"}
+        for start in starts:
+            with self.subTest(start=start):
+                seen, remaining = {start}, [start]
+                while remaining:
+                    current = remaining.pop()
+                    for edge in land[current]["neighbors"]:
+                        target = keys[edge["id"]]
+                        if target in land and target not in seen:
+                            seen.add(target)
+                            remaining.append(target)
+                self.assertEqual(seen & starts, {start})
 
     def test_reserved_zero_pixel_is_rejected(self):
         pixels = self.png("provinces.png")

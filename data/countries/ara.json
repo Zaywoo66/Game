@@ -7,15 +7,24 @@
     142,
     63
   ],
-  "capital": "aragon",
+  "capital": "zaragoza",
   "ai_profile": "mercantile",
   "start": {
     "ruler": "alfonso_v_aragon",
     "heir": "john_ii_aragon",
     "provinces": [
-      "aragon",
-      "catalonia",
-      "valencia"
+      "alicante",
+      "barcelona",
+      "cagliari",
+      "castello",
+      "mataro",
+      "olbia",
+      "palma",
+      "perpignan",
+      "sassari",
+      "tarragona",
+      "valencia",
+      "zaragoza"
     ],
     "treasury": 85000,
     "tax_rate": 220,
