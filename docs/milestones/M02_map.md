@@ -2,7 +2,8 @@
 Docs: MAP_PIPELINE.md, DATA_FORMATS.md
 
 ## Tasks
-- tools/map: generate a 30–50 province test subset of Western Europe and the British Isles (D5). The later vertical slice targets about 100 provinces.
+- tools/map: generate a 30–50 province test subset of Western Europe and the British Isles (D5).
+  This test region was a technical test. Production density is defined in MAP_SCALE.md and delivered in M5b.
 - Generate `provinces.png`, `provinces.json`, `heightmap.png`, `terrain.png`, and `rivers.png`.
 - Load map in /ui/map: chunked terrain, camera (pan/zoom/tilt)
 - Province picking via raster; owner coloring + borders via lookup texture

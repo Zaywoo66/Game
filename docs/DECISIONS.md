@@ -4,6 +4,8 @@
 - D8 Disconnect policy. ASSUMED: hold the country for a grace period, then the host may enable temporary AI.
 - D9 AI visibility. ASSUMED: AI sees the full state in beta, with no fog of war.
 - D10 AI difficulty. ASSUMED: no cheats by default. Bonuses require explicit modifiers.
+- D13 Horizontal wrap on the world map. ASSUMED: decide in M13.
+- D14 Far-region countries as stub countries first. ASSUMED: yes.
 
 ## Decided
 - D1 Time mode: real-time with pause. Each tick advances one day in the proleptic Gregorian calendar.
@@ -11,11 +13,13 @@
 - D0 Stack: Rust sim/net, Tauri 2, React/TS UI, three.js map. Fallback if WebView/WebGL fails: Godot.
 - D3 Network: host-authoritative with deltas; lockstep deferred.
 - D4 Windows x64 is the current test platform. The owner approved proceeding with the verified Tauri launch on the available PC because a second Windows PC is unavailable. M5 exercises separate host and client instances on this machine. Cross-PC compatibility remains unmeasured.
-- D5 First vertical-slice region: Western Europe and the British Isles, about 100 provinces and 5–8 countries.
+- D5 First vertical-slice region: Western Europe and the British Isles, with 5–8 countries. Slice target ~400–600 provinces (supersedes the ~100-province target, which was too coarse). Confirm density in M5b and record the measurements here.
 - D6 Graphics: 3D terrain + low-poly instanced units, 2D UI; gameplay is province-graph based.
-- D7 Scope: beta = start 1440, Europe+Mediterranean+Near East (~300–500 provinces), content to ~1500. Later eras and the rest of the world = separate content releases.
+- D7 Scope: beta starts in 1440 and covers Europe, the Mediterranean and the Near East, with content to ~1500. Density follows MAP_SCALE.md. The world map follows the beta in M13.
 
 - D11 AI lives in the `ai` crate, runs on the host, and acts through validated commands. It uses utility scoring, data-driven profiles, and an RNG derived from `(seed, tick, country_id)`.
+
+- D12 A province is a settlement and its surroundings. The hierarchy is province → area → region (MAP_SCALE.md).
 
 ## Measurements (fill in)
 | Date | Item | Result |

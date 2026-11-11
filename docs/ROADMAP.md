@@ -9,6 +9,7 @@ Status: [ ] todo, [~] in progress, [x] done. Update in the PR that changes it. W
 | M3 | Countries and rulers | [x] | milestones/M03_countries_rulers.md |
 | M4 | Armies and land war | [x] | milestones/M04_armies_war.md |
 | M5 | LAN multiplayer | [ ] | milestones/M05_multiplayer.md |
+| M5b | Map density and visual/UI pass | [ ] | milestones/M05b_visual_pass.md |
 | M6 | Diplomacy | [ ] | milestones/M06_diplomacy.md |
 | M7 | Events and RP | [ ] | milestones/M07_events_rp.md |
 | M8 | Naval | [ ] | milestones/M08_naval.md |
@@ -16,8 +17,11 @@ Status: [ ] todo, [~] in progress, [x] done. Update in the PR that changes it. W
 | M10 | AI strategic layer, balance, tuning (L4) | [ ] | milestones/M10_ai.md |
 | M11 | Beta content (1440) | [ ] | milestones/M11_content.md |
 | M12 | Beta release | [ ] | milestones/M12_release.md |
+| M13 | World map (post-beta) | [ ] | milestones/M13_world.md |
 
 AI levels L0–L3 are delivered inside M3, M4, M6, M7–M9 (see each milestone's AI slice); M10 only completes L4.
 
-Post-beta (not scheduled): rest of the world, eras 1500–1650 / 1650–1750 / 1750–1850, colonization, trade, religion.
+M6 does not start until M5b is accepted.
+
+M13 is the first post-beta milestone; colonization, trade, religion and later eras follow.
 Vertical slice = M2–M7 on the small test region (see DECISIONS D5), then expand to beta map in M11.

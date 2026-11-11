@@ -2,7 +2,7 @@
 Docs: DATA_FORMATS.md, MAP_PIPELINE.md, ASSETS.md
 
 ## Tasks
-- Expand map to beta region (~300-500 provinces); 1440 borders from 1400 snapshot + references
+- Expand map to beta region at the density defined in MAP_SCALE.md (~1,200–1,800 provinces). Use the 1400 snapshot and references for 1440 borders.
 - Countries, rulers, dynasties, starting diplomacy; unique ideas for major countries
 - Events and tech coverage up to ~1500; flags via heraldry generator
 
