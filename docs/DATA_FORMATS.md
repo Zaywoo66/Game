@@ -206,7 +206,7 @@ points, unlock commands, or AI technology choices.
 | `technologies[].cost` | Positive unsigned 32-bit integer in whole research points. |
 | `technologies[].requires` | List of unique technology keys; an empty list denotes a root node. |
 | `technologies[].pos.x`, `pos.y` | Signed 32-bit integers in tech-tree layout grid units. |
-| `technologies[].effects` | List of `add_modifier` effects in the Trigger and effect syntax section. Modifier `value` uses raw Fixed thousandths; optional `duration_days` uses whole game days. |
+| `technologies[].effects` | List of permanent `add_modifier` effects in the Trigger and effect syntax section. Modifier `value` uses raw Fixed thousandths; `duration_days` is forbidden for technology effects. |
 
 For example:
 
@@ -228,6 +228,15 @@ fields/effects, invalid units, and cycles. The parser applies the same
 canonical YAML scalar rules as events:
 lowercase booleans and decimal integer literals without separators or leading
 zeros.
+
+`strategy_data::parse_technology_branch_yaml` converts one branch to typed
+definitions with whole research-point costs, signed layout positions, and
+simulation `Effect` values. `strategy_data::load_technologies_from_dir`
+reads `.yaml`/`.yml` files in filename order, returns a technology-key ordered
+map, and rejects duplicate branch files, duplicate technology keys, missing
+prerequisites and cycles. The Rust loader uses the existing pinned
+`yaml_serde` 0.10.7. Technology runtime state and AI selection remain a
+separate M9 task.
 
 ## Ideas (`data/ideas/<tag>.yaml`)
 `key, name, modifiers:[{key,value,kind}], unlock: Trigger`

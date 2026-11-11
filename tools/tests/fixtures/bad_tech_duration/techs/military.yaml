@@ -1,0 +1,9 @@
+schema_version: 1
+branch: military
+technologies:
+  - key: professional_officers
+    cost: 250
+    requires: []
+    pos: {x: 0, y: 0}
+    effects:
+      - add_modifier: {key: army_morale, value: 100, kind: multiplicative, duration_days: 30}
