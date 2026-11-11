@@ -9,6 +9,8 @@ test.beforeEach(async ({ page }) => {
   const renderer = await page.locator('main').getAttribute('data-map-renderer');
   expect(renderer).toBeTruthy();
   console.info('Map test WebGL renderer: ' + renderer);
+  await expect(page.locator('main')).toHaveAttribute('data-map-mode', 'historical');
+  await expect(page.getByText('Reference borders (1440), not game ownership.')).toBeVisible();
 });
 
 test('projected provinces pick their canonical IDs and representative clicks select them', async ({ page }) => {
@@ -37,6 +39,7 @@ test('projected provinces pick their canonical IDs and representative clicks sel
 });
 
 test('owner recoloring changes the rendered province in place', async ({ page }) => {
+  await page.getByRole('button', { name: 'Game political' }).click();
   const land = (await loadProvinces(page)).filter(({ kind }) => kind === 'land');
   expect(land.length).toBeGreaterThanOrEqual(2);
   const [target, other] = land;
@@ -98,6 +101,7 @@ test('camera presets stay bounded and wide margins render as ocean', async ({ pa
 });
 
 test('map modes keep host owner bytes separate from 1440 evidence', async ({ page }) => {
+  await page.getByRole('button', { name: 'Game political' }).click();
   const evidence = await (await page.request.get('/map/western_europe/polities_1440.json')).json();
   const polygon = evidence.assignments.find((entry) => entry.resolution === 'polygon');
   expect(polygon).toBeTruthy();

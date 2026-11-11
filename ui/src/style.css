@@ -44,6 +44,7 @@ p { font-size: 14px; color: #a8b6cf; }
 .map-modes { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 10px; pointer-events: auto; }
 .map-modes button { border: 1px solid #849b91; border-radius: 4px; background: #263e42; color: #eaf0e6; padding: 4px 7px; cursor: pointer; font: 12px system-ui, sans-serif; }
 .map-modes button[aria-pressed='true'] { border-color: #e1c48c; background: #526657; color: #fff3ca; }
+.map-header .map-mode-note { margin-top: 7px; font-size: 12px; color: #dfd6b8; }
 .map-sources { display: inline-block; margin-left: 12px; max-width: 320px; color: #c5d2ca; font-size: 13px; }
 .map-sources[open] { display: block; margin: 8px 0 0; }
 .map-sources summary { cursor: pointer; pointer-events: auto; }

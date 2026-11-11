@@ -89,7 +89,8 @@ export function MapPage() {
   const [inspectedCountry, setInspectedCountry] = useState<number | null>(null);
   const [provinceNames, setProvinceNames] = useState<ReadonlyMap<number, Province>>(new Map());
   const [mapAssets, setMapAssets] = useState<MapAssets | null>(null);
-  const [mapMode, setMapMode] = useState<MapMode>('political');
+  const [mapMode, setMapMode] = useState<MapMode>('historical');
+  const modeChosenByUser = useRef(false);
   const [section, setSection] = useState<'country' | 'military'>('country');
   const [inspectedArmy, setInspectedArmy] = useState(0);
   const [order, setOrder] = useState<ArmyOrder | null>(null);
@@ -108,6 +109,9 @@ export function MapPage() {
   );
   const game = hostGame.snapshot;
   const hasGame = Boolean(game);
+  useEffect(() => {
+    if (hasGame && !modeChosenByUser.current) setMapMode('political');
+  }, [hasGame]);
   const militaryEnabled = game?.armies !== undefined;
   const colors = useMemo(
     () => provinceColors(game?.owners, game?.countries),
@@ -258,11 +262,12 @@ export function MapPage() {
             <nav className="map-modes" aria-label="Map mode">
               {(['political', 'terrain', 'historical'] as const).map((mode) => (
                 <button key={mode} type="button" aria-pressed={mapMode === mode}
-                  onClick={() => setMapMode(mode)}>
+                  onClick={() => { modeChosenByUser.current = true; setMapMode(mode); }}>
                   {mode === 'political' ? 'Game political' : mode === 'terrain' ? 'Terrain' : 'Historical 1440'}
                 </button>
               ))}
             </nav>
+            {mapMode === 'historical' && <p className="map-mode-note">Reference borders (1440), not game ownership.</p>}
             {lan.status && (
               <div className="map-lan">
                 <button type="button" onClick={() => setLobbyOpen(true)}>LAN multiplayer</button>
