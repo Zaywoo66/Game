@@ -12,14 +12,15 @@ Conventional style: `feat(sim): army pathfinding`, `fix(net): resync on checksum
 | CI gate | First enabled |
 |---|---|
 | `cargo fmt --check` | M0 |
-| `cargo clippy --all-targets -- -D warnings` | M0 |
-| `cargo test --workspace` | M0 |
+| `cargo clippy --locked --all-targets -- -D warnings` | M0 |
+| `cargo test --locked --workspace` | M0 |
 | UI install, lint, typecheck, and build | M0 |
 | Data lint command, JSON syntax, and invalid fixture test | M0 |
 | Data schema and cross-reference checks | M1 |
 | Determinism test | M1 |
 | Map validation | M2 |
 | AI smoke test (10 game years, 3 seeds, `strategy-app` integration test `military_smoke`) | M4 |
+| TCP loopback, checksum/resync, reconnect and authority (`strategy-app` integration test `lan_replay`) | M5 |
 
 From M10, run the AI soak test through a scheduled or manual workflow.
 

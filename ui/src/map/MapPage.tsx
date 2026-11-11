@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { CountryPanel, HostControls } from '../game/CountryPanel';
 import { CountryView, GameSnapshot, useGameHost } from '../game/host';
+import { LanLobby } from '../game/LanLobby';
+import { lanStatusText, useLan } from '../game/lan';
 import { ArmyOrder, MilitaryPanel } from '../game/MilitaryPanel';
 import { loadMapAssets, Province, Rgba } from './mapData';
 import { BenchmarkSample, createMapViewer, MapTestControls } from './mapViewer';
@@ -90,8 +92,17 @@ export function MapPage() {
   const [order, setOrder] = useState<ArmyOrder | null>(null);
   const [renderer, setRenderer] = useState('');
   const [benchmarkResult, setBenchmarkResult] = useState('Loading the map…');
+  const [lobbyOpen, setLobbyOpen] = useState(false);
   const verifyHost = import.meta.env.DEV && options.get('verifyHost') === '1';
-  const hostGame = useGameHost(!benchmark && (!verify || verifyHost));
+  const lan = useLan(!benchmark && !verify);
+  const guest = lan.status?.mode === 'guest';
+  const guestSuspended = guest && lan.status?.state !== 'connected';
+  const hostGame = useGameHost(
+    !benchmark && (!verify || verifyHost) && !guestSuspended,
+    lan.status?.generation,
+    !guestSuspended && !lan.busy && !lan.checking,
+    !guest,
+  );
   const game = hostGame.snapshot;
   const hasGame = Boolean(game);
   const militaryEnabled = game?.armies !== undefined;
@@ -229,10 +240,19 @@ export function MapPage() {
             <p>Drag to pan · Scroll to zoom · Right-drag to tilt</p>
             <a href="?smoke=1">WebGL smoke test</a>
             <MapSources />
+            {lan.status && (
+              <div className="map-lan">
+                <button type="button" onClick={() => setLobbyOpen(true)}>LAN multiplayer</button>
+                {lan.status.mode !== 'solo' && (
+                  <span data-lan-state={lan.status.state} role="status">{lanStatusText(lan.status)}</span>
+                )}
+              </div>
+            )}
           </>
         )}
       </header>
-      {game && <HostControls game={game} pending={hostGame.pending} error={hostGame.commandError} send={hostGame.send} />}
+      {game && <HostControls game={game} pending={hostGame.pending} error={hostGame.commandError}
+        canSetSpeed={!guest} send={hostGame.send} />}
       {hostGame.connected && !game && (
         <p className="game-clock map-panel" role={hostGame.connectionError ? 'alert' : 'status'}>
           {hostGame.connectionError || 'Connecting to the game host…'}
@@ -275,9 +295,10 @@ export function MapPage() {
             provinceIsLand={selected?.kind === 'land'} army={shownArmy} order={order}
             selectArmy={(id) => { setInspectedArmy(id); setOrder(null); }}
             chooseOrder={setOrder} cancelOrder={() => setOrder(null)} provinceName={provinceName}
-            send={hostGame.send} readAiLog={hostGame.readAiLog} />
+            send={hostGame.send} readAiLog={hostGame.readAiLog} canReadAiLog={!guest} />
         )}
       </aside>
+      {lobbyOpen && lan.status && <LanLobby game={game} lan={lan} onClose={() => setLobbyOpen(false)} />}
     </main>
   );
 }

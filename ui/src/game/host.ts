@@ -74,6 +74,7 @@ export interface AiLogEntry {
 }
 
 export interface GameSnapshot {
+  generation?: number;
   sequence: number;
   clock: ClockView;
   local_country_id: number | null;
@@ -90,6 +91,7 @@ export interface GameSnapshot {
 }
 
 interface GameUpdate {
+  generation?: number;
   sequence: number;
   clock: ClockView;
   countries: CountryView[];
@@ -167,15 +169,20 @@ function errorText(reason: unknown): string {
   return 'The host returned an unknown error.';
 }
 
-export function useGameHost(enabled: boolean) {
+export function useGameHost(enabled: boolean, generation = 0, canCommand = true, canSetSpeed = true) {
   const bridge = enabled ? window.__TAURI__ : undefined;
-  const [snapshot, setSnapshot] = useState<GameSnapshot | null>(null);
+  const [model, setModel] = useState<{ generation: number; snapshot: GameSnapshot } | null>(null);
+  const snapshot = model?.generation === generation ? model.snapshot : null;
   const [connectionError, setConnectionError] = useState('');
   const [commandError, setCommandError] = useState('');
   const [pending, setPending] = useState(false);
-  const inFlight = useRef(false);
+  const inFlight = useRef<symbol>();
 
   useEffect(() => {
+    inFlight.current = undefined;
+    setPending(false);
+    setConnectionError('');
+    setCommandError('');
     if (!bridge) return;
     let active = true;
     let ready = false;
@@ -186,9 +193,11 @@ export function useGameHost(enabled: boolean) {
       try {
         // Subscribe first so a tick during snapshot loading is not lost.
         unlisten = await ipc.event.listen<GameUpdate>('strategy:update', ({ payload }) => {
-          if (!active) return;
+          if (!active || (payload.generation !== undefined && payload.generation !== generation)) return;
           if (ready) {
-            setSnapshot((current) => current && applyUpdate(current, payload));
+            setModel((current) => current?.generation === generation
+              ? { generation, snapshot: applyUpdate(current.snapshot, payload) }
+              : current);
           } else {
             queued.push(payload);
           }
@@ -199,12 +208,13 @@ export function useGameHost(enabled: boolean) {
         }
         const initial = await ipc.core.invoke<GameSnapshot>('game_snapshot');
         if (!active) return;
+        if (initial.generation !== undefined && initial.generation !== generation) return;
         const latest = queued
           .sort((left, right) => left.sequence - right.sequence)
           .reduce(applyUpdate, initial);
         queued.length = 0;
         ready = true;
-        setSnapshot(latest);
+        setModel({ generation, snapshot: latest });
       } catch (reason) {
         if (active) {
           unlisten?.();
@@ -219,21 +229,25 @@ export function useGameHost(enabled: boolean) {
       active = false;
       unlisten?.();
     };
-  }, [bridge]);
+  }, [bridge, generation]);
 
   async function send(command: GameCommand): Promise<void> {
-    if (!bridge || !snapshot || inFlight.current) return;
-    inFlight.current = true;
+    if (!bridge || !snapshot || !canCommand || inFlight.current
+      || (command.type === 'set_speed' && !canSetSpeed)) return;
+    const request = Symbol();
+    inFlight.current = request;
     setPending(true);
     setCommandError('');
     try {
       await bridge.core.invoke<null>('game_command', { command });
       // Read models change only when the host emits an update.
     } catch (reason) {
-      setCommandError(errorText(reason));
+      if (inFlight.current === request) setCommandError(errorText(reason));
     } finally {
-      inFlight.current = false;
-      setPending(false);
+      if (inFlight.current === request) {
+        inFlight.current = undefined;
+        setPending(false);
+      }
     }
   }
 
@@ -241,5 +255,6 @@ export function useGameHost(enabled: boolean) {
     return bridge ? bridge.core.invoke<AiLogEntry[]>('game_ai_log') : Promise.resolve([]);
   }
 
-  return { connected: Boolean(bridge), snapshot, connectionError, commandError, pending, send, readAiLog };
+  return { connected: Boolean(bridge), snapshot, connectionError, commandError,
+    pending: pending || !canCommand, send, readAiLog };
 }

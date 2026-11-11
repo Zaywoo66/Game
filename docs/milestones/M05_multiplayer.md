@@ -8,12 +8,23 @@ Docs: NETWORK.md, ARCHITECTURE.md
 - Loopback integration tests
 
 ## Acceptance
-- Two machines on one LAN play 1 hour with zero checksum mismatches
-- Firewall and router-isolation troubleshooting written in README
+- Two native game instances on the available Windows PC play for one hour with zero checksum mismatches, per D4
+- Cross-PC LAN compatibility remains open
+- Firewall and router-isolation troubleshooting in README
 
 ## AI slice (required)
 Docs: AI.md
 - AI runs on host only; clients receive AI effects as ordinary deltas
 - Lobby: host chooses which countries are human-controlled; the rest are AI. AI aggressiveness preset selectable
 - Disconnect handling per DECISIONS D8: country held, then optional temporary AI takeover by host; reconnect returns control
-- Acceptance add-on: 2 humans + AI countries for 1 hour, no checksum mismatches, AI actions visible to both clients
+- Acceptance add-on: both human seats and AI countries active for one hour, zero checksum mismatches, AI actions visible to both instances
+
+## Automated verification
+
+`cargo test --locked -p strategy-app --test lan_replay` drives a real
+TCP host and guest for 10,000 ticks. It checks guest pause authority,
+host-only speed, AI outcomes, checksum counts and exact final save bytes.
+Separate tests exercise corrupt-checksum resync, a same-sequence corrected
+snapshot, reconnect, held country and temporary AI, and a guest that
+abandons its handshake. The UI suite verifies both lobby flows and
+refreshes the authoritative snapshot after reconnection.
