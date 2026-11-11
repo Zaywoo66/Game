@@ -113,7 +113,8 @@ export type GameCommand =
   | { type: 'move_army' | 'retreat_army'; country_id: number; army_id: number; destination: number }
   | { type: 'declare_war'; country_id: number; defender_id: number; goal_province_id: number }
   | { type: 'offer_peace'; country_id: number; war_id: number; cede_goal: boolean }
-  | { type: 'accept_peace'; country_id: number; war_id: number };
+  | { type: 'accept_peace'; country_id: number; war_id: number }
+  | { type: 'unlock_technology'; country_id: number; key: string };
 
 interface TauriBridge {
   core: { invoke<T>(name: string, args?: Record<string, unknown>): Promise<T> };

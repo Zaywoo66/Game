@@ -5,7 +5,8 @@ use strategy_sim::MapIdentity;
 
 use crate::StateDelta;
 
-pub const PROTOCOL_VERSION: u16 = 6;
+// Assigned after guarantee v7 and fleet v8; reverify after both branches merge.
+pub const PROTOCOL_VERSION: u16 = 9;
 pub type ResumeToken = [u8; 16];
 
 /// A private token issued by the host when reserving a player's slot.

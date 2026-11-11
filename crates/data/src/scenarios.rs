@@ -178,6 +178,8 @@ struct ProfileContentFile {
     thresholds: AiThresholds,
     preferred_tax_rate: i64,
     preferred_monthly_spending: i64,
+    #[serde(default)]
+    tech_branch_weights: BTreeMap<String, u16>,
 }
 
 /// Loads a scenario file in `data/scenarios/` with its referenced content.
@@ -196,9 +198,22 @@ pub fn load_scenario(graph: ProvinceGraph, scenario_path: impl AsRef<Path>) -> R
         .filter(|parent| parent.file_name().is_some_and(|name| name == "scenarios"))
         .and_then(Path::parent)
         .ok_or_else(|| invalid("scenario path must be inside a scenarios directory"))?;
-    load_scenario_from_reader(graph, scenario_key, |relative| {
+    let state = load_scenario_from_reader(graph, scenario_key, |relative| {
         fs::read(root.join(relative))
-    })
+    })?;
+    let technology_dir = root.join("techs");
+    if technology_dir.is_dir() {
+        let definitions = crate::load_technologies_from_dir(&technology_dir)
+            .map_err(|error| invalid(error.to_string()))?
+            .into_iter()
+            .map(|(key, definition)| (key, definition.into()))
+            .collect();
+        state
+            .with_technologies(definitions)
+            .map_err(|error| invalid(format!("invalid technology catalog: {error:?}")))
+    } else {
+        Ok(state)
+    }
 }
 
 /// Loads the same scenario from embedded assets or a filesystem resolver.
@@ -348,6 +363,7 @@ pub fn load_scenario_from_reader(
                 thresholds: profile.thresholds,
                 preferred_tax_rate: profile.preferred_tax_rate,
                 preferred_monthly_spending: profile.preferred_monthly_spending,
+                tech_branch_weights: profile.tech_branch_weights,
             }
             .restore();
             profiles.insert(key, profile);

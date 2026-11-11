@@ -22,6 +22,18 @@ pub struct TechnologyDefinition {
     pub effects: Vec<Effect>,
 }
 
+impl From<TechnologyDefinition> for strategy_sim::TechnologyDefinition {
+    fn from(definition: TechnologyDefinition) -> Self {
+        Self {
+            key: definition.key,
+            branch: definition.branch,
+            cost: definition.cost,
+            requires: definition.requires,
+            effects: definition.effects,
+        }
+    }
+}
+
 /// Signed layout grid coordinates used by the future technology tree UI.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct TechnologyPosition {

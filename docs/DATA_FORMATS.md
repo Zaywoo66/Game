@@ -195,8 +195,10 @@ equal to the ASCII snake_case filename stem, and a `technologies` list. Every
 technology key is unique across all branch files. Prerequisites may refer to
 another branch, but every referenced key must exist and the complete directed
 graph must have no cycles. The data linter checks those conditions before
-technology content enters the game. This format task does not yet add research
-points, unlock commands, or AI technology choices.
+technology content enters the game. Research points accrue by 10 on each new
+calendar month and are capped at 1000 whole points. `UnlockTechnology` spends
+the data cost at once if all prerequisites are known. Technology modifiers are
+permanent and have a source record keyed by country and technology.
 
 | Field | Representation and unit |
 |---|---|
@@ -390,6 +392,7 @@ Add new leaves here first, then implement.
 | `thresholds.war_min_score`, `peace_accept_score`, `alliance_min_opinion`, `marriage_min_opinion` | Signed 32-bit whole decision score points. The 1440 marriage threshold is 20 effective opinion points. |
 | `preferred_tax_rate` | Raw Fixed fraction within scenario tax limits. |
 | `preferred_monthly_spending` | Raw Fixed treasury amount per month within scenario spending limits. |
+| `tech_branch_weights` | Optional object from loaded technology branch key to whole preference points 0 through 1000. Unknown branches and out-of-range weights are rejected when the catalog is attached. Missing branch weights score zero. |
 
 ## Saved games (schema version 2)
 
@@ -550,3 +553,15 @@ include localization keys, triggers, effects, option weights and timing; a
 running save therefore keeps its event rules if external YAML later changes.
 Saves v1–v7 remain readable without event state. LAN protocol v6 transports
 the same canonical snapshot and the validated zero-based event choice command.
+
+## Saved games (schema version 11, after guarantee v9 and fleet v10)
+
+V11 adds `state.technology` with technology definitions ordered by key,
+research-point records ordered by country ID, modifier sources ordered by
+country ID then technology key, and the positive next modifier-source ID.
+Research points are whole unsigned 32-bit points from 0 through 1000. Each
+definition stores its branch key, positive whole-point cost, prerequisite
+keys, and permanent modifier effects in raw Fixed thousandths. The country
+record's `known_technologies` and the technology source records must agree.
+The hash domain is `strategy:game-state:v11` followed by NUL and canonical
+save bytes. Older saves remain readable without research state.

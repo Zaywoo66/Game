@@ -1,3 +1,5 @@
+use std::collections::BTreeMap;
+
 use serde::{Deserialize, Serialize};
 use strategy_sim::{
     AiThresholds, AiWeights, CharacterStats, FiscalAiProfile, Fixed, ModKey, PolityRules,
@@ -87,6 +89,8 @@ pub(super) struct ProfileFile {
     pub thresholds: AiThresholds,
     pub preferred_tax_rate: i64,
     pub preferred_monthly_spending: i64,
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub tech_branch_weights: BTreeMap<String, u16>,
 }
 
 impl ProfileFile {
@@ -97,6 +101,7 @@ impl ProfileFile {
             thresholds: profile.thresholds,
             preferred_tax_rate: profile.preferred_tax_rate.raw(),
             preferred_monthly_spending: profile.preferred_monthly_spending.raw(),
+            tech_branch_weights: profile.tech_branch_weights.clone(),
         }
     }
 
@@ -108,6 +113,7 @@ impl ProfileFile {
                 thresholds: self.thresholds,
                 preferred_tax_rate: Fixed::from_raw(self.preferred_tax_rate),
                 preferred_monthly_spending: Fixed::from_raw(self.preferred_monthly_spending),
+                tech_branch_weights: self.tech_branch_weights,
             },
         )
     }

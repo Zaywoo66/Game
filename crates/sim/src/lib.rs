@@ -11,6 +11,7 @@ mod polity;
 mod province_graph;
 mod rng;
 mod state;
+mod technology;
 mod time;
 mod trigger;
 mod war;
@@ -42,6 +43,7 @@ pub use state::{
     CountryState, Delta, GameState, ScheduleError, ScheduledEffect, ScheduledEffectFailure,
     StateChange, TickReport,
 };
+pub use technology::{TechnologyDefinition, TechnologyError, TechnologyState};
 pub use time::{
     Date, InvalidDate, InvalidSpeed, SimTime, Speed, Tick, TimeActor, TimeCommand, TimeError,
 };
