@@ -4,7 +4,7 @@ Status: [ ] todo, [~] in progress, [x] done. Update in the PR that changes it. W
 | ID | Milestone | Status | File |
 |----|-----------|--------|------|
 | M0 | Foundation | [~] | milestones/M00_foundation.md |
-| M1 | Simulation core | [ ] | milestones/M01_sim_core.md |
+| M1 | Simulation core | [~] | milestones/M01_sim_core.md |
 | M2 | Map | [ ] | milestones/M02_map.md |
 | M3 | Countries and rulers | [ ] | milestones/M03_countries_rulers.md |
 | M4 | Armies and land war | [ ] | milestones/M04_armies_war.md |
