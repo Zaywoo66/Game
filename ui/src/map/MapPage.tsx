@@ -84,7 +84,8 @@ export function MapPage() {
   const [inspectedCountry, setInspectedCountry] = useState<number | null>(null);
   const [renderer, setRenderer] = useState('');
   const [benchmarkResult, setBenchmarkResult] = useState('Loading the map…');
-  const hostGame = useGameHost(!verify && !benchmark);
+  const verifyHost = import.meta.env.DEV && options.get('verifyHost') === '1';
+  const hostGame = useGameHost(!benchmark && (!verify || verifyHost));
   const game = hostGame.snapshot;
   const hasGame = Boolean(game);
   const colors = useMemo(
