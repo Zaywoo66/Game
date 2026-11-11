@@ -30,7 +30,10 @@ fn embed_game_data() -> std::io::Result<()> {
         for entry in fs::read_dir(events)? {
             let entry = entry?;
             if entry.file_type()?.is_file()
-                && entry.path().extension().is_some_and(|ext| ext == "yaml" || ext == "yml")
+                && entry
+                    .path()
+                    .extension()
+                    .is_some_and(|ext| ext == "yaml" || ext == "yml")
             {
                 paths.push(format!("events/{}", entry.file_name().to_string_lossy()));
             }

@@ -4,21 +4,22 @@ use serde::{Deserialize, Deserializer, Serialize};
 use serde_json::value::RawValue;
 use sha2::{Digest, Sha256};
 use strategy_sim::{
-    AiProfileKey, Controller, CountryId, CountryState, Date, DiplomacyError, DiplomacyState, EventError,
-    Effect, Fixed, GameState, InvalidDate, InvalidSpeed, MapIdentity, MapIdentityMismatch, ModKey,
-    Modifier, ModifierInsertError, ModifierKind, ModifierSourceId, ModifierStore, Opinion,
-    OpinionError, OpinionStateError, PlayerId, PolityError, ProvinceGraph, ScheduleError,
-    ScheduledEffect, SeededRng, SimTime, Speed, Tick, TimeError, TriggerView, WarError, WarState,
+    AiProfileKey, Controller, CountryId, CountryState, Date, DiplomacyError, DiplomacyState,
+    Effect, EventError, Fixed, GameState, InvalidDate, InvalidSpeed, MapIdentity,
+    MapIdentityMismatch, ModKey, Modifier, ModifierInsertError, ModifierKind, ModifierSourceId,
+    ModifierStore, Opinion, OpinionError, OpinionStateError, PlayerId, PolityError, ProvinceGraph,
+    ScheduleError, ScheduledEffect, SeededRng, SimTime, Speed, Tick, TimeError, TriggerView,
+    WarError, WarState,
 };
 
 use crate::provinces::decode_hash;
 
-mod military;
 mod events;
+mod military;
 mod polity;
 
-use military::WarStateFile;
 use events::EventStateFile;
+use military::WarStateFile;
 use polity::PolityFile;
 
 const LEGACY_VERSION: u32 = 1;

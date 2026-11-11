@@ -79,7 +79,9 @@ impl EventState {
                 || event.options.iter().any(|option| {
                     !valid_key(&option.text_key)
                         || option.effects.iter().any(|effect| match effect {
-                            Effect::AddModifier { key, value, kind, .. } => {
+                            Effect::AddModifier {
+                                key, value, kind, ..
+                            } => {
                                 !valid_key(key.as_str())
                                     || (*kind == crate::ModifierKind::Multiplicative
                                         && crate::Fixed::ONE.checked_add(*value).is_none())
@@ -114,11 +116,14 @@ impl EventState {
             };
             if !countries.contains(country)
                 || *fired_at > current
-                || self.resolved.get(&(*country, key.clone())).is_some_and(|last| {
-                    !definition.repeatable
-                        || fired_at.get().saturating_sub(last.get())
-                            < definition.cooldown_days.expect("validated event").get()
-                })
+                || self
+                    .resolved
+                    .get(&(*country, key.clone()))
+                    .is_some_and(|last| {
+                        !definition.repeatable
+                            || fired_at.get().saturating_sub(last.get())
+                                < definition.cooldown_days.expect("validated event").get()
+                    })
             {
                 return Err(EventError::InvalidSavedState);
             }
@@ -295,6 +300,12 @@ fn valid_key(key: &str) -> bool {
 }
 
 fn valid_segment(segment: &str) -> bool {
-    segment.as_bytes().first().is_some_and(u8::is_ascii_lowercase)
-        && segment.as_bytes().iter().all(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit())
+    segment
+        .as_bytes()
+        .first()
+        .is_some_and(u8::is_ascii_lowercase)
+        && segment
+            .as_bytes()
+            .iter()
+            .all(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit())
 }

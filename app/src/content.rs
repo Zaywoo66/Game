@@ -20,7 +20,10 @@ pub fn load_embedded_scenario() -> Result<GameState, String> {
     let state = load_scenario_from_reader(graph, "1440", |path| bytes_at(path).map(<[u8]>::to_vec))
         .map_err(|error| error.to_string())?;
     let mut events = BTreeMap::new();
-    for &(path, source) in CONTENT.iter().filter(|(path, _)| path.starts_with("events/")) {
+    for &(path, source) in CONTENT
+        .iter()
+        .filter(|(path, _)| path.starts_with("events/"))
+    {
         let yaml = str::from_utf8(source).map_err(|error| format!("{path}: {error}"))?;
         let event = parse_event_yaml(yaml).map_err(|error| format!("{path}: {error}"))?;
         let key = event.key.clone();
@@ -31,6 +34,8 @@ pub fn load_embedded_scenario() -> Result<GameState, String> {
     if events.is_empty() {
         Ok(state)
     } else {
-        state.with_events(events).map_err(|error| format!("invalid event catalog: {error:?}"))
+        state
+            .with_events(events)
+            .map_err(|error| format!("invalid event catalog: {error:?}"))
     }
 }

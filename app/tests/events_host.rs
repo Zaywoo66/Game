@@ -25,9 +25,25 @@ fn host_ai_resolves_pending_event_by_legal_command() {
     assert!(!ai.is_empty());
     let first = tick_host(&mut state).unwrap();
     assert!(first.ai_rejections.is_empty());
-    assert!(ai.iter().all(|country| state.events().unwrap().pending.contains_key(&(*country, "harvest_festival".into()))));
+    assert!(ai.iter().all(|country| state
+        .events()
+        .unwrap()
+        .pending
+        .contains_key(&(*country, "harvest_festival".into()))));
     let second = tick_host(&mut state).unwrap();
-    assert!(second.ai_rejections.is_empty(), "{:?}", second.ai_rejections);
-    assert!(ai.iter().all(|country| !state.events().unwrap().pending.contains_key(&(*country, "harvest_festival".into()))));
-    assert!(ai.iter().all(|country| state.events().unwrap().resolved.contains_key(&(*country, "harvest_festival".into()))));
+    assert!(
+        second.ai_rejections.is_empty(),
+        "{:?}",
+        second.ai_rejections
+    );
+    assert!(ai.iter().all(|country| !state
+        .events()
+        .unwrap()
+        .pending
+        .contains_key(&(*country, "harvest_festival".into()))));
+    assert!(ai.iter().all(|country| state
+        .events()
+        .unwrap()
+        .resolved
+        .contains_key(&(*country, "harvest_festival".into()))));
 }
