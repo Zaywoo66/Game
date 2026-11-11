@@ -1,9 +1,10 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "key": "john_ii_aragon",
   "country": "ara",
   "name": "John of Aragon",
   "dynasty": "trastamara_aragon",
+  "sex": "male",
   "birth": [
     1398,
     6,

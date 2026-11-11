@@ -14,7 +14,7 @@ mod time;
 mod trigger;
 mod war;
 
-pub use diplomacy::{AllianceOffer, DiplomacyError, DiplomacyState};
+pub use diplomacy::{AllianceOffer, DiplomacyError, DiplomacyState, MarriageError, MarriageOffer};
 pub use effect::{Effect, EffectError, PreparedModifier};
 pub use fixed::Fixed;
 pub use ids::{ArmyId, CharacterId, CountryId, PlayerId, ProvinceId, WarId};
@@ -26,7 +26,7 @@ pub use opinion::{Opinion, OpinionError, OpinionStateError};
 pub use polity::{
     AiThresholds, AiWeights, CharacterState, CharacterStats, CountryPolity, EconomyState,
     FiscalAiProfile, FiscalError, FiscalPolicy, MonthlyBudget, PolityError, PolityRules,
-    PolityState, PolityTickFailure, SuccessionState,
+    PolityState, PolityTickFailure, Sex, SuccessionState,
 };
 pub use province_graph::{
     EdgeKind, MapIdentity, MapIdentityMismatch, Province, ProvinceEdge, ProvinceGraph,

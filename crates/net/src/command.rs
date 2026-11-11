@@ -86,6 +86,24 @@ pub enum PlayerCommand {
         country: u32,
         other: u32,
     },
+    OfferRoyalMarriage {
+        country: u32,
+        character: u32,
+        toward: u32,
+        partner: u32,
+    },
+    AcceptRoyalMarriage {
+        country: u32,
+        from: u32,
+        character: u32,
+        partner: u32,
+    },
+    RejectRoyalMarriage {
+        country: u32,
+        from: u32,
+        character: u32,
+        partner: u32,
+    },
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -229,6 +247,39 @@ impl From<&Command> for PlayerCommand {
                 country: country.get(),
                 other: other.get(),
             },
+            Command::OfferRoyalMarriage {
+                country,
+                character,
+                toward,
+                partner,
+            } => Self::OfferRoyalMarriage {
+                country: country.get(),
+                character: character.get(),
+                toward: toward.get(),
+                partner: partner.get(),
+            },
+            Command::AcceptRoyalMarriage {
+                country,
+                from,
+                character,
+                partner,
+            } => Self::AcceptRoyalMarriage {
+                country: country.get(),
+                from: from.get(),
+                character: character.get(),
+                partner: partner.get(),
+            },
+            Command::RejectRoyalMarriage {
+                country,
+                from,
+                character,
+                partner,
+            } => Self::RejectRoyalMarriage {
+                country: country.get(),
+                from: from.get(),
+                character: character.get(),
+                partner: partner.get(),
+            },
         }
     }
 }
@@ -352,6 +403,39 @@ impl TryFrom<PlayerCommand> for Command {
             PlayerCommand::BreakAlliance { country, other } => Self::BreakAlliance {
                 country: CountryId::new(country),
                 other: CountryId::new(other),
+            },
+            PlayerCommand::OfferRoyalMarriage {
+                country,
+                character,
+                toward,
+                partner,
+            } => Self::OfferRoyalMarriage {
+                country: CountryId::new(country),
+                character: CharacterId::new(character),
+                toward: CountryId::new(toward),
+                partner: CharacterId::new(partner),
+            },
+            PlayerCommand::AcceptRoyalMarriage {
+                country,
+                from,
+                character,
+                partner,
+            } => Self::AcceptRoyalMarriage {
+                country: CountryId::new(country),
+                from: CountryId::new(from),
+                character: CharacterId::new(character),
+                partner: CharacterId::new(partner),
+            },
+            PlayerCommand::RejectRoyalMarriage {
+                country,
+                from,
+                character,
+                partner,
+            } => Self::RejectRoyalMarriage {
+                country: CountryId::new(country),
+                from: CountryId::new(from),
+                character: CharacterId::new(character),
+                partner: CharacterId::new(partner),
             },
         })
     }

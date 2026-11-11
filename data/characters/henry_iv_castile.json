@@ -1,9 +1,10 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "key": "henry_iv_castile",
   "country": "cas",
   "name": "Henry of Castile",
   "dynasty": "trastamara_castile",
+  "sex": "male",
   "birth": [
     1425,
     1,

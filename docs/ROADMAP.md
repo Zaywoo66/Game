@@ -31,7 +31,8 @@ The M7 data loader now maps event YAML to typed simulation triggers/effects; eve
 M5b.4 camera, water, borders and terrain have browser screenshot evidence; native 1080p FPS/RAM and owner visual review remain open for M5b acceptance.
 M5b.5 map modes, historical evidence display, English fallback labels and army badges have browser checks; Russian localization, fleet UI, native performance and owner visual acceptance remain open.
 
-M6 alliance slice in progress: validated offers, acceptance/rejection, indefinite alliance, voluntary break penalty/cooldown, AI response and network/save transport. Guarantee, vassalage, marriage, truce proposals and the diplomacy UI remain open.
+M6 alliance and royal-marriage slices implemented: validated 30-day offers, acceptance/rejection, spouse links and death cleanup, +20 temporary effective opinion, deterministic AI factors, and network/save transport. Guarantee, vassalage, truce proposals and the diplomacy UI remain open.
+The royal-marriage slice uses named adult characters and synthetic tests; the 1440 content currently has no female character or modeled existing spouse links. Historical marriage content is an M11 gap.
 The war-participants prerequisite supports additional countries on either side of one war, with side-based armies, sieges, peace and pairwise truces. Guarantee entry and its AI decisions remain in a separate M6 task.
 The 1440 scenario currently starts with neutral opinions; historically supported positive opening relationships and their values belong to M11 content review. Until then, the alliance AI's favorable branch is covered by a synthetic scenario test.
 

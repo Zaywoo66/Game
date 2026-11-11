@@ -151,11 +151,20 @@ struct CharacterFile {
     country: String,
     name: String,
     dynasty: String,
+    sex: CharacterSexFile,
+    spouse: Option<String>,
     birth: DateFields,
     death: Option<DateFields>,
     #[serde(with = "StatsFile")]
     stats: CharacterStats,
     traits: Vec<String>,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "snake_case")]
+enum CharacterSexFile {
+    Male,
+    Female,
 }
 
 #[derive(Deserialize)]
@@ -246,10 +255,15 @@ pub fn load_scenario_from_reader(
 
     let traits = build_traits(scenario.traits)?;
     let mut character_states = BTreeMap::new();
+    let mut spouses = BTreeMap::new();
     for (key, &id) in &characters {
         let path = format!("characters/{key}.json");
         let file: CharacterFile = read_file(&mut read, &path)?;
-        check_version(&path, file.schema_version)?;
+        if file.schema_version != 2 {
+            return Err(invalid(format!(
+                "{path}: character schema_version must be 2"
+            )));
+        }
         require_file_key(&path, &file.key, key)?;
         check_key(&file.dynasty, "dynasty")?;
         check_name(&file.name, &path)?;
@@ -263,6 +277,12 @@ pub fn load_scenario_from_reader(
             .transpose()?;
         if death.is_some_and(|death| death <= birth) {
             return Err(invalid(format!("{path}: death must be after birth")));
+        }
+        if let Some(spouse_key) = file.spouse {
+            let spouse = *characters
+                .get(spouse_key.as_str())
+                .ok_or_else(|| invalid(format!("{path}: unknown spouse {spouse_key}")))?;
+            spouses.insert(id, spouse);
         }
 
         let mut modifier_store = ModifierStore::default();
@@ -286,6 +306,11 @@ pub fn load_scenario_from_reader(
                 name: file.name,
                 country,
                 dynasty: file.dynasty,
+                sex: match file.sex {
+                    CharacterSexFile::Male => strategy_sim::Sex::Male,
+                    CharacterSexFile::Female => strategy_sim::Sex::Female,
+                },
+                spouse: None,
                 birth,
                 death,
                 stats: file.stats,
@@ -293,6 +318,12 @@ pub fn load_scenario_from_reader(
                 modifiers: modifier_store,
             },
         );
+    }
+    for (character, spouse) in spouses {
+        character_states
+            .get_mut(&character)
+            .expect("character loaded")
+            .spouse = Some(spouse);
     }
 
     let mut country_states = BTreeMap::new();

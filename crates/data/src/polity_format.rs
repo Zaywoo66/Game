@@ -61,6 +61,12 @@ pub(super) struct ThresholdsFile {
     war_min_score: i32,
     peace_accept_score: i32,
     alliance_min_opinion: i32,
+    #[serde(default, skip_serializing_if = "is_zero_i32")]
+    marriage_min_opinion: i32,
+}
+
+fn is_zero_i32(value: &i32) -> bool {
+    *value == 0
 }
 
 #[derive(Serialize, Deserialize)]

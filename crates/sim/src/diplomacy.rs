@@ -1,6 +1,6 @@
 use std::collections::{BTreeMap, BTreeSet};
 
-use crate::{CountryId, Date};
+use crate::{CharacterId, CountryId, Date};
 
 /// The pair key is always ordered by numeric country ID.
 pub fn pair(a: CountryId, b: CountryId) -> (CountryId, CountryId) {
@@ -18,11 +18,37 @@ pub struct AllianceOffer {
     pub expires_at: Date,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct MarriageOffer {
+    pub from: CharacterId,
+    pub toward: CharacterId,
+    pub expires_at: Date,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum MarriageError {
+    UnknownCharacter(CharacterId),
+    Unnamed(CharacterId),
+    WrongCountry(CharacterId),
+    SameCountry,
+    NotAlive(CharacterId),
+    Underage(CharacterId),
+    AlreadyMarried(CharacterId),
+    UnknownSex(CharacterId),
+    SameSex,
+    NoRulerOrHeir,
+    OfferAlreadyPending,
+    NoOffer,
+    DateOverflow,
+    InvalidState,
+}
+
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct DiplomacyState {
     pub alliances: BTreeSet<(CountryId, CountryId)>,
     pub offers: BTreeMap<(CountryId, CountryId), Date>,
     pub cooldowns: BTreeMap<(CountryId, CountryId), Date>,
+    pub marriage_offers: BTreeMap<(CharacterId, CharacterId), Date>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -41,6 +67,64 @@ pub enum DiplomacyError {
 }
 
 impl DiplomacyState {
+    pub fn marriage_offer(&self, from: CharacterId, toward: CharacterId) -> Option<MarriageOffer> {
+        self.marriage_offers
+            .get(&(from, toward))
+            .copied()
+            .map(|expires_at| MarriageOffer {
+                from,
+                toward,
+                expires_at,
+            })
+    }
+
+    pub fn marriage_offers_to<'a>(
+        &'a self,
+        characters: &'a BTreeMap<CharacterId, crate::CharacterState>,
+        country: CountryId,
+    ) -> impl Iterator<Item = MarriageOffer> + 'a {
+        self.marriage_offers
+            .iter()
+            .filter_map(move |(&(from, toward), &expires_at)| {
+                (characters
+                    .get(&toward)
+                    .is_some_and(|person| person.country == country))
+                .then_some(MarriageOffer {
+                    from,
+                    toward,
+                    expires_at,
+                })
+            })
+    }
+
+    pub fn expire_marriages(
+        &mut self,
+        date: Date,
+        characters: &BTreeMap<CharacterId, crate::CharacterState>,
+    ) -> Vec<MarriageOffer> {
+        let expired: Vec<_> = self
+            .marriage_offers
+            .iter()
+            .filter_map(|(&(from, toward), &expires_at)| {
+                (expires_at <= date
+                    || characters
+                        .get(&from)
+                        .is_none_or(|person| !person.is_alive_on(date) || person.spouse.is_some())
+                    || characters
+                        .get(&toward)
+                        .is_none_or(|person| !person.is_alive_on(date) || person.spouse.is_some()))
+                .then_some(MarriageOffer {
+                    from,
+                    toward,
+                    expires_at,
+                })
+            })
+            .collect();
+        for offer in &expired {
+            self.marriage_offers.remove(&(offer.from, offer.toward));
+        }
+        expired
+    }
     pub fn allied(&self, a: CountryId, b: CountryId) -> bool {
         self.alliances.contains(&pair(a, b))
     }

@@ -1,9 +1,10 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "key": "louis_xi",
   "country": "fra",
   "name": "Louis of France",
   "dynasty": "valois",
+  "sex": "male",
   "birth": [
     1423,
     7,
