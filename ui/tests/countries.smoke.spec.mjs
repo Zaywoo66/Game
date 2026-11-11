@@ -65,7 +65,7 @@ async function mockHost(page, provinceId) {
 
 test('M3 panels apply host deltas and issue commands without optimistic writes', async ({ page }) => {
   await mockHost(page, 1);
-  await page.goto('/');
+  await page.goto('/?verify=1&verifyHost=1');
   const panel = page.getByRole('region', { name: 'Country and rulers' });
   const clock = page.getByRole('region', { name: 'Game clock' });
   await expect(panel).toBeVisible({ timeout: 60_000 });

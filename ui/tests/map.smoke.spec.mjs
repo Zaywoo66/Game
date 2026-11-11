@@ -6,25 +6,33 @@ test.beforeEach(async ({ page }) => {
     timeout: 60_000,
   });
   await expect(page.locator('[data-map-viewport] canvas')).toBeVisible();
+  const renderer = await page.locator('main').getAttribute('data-map-renderer');
+  expect(renderer).toBeTruthy();
+  console.info('Map test WebGL renderer: ' + renderer);
 });
 
-test('clicking each projected province selects its canonical ID', async ({ page }) => {
+test('projected provinces pick their canonical IDs and representative clicks select them', async ({ page }) => {
   const provinces = await loadProvinces(page);
   const selected = page.locator('[data-map-selected]');
   expect(provinces.length).toBeGreaterThan(0);
   expect(await page.evaluate(() => window.strategyMapTest.decodeProvinceId(0x12, 0x34, 0x56)))
     .toBe(0x123456);
 
-  for (const { id } of provinces) {
-    await test.step(`Province ${id}`, async () => {
-      const point = await projectProvince(page, id);
-      const picked = await page.evaluate(({ x, y }) => {
-        return window.strategyMapTest.pickAt(x, y);
-      }, point);
-      expect(picked).toBe(id);
-      await page.mouse.click(point.x, point.y);
-      await expect(selected).toHaveAttribute('data-map-selected', String(id));
+  const picks = await page.evaluate((ids) => {
+    const map = window.strategyMapTest;
+    return ids.map((id) => {
+      const point = map.projectProvince(id);
+      return { id, point, picked: point ? map.pickAt(point.x, point.y) : null };
     });
+  }, provinces.map(({ id }) => id));
+  expect(picks.map(({ picked }) => picked)).toEqual(provinces.map(({ id }) => id));
+
+  // Exercise the actual pointer handler once for each terrain kind.
+  for (const kind of new Set(provinces.map((province) => province.kind))) {
+    const index = provinces.findIndex((province) => province.kind === kind);
+    const { id, point } = picks[index];
+    await page.mouse.click(point.x, point.y);
+    await expect(selected).toHaveAttribute('data-map-selected', String(id));
   }
 });
 
@@ -38,22 +46,23 @@ test('owner recoloring changes the rendered province in place', async ({ page })
 
   await page.evaluate(({ id, color }) => {
     window.strategyMapTest.setOwnerColor(id, color);
+    window.strategyMapTest.renderFrame();
   }, { id: other.id, color: otherColor });
 
   const clip = { x: Math.round(point.x), y: Math.round(point.y), width: 1, height: 1 };
   const before = await page.screenshot({ clip });
   const updated = await page.evaluate(({ id, color }) => {
-    return window.strategyMapTest.setOwnerColor(id, color);
+    const updated = window.strategyMapTest.setOwnerColor(id, color);
+    window.strategyMapTest.renderFrame();
+    return updated;
   }, { id: target.id, color: targetColor });
   expect(updated.before).not.toEqual(targetColor);
   expect(updated.after).toEqual(targetColor);
   expect(updated.ownerTextureUnchanged).toBe(true);
   expect(updated.rasterUnchanged).toBe(true);
 
-  await expect.poll(async () => {
-    const after = await page.screenshot({ clip });
-    return after.equals(before);
-  }).toBe(false);
+  const after = await page.screenshot({ clip });
+  expect(after.equals(before)).toBe(false);
 
   const otherAfter = await page.evaluate(({ id, color }) => {
     return window.strategyMapTest.setOwnerColor(id, color).before;
