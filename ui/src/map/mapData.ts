@@ -139,6 +139,7 @@ export interface Province {
   terrain: string;
   centroid: [number, number];
   neighbors: { id: number; edge: string }[];
+  area?: string;
 }
 
 export interface MapAssets {

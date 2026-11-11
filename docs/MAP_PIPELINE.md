@@ -45,11 +45,14 @@ The dense slice adds no over-water land connections. Sea access is
 scheduled for M8.
 
 ## Rendering (`/ui/src/map`, three.js WebGL2)
-- Terrain mesh from heightmap (chunked), custom shaders: terrain blend, water, province borders, owner color via lookup texture (`provinceId -> ownerColor`).
+- Terrain mesh from heightmap (chunked), custom shaders: terrain blend, hillshade, rivers, depth-colored water, province/area/country borders, owner color via lookup texture (`provinceId -> ownerColor`).
+- An orthographic camera clamps zoom, tilt and pan. A low ocean skirt and a short edge fade cover the finite raster edge in wide or tilted views; land outside the regional source extent is not inferred.
 - Picking: CPU copy of provinces raster, read pixel under cursor -> province id.
 - Units: `InstancedMesh`, < 500 triangles each, shared texture palette. Sea units same approach.
 - Camera: pan, zoom, tilt limits. Map wraps are NOT supported in beta.
 - Update ownership by writing bytes to the lookup texture, never regenerate the map texture.
+- Capture four repeatable 1920 × 1080 browser screenshots with `cd ui && npm run capture:map`; output is `docs/screenshots/m5b4/`. The capture uses Chromium's software WebGL renderer and is visual review evidence, not a hardware FPS result.
 
 ## Budgets
 Province raster for beta region <= ~4096x2048. To measure the 1080p viewport, run the built Windows executable with `--map-benchmark`. It opens fullscreen and displays the actual drawing-buffer size and frame timings. Record measured RAM and FPS in DECISIONS.md with the GPU and method.
+For repeatable RAM sampling, keep the native benchmark window open and sample its private working set from a separate PowerShell terminal with `Get-Process strategy-app | Select-Object ProcessName,Id,@{Name='PrivateMiB';Expression={[math]::Round($_.PrivateMemorySize64 / 1MB, 1)}}`. Record the FPS text after its 2-second warmup and 10-second measurement, plus this memory sample and the renderer string shown in the app. This native measurement is still required for M5b acceptance.
