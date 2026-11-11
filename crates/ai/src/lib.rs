@@ -35,6 +35,7 @@ pub enum Reason {
     AllianceAccepted,
     AllianceRejected,
     AllianceProposed,
+    EventOption,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -62,6 +63,7 @@ impl Reason {
             Self::AllianceAccepted => "AllianceAccepted",
             Self::AllianceRejected => "AllianceRejected",
             Self::AllianceProposed => "AllianceProposed",
+            Self::EventOption => "EventOption",
             Self::Military { action, .. } => match action {
                 MilitaryReason::RaiseArmy => "RaiseArmy",
                 MilitaryReason::CombineArmies => "CombineArmies",
@@ -108,6 +110,30 @@ pub fn decide(
 
     let actor = CommandActor::Ai(country);
     let mut commands = Vec::with_capacity(2);
+    if let Some(events) = state.events() {
+        if let Some(((_, key), _)) = events
+            .pending
+            .iter()
+            .find(|((subject, _), _)| *subject == country)
+        {
+            if let Some(option) = events.ai_option(
+                country,
+                key,
+                state.country(country).expect("AI country exists"),
+                state.seed(),
+                state.time().tick(),
+            ) {
+                let command = Command::ChooseEvent {
+                    country,
+                    key: key.clone(),
+                    option,
+                };
+                if state.validate_command(actor, &command).is_ok() {
+                    commands.push((command, Reason::EventOption));
+                }
+            }
+        }
+    }
     let economy_period = 28;
     if (state.time().tick().get() % economy_period + u64::from(country.get())) % economy_period == 0
     {
