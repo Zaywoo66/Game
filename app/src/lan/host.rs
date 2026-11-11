@@ -757,6 +757,8 @@ fn configure_game(config: &HostConfig, scenario: GameState) -> Result<GameState,
     .map_err(|error| format!("{error:?}"))?
     .with_polity(polity)
     .map_err(|error| format!("{error:?}"))?
+    .with_opinions(scenario.opinions())
+    .map_err(|error| format!("{error:?}"))?
     .with_war_state(military.clone())
     .map_err(|error| format!("{error:?}"))?;
     for (country, controller) in assignments {

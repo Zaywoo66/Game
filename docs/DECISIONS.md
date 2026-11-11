@@ -21,6 +21,8 @@
 
 - D12 A province is a settlement and its surroundings. The hierarchy is province → area → region (MAP_SCALE.md).
 
+- D15 Diplomatic opinion is directional, in signed whole points from -100 through 100. Unspecified relations start at 0; changes clamp at the bounds. There is no passive decay until a separate mechanic defines it.
+
 ## Measurements (fill in)
 | Date | Item | Result |
 |------|------|--------|

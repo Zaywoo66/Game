@@ -9,7 +9,7 @@ use serde::{de, Deserialize, Deserializer};
 use strategy_sim::{
     AiProfileKey, AiThresholds, AiWeights, CharacterId, CharacterState, CharacterStats, Controller,
     CountryId, CountryPolity, CountryState, Date, EconomyState, FiscalPolicy, Fixed, GameState,
-    ModifierSourceId, ModifierStore, PlayerId, PolityState, ProvinceGraph, ProvinceId,
+    ModifierSourceId, ModifierStore, Opinion, PlayerId, PolityState, ProvinceGraph, ProvinceId,
     ProvinceKind, SimTime, Speed, SuccessionState, WarState,
 };
 
@@ -77,8 +77,18 @@ struct ScenarioFile {
     #[serde(deserialize_with = "unique_map")]
     traits: BTreeMap<String, Vec<ModifierFile>>,
     military: Option<MilitaryFile>,
+    #[serde(default)]
+    opinions: Vec<OpinionFile>,
     #[serde(default, deserialize_with = "deserialize_present")]
     unowned_provinces: Option<Vec<String>>,
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct OpinionFile {
+    from: String,
+    toward: String,
+    points: i32,
 }
 
 #[derive(Deserialize)]
@@ -208,6 +218,31 @@ pub fn load_scenario_from_reader(
     let characters = key_ids(&scenario.characters, "character", CharacterId::new)?;
     validate_slots(&scenario.human_slots, &countries)?;
     check_key(&scenario.rules.income_modifier, "income modifier")?;
+
+    let opinions = scenario
+        .opinions
+        .into_iter()
+        .map(|entry| {
+            let from = countries.get(entry.from.as_str()).copied().ok_or_else(|| {
+                invalid(format!(
+                    "{path}: opinion from unknown country {}",
+                    entry.from
+                ))
+            })?;
+            let toward = countries
+                .get(entry.toward.as_str())
+                .copied()
+                .ok_or_else(|| {
+                    invalid(format!(
+                        "{path}: opinion toward unknown country {}",
+                        entry.toward
+                    ))
+                })?;
+            let opinion = Opinion::new(entry.points)
+                .map_err(|error| invalid(format!("{path}: invalid opinion: {error:?}")))?;
+            Ok((from, toward, opinion))
+        })
+        .collect::<Result<Vec<_>>>()?;
 
     let traits = build_traits(scenario.traits)?;
     let mut character_states = BTreeMap::new();
@@ -380,7 +415,9 @@ pub fn load_scenario_from_reader(
         characters: character_states,
         ai_profiles: profiles,
     })
-    .map_err(|error| invalid(format!("{path}: invalid polity: {error:?}")))?;
+    .map_err(|error| invalid(format!("{path}: invalid polity: {error:?}")))?
+    .with_opinions(opinions)
+    .map_err(|error| invalid(format!("{path}: invalid initial opinions: {error:?}")))?;
     if let Some(military) = military {
         state.with_war_state(military).map_err(|error| {
             invalid(format!(

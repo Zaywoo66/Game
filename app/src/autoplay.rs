@@ -41,6 +41,8 @@ pub fn new_autoplay(seed: u64) -> Result<GameState, String> {
     .map_err(|error| format!("invalid autoplay clock: {error:?}"))?
     .with_polity(polity.clone())
     .map_err(|error| format!("invalid autoplay polity: {error:?}"))?
+    .with_opinions(scenario.opinions())
+    .map_err(|error| format!("invalid autoplay opinions: {error:?}"))?
     .with_war_state(military.clone())
     .map_err(|error| format!("invalid autoplay military: {error:?}"))?;
     let host = CommandActor::Host(PlayerId::new(1));

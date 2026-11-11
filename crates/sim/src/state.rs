@@ -9,9 +9,9 @@ use crate::{
 use crate::{
     CharacterId, CharacterState, CountryId, CountryPolity, Date, EconomyState, Effect, EffectError,
     FiscalError, FiscalPolicy, Fixed, MapIdentity, ModKey, ModifierInsertError, ModifierSourceId,
-    ModifierStore, PlayerId, PolityError, PolityState, PolityTickFailure, PreparedModifier,
-    ProvinceGraph, ProvinceId, SeededRng, SimTime, Speed, SuccessionState, Tick, TimeActor,
-    TimeCommand, TimeError, TriggerView,
+    ModifierStore, Opinion, OpinionStateError, PlayerId, PolityError, PolityState,
+    PolityTickFailure, PreparedModifier, ProvinceGraph, ProvinceId, SeededRng, SimTime, Speed,
+    SuccessionState, Tick, TimeActor, TimeCommand, TimeError, TriggerView,
 };
 
 /// Reference to a scenario's data-driven AI profile.
@@ -330,6 +330,7 @@ pub struct GameState {
     province_graph: ProvinceGraph,
     countries: BTreeMap<CountryId, CountryState>,
     scheduled: ModifierSchedule,
+    opinions: BTreeMap<(CountryId, CountryId), Opinion>,
     polity: Option<PolityState>,
     war_state: Option<WarState>,
 }
@@ -406,6 +407,7 @@ impl GameState {
             province_graph,
             countries,
             scheduled,
+            opinions: BTreeMap::new(),
             polity: None,
             war_state: None,
         })
@@ -446,6 +448,49 @@ impl GameState {
         polity.validate(&self.province_graph, &self.countries, self.time.date())?;
         self.polity = Some(polity);
         Ok(self)
+    }
+
+    /// Attaches initial directional opinions after all countries are known.
+    pub fn with_opinions(
+        mut self,
+        opinions: impl IntoIterator<Item = (CountryId, CountryId, Opinion)>,
+    ) -> Result<Self, OpinionStateError> {
+        let mut resolved = BTreeMap::new();
+        for (from, toward, opinion) in opinions {
+            for country in [from, toward] {
+                if !self.countries.contains_key(&country) {
+                    return Err(OpinionStateError::UnknownCountry(country));
+                }
+            }
+            if from == toward {
+                return Err(OpinionStateError::SameCountry(from));
+            }
+            if resolved.insert((from, toward), opinion).is_some() {
+                return Err(OpinionStateError::Duplicate { from, toward });
+            }
+        }
+        self.opinions = resolved;
+        Ok(self)
+    }
+
+    /// Returns a country's opinion toward another country. Missing entries are neutral.
+    /// This read-only query is shared by UI previews and host-side AI decisions.
+    pub fn opinion(&self, from: CountryId, toward: CountryId) -> Option<Opinion> {
+        (from != toward
+            && self.countries.contains_key(&from)
+            && self.countries.contains_key(&toward))
+        .then(|| {
+            self.opinions
+                .get(&(from, toward))
+                .copied()
+                .unwrap_or(Opinion::NEUTRAL)
+        })
+    }
+
+    pub fn opinions(&self) -> impl Iterator<Item = (CountryId, CountryId, Opinion)> + '_ {
+        self.opinions
+            .iter()
+            .map(|(&(from, toward), &opinion)| (from, toward, opinion))
     }
 
     /// Attaches validated military scenario or save data and derives war flags.
