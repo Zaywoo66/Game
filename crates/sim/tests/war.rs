@@ -62,6 +62,17 @@ fn alliance_offer_accept_break_and_calendar_cooldown() {
         day(&mut state);
     }
     assert!(state.validate_command(HOST, &offer).is_ok());
+    apply(&mut state, HOST, offer);
+    apply(
+        &mut state,
+        GUEST,
+        Command::AcceptAlliance {
+            country: B,
+            from: A,
+        },
+    );
+    assert!(state.allied(A, B));
+    assert_eq!(state.opinion(B, A).unwrap().points(), -25);
 }
 
 #[test]
