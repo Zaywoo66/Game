@@ -123,7 +123,7 @@ export function MapPage() {
   );
   const armies = useMemo(() => {
     const countries = new Map(game?.countries.map((country) => [country.id, country.color]));
-    return game?.armies?.map((army) => ({
+    return game?.armies?.filter((army) => !army.embarked_on).map((army) => ({
       id: army.id,
       province: army.province_id,
       destination: army.to_province_id,

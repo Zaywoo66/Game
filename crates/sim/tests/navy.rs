@@ -88,7 +88,7 @@ fn cargo_validation_rejects_over_capacity_and_duplicates() {
     let graph = graph();
     let (id, mut navy) = fleet();
     navy.fleets.get_mut(&id).unwrap().cargo = Some(ArmyId::new(8));
-    let armies = [(ArmyId::new(8), CountryId::new(1), 3500)];
+    let armies = [(ArmyId::new(8), CountryId::new(1), 3500, false)];
     navy.validate(&graph, [CountryId::new(1)], armies).unwrap();
     navy.fleets.get_mut(&id).unwrap().ships = 3;
     assert_eq!(

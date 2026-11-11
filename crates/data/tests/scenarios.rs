@@ -674,3 +674,39 @@ fn city_map_scenario_loads_with_explicit_land_partition_and_round_trips() {
         Err(SaveError::MapMismatch(_))
     ));
 }
+
+fn dense_with_navy(navy: Value) -> Result<GameState, ScenarioLoadError> {
+    let root = data_root();
+    let map = load_provinces(root.join("map/western_europe/provinces.json")).unwrap();
+    load_scenario_from_reader(map, "1440", |logical| {
+        let bytes = fs::read(root.join(logical))?;
+        if logical != "scenarios/1440.json" {
+            return Ok(bytes);
+        }
+        let mut scenario: Value = serde_json::from_slice(&bytes).unwrap();
+        scenario["navy"] = navy.clone();
+        Ok(serde_json::to_vec(&scenario).unwrap())
+    })
+}
+
+#[test]
+fn scenario_fleets_use_explicit_owned_port_and_adjacent_sea() {
+    let scenario: Value = serde_json::from_slice(
+        &fs::read(data_root().join("scenarios/1440.json")).unwrap(),
+    )
+    .unwrap();
+    let navy = scenario["navy"].clone();
+    let state = dense_with_navy(navy.clone()).unwrap();
+    assert_eq!(state.navy().unwrap().fleets.len(), 5);
+
+    for bad in [
+        json!({"fleets":[{"country":"missing","port":"lisbon","sea":"sea_zone_52","ships":2}]}),
+        json!({"fleets":[{"country":"por","port":"lisbon","sea":"paris","ships":2}]}),
+        json!({"fleets":[{"country":"por","port":"lisbon","sea":"sea_zone_52","ships":0}]}),
+        json!({"fleets":[{"country":"por","port":"paris","sea":"sea_zone_52","ships":2}]}),
+        json!({"fleets":[{"country":"por","port":"lisbon","sea":"sea_zone_52","ships":2},{"country":"por","port":"lisbon","sea":"sea_zone_52","ships":2}]}),
+    ] {
+        assert!(dense_with_navy(bad).is_err());
+    }
+    assert!(dense_with_navy(Value::Null).is_err());
+}

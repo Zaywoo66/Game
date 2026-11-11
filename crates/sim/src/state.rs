@@ -682,7 +682,7 @@ impl GameState {
             self.countries.keys().copied(),
             war.armies
                 .iter()
-                .map(|(&id, army)| (id, army.country, army.soldiers)),
+                .map(|(&id, army)| (id, army.country, army.soldiers, army.movement.is_some())),
         )?;
         self.navy = Some(navy);
         Ok(self)

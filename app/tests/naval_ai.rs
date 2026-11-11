@@ -8,13 +8,13 @@ use strategy_sim::{AiProfileKey, Command, CommandActor, Controller, PlayerId};
 fn ai_lands_an_army_across_the_sea_without_invalid_naval_commands() {
     let mut state = load_embedded_scenario().unwrap();
     let countries: Vec<_> = state.countries().map(|(id, _)| id).collect();
-    let england = countries
+    let portugal = countries
         .iter()
         .copied()
         .find(|&id| {
             state
                 .country_polity(id)
-                .is_some_and(|nation| nation.tag == "eng")
+                .is_some_and(|nation| nation.tag == "por")
         })
         .unwrap();
     let scotland = countries
@@ -30,16 +30,16 @@ fn ai_lands_an_army_across_the_sea_without_invalid_naval_commands() {
     let host = CommandActor::Host(PlayerId::new(1));
     state
         .apply(
-            host,
+            CommandActor::Ai(portugal),
             &Command::DeclareWar {
-                country: england,
+                country: portugal,
                 defender: scotland,
                 goal: belfast,
             },
         )
         .unwrap();
     for country in countries {
-        let controller = if country == england {
+        let controller = if country == portugal {
             let key = state.country_polity(country).unwrap().ai_profile.as_str();
             Controller::Ai(AiProfileKey::new(key))
         } else {
@@ -80,7 +80,7 @@ fn ai_lands_an_army_across_the_sea_without_invalid_naval_commands() {
             .unwrap()
             .armies
             .values()
-            .any(|army| army.country == england && army.province == belfast);
+            .any(|army| army.country == portugal && army.province == belfast);
         if landed {
             break;
         }

@@ -252,6 +252,22 @@ options:
 | `rules.income_modifier` | Modifier key used to calculate monthly tax income. |
 | `traits` | Trait keys mapped to arrays of permanent modifier records in the format below. |
 | `military` | Optional object containing `rules` and `forts`. Forts map land province keys to positive unsigned 8-bit levels. |
+| `navy.fleets[]` | Optional starting fleets. Each record has `country` (country tag), `port` (owned land province key), `sea` (adjacent sea province key with a reciprocal `port` edge), and `ships` (positive unsigned 32-bit count). Records receive stable numeric fleet IDs in array order, starting at 1. `navy` requires `military`. |
+
+M8.2 has one transport ship type. Each ship holds 1,000 whole soldiers; an
+army boards as one unit and must fit in one fleet. Fleets start in the
+specified sea cell, travel only by `normal` or `strait` sea-to-sea edges, and
+spend each edge's positive whole tick cost in game days. A fleet that would
+enter a sea cell occupied by a wartime opponent stops in its previous cell,
+cancels its route and emits `FleetBlocked` with the blocking fleet ID. Naval
+battles, attrition, blockades and ship construction follow in separate M8/M9
+tasks. Peacetime alliance alone grants no port access. Embarkation requires a
+port owned by the country or a participant on its side of the same war;
+landing may use such a port or an enemy port during war, with land combat
+resolved on the next tick. An embarked army keeps its last land province in
+the army record for save compatibility, but is excluded from land movement,
+supply, sieges and battles until landing. Its actual position is its carrier
+fleet's sea cell.
 
 Validate content and cross-references with
 `cargo run --locked -p strategy-data --bin lint-scenario -- data/scenarios/1440.json data/map/western_europe/provinces.json`.

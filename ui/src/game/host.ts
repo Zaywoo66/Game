@@ -45,6 +45,17 @@ export interface ArmyView {
   morale: number;
   to_province_id: number | null;
   progress: number;
+  embarked_on?: number | null;
+}
+
+export interface FleetView {
+  id: number;
+  country_id: number;
+  sea_province_id: number;
+  ships: number;
+  cargo_army_id: number | null;
+  to_sea_province_id: number | null;
+  progress: number;
 }
 
 export interface WarView {
@@ -83,6 +94,7 @@ export interface GameSnapshot {
   max_tax_rate: number;
   max_monthly_spending: string;
   armies?: ArmyView[];
+  fleets?: FleetView[];
   wars?: WarView[];
   sieges?: SiegeView[];
   forts?: { province_id: number; level: number }[];
@@ -97,6 +109,8 @@ interface GameUpdate {
   countries: CountryView[];
   armies?: ArmyView[];
   removed_armies?: number[];
+  fleets?: FleetView[];
+  removed_fleets?: number[];
   wars?: WarView[];
   removed_wars?: number[];
   sieges?: SiegeView[] | null;
@@ -111,6 +125,9 @@ export type GameCommand =
   | { type: 'merge_armies'; country_id: number; into: number; from: number }
   | { type: 'split_army'; country_id: number; army_id: number; soldiers: number }
   | { type: 'move_army' | 'retreat_army'; country_id: number; army_id: number; destination: number }
+  | { type: 'move_fleet'; country_id: number; fleet_id: number; destination: number }
+  | { type: 'embark_army'; country_id: number; army_id: number; fleet_id: number }
+  | { type: 'disembark_army'; country_id: number; fleet_id: number; destination: number }
   | { type: 'declare_war'; country_id: number; defender_id: number; goal_province_id: number }
   | { type: 'offer_peace'; country_id: number; war_id: number; cede_goal: boolean }
   | { type: 'accept_peace'; country_id: number; war_id: number };
@@ -158,6 +175,7 @@ function applyUpdate(snapshot: GameSnapshot, update: GameUpdate): GameSnapshot {
     countries: updateRows(snapshot.countries, update.countries) ?? snapshot.countries,
     owners,
     armies: updateRows(snapshot.armies, update.armies, update.removed_armies),
+    fleets: updateRows(snapshot.fleets, update.fleets, update.removed_fleets),
     wars: updateRows(snapshot.wars, update.wars, update.removed_wars),
     sieges: update.sieges ?? snapshot.sieges,
   };
