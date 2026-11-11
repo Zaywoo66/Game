@@ -192,11 +192,17 @@ Each YAML file contains one event. The linter rejects duplicate event keys or
 YAML mapping fields, unknown trigger/effect names, missing AI weights, and
 noninteger durations or weights. Boolean literals in event YAML use lowercase
 `true` or `false` only; the linter rejects YAML 1.1 boolean spellings such as
-`yes` that the planned Rust loader does not accept. Event integer literals use plain
+`yes` that the Rust loader does not accept. Event integer literals use plain
 decimal digits, with an optional leading minus for signed fields; leading
 zeros, separators, plus signs and hexadecimal forms are rejected so both
 parsers read the same value. This is the M7 data contract; the event engine is
 implemented in a separate M7 task.
+`strategy_data::parse_event_yaml` converts one file to typed `Trigger` and
+`Effect` values; `strategy_data::load_events_from_dir` reads files in filename
+order and returns a key-ordered map, rejecting duplicate event keys. Text
+fields remain localization-key references; checking their presence in an event
+locale catalog belongs to the M7 content task. The Rust loader uses pinned
+`yaml_serde` 0.10.7.
 
 | Field | Representation and unit |
 |---|---|

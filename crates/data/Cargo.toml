@@ -9,6 +9,7 @@ strategy-sim = { path = "../sim" }
 serde = { version = "=1.0.229", features = ["derive"] }
 serde_json = { version = "=1.0.154", features = ["raw_value"] }
 sha2 = "=0.10.9"
+yaml_serde = "=0.10.7"
 
 [dev-dependencies]
 criterion = { version = "=0.5.1", default-features = false }
