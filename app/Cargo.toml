@@ -6,11 +6,11 @@ rust-version.workspace = true
 build = "build.rs"
 
 [dependencies]
-tauri = "=2.0.0"
+tauri = "=2.12.5"
 strategy-sim = { path = "../crates/sim" }
 strategy-net = { path = "../crates/net" }
 strategy-data = { path = "../crates/data" }
 
 [build-dependencies]
-tauri-build = "=2.0.0"
+tauri-build = "=2.7.4"
 

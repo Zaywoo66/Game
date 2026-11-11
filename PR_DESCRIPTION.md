@@ -15,7 +15,7 @@ M0 Foundation (in progress pending Windows app launch, CI, and branch protection
 |---|---|
 | Rust edition | 2021 |
 | Rust toolchain | 1.99.1 |
-| Tauri / Tauri Build / Tauri CLI | 2.0.0 |
+| Tauri / Tauri Build / Tauri CLI | 2.12.5 / 2.7.4 / 2.12.4 |
 | React / React DOM | 18.3.1 |
 | Vite | 5.4.10 |
 | three.js | 0.169.0 |
