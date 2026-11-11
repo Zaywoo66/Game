@@ -115,6 +115,75 @@ fn character_spouse_reference_requires_a_reciprocal_eligible_pair() {
     assert!(loaded.is_err());
 }
 
+#[test]
+fn royal_marriage_save_preserves_spouse_and_effective_opinion() {
+    let original = m3_state();
+    let find = |tag: &str| {
+        original
+            .polity()
+            .unwrap()
+            .countries
+            .iter()
+            .find_map(|(&id, nation)| (nation.tag == tag).then_some(id))
+            .unwrap()
+    };
+    let from = find("fra");
+    let toward = find("cas");
+    let mut polity = original.polity().unwrap().clone();
+    let character = polity.countries[&from].succession.ruler.unwrap();
+    let partner = polity.countries[&toward].succession.ruler.unwrap();
+    polity.characters.get_mut(&partner).unwrap().sex = strategy_sim::Sex::Female;
+    let mut state = GameState::new(
+        *original.time(),
+        original.seed(),
+        graph(),
+        original
+            .countries()
+            .map(|(id, country)| (id, country.clone()))
+            .collect(),
+        [],
+    )
+    .unwrap()
+    .with_polity(polity)
+    .unwrap();
+    state
+        .apply(
+            strategy_sim::CommandActor::Ai(from),
+            &strategy_sim::Command::OfferRoyalMarriage {
+                country: from,
+                character,
+                toward,
+                partner,
+            },
+        )
+        .unwrap();
+    let pending = save_game(&state).unwrap();
+    assert_eq!(load_game(&pending, graph()).unwrap(), state);
+    state
+        .apply(
+            strategy_sim::CommandActor::Ai(toward),
+            &strategy_sim::Command::AcceptRoyalMarriage {
+                country: toward,
+                from,
+                character,
+                partner,
+            },
+        )
+        .unwrap();
+    let married = save_game(&state).unwrap();
+    let restored = load_game(&married, graph()).unwrap();
+    assert_eq!(restored, state);
+    assert_eq!(restored.character(character).unwrap().spouse, Some(partner));
+    assert_eq!(
+        restored.effective_opinion(from, toward).unwrap().points(),
+        20
+    );
+    assert_ne!(
+        state_hash(&restored).unwrap(),
+        state_hash(&load_game(&pending, graph()).unwrap()).unwrap()
+    );
+}
+
 fn data_root() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data")
 }
