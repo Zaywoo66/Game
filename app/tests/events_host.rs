@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 use std::num::NonZeroU64;
 
 use strategy_app::{load_embedded_scenario, tick_host};
-use strategy_data::parse_event_yaml;
+use strategy_data::{load_game, parse_event_yaml, save_game};
 use strategy_sim::{Controller, Trigger};
 
 #[test]
@@ -30,6 +30,13 @@ fn host_ai_resolves_pending_event_by_legal_command() {
         .unwrap()
         .pending
         .contains_key(&(*country, "harvest_festival".into()))));
+    let snapshot = save_game(&state).unwrap();
+    let version: serde_json::Value = serde_json::from_slice(&snapshot).unwrap();
+    assert_eq!(version["schema_version"], 8);
+    assert_eq!(
+        load_game(&snapshot, state.province_graph().clone()).unwrap(),
+        state
+    );
     let second = tick_host(&mut state).unwrap();
     assert!(
         second.ai_rejections.is_empty(),
