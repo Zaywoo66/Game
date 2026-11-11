@@ -1,0 +1,9 @@
+key: duplicate_field
+title: event_duplicate_field_title
+desc: event_duplicate_field_desc
+trigger: {at_war: false}
+options:
+  - text: event_duplicate_field_choice
+    ai_weight: 10
+    ai_weight: 20
+    effects: []

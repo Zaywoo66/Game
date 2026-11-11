@@ -93,6 +93,18 @@ class DataLintTest(unittest.TestCase):
         self.assertIn("boolean token 'yes' must be lowercase true or false", result.stderr)
         self.assertIn("boolean token 'TRUE' must be lowercase true or false", result.stderr)
 
+    def test_rejects_noncanonical_event_integer_tokens(self):
+        result = run_lint("bad_event_numbers")
+        self.assertEqual(result.returncode, 1, result)
+        for token in ("'012'", "'1_000'", "'+10'", "'-01'", "'0x10'"):
+            with self.subTest(token=token):
+                self.assertIn(f"integer token {token} must be plain decimal", result.stderr)
+
+    def test_rejects_duplicate_yaml_mapping_fields(self):
+        result = run_lint("bad_event_duplicate_field")
+        self.assertEqual(result.returncode, 1, result)
+        self.assertIn("duplicate YAML mapping key 'ai_weight'", result.stderr)
+
 
 def run_lint(fixture):
     test_dir = Path(__file__).resolve().parent
