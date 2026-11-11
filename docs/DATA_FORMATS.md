@@ -179,11 +179,14 @@ Country and character numeric IDs are assigned in sorted key order starting at 1
 
 ## Events (`data/events/*.yaml`)
 
-Each YAML file contains one event. The linter rejects duplicate event keys,
+Each YAML file contains one event. The linter rejects duplicate event keys or
+YAML mapping fields,
 unknown trigger/effect names, missing AI weights, and noninteger durations or
 weights. Boolean literals in event YAML use lowercase `true` or `false` only;
 the linter rejects YAML 1.1 aliases such as `yes` that the Rust loader does not
-accept. This is
+accept. Event integer literals use plain decimal digits, with an optional
+leading minus for signed fields; leading zeros, separators, plus signs and
+hexadecimal forms are rejected so both parsers read the same value. This is
 the M7 data contract; the event engine is implemented in a
 separate M7 task.
 
