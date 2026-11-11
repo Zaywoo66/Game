@@ -230,40 +230,78 @@ fn army_valid(game: &GameState, army: &Army) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use strategy_sim::{ArmyId, CountryState, Modifier, ModifierKind, ModifierSourceId};
 
     #[test]
     fn autoplay_accepts_modified_morale_ceiling_but_rejects_excess() {
-        let mut games = [1440, 1441, 1442].map(|seed| {
-            let mut game = new_autoplay(seed).unwrap();
-            advance_autoplay(&mut game, Date::new(1440, 4, 17).unwrap()).unwrap();
-            game
-        });
-        let game = games
-            .iter_mut()
-            .find(|game| {
-                game.war_state().unwrap().armies.values().any(|army| {
-                    game.effective_army_morale_limit(army.country)
-                        .is_some_and(|limit| limit > game.war_state().unwrap().rules.max_morale)
-                })
-            })
-            .expect("an event should increase a country's effective morale ceiling");
-        let army = game
-            .war_state()
-            .unwrap()
-            .armies
-            .values()
-            .find(|army| {
-                game.effective_army_morale_limit(army.country)
-                    .is_some_and(|limit| limit > game.war_state().unwrap().rules.max_morale)
-            })
+        let opening = new_autoplay(1440).unwrap();
+        let (&country_id, nation) = opening.polity().unwrap().countries.iter().next().unwrap();
+        let army = Army {
+            country: country_id,
+            province: nation.capital,
+            soldiers: 1_000,
+            morale: Fixed::ONE,
+            movement: None,
+        };
+        let country = opening.country(army.country).unwrap();
+        let source = ModifierSourceId::new(999_999);
+        let mut modifiers = country.modifiers().clone();
+        modifiers
+            .insert_source(
+                source,
+                None,
+                vec![Modifier {
+                    source,
+                    key: opening.war_state().unwrap().rules.morale_modifier.clone(),
+                    value: Fixed::from_raw(100),
+                    kind: ModifierKind::Additive,
+                }],
+            )
             .unwrap();
-        assert!(army_valid(game, army));
-        let mut over_cap = army.clone();
+        let countries = opening
+            .countries()
+            .map(|(id, state)| {
+                if id == army.country {
+                    (
+                        id,
+                        CountryState::new(
+                            state.controller().clone(),
+                            state.known_technologies().map(str::to_owned).collect(),
+                            false,
+                            modifiers.clone(),
+                        ),
+                    )
+                } else {
+                    (id, state.clone())
+                }
+            })
+            .collect();
+        let mut military = opening.war_state().unwrap().clone();
+        let army_id = ArmyId::new(military.next_army_id);
+        military.next_army_id += 1;
+        military.armies.insert(army_id, army.clone());
+        let game = GameState::new(
+            *opening.time(),
+            opening.seed(),
+            opening.province_graph().clone(),
+            countries,
+            [],
+        )
+        .unwrap()
+        .with_polity(opening.polity().unwrap().clone())
+        .unwrap()
+        .with_war_state(military)
+        .unwrap();
+        let mut at_cap = army.clone();
+        at_cap.morale = game.effective_army_morale_limit(army.country).unwrap();
+        assert_eq!(at_cap.morale, Fixed::from_raw(1_100));
+        assert!(army_valid(&game, &at_cap));
+        let mut over_cap = at_cap;
         over_cap.morale = game
             .effective_army_morale_limit(army.country)
             .unwrap()
             .checked_add(Fixed::from_raw(1))
             .unwrap();
-        assert!(!army_valid(game, &over_cap));
+        assert!(!army_valid(&game, &over_cap));
     }
 }
