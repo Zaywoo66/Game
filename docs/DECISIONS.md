@@ -1,8 +1,6 @@
 # DECISIONS (log + open questions)
 
 ## Open
-- D1 Real-time with pause vs turn-based. ASSUMED: real-time with pause.
-- D2 Who controls speed/pause (host only / either pauses, both vote speed). ASSUMED: either pauses, host sets speed.
 - D4 Target OS and WebGL verification. OPEN. Both players use Windows. First PC passed in Tauri. Second PC launch and renderer string are pending.
 - D5 First vertical-slice region. PROPOSED: Western Europe + British Isles, ~100 provinces, 5–8 countries.
 
@@ -11,6 +9,8 @@
 - D10 AI difficulty. ASSUMED: no cheats by default. Bonuses require explicit modifiers.
 
 ## Decided
+- D1 Time mode: real-time with pause.
+- D2 Time controls: either player may pause, and only the host sets speed.
 - D0 Stack: Rust sim/net, Tauri 2, React/TS UI, three.js map. Fallback if WebView/WebGL fails: Godot.
 - D3 Network: host-authoritative with deltas; lockstep deferred.
 - D6 Graphics: 3D terrain + low-poly instanced units, 2D UI; gameplay is province-graph based.
