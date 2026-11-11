@@ -229,12 +229,15 @@ pub fn load_scenario_from_reader(
                     entry.from
                 ))
             })?;
-            let toward = countries.get(entry.toward.as_str()).copied().ok_or_else(|| {
-                invalid(format!(
-                    "{path}: opinion toward unknown country {}",
-                    entry.toward
-                ))
-            })?;
+            let toward = countries
+                .get(entry.toward.as_str())
+                .copied()
+                .ok_or_else(|| {
+                    invalid(format!(
+                        "{path}: opinion toward unknown country {}",
+                        entry.toward
+                    ))
+                })?;
             let opinion = Opinion::new(entry.points)
                 .map_err(|error| invalid(format!("{path}: invalid opinion: {error:?}")))?;
             Ok((from, toward, opinion))
