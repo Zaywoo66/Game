@@ -79,6 +79,29 @@ requires the generated map to pass validation.
 
 MAP_SCALE.md defines the hierarchy and reserved ID ranges. The generated Western Europe map uses `map_version: 3`. The loader still verifies schema v1/v2 maps with their original hash rules. Older saves are accepted only when loaded against their own map identity.
 
+### 1440 polity overlap evidence (`polities_1440.json`)
+
+This generated sidecar records the largest rasterized Cliopatria v0.1.3 polygon
+overlap for every land province. It is evidence for content review, not a
+scenario owner table. An unmatched cell stays unknown; Holy Roman Empire minor
+states and Kalmar Union labels are coarse groups. Equal pixel overlaps break
+by polity name in lexical order.
+
+| Field | Representation and unit |
+|---|---|
+| `schema_version` | Integer sidecar schema version, currently 1; unitless. |
+| `map_version` | Positive integer map version matching `provinces.json`; unitless. |
+| `map_hash` | Lowercase SHA-256 hex string matching `provinces.json`. |
+| `reference_year` | Integer Gregorian calendar year, currently 1440. |
+| `source` | `name`, `release`, `url`, `license`, repo-relative `file`, and lowercase SHA-256 `sha256` of the clipped GeoJSON with Git-canonical LF line endings. |
+| `method` | Literal raster overlap selection and tie break. |
+| `assignments[].province_id` | Positive integer province ID from the map; unitless. |
+| `assignments[].province_key` | Stable province key from the map. |
+| `assignments[].polity_name` | Exact source polygon name, or `null` when no polygon overlaps. |
+| `assignments[].resolution` | `polygon`, `coarse_group`, or `unmatched`; a precision label, not ownership. |
+| `assignments[].overlap_pixels` | Nonnegative integer raster pixels of the selected polity within the province; zero when unmatched. |
+| `assignments[].province_pixels` | Positive integer raster pixels in the province. |
+
 ## Saved games (schema version 1)
 
 `strategy_data::save_game` encodes an authoritative simulation snapshot in
