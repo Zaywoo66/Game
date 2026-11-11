@@ -4,7 +4,7 @@ use serde::{Deserialize, Deserializer, Serialize};
 use serde_json::value::RawValue;
 use sha2::{Digest, Sha256};
 use strategy_sim::{
-    AiProfileKey, Controller, CountryId, CountryState, Date, DiplomacyError, DiplomacyState,
+    AiProfileKey, Controller, CountryId, CountryState, Date, DiplomacyError, DiplomacyState, EventError,
     Effect, Fixed, GameState, InvalidDate, InvalidSpeed, MapIdentity, MapIdentityMismatch, ModKey,
     Modifier, ModifierInsertError, ModifierKind, ModifierSourceId, ModifierStore, Opinion,
     OpinionError, OpinionStateError, PlayerId, PolityError, ProvinceGraph, ScheduleError,
@@ -14,9 +14,11 @@ use strategy_sim::{
 use crate::provinces::decode_hash;
 
 mod military;
+mod events;
 mod polity;
 
 use military::WarStateFile;
+use events::EventStateFile;
 use polity::PolityFile;
 
 const LEGACY_VERSION: u32 = 1;
@@ -46,6 +48,7 @@ pub enum SaveError {
     InvalidOpinion(OpinionError),
     InvalidOpinionState(OpinionStateError),
     InvalidDiplomacy(DiplomacyError),
+    InvalidEvent(EventError),
     InvalidMapHash,
     MapMismatch(MapIdentityMismatch),
     UnorderedRecords(&'static str),
@@ -84,6 +87,7 @@ impl fmt::Display for SaveError {
             Self::InvalidOpinion(error) => write!(f, "invalid saved opinion: {error:?}"),
             Self::InvalidOpinionState(error) => write!(f, "invalid saved opinion state: {error:?}"),
             Self::InvalidDiplomacy(error) => write!(f, "invalid saved diplomacy state: {error:?}"),
+            Self::InvalidEvent(error) => write!(f, "invalid saved event state: {error:?}"),
             Self::InvalidMapHash => f.write_str("map_hash must be 64 lowercase hexadecimal digits"),
             Self::MapMismatch(error) => error.fmt(f),
             Self::UnorderedRecords(records) => write!(f, "{records} must be unique and sorted"),

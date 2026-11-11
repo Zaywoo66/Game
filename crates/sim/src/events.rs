@@ -70,9 +70,22 @@ impl EventState {
         }
         for (key, event) in &definitions {
             if key != &event.key
+                || !valid_key(key)
+                || !valid_key(&event.title_key)
+                || !valid_key(&event.desc_key)
                 || event.options.is_empty()
                 || !event.options.iter().any(|option| option.ai_weight > 0)
                 || event.repeatable != event.cooldown_days.is_some()
+                || event.options.iter().any(|option| {
+                    !valid_key(&option.text_key)
+                        || option.effects.iter().any(|effect| match effect {
+                            Effect::AddModifier { key, value, kind, .. } => {
+                                !valid_key(key.as_str())
+                                    || (*kind == crate::ModifierKind::Multiplicative
+                                        && crate::Fixed::ONE.checked_add(*value).is_none())
+                            }
+                        })
+                })
             {
                 return Err(EventError::InvalidDefinition(key.clone()));
             }
@@ -96,9 +109,16 @@ impl EventState {
             return Err(EventError::InvalidSavedState);
         }
         for ((country, key), fired_at) in &self.pending {
+            let Some(definition) = self.definitions.get(key) else {
+                return Err(EventError::InvalidSavedState);
+            };
             if !countries.contains(country)
-                || !self.definitions.contains_key(key)
                 || *fired_at > current
+                || self.resolved.get(&(*country, key.clone())).is_some_and(|last| {
+                    !definition.repeatable
+                        || fired_at.get().saturating_sub(last.get())
+                            < definition.cooldown_days.expect("validated event").get()
+                })
             {
                 return Err(EventError::InvalidSavedState);
             }
@@ -267,4 +287,14 @@ fn draw_below(rng: &mut SeededRng, bound: u64) -> u64 {
             return value % bound;
         }
     }
+}
+
+fn valid_key(key: &str) -> bool {
+    let mut segments = key.split('_');
+    segments.next().is_some_and(valid_segment) && segments.all(valid_segment)
+}
+
+fn valid_segment(segment: &str) -> bool {
+    segment.as_bytes().first().is_some_and(u8::is_ascii_lowercase)
+        && segment.as_bytes().iter().all(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit())
 }

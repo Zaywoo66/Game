@@ -194,6 +194,14 @@ order and returns a key-ordered map, rejecting duplicate event keys. Text
 fields remain localization-key references; checking their presence in an event
 locale catalog belongs to the M7 content task. The Rust loader uses pinned
 `yaml_serde` 0.10.7.
+The authoritative game copies these validated definitions into its state. On
+each game day it evaluates definitions in event-key order and countries in
+numeric ID order. The keyed seeded draw gives each eligible country-event pair
+a daily probability of `1 / mean_time_to_happen`. A pending choice suppresses
+duplicates. One-shot events never fire again after resolution; repeatable
+events wait `cooldown_days` from the resolution tick. The option index is
+zero-based. Each effect receives a unique monotonically increasing modifier
+source ID so timed modifiers can expire independently.
 
 | Field | Representation and unit |
 |---|---|
