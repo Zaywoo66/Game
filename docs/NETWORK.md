@@ -7,9 +7,9 @@ Host-authoritative. Host runs sim. Client sends `Command`s, receives `Delta`s an
 `tokio` + TCP, length-prefixed binary messages (`serde` + `bincode` or `postcard`). Protocol version in handshake; mismatch => reject with message.
 
 ## Messages (v1)
-- Client->Host: `Hello{version,name}`, `Command{seq,cmd}`, `PauseRequest`, `SpeedVote{n}`, `Ping`.
+- Client->Host: `Hello{version,name}`, `Command{seq,cmd}`, `PauseRequest{paused}`, `Ping`.
 - Host->Client: `Welcome{player_id}`, `Snapshot{state}` (join/resync), `Delta{tick,changes}`, `CommandRejected{seq,reason}`, `Checksum{tick,hash}`, `Pause{bool}`, `Speed{n}`, `Pong`.
-- Pause/speed: either player can pause; speed changes require both votes (or host decides — see D2).
+- Either human player can pause or resume. Only the host sets speed (D2).
 
 ## LAN discovery
 - Host advertises `_game._tcp.local.` via mDNS (`mdns-sd`), TXT: room name, version, player count. Client menu lists discovered rooms. Fallback: manual IP:port entry (always keep this).
