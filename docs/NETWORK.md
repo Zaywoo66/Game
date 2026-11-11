@@ -7,17 +7,23 @@ Host-authoritative. Host runs sim. Client sends `Command`s, receives `Delta`s an
 `tokio` + TCP with Postcard 1.1.3 payloads and a big-endian unsigned 32-bit
 length prefix. Client frames are bounded to 64 KiB and server frames to
 8 MiB. Readers run dedicated tasks so cancellation cannot consume part of
-the next frame. The handshake validates protocol version 6 and both map
+the next frame. The handshake validates protocol version 7 and both map
 identity fields before accepting a guest.
 
-## Messages (v6)
+## Messages (v7)
 - Client->Host: `Hello{version,name,map_version,map_hash,resume}`, `Confirm{resume}`, `Command{seq,command}`, `PauseRequest{seq,paused}`, `Ping{nonce}`, `Pong{nonce}`, `Resync`. Commands include validated alliance and royal-marriage actions and `ChooseEvent{country,key,option}`.
 - Host->Client: `Welcome{player_id}`, `Snapshot{state}` (join/resync), `Delta{tick,changes}`, `CommandRejected{seq,reason}`, `Checksum{tick,hash}`, `Pause{bool}`, `Speed{n}`, `Ping{nonce}`, `Pong{nonce}`.
 - Either human player can pause or resume. Only the host sets speed (D2).
-- Either peer may send a `Ping{nonce}` and receive a matching `Pong{nonce}` to measure round-trip time. Protocol v1–v5 builds are rejected. Use the same build on both PCs.
+- Either peer may send a `Ping{nonce}` and receive a matching `Pong{nonce}` to measure round-trip time. Protocol v1–v6 builds are rejected. Use the same build on both PCs.
 - V4 adds coalition participants to the canonical save snapshots; command messages are unchanged.
 - V5 adds royal-marriage commands and v7 character/marriage data to canonical save snapshots.
 - V6 adds event-choice commands and v8 event definitions, pending choices and resolution history to canonical snapshots.
+- V7 adds guarantee and revoke commands and v9 guarantee data to canonical snapshots. Guarantee and revoke commands carry guarantor and protected country IDs.
+  Host validation enforces controller authority and peace-only creation. A
+  declaration that attacks a protected country adds free guarantors to the
+  defender side or records the broken commitment and opinion penalty. The
+  canonical snapshot and byte delta include guarantees and war supporters;
+  clients cannot choose whether their guaranteed country is defended.
 - See [LAN_ACCEPTANCE.md](LAN_ACCEPTANCE.md) for the two-PC checklist and `--lan-log` mode.
 - Welcome includes a private 128-bit resume token. The guest confirms it
   after parsing its first snapshot. A disconnected, unconfirmed handshake

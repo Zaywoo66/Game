@@ -109,6 +109,14 @@ pub enum PlayerCommand {
         character: u32,
         partner: u32,
     },
+    Guarantee {
+        country: u32,
+        protected: u32,
+    },
+    RevokeGuarantee {
+        country: u32,
+        protected: u32,
+    },
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -294,6 +302,14 @@ impl From<&Command> for PlayerCommand {
                 character: character.get(),
                 partner: partner.get(),
             },
+            Command::Guarantee { country, protected } => Self::Guarantee {
+                country: country.get(),
+                protected: protected.get(),
+            },
+            Command::RevokeGuarantee { country, protected } => Self::RevokeGuarantee {
+                country: country.get(),
+                protected: protected.get(),
+            },
         }
     }
 }
@@ -459,6 +475,14 @@ impl TryFrom<PlayerCommand> for Command {
                 from: CountryId::new(from),
                 character: CharacterId::new(character),
                 partner: CharacterId::new(partner),
+            },
+            PlayerCommand::Guarantee { country, protected } => Self::Guarantee {
+                country: CountryId::new(country),
+                protected: CountryId::new(protected),
+            },
+            PlayerCommand::RevokeGuarantee { country, protected } => Self::RevokeGuarantee {
+                country: CountryId::new(country),
+                protected: CountryId::new(protected),
             },
         })
     }
