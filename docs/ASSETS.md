@@ -7,7 +7,7 @@
 
 ## Pipeline
 - 3D: Blender headless + `bpy` scripts in `/tools/models` -> export GLB. Units < 500 triangles, shared palette texture. Base packs: Kenney, Quaternius (CC0).
-- Flags/coats of arms: parametric SVG generator in `/tools/heraldry`.
+- Flags/coats of arms: original, source-cited SVGs for now; a parametric SVG generator in `/tools/heraldry` is planned separately.
 - UI icons: SVG, open-license icon sets. Textures: Krita/GIMP, power-of-two sizes, compressed where possible.
 - Portraits: placeholders first; any generated art must be recorded here with the tool used.
 
