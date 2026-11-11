@@ -11,7 +11,9 @@ custom-protocol = ["tauri/custom-protocol"]
 
 [dependencies]
 serde = { version = "=1.0.229", features = ["derive"] }
+serde_json = "=1.0.154"
 tauri = "=2.12.5"
+tokio = { version = "=1.54.1", features = ["macros", "net", "rt", "sync", "time"] }
 strategy-sim = { path = "../crates/sim" }
 strategy-net = { path = "../crates/net" }
 strategy-data = { path = "../crates/data" }

@@ -24,10 +24,11 @@ interface HostControlsProps {
   game: GameSnapshot;
   pending: boolean;
   error: string;
+  canSetSpeed?: boolean;
   send(command: GameCommand): Promise<void>;
 }
 
-export function HostControls({ game, pending, error, send }: HostControlsProps) {
+export function HostControls({ game, pending, error, canSetSpeed = true, send }: HostControlsProps) {
   const clock = game.clock;
   return (
     <section className="game-clock map-panel" aria-label="Game clock">
@@ -39,7 +40,8 @@ export function HostControls({ game, pending, error, send }: HostControlsProps) 
         </button>
         <label>
           Speed
-          <select value={clock.speed} disabled={pending}
+          <select value={clock.speed} disabled={pending || !canSetSpeed}
+            title={canSetSpeed ? undefined : 'The host sets the game speed'}
             onChange={(event) => void send({ type: 'set_speed', speed: Number(event.target.value) })}>
             {[1, 2, 3, 4, 5].map((speed) => <option key={speed} value={speed}>{speed}</option>)}
           </select>
