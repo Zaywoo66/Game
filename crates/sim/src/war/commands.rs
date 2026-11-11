@@ -51,7 +51,7 @@ impl WarState {
                         .is_some_and(|occupier| occupier != country)
                     || self.war_for(country).is_some_and(|(_, war)| {
                         self.armies.values().any(|army| {
-                            army.province == province && Some(army.country) == war.opponent(country)
+                            army.province == province && war.opposed(country, army.country)
                         })
                     })
                 {
@@ -136,21 +136,19 @@ impl WarState {
             }
             MilitaryOrder::Retreat(id, destination) => {
                 let mut army = self.owned_army(country, id)?.clone();
-                let enemy = self
-                    .war_for(country)
-                    .and_then(|(_, war)| war.opponent(country));
-                let contact = enemy.is_some_and(|enemy| {
-                    self.armies
-                        .values()
-                        .any(|other| other.country == enemy && other.province == army.province)
+                let war = self.war_for(country).map(|(_, war)| war);
+                let contact = war.is_some_and(|war| {
+                    self.armies.values().any(|other| {
+                        war.opposed(country, other.country) && other.province == army.province
+                    })
                 });
                 let outside_safe_land = !state.provinces.contains(&army.province)
-                    || self
-                        .occupation(army.province)
-                        .is_some_and(|occupier| occupier != country);
+                    || self.occupation(army.province).is_some_and(|occupier| {
+                        war.is_none_or(|war| war.side(occupier) != war.side(country))
+                    });
                 let under_threat = contact
                     || (outside_safe_land && army.morale <= self.rules.retreat_morale_threshold);
-                if enemy.is_none()
+                if war.is_none()
                     || !under_threat
                     || !self.can_retreat(polity, graph, country, army.province, destination)
                 {
@@ -172,12 +170,24 @@ impl WarState {
                 if self.war_for(country).is_some() || self.war_for(defender).is_some() {
                     return Err(WarError::AlreadyAtWar);
                 }
+                let pair = if country < defender {
+                    (country, defender)
+                } else {
+                    (defender, country)
+                };
                 if self.treaties.values().any(|treaty| {
                     ((treaty.attacker == country && treaty.defender == defender)
                         || (treaty.defender == country && treaty.attacker == defender))
                         && tick.get().saturating_sub(treaty.concluded_at.get())
                             < u64::from(self.rules.truce_ticks)
-                }) {
+                }) || self
+                    .coalition_truces
+                    .get(&pair)
+                    .is_some_and(|concluded_at| {
+                        tick.get().saturating_sub(concluded_at.get())
+                            < u64::from(self.rules.truce_ticks)
+                    })
+                {
                     return Err(WarError::TruceActive);
                 }
                 self.next_war_id
@@ -186,6 +196,8 @@ impl WarState {
                 let war = War {
                     attacker: country,
                     defender,
+                    attacker_supporters: Default::default(),
+                    defender_supporters: Default::default(),
                     goal,
                     started_at: tick,
                     score: 0,
@@ -195,7 +207,7 @@ impl WarState {
                 Ok(MilitaryAction::Declare(WarId::new(self.next_war_id), war))
             }
             MilitaryOrder::Offer(id, cede_goal) => {
-                let war = self.party_war(country, id)?;
+                let war = self.leader_war(country, id)?;
                 if cede_goal && !self.valid_cession(polity, war) {
                     return Err(WarError::InvalidPeaceTerms);
                 }
@@ -208,7 +220,7 @@ impl WarState {
                 ))
             }
             MilitaryOrder::Accept(id) => {
-                let war = self.party_war(country, id)?;
+                let war = self.leader_war(country, id)?;
                 let offer = war.offer.ok_or(WarError::NoPeaceOffer)?;
                 if offer.offered_by == country {
                     return Err(WarError::CannotAcceptOwnOffer);
@@ -299,7 +311,23 @@ impl WarState {
         treaty: PeaceTreaty,
         changes: &mut Vec<StateChange>,
     ) {
-        self.wars.remove(&id);
+        let war = self.wars.remove(&id).expect("war validated");
+        for attacker in std::iter::once(war.attacker).chain(war.attacker_supporters.iter().copied())
+        {
+            for defender in
+                std::iter::once(war.defender).chain(war.defender_supporters.iter().copied())
+            {
+                if attacker == treaty.attacker && defender == treaty.defender {
+                    continue;
+                }
+                let pair = if attacker < defender {
+                    (attacker, defender)
+                } else {
+                    (defender, attacker)
+                };
+                self.coalition_truces.insert(pair, treaty.concluded_at);
+            }
+        }
         changes.push(StateChange::WarChanged {
             war: id,
             state: None,
@@ -327,7 +355,7 @@ impl WarState {
             });
         }
         for (&army_id, army) in &mut self.armies {
-            if army.country != treaty.attacker && army.country != treaty.defender {
+            if war.side(army.country).is_none() {
                 continue;
             }
             let state = &polity.countries[&army.country];
@@ -413,9 +441,12 @@ impl WarState {
         Ok(army)
     }
 
-    fn party_war(&self, country: CountryId, id: WarId) -> Result<&War, WarError> {
+    fn leader_war(&self, country: CountryId, id: WarId) -> Result<&War, WarError> {
         let war = self.wars.get(&id).ok_or(WarError::UnknownWar(id))?;
-        if war.opponent(country).is_none() {
+        if !war.is_leader(country) {
+            if war.side(country).is_some() {
+                return Err(WarError::NotWarLeader);
+            }
             return Err(WarError::NotWarParty);
         }
         Ok(war)
