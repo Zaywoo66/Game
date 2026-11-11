@@ -24,7 +24,7 @@
 - Province ids allocated per region from reserved ranges (e.g. Europe 1-1999, next regions after). Adding a region never renumbers existing ids. Map version/hash is stored in saves (saves from other map versions are rejected).
 - Terrain is chunked (e.g. 512x512 tiles); no code assumes the whole heightmap is one mesh.
 - Memory targets (confirm by measurement): beta region map rasters <= 64 MB resident; world <= 150 MB.
-- Horizontal wrap-around: not supported until M13 decides (DECISIONS D13).
+- The owner decides whether the world map wraps horizontally at the end of M12, before M13 begins (DECISIONS D13). M13 implements that decision.
 - Before M13 is accepted: benchmark tick, A*, and AI operation caps at ~5,000 provinces and ~300 countries.
 
 ## Content tiers for far regions
