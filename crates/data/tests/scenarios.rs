@@ -497,6 +497,8 @@ fn save_v3_preserves_active_armies_movement_sieges_and_treaties() {
         War {
             attacker,
             defender,
+            attacker_supporters: Default::default(),
+            defender_supporters: Default::default(),
             goal,
             started_at: Tick::ZERO,
             score: -15,
@@ -526,6 +528,50 @@ fn save_v3_preserves_active_armies_movement_sieges_and_treaties() {
     );
     military.next_army_id = 3;
     military.next_war_id = 3;
+
+    let mut coalition = military.clone();
+    coalition
+        .wars
+        .get_mut(&active)
+        .unwrap()
+        .attacker_supporters
+        .insert(castile);
+    coalition
+        .coalition_truces
+        .insert((castile.min(portugal), castile.max(portugal)), Tick::ZERO);
+    let mut coalition_diplomacy = DiplomacyState::default();
+    coalition_diplomacy
+        .alliances
+        .insert((castile.min(portugal), castile.max(portugal)));
+    let coalition_state = state
+        .clone()
+        .with_diplomacy(coalition_diplomacy)
+        .unwrap()
+        .with_war_state(coalition)
+        .unwrap();
+    let coalition_bytes = save_game(&coalition_state).unwrap();
+    let coalition_json: Value = serde_json::from_slice(&coalition_bytes).unwrap();
+    assert_eq!(coalition_json["schema_version"], json!(6));
+    assert_eq!(
+        coalition_json["state"]["military"]["wars"][0]["attacker_supporters"],
+        json!([castile.get()])
+    );
+    assert_eq!(
+        coalition_json["state"]["military"]["coalition_truces"][0]["concluded_at"],
+        json!(0)
+    );
+    let coalition_loaded = load_game(&coalition_bytes, graph()).unwrap();
+    assert_eq!(coalition_loaded, coalition_state);
+    assert_eq!(
+        state_hash(&coalition_loaded).unwrap(),
+        state_hash(&coalition_state).unwrap()
+    );
+    let mut wrong_version = coalition_json.clone();
+    wrong_version["schema_version"] = json!(5);
+    assert!(matches!(
+        load_game(&serde_json::to_vec(&wrong_version).unwrap(), graph()),
+        Err(SaveError::VersionCoalitionMismatch(5))
+    ));
 
     let state = state.with_war_state(military).unwrap();
     let bytes = save_game(&state).unwrap();

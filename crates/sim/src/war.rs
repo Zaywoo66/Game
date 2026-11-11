@@ -97,6 +97,10 @@ pub struct MovementLeg {
 pub struct War {
     pub attacker: CountryId,
     pub defender: CountryId,
+    /// Countries fighting with the attacker, excluding the war leader.
+    pub attacker_supporters: BTreeSet<CountryId>,
+    /// Countries fighting with the defender, excluding the war leader.
+    pub defender_supporters: BTreeSet<CountryId>,
     pub goal: ProvinceId,
     pub started_at: Tick,
     /// Positive scores favor the attacker.
@@ -105,14 +109,35 @@ pub struct War {
     pub offer: Option<PeaceOffer>,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum WarSide {
+    Attacker,
+    Defender,
+}
+
 impl War {
-    pub fn opponent(&self, country: CountryId) -> Option<CountryId> {
-        if country == self.attacker {
-            Some(self.defender)
-        } else if country == self.defender {
-            Some(self.attacker)
+    pub fn side(&self, country: CountryId) -> Option<WarSide> {
+        if country == self.attacker || self.attacker_supporters.contains(&country) {
+            Some(WarSide::Attacker)
+        } else if country == self.defender || self.defender_supporters.contains(&country) {
+            Some(WarSide::Defender)
         } else {
             None
+        }
+    }
+
+    pub fn opposed(&self, a: CountryId, b: CountryId) -> bool {
+        matches!((self.side(a), self.side(b)), (Some(x), Some(y)) if x != y)
+    }
+
+    pub fn is_leader(&self, country: CountryId) -> bool {
+        country == self.attacker || country == self.defender
+    }
+
+    pub fn opponent(&self, country: CountryId) -> Option<CountryId> {
+        match self.side(country)? {
+            WarSide::Attacker => Some(self.defender),
+            WarSide::Defender => Some(self.attacker),
         }
     }
 }
@@ -146,6 +171,8 @@ pub struct WarState {
     pub forts: BTreeMap<ProvinceId, u8>,
     pub sieges: BTreeMap<ProvinceId, Siege>,
     pub treaties: BTreeMap<WarId, PeaceTreaty>,
+    /// Extra opposing pairs from coalition peace; original leaders remain in `treaties`.
+    pub coalition_truces: BTreeMap<(CountryId, CountryId), Tick>,
     pub next_army_id: u32,
     pub next_war_id: u32,
 }
@@ -160,6 +187,7 @@ pub enum WarError {
     InvalidFort(ProvinceId),
     InvalidSiege(ProvinceId),
     InvalidTreaty(WarId),
+    InvalidCoalitionTruce(CountryId, CountryId),
     InvalidIdSequence,
     UnknownCountry(CountryId),
     UnknownArmy(ArmyId),
@@ -177,6 +205,7 @@ pub enum WarError {
     InvalidWarGoal(ProvinceId),
     TruceActive,
     NotWarParty,
+    NotWarLeader,
     NoPeaceOffer,
     CannotAcceptOwnOffer,
     InvalidPeaceTerms,
@@ -199,6 +228,7 @@ impl WarState {
             forts,
             sieges: BTreeMap::new(),
             treaties: BTreeMap::new(),
+            coalition_truces: BTreeMap::new(),
             next_army_id: 1,
             next_war_id: 1,
         }
@@ -209,6 +239,13 @@ impl WarState {
             .iter()
             .find(|(_, war)| war.opponent(country).is_some())
             .map(|(&id, war)| (id, war))
+    }
+
+    pub fn has_coalition_history(&self) -> bool {
+        !self.coalition_truces.is_empty()
+            || self.wars.values().any(|war| {
+                !war.attacker_supporters.is_empty() || !war.defender_supporters.is_empty()
+            })
     }
 
     pub fn occupation(&self, province: ProvinceId) -> Option<CountryId> {
@@ -228,7 +265,7 @@ impl WarState {
             owner == country
                 || self
                     .war_for(country)
-                    .is_some_and(|(_, war)| war.opponent(country) == Some(owner))
+                    .is_some_and(|(_, war)| war.side(owner).is_some())
         })
     }
 
@@ -241,10 +278,18 @@ impl WarState {
         to: ProvinceId,
     ) -> bool {
         from != to
-            && owner(polity, to) == Some(country)
-            && self
-                .occupation(to)
-                .is_none_or(|occupier| occupier == country)
+            && owner(polity, to).is_some_and(|owner| {
+                owner == country
+                    || self
+                        .war_for(country)
+                        .is_some_and(|(_, war)| war.side(owner) == war.side(country))
+            })
+            && self.occupation(to).is_none_or(|occupier| {
+                occupier == country
+                    || self
+                        .war_for(country)
+                        .is_some_and(|(_, war)| war.side(occupier) == war.side(country))
+            })
             && graph.neighbors(from).is_some_and(|edges| {
                 edges
                     .iter()
@@ -253,13 +298,16 @@ impl WarState {
             && self.war_for(country).is_none_or(|(_, war)| {
                 self.armies
                     .values()
-                    .all(|army| army.province != to || Some(army.country) != war.opponent(country))
+                    .all(|army| army.province != to || !war.opposed(country, army.country))
             })
     }
 
     fn valid_cession(&self, polity: &PolityState, war: &War) -> bool {
         war.score >= self.rules.peace_score
-            && war.occupations.get(&war.goal) == Some(&war.attacker)
+            && war
+                .occupations
+                .get(&war.goal)
+                .is_some_and(|occupier| war.side(*occupier) == Some(WarSide::Attacker))
             && polity.countries.get(&war.defender).is_some_and(|defender| {
                 defender.provinces.len() > 1 && defender.provinces.contains(&war.goal)
             })
@@ -295,14 +343,21 @@ impl WarState {
                 || !polity.countries.contains_key(&war.defender)
                 || !parties.insert(war.attacker)
                 || !parties.insert(war.defender)
+                || war
+                    .attacker_supporters
+                    .iter()
+                    .chain(&war.defender_supporters)
+                    .any(|&country| {
+                        !polity.countries.contains_key(&country) || !parties.insert(country)
+                    })
                 || war.started_at > tick
                 || !self.can_reach_goal(graph, polity, war.attacker, war.defender, war.goal)
                 || war
                     .offer
-                    .is_some_and(|offer| war.opponent(offer.offered_by).is_none())
+                    .is_some_and(|offer| !war.is_leader(offer.offered_by))
                 || war.occupations.iter().any(|(&province, &occupier)| {
-                    war.opponent(occupier)
-                        .is_none_or(|enemy| owner(polity, province) != Some(enemy))
+                    owner(polity, province)
+                        .is_none_or(|territorial_owner| !war.opposed(occupier, territorial_owner))
                 })
             {
                 return Err(WarError::InvalidWar(id));
@@ -320,6 +375,15 @@ impl WarState {
                 })
             {
                 return Err(WarError::InvalidTreaty(id));
+            }
+        }
+        for (&(a, b), &concluded_at) in &self.coalition_truces {
+            if a >= b
+                || !polity.countries.contains_key(&a)
+                || !polity.countries.contains_key(&b)
+                || concluded_at > tick
+            {
+                return Err(WarError::InvalidCoalitionTruce(a, b));
             }
         }
         for (&id, army) in &self.armies {
@@ -377,8 +441,7 @@ impl WarState {
                     .get(&province)
                     .copied()
                     .or_else(|| owner(polity, province));
-                war.opponent(siege.besieger)
-                    .is_some_and(|enemy| controller == Some(enemy))
+                controller.is_some_and(|holder| war.opposed(siege.besieger, holder))
                     && self.armies.values().any(|army| {
                         army.country == siege.besieger
                             && army.province == province
