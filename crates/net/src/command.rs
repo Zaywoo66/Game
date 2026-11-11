@@ -86,6 +86,11 @@ pub enum PlayerCommand {
         country: u32,
         other: u32,
     },
+    ChooseEvent {
+        country: u32,
+        key: String,
+        option: u32,
+    },
     OfferRoyalMarriage {
         country: u32,
         character: u32,
@@ -247,6 +252,15 @@ impl From<&Command> for PlayerCommand {
                 country: country.get(),
                 other: other.get(),
             },
+            Command::ChooseEvent {
+                country,
+                key,
+                option,
+            } => Self::ChooseEvent {
+                country: country.get(),
+                key: key.clone(),
+                option: *option,
+            },
             Command::OfferRoyalMarriage {
                 country,
                 character,
@@ -403,6 +417,15 @@ impl TryFrom<PlayerCommand> for Command {
             PlayerCommand::BreakAlliance { country, other } => Self::BreakAlliance {
                 country: CountryId::new(country),
                 other: CountryId::new(other),
+            },
+            PlayerCommand::ChooseEvent {
+                country,
+                key,
+                option,
+            } => Self::ChooseEvent {
+                country: CountryId::new(country),
+                key,
+                option,
             },
             PlayerCommand::OfferRoyalMarriage {
                 country,

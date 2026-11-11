@@ -5,7 +5,7 @@ use serde_json::value::RawValue;
 use sha2::{Digest, Sha256};
 use strategy_sim::{
     AiProfileKey, CharacterId, Controller, CountryId, CountryState, Date, DiplomacyError,
-    DiplomacyState, Effect, Fixed, GameState, InvalidDate, InvalidSpeed, MapIdentity,
+    DiplomacyState, Effect, EventError, Fixed, GameState, InvalidDate, InvalidSpeed, MapIdentity,
     MapIdentityMismatch, ModKey, Modifier, ModifierInsertError, ModifierKind, ModifierSourceId,
     ModifierStore, Opinion, OpinionError, OpinionStateError, PlayerId, PolityError, ProvinceGraph,
     ScheduleError, ScheduledEffect, SeededRng, SimTime, Speed, Tick, TimeError, TriggerView,
@@ -14,9 +14,11 @@ use strategy_sim::{
 
 use crate::provinces::decode_hash;
 
+mod events;
 mod military;
 mod polity;
 
+use events::EventStateFile;
 use military::WarStateFile;
 use polity::PolityFile;
 
@@ -27,6 +29,7 @@ const OPINION_VERSION: u32 = 4;
 const ALLIANCE_VERSION: u32 = 5;
 const COALITION_VERSION: u32 = 6;
 const MARRIAGE_VERSION: u32 = 7;
+const EVENT_VERSION: u32 = 8;
 const STATE_HASH_DOMAIN_V1: &[u8] = b"strategy:game-state:v1\0";
 const STATE_HASH_DOMAIN_V2: &[u8] = b"strategy:game-state:v2\0";
 const STATE_HASH_DOMAIN_V3: &[u8] = b"strategy:game-state:v3\0";
@@ -34,6 +37,7 @@ const STATE_HASH_DOMAIN_V4: &[u8] = b"strategy:game-state:v4\0";
 const STATE_HASH_DOMAIN_V5: &[u8] = b"strategy:game-state:v5\0";
 const STATE_HASH_DOMAIN_V6: &[u8] = b"strategy:game-state:v6\0";
 const STATE_HASH_DOMAIN_V7: &[u8] = b"strategy:game-state:v7\0";
+const STATE_HASH_DOMAIN_V8: &[u8] = b"strategy:game-state:v8\0";
 
 #[derive(Debug)]
 pub enum SaveError {
@@ -45,11 +49,13 @@ pub enum SaveError {
     VersionDiplomacyMismatch(u32),
     VersionCoalitionMismatch(u32),
     VersionMarriageMismatch(u32),
+    VersionEventMismatch(u32),
     InvalidPolity(PolityError),
     InvalidMilitary(WarError),
     InvalidOpinion(OpinionError),
     InvalidOpinionState(OpinionStateError),
     InvalidDiplomacy(DiplomacyError),
+    InvalidEvent(EventError),
     InvalidMapHash,
     MapMismatch(MapIdentityMismatch),
     UnorderedRecords(&'static str),
@@ -88,9 +94,13 @@ impl fmt::Display for SaveError {
             Self::VersionMarriageMismatch(version) => {
                 write!(f, "save version {version} has the wrong marriage payload")
             }
+            Self::VersionEventMismatch(version) => {
+                write!(f, "save version {version} has the wrong event payload")
+            }
             Self::InvalidOpinion(error) => write!(f, "invalid saved opinion: {error:?}"),
             Self::InvalidOpinionState(error) => write!(f, "invalid saved opinion state: {error:?}"),
             Self::InvalidDiplomacy(error) => write!(f, "invalid saved diplomacy state: {error:?}"),
+            Self::InvalidEvent(error) => write!(f, "invalid saved event state: {error:?}"),
             Self::InvalidMapHash => f.write_str("map_hash must be 64 lowercase hexadecimal digits"),
             Self::MapMismatch(error) => error.fmt(f),
             Self::UnorderedRecords(records) => write!(f, "{records} must be unique and sorted"),
@@ -158,6 +168,7 @@ pub fn load_game(bytes: &[u8], graph: ProvinceGraph) -> Result<GameState, SaveEr
             | ALLIANCE_VERSION
             | COALITION_VERSION
             | MARRIAGE_VERSION
+            | EVENT_VERSION
     ) {
         return Err(SaveError::UnsupportedSchemaVersion(save.schema_version));
     }
@@ -211,8 +222,16 @@ pub fn load_game(bytes: &[u8], graph: ProvinceGraph) -> Result<GameState, SaveEr
     }) || restored
         .diplomacy()
         .is_some_and(|diplomacy| !diplomacy.marriage_offers.is_empty());
-    if has_marriage_data != (save.schema_version == MARRIAGE_VERSION) {
+    if (save.schema_version < MARRIAGE_VERSION && has_marriage_data)
+        || (save.schema_version == MARRIAGE_VERSION && !has_marriage_data)
+    {
         return Err(SaveError::VersionMarriageMismatch(save.schema_version));
+    }
+    // Later schemas can carry event state alongside newer mechanics.
+    if (save.schema_version < EVENT_VERSION && restored.events().is_some())
+        || (save.schema_version == EVENT_VERSION && restored.events().is_none())
+    {
+        return Err(SaveError::VersionEventMismatch(save.schema_version));
     }
     Ok(restored)
 }
@@ -221,6 +240,7 @@ pub fn load_game(bytes: &[u8], graph: ProvinceGraph) -> Result<GameState, SaveEr
 pub fn state_hash(state: &GameState) -> Result<[u8; 32], SaveError> {
     let mut hash = Sha256::new();
     hash.update(match schema_version(state) {
+        EVENT_VERSION => STATE_HASH_DOMAIN_V8,
         MARRIAGE_VERSION => STATE_HASH_DOMAIN_V7,
         COALITION_VERSION => STATE_HASH_DOMAIN_V6,
         ALLIANCE_VERSION => STATE_HASH_DOMAIN_V5,
@@ -234,7 +254,9 @@ pub fn state_hash(state: &GameState) -> Result<[u8; 32], SaveError> {
 }
 
 fn schema_version(state: &GameState) -> u32 {
-    if state.polity().is_some_and(|polity| {
+    if state.events().is_some() {
+        EVENT_VERSION
+    } else if state.polity().is_some_and(|polity| {
         polity.characters.values().any(|character| {
             character.sex != strategy_sim::Sex::Unknown || character.spouse.is_some()
         })
@@ -297,6 +319,8 @@ struct StateFile {
         deserialize_with = "present_military"
     )]
     military: Option<WarStateFile>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    events: Option<EventStateFile>,
 }
 
 impl From<&GameState> for StateFile {
@@ -333,6 +357,7 @@ impl From<&GameState> for StateFile {
             diplomacy: state.diplomacy().map(DiplomacyFile::from),
             polity: state.polity().map(PolityFile::from),
             military: state.war_state().map(WarStateFile::from),
+            events: state.events().map(EventStateFile::from),
         }
     }
 }
@@ -399,10 +424,17 @@ impl StateFile {
         } else {
             Ok(state)
         }?;
-        if let Some(diplomacy) = self.diplomacy {
+        let state = if let Some(diplomacy) = self.diplomacy {
             state
                 .with_diplomacy(diplomacy.restore()?)
                 .map_err(SaveError::InvalidDiplomacy)
+        } else {
+            Ok(state)
+        }?;
+        if let Some(events) = self.events {
+            state
+                .with_event_state(events.restore()?)
+                .map_err(SaveError::InvalidEvent)
         } else {
             Ok(state)
         }

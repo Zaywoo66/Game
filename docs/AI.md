@@ -55,6 +55,14 @@ strictly exceed each party's total; the derived country/tick RNG then gives a
 alliances on a staggered 31-tick cadence. The read-only factor query reports
 opinion, profile minimum, common threat and direct war for human tooltips.
 
+M7 event choices are read from the authoritative pending-event state. For each
+AI country the host chooses at most one pending event per tick in event-key
+order. The AI adds the one conditional weight when its trigger is true, clamps
+negative results to zero and falls back to base weights if all adjusted
+weights are zero. A keyed seeded draw selects the option, and the AI submits a
+`ChooseEvent` command through the ordinary validation path. It never changes
+the pending event directly.
+
 Royal-marriage AI uses a separate read-only factor list: effective opinion
 toward the proposer, `marriage_min_opinion`, and legal named-character pair.
 It accepts a legal offer when effective opinion meets the data profile's

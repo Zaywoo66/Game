@@ -9,6 +9,7 @@
 - M6 alliances add save schema v5 for alliance offers, active treaties and realliance cooldowns. The LAN command protocol advances to v3; players must use the same build.
 - M6 war-participants prerequisite adds save schema v6 for side supporters and pairwise coalition truces. Older saves keep their original encoding. LAN protocol advances to v4; both players must update together.
 - M6 royal marriages add character schema v2, save schema v7 and LAN protocol v5. V1–v6 saves load with unknown character sex; those characters cannot create new marriages because sex cannot be inferred from old saves. Both players must update together.
+- M7 event runtime adds save schema v8 and LAN protocol v6. V8 snapshots include event definitions, pending choices, resolution history and modifier-source sequence; v1–v7 saves remain readable without events. Both players must update together.
 
 ## 0.1.0 — Foundation
 
