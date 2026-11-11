@@ -1,5 +1,6 @@
 //! Deterministic simulation core.
 
+mod effect;
 mod fixed;
 mod ids;
 mod modifiers;
@@ -8,6 +9,7 @@ mod rng;
 mod time;
 mod trigger;
 
+pub use effect::{Effect, EffectError, PreparedModifier};
 pub use fixed::Fixed;
 pub use ids::{ArmyId, CharacterId, CountryId, ProvinceId};
 pub use modifiers::{
