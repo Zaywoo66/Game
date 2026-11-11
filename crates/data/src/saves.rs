@@ -227,7 +227,10 @@ pub fn load_game(bytes: &[u8], graph: ProvinceGraph) -> Result<GameState, SaveEr
     {
         return Err(SaveError::VersionMarriageMismatch(save.schema_version));
     }
-    if restored.events().is_some() != (save.schema_version == EVENT_VERSION) {
+    // Later schemas can carry event state alongside newer mechanics.
+    if (save.schema_version < EVENT_VERSION && restored.events().is_some())
+        || (save.schema_version == EVENT_VERSION && restored.events().is_none())
+    {
         return Err(SaveError::VersionEventMismatch(save.schema_version));
     }
     Ok(restored)

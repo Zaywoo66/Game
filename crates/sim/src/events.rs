@@ -146,7 +146,8 @@ impl EventState {
         tick: Tick,
         countries: impl Iterator<Item = (CountryId, &'a dyn TriggerView)>,
     ) -> Vec<(CountryId, String)> {
-        let countries = countries.collect::<Vec<_>>();
+        let mut countries = countries.collect::<Vec<_>>();
+        countries.sort_by_key(|(country, _)| *country);
         let mut fired = Vec::new();
         for (key, definition) in &self.definitions {
             let Some(mtth) = definition.mean_time_to_happen else {

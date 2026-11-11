@@ -3,9 +3,9 @@ use std::num::{NonZeroU32, NonZeroU64};
 
 use strategy_sim::{
     event_rng, AiProfileKey, Command, CommandActor, CommandError, ConditionalAiWeight, Controller,
-    CountryId, CountryState, Date, Effect, EventDefinition, EventError, EventOption, Fixed,
-    GameState, MapIdentity, ModKey, ModifierKind, ModifierStore, PlayerId, ProvinceGraph, SimTime,
-    Speed, StateChange, Trigger,
+    CountryId, CountryState, Date, Effect, EventDefinition, EventError, EventOption, EventState,
+    Fixed, GameState, MapIdentity, ModKey, ModifierKind, ModifierStore, PlayerId, ProvinceGraph,
+    SimTime, Speed, StateChange, Tick, Trigger, TriggerView,
 };
 
 const COUNTRY: CountryId = CountryId::new(1);
@@ -45,6 +45,27 @@ fn keyed_event_rng_replays_and_separates_seed_tick_country_and_key() {
     assert_ne!(baseline, draw(7, 41, 1, "harvest"));
     assert_ne!(baseline, draw(7, 40, 2, "harvest"));
     assert_ne!(baseline, draw(7, 40, 1, "drought"));
+}
+
+#[test]
+fn event_firing_order_is_independent_of_caller_country_order() {
+    let definition = event(false, 1);
+    let mut forward =
+        EventState::new(BTreeMap::from([(definition.key.clone(), definition)]), 1).unwrap();
+    let mut reverse = forward.clone();
+    let view = CountryState::new(
+        Controller::Human(PlayerId::new(1)),
+        BTreeSet::new(),
+        false,
+        ModifierStore::default(),
+    );
+    let a = CountryId::new(1);
+    let b = CountryId::new(2);
+    let view = &view as &dyn TriggerView;
+    let expected = forward.fire_due(123, Tick::new(1), [(a, view), (b, view)].into_iter());
+    let actual = reverse.fire_due(123, Tick::new(1), [(b, view), (a, view)].into_iter());
+    assert_eq!(expected, actual);
+    assert_eq!(forward, reverse);
 }
 
 fn event(repeatable: bool, mtth: u64) -> EventDefinition {

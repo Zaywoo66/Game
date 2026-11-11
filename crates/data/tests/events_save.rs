@@ -85,6 +85,15 @@ fn malformed_event_snapshot_is_rejected_without_reinterpretation() {
     let mut state = event_game();
     state.tick(|_, _| Vec::new()).unwrap();
     let mut document: Value = serde_json::from_slice(&save_game(&state).unwrap()).unwrap();
+    let mut missing = document.clone();
+    missing["state"].as_object_mut().unwrap().remove("events");
+    assert!(matches!(
+        load_game(
+            &serde_json::to_vec(&missing).unwrap(),
+            parse_provinces(MAP).unwrap()
+        ),
+        Err(SaveError::VersionEventMismatch(8))
+    ));
     document["state"]["events"]["pending"][0]["country"] = json!(999);
     assert!(matches!(
         load_game(
