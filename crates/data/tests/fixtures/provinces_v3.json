@@ -1,0 +1,136 @@
+{
+  "schema_version": 3,
+  "map_version": 3,
+  "map_hash": "65618ef5868d23a2e7d1cfcd597d433756f33694b7a121624dfbd2561fb04fc8",
+  "provinces": [
+    {
+      "id": 11,
+      "key": "test_lake",
+      "kind": "lake",
+      "terrain": "inland_water",
+      "centroid": [
+        22,
+        29
+      ],
+      "neighbors": [],
+      "ports": [],
+      "development": 0,
+      "name_key": "test_lake",
+      "area": "test_area"
+    },
+    {
+      "id": 9,
+      "key": "test_sea",
+      "kind": "sea",
+      "terrain": "open_water",
+      "centroid": [
+        14,
+        35
+      ],
+      "neighbors": [
+        {
+          "id": 1,
+          "edge": "port",
+          "cost": 2
+        }
+      ],
+      "ports": [],
+      "development": 0,
+      "name_key": "test_sea",
+      "area": "test_area"
+    },
+    {
+      "id": 7,
+      "key": "test_strait",
+      "kind": "sea",
+      "terrain": "open_water",
+      "centroid": [
+        12,
+        25
+      ],
+      "neighbors": [
+        {
+          "id": 1,
+          "edge": "strait",
+          "cost": 5
+        }
+      ],
+      "ports": [],
+      "development": 0,
+      "name_key": "test_strait",
+      "area": "test_area"
+    },
+    {
+      "id": 2,
+      "key": "test_hills",
+      "kind": "land",
+      "terrain": "hills",
+      "centroid": [
+        7,
+        34
+      ],
+      "neighbors": [
+        {
+          "id": 1,
+          "edge": "normal",
+          "cost": 2
+        },
+        {
+          "id": 1,
+          "edge": "river",
+          "cost": 3
+        }
+      ],
+      "ports": [],
+      "development": 0,
+      "name_key": "test_hills",
+      "area": "test_area"
+    },
+    {
+      "id": 1,
+      "key": "test_land",
+      "kind": "land",
+      "terrain": "grassland",
+      "centroid": [
+        12,
+        34
+      ],
+      "neighbors": [
+        {
+          "id": 2,
+          "edge": "normal",
+          "cost": 2
+        },
+        {
+          "id": 2,
+          "edge": "river",
+          "cost": 3
+        },
+        {
+          "id": 7,
+          "edge": "strait",
+          "cost": 5
+        },
+        {
+          "id": 9,
+          "edge": "port",
+          "cost": 2
+        }
+      ],
+      "ports": [
+        7,
+        9
+      ],
+      "development": 3,
+      "name_key": "test_land",
+      "area": "test_area"
+    }
+  ],
+  "projection": {
+    "pixels_per_degree": 40,
+    "origin": [
+      -32,
+      128
+    ]
+  }
+}

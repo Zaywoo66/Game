@@ -1,0 +1,67 @@
+{
+  "countries": {
+    "ara": {
+      "capital": "aragon",
+      "provinces": [
+        "aragon",
+        "catalonia",
+        "valencia"
+      ]
+    },
+    "cas": {
+      "capital": "castile",
+      "provinces": [
+        "andalusia",
+        "asturias",
+        "castile",
+        "galicia",
+        "la_mancha",
+        "leon"
+      ]
+    },
+    "eng": {
+      "capital": "london",
+      "provinces": [
+        "cornwall",
+        "london",
+        "midlands",
+        "normandie",
+        "northumbria",
+        "wales",
+        "yorkshire"
+      ]
+    },
+    "fra": {
+      "capital": "ile_de_france",
+      "provinces": [
+        "ile_de_france",
+        "languedoc",
+        "loire"
+      ]
+    },
+    "por": {
+      "capital": "lisboa",
+      "provinces": [
+        "algarve",
+        "lisboa",
+        "porto"
+      ]
+    },
+    "sco": {
+      "capital": "lowlands",
+      "provinces": [
+        "highlands",
+        "lowlands"
+      ]
+    }
+  },
+  "forts": {
+    "aragon": 1,
+    "castile": 1,
+    "ile_de_france": 2,
+    "lisboa": 1,
+    "london": 2,
+    "lowlands": 1,
+    "normandie": 1
+  }
+}

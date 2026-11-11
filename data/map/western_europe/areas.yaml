@@ -1,0 +1,786 @@
+schema_version: 1
+reference_year: 1440
+assignment_method: Present-day settlement seeds form gameplay cells. Named historical
+  areas group selected settlements using cited records and approximate membership.
+  The map does not reproduce historical boundary lines or modern administrative borders.
+areas:
+- key: alava
+  name_key: area_alava
+  name: Alava
+  region: iberia
+  kind: historical_administration
+  source: https://www.euskadi.eus/web01-s1ezaleh/es/contenidos/informacion/historia/es_429/historia_c.html
+- key: alpine_europe_county_of_savoy
+  name_key: area_alpine_europe_county_of_savoy
+  name: County of Savoy
+  region: alpine_europe
+  kind: historical_polity
+  source: https://github.com/Seshat-Global-History-Databank/cliopatria/releases/tag/v0.1.3
+- key: alpine_europe_duchy_of_bavaria
+  name_key: area_alpine_europe_duchy_of_bavaria
+  name: Duchy of Bavaria
+  region: alpine_europe
+  kind: historical_polity
+  source: https://github.com/Seshat-Global-History-Databank/cliopatria/releases/tag/v0.1.3
+- key: alpine_europe_duchy_of_burgundy
+  name_key: area_alpine_europe_duchy_of_burgundy
+  name: Duchy of Burgundy
+  region: alpine_europe
+  kind: historical_polity
+  source: https://github.com/Seshat-Global-History-Databank/cliopatria/releases/tag/v0.1.3
+- key: alpine_europe_duchy_of_milan
+  name_key: area_alpine_europe_duchy_of_milan
+  name: Duchy of Milan
+  region: alpine_europe
+  kind: historical_polity
+  source: https://github.com/Seshat-Global-History-Databank/cliopatria/releases/tag/v0.1.3
+- key: alpine_europe_lake
+  name_key: area_alpine_europe_lake
+  name: Lake Geneva
+  region: alpine_europe
+  kind: water
+  source: null
+- key: alpine_europe_republic_of_florence
+  name_key: area_alpine_europe_republic_of_florence
+  name: Republic of Florence
+  region: alpine_europe
+  kind: historical_polity
+  source: https://github.com/Seshat-Global-History-Databank/cliopatria/releases/tag/v0.1.3
+- key: alpine_europe_republic_of_venice
+  name_key: area_alpine_europe_republic_of_venice
+  name: Republic of Venice
+  region: alpine_europe
+  kind: historical_polity
+  source: https://github.com/Seshat-Global-History-Databank/cliopatria/releases/tag/v0.1.3
+- key: alpine_europe_swiss_confederation
+  name_key: area_alpine_europe_swiss_confederation
+  name: Swiss Confederation
+  region: alpine_europe
+  kind: historical_polity
+  source: https://github.com/Seshat-Global-History-Databank/cliopatria/releases/tag/v0.1.3
+- key: alpine_europe_unclassified
+  name_key: area_alpine_europe_unclassified
+  name: Alpine Europe (Unclassified)
+  region: alpine_europe
+  kind: unclassified
+  source: null
+- key: andorran_co_lordship
+  name_key: area_andorran_co_lordship
+  name: Andorran Co-lordship
+  region: iberia
+  kind: historical_polity
+  source: https://www.govern.ad/ca/w/arxius-en-linia-amplia-els-fons-de-consulta-amb-22-documents-textuals-1
+- key: aunis
+  name_key: area_aunis
+  name: Aunis
+  region: western_continental_europe
+  kind: historical_administration
+  source: https://books.openedition.org/pur/pdf/19535
+- key: bailliage_auxerre
+  name_key: area_bailliage_auxerre
+  name: Bailliage of Auxerre
+  region: western_continental_europe
+  kind: historical_administration
+  source: https://archives.dijon.fr/ARCHIVES/basicfilesdownload.ashx?itemGuid=D5806B66-5C83-4E8F-9EFC-948A20249178
+- key: bailliage_melun
+  name_key: area_bailliage_melun
+  name: Bailliage of Melun
+  region: western_continental_europe
+  kind: historical_administration
+  source: https://archives.dijon.fr/ARCHIVES/basicfilesdownload.ashx?itemGuid=D5806B66-5C83-4E8F-9EFC-948A20249178
+- key: bailliage_troyes
+  name_key: area_bailliage_troyes
+  name: Bailliage of Troyes
+  region: western_continental_europe
+  kind: historical_administration
+  source: https://sigilla.irht.cnrs.fr/42305
+- key: bedfordshire
+  name_key: area_bedfordshire
+  name: Bedfordshire
+  region: british_and_irish_isles
+  kind: historical_administration
+  source: https://discovery.nationalarchives.gov.uk/manor-search
+- key: beira
+  name_key: area_beira
+  name: Beira
+  region: iberia
+  kind: historical_administration
+  source: https://riull.ull.es/xmlui/bitstream/handle/915/46414/CC_34_%282026%29_10.pdf?isAllowed=y&sequence=1
+- key: berkshire
+  name_key: area_berkshire
+  name: Berkshire
+  region: british_and_irish_isles
+  kind: historical_administration
+  source: https://discovery.nationalarchives.gov.uk/manor-search
+- key: bernese_aargau
+  name_key: area_bernese_aargau
+  name: Bernese Aargau
+  region: alpine_europe
+  kind: historical_administration
+  source: https://hls-dhs-dss.ch/de/articles/007392/2018-02-06
+- key: british_and_irish_isles_duchy_of_burgundy
+  name_key: area_british_and_irish_isles_duchy_of_burgundy
+  name: Duchy of Burgundy
+  region: british_and_irish_isles
+  kind: historical_polity
+  source: https://github.com/Seshat-Global-History-Databank/cliopatria/releases/tag/v0.1.3
+- key: british_and_irish_isles_unclassified
+  name_key: area_british_and_irish_isles_unclassified
+  name: British and Irish Isles (Unclassified)
+  region: british_and_irish_isles
+  kind: unclassified
+  source: null
+- key: cambridgeshire
+  name_key: area_cambridgeshire
+  name: Cambridgeshire
+  region: british_and_irish_isles
+  kind: historical_administration
+  source: https://discovery.nationalarchives.gov.uk/manor-search
+- key: capitoulat_toulouse
+  name_key: area_capitoulat_toulouse
+  name: Capitoulat of Toulouse
+  region: western_continental_europe
+  kind: historical_administration
+  source: https://www.archives.toulouse.fr/archives-en-ligne/consultez-les-archives-numerisees/les-enluminures-des-annales/enluminure-1440
+- key: castilian_andalusia
+  name_key: area_castilian_andalusia
+  name: Castilian Andalusia
+  region: iberia
+  kind: historical_administration
+  source: https://tesauros.cultura.gob.es/tesauros/contextosculturales/1172659.html
+- key: cheshire
+  name_key: area_cheshire
+  name: Cheshire
+  region: british_and_irish_isles
+  kind: historical_administration
+  source: https://discovery.nationalarchives.gov.uk/manor-search
+- key: city_of_cork
+  name_key: area_city_of_cork
+  name: Chartered City of Cork
+  region: british_and_irish_isles
+  kind: historical_administration
+  source: https://www.corkcity.ie/en/council-services/councillors-and-democracy/history-of-the-council/charters/
+- key: city_of_dublin
+  name_key: area_city_of_dublin
+  name: City of Dublin
+  region: british_and_irish_isles
+  kind: historical_administration
+  source: https://www.dublincity.ie/libraries/heritage-and-history-resources/dublin-city-assembly
+- key: city_of_london
+  name_key: area_city_of_london
+  name: City of London
+  region: british_and_irish_isles
+  kind: historical_administration
+  source: https://discovery.nationalarchives.gov.uk/manor-search
+- key: city_of_waterford
+  name_key: area_city_of_waterford
+  name: Chartered City of Waterford
+  region: british_and_irish_isles
+  kind: historical_administration
+  source: https://waterfordcouncil.ie/services/culture-heritage/archives/collections/waterford-city-council-collection-2/
+- key: concejo_badajoz
+  name_key: area_concejo_badajoz
+  name: Concejo of Badajoz
+  region: iberia
+  kind: historical_administration
+  source: https://www.aytobadajoz.es/es/ayto/publicaciones/categoria/96/facsmil/listado/0/
+- key: consulate_beziers
+  name_key: area_consulate_beziers
+  name: Consulate of Beziers
+  region: western_continental_europe
+  kind: historical_administration
+  source: https://www.persee.fr/doc/amime_0758-7708_1989_num_7_1_1191
+- key: cornwall
+  name_key: area_cornwall
+  name: Cornwall
+  region: british_and_irish_isles
+  kind: historical_administration
+  source: https://discovery.nationalarchives.gov.uk/manor-search
+- key: county_durham
+  name_key: area_county_durham
+  name: County Durham
+  region: british_and_irish_isles
+  kind: historical_administration
+  source: https://discovery.nationalarchives.gov.uk/manor-search
+- key: county_forez
+  name_key: area_county_forez
+  name: County of Forez
+  region: western_continental_europe
+  kind: historical_administration
+  source: https://archives.saint-etienne.fr/histoires-stephanoises-1/tranches-dhistoire/histoire-de-la-ville-et-de-son-administration/saint-etienne-toute-une-histoire-/les-origines
+- key: county_holland
+  name_key: area_county_holland
+  name: County of Holland
+  region: northern_continental_europe
+  kind: historical_administration
+  source: https://www.geschiedenisvanzuidholland.nl/verhalen/verhalen/bestuurscentrum-van-de-graven-1000-1572/
+- key: county_maine
+  name_key: area_county_maine
+  name: County of Maine
+  region: western_continental_europe
+  kind: historical_administration
+  source: https://books.openedition.org/efr/4038?lang=fr
+- key: county_of_bristol
+  name_key: area_county_of_bristol
+  name: County of Bristol
+  region: british_and_irish_isles
+  kind: historical_administration
+  source: https://discovery.nationalarchives.gov.uk/manor-search
+- key: county_provence
+  name_key: area_county_provence
+  name: County of Provence
+  region: western_continental_europe
+  kind: historical_administration
+  source: https://officiersgrepsomm.uqam.ca/page/biographie.php?tri=A
+- key: county_town_drogheda
+  name_key: area_county_town_drogheda
+  name: County of the Town of Drogheda
+  region: british_and_irish_isles
+  kind: historical_administration
+  source: https://www.archaeology.ie/app/uploads/2025/05/County_Louth_Urban_Archaeology_Survey_1985-1.pdf
+- key: county_wurttemberg
+  name_key: area_county_wurttemberg
+  name: County of Wurttemberg
+  region: alpine_europe
+  kind: historical_administration
+  source: https://www.leo-bw.de/en-GB/detail/-/Detail/details/PERSON/wlbblb_personen/121765482/W%C3%BCrttemberg%2BUlrich%2BV%3B%2BGraf%2Bvon
+- key: cumberland
+  name_key: area_cumberland
+  name: Cumberland
+  region: british_and_irish_isles
+  kind: historical_administration
+  source: https://discovery.nationalarchives.gov.uk/manor-search
+- key: dauphine
+  name_key: area_dauphine
+  name: Dauphine
+  region: western_continental_europe
+  kind: historical_administration
+  source: https://archives.isere.fr/sites/isere-archives-fr/files/inline-files/04%20Grenoble%20au%20Moyen%20%C3%82ge_0.pdf
+- key: devon
+  name_key: area_devon
+  name: Devon
+  region: british_and_irish_isles
+  kind: historical_administration
+  source: https://discovery.nationalarchives.gov.uk/manor-search
+- key: dorset
+  name_key: area_dorset
+  name: Dorset
+  region: british_and_irish_isles
+  kind: historical_administration
+  source: https://discovery.nationalarchives.gov.uk/manor-search
+- key: duchy_anjou
+  name_key: area_duchy_anjou
+  name: Duchy of Anjou
+  region: western_continental_europe
+  kind: historical_administration
+  source: https://archives.angers.fr/aide-memoire/angers-en-dates/angers-dans-l-histoire/les-princes-angevins/index.html
+- key: duchy_berry
+  name_key: area_duchy_berry
+  name: Duchy of Berry
+  region: western_continental_europe
+  kind: historical_administration
+  source: https://journals.openedition.org/tabularia/pdf/1400
+- key: duchy_bourbonnais
+  name_key: area_duchy_bourbonnais
+  name: Duchy of Bourbonnais
+  region: western_continental_europe
+  kind: historical_administration
+  source: https://bibliotheque-numerique.bu.uca.fr/files/original/377316/377681/BCU_Vichy_et_ses_environs_294948.pdf
+- key: duchy_guyenne
+  name_key: area_duchy_guyenne
+  name: Duchy of Guyenne
+  region: western_continental_europe
+  kind: historical_administration
+  source: https://theses.fr/api/v1/document/2021BRES0046/These-2021-STT-Histoire-SOZZI_Serena-Volume_1.pdf
+- key: duchy_normandy
+  name_key: area_duchy_normandy
+  name: Duchy of Normandy
+  region: western_continental_europe
+  kind: historical_administration
+  source: https://arca.irht.cnrs.fr/ark%3A/63955/md39x059fd5p
+- key: duchy_orleans
+  name_key: area_duchy_orleans
+  name: Duchy of Orleans
+  region: western_continental_europe
+  kind: historical_administration
+  source: https://bibliographienumeriquedhistoiredudroit-ifg.univ-lorraine.fr/s/droit/item/133323
+- key: earldom_of_ormond
+  name_key: area_earldom_of_ormond
+  name: Earldom of Ormond
+  region: british_and_irish_isles
+  kind: historical_administration
+  source: https://www.kilkennycastle.ie/wp-content/uploads/2022/08/kilkenny_networks_brochure.pdf
+- key: earldom_orkney
+  name_key: area_earldom_orkney
+  name: Earldom of Orkney
+  region: british_and_irish_isles
+  kind: historical_administration
+  source: https://www.orkney.gov.uk/media/i1snj5i3/kirkwall_conservation_area_appraisal.pdf
+- key: eastern_atlantic_sea
+  name_key: area_eastern_atlantic_sea
+  name: Eastern Atlantic Waters
+  region: eastern_atlantic
+  kind: water
+  source: null
+- key: entre_douro_e_minho
+  name_key: area_entre_douro_e_minho
+  name: Entre Douro e Minho
+  region: iberia
+  kind: historical_administration
+  source: https://riull.ull.es/xmlui/bitstream/handle/915/46414/CC_34_%282026%29_10.pdf?isAllowed=y&sequence=1
+- key: entre_tejo_e_odiana
+  name_key: area_entre_tejo_e_odiana
+  name: Entre Tejo e Odiana
+  region: iberia
+  kind: historical_administration
+  source: https://riull.ull.es/xmlui/bitstream/handle/915/46414/CC_34_%282026%29_10.pdf?isAllowed=y&sequence=1
+- key: essex
+  name_key: area_essex
+  name: Essex
+  region: british_and_irish_isles
+  kind: historical_administration
+  source: https://discovery.nationalarchives.gov.uk/manor-search
+- key: free_imperial_city_lubeck
+  name_key: area_free_imperial_city_lubeck
+  name: Free Imperial City of Lubeck
+  region: northern_continental_europe
+  kind: historical_polity
+  source: https://www2.luebeck.de/de/stadtleben/tourismus/luebeck/geschichte/luebecks-weg-zur-reichsfreiheit.html
+- key: gipuzkoa
+  name_key: area_gipuzkoa
+  name: Gipuzkoa
+  region: iberia
+  kind: historical_administration
+  source: https://www.euskadi.eus/web01-s1ezaleh/es/contenidos/informacion/historia/es_429/historia_c.html
+- key: grand_bailliage_touraine
+  name_key: area_grand_bailliage_touraine
+  name: Grand Bailliage of Touraine
+  region: western_continental_europe
+  kind: historical_administration
+  source: https://www.a2t.univ-tours.fr/pdf/RACF_suppl53_AAT-79.pdf
+- key: hampshire
+  name_key: area_hampshire
+  name: Hampshire
+  region: british_and_irish_isles
+  kind: historical_administration
+  source: https://discovery.nationalarchives.gov.uk/manor-search
+- key: iberia_emirate_of_granada
+  name_key: area_iberia_emirate_of_granada
+  name: Emirate of Granada
+  region: iberia
+  kind: historical_polity
+  source: https://github.com/Seshat-Global-History-Databank/cliopatria/releases/tag/v0.1.3
+- key: imperial_city_augsburg
+  name_key: area_imperial_city_augsburg
+  name: Imperial City of Augsburg
+  region: alpine_europe
+  kind: historical_polity
+  source: https://www.historisches-lexikon-bayerns.de/Lexikon/Artikel_45414
+- key: imperial_city_nuremberg
+  name_key: area_imperial_city_nuremberg
+  name: Imperial City of Nuremberg
+  region: northern_continental_europe
+  kind: historical_polity
+  source: https://www.historisches-lexikon-bayerns.de/Lexikon/Artikel_45427
+- key: imperial_city_ulm
+  name_key: area_imperial_city_ulm
+  name: Imperial City of Ulm
+  region: alpine_europe
+  kind: historical_polity
+  source: https://www.historisches-lexikon-bayerns.de/artikel/artikel_45432
+- key: kent
+  name_key: area_kent
+  name: Kent
+  region: british_and_irish_isles
+  kind: historical_administration
+  source: https://discovery.nationalarchives.gov.uk/manor-search
+- key: kingdom_algarve
+  name_key: area_kingdom_algarve
+  name: Kingdom of the Algarve
+  region: iberia
+  kind: historical_administration
+  source: https://journals.openedition.org/medievalista/pdf/6324
+- key: kingdom_aragon
+  name_key: area_kingdom_aragon
+  name: Kingdom of Aragon
+  region: iberia
+  kind: historical_administration
+  source: https://www.aragon.es/estatuto-de-autonomia/reyes-de-aragon
+- key: kingdom_castile
+  name_key: area_kingdom_castile
+  name: Kingdom of Castile
+  region: iberia
+  kind: historical_administration
+  source: https://tesauros.cultura.gob.es/tesauros/contextosculturales/1172659.html
+- key: kingdom_galicia
+  name_key: area_kingdom_galicia
+  name: Kingdom of Galicia
+  region: iberia
+  kind: historical_administration
+  source: https://tesauros.cultura.gob.es/tesauros/contextosculturales/1172659.html
+- key: kingdom_leon
+  name_key: area_kingdom_leon
+  name: Kingdom of Leon
+  region: iberia
+  kind: historical_administration
+  source: https://tesauros.cultura.gob.es/tesauros/contextosculturales/1172659.html
+- key: kingdom_mallorca
+  name_key: area_kingdom_mallorca
+  name: Kingdom of Mallorca
+  region: western_mediterranean
+  kind: historical_administration
+  source: https://www.aragon.es/estatuto-de-autonomia/reyes-de-aragon
+- key: kingdom_murcia
+  name_key: area_kingdom_murcia
+  name: Kingdom of Murcia
+  region: iberia
+  kind: historical_administration
+  source: https://tesauros.cultura.gob.es/tesauros/contextosculturales/1172659.html
+- key: kingdom_navarra
+  name_key: area_kingdom_navarra
+  name: Kingdom of Navarre
+  region: iberia
+  kind: historical_polity
+  source: https://www.pamplona.es/en/turismo/palacioreal
+- key: kingdom_sardinia
+  name_key: area_kingdom_sardinia
+  name: Kingdom of Sardinia
+  region: western_mediterranean
+  kind: historical_administration
+  source: https://doi.org/10.1177/0265691416649289
+- key: kingdom_valencia
+  name_key: area_kingdom_valencia
+  name: Kingdom of Valencia
+  region: iberia
+  kind: historical_administration
+  source: https://www.aragon.es/estatuto-de-autonomia/reyes-de-aragon
+- key: lancashire
+  name_key: area_lancashire
+  name: Lancashire
+  region: british_and_irish_isles
+  kind: historical_administration
+  source: https://discovery.nationalarchives.gov.uk/manor-search
+- key: leicestershire
+  name_key: area_leicestershire
+  name: Leicestershire
+  region: british_and_irish_isles
+  kind: historical_administration
+  source: https://discovery.nationalarchives.gov.uk/manor-search
+- key: lochaber
+  name_key: area_lochaber
+  name: Lochaber
+  region: british_and_irish_isles
+  kind: historical_administration
+  source: https://portal.historicenvironment.scot/apex/f?p=1505%3A300%3A%3A%3A%3A%3AVIEWTYPE%2CVIEWREF%3Adesignation%2CBTL34
+- key: lordship_biscay
+  name_key: area_lordship_biscay
+  name: Lordship of Biscay
+  region: iberia
+  kind: historical_administration
+  source: https://www.euskadi.eus/web01-s1ezaleh/es/contenidos/informacion/historia/es_429/historia_c.html
+- key: lordship_glamorgan
+  name_key: area_lordship_glamorgan
+  name: Lordship of Glamorgan
+  region: british_and_irish_isles
+  kind: historical_administration
+  source: https://datamap.gov.wales/layers/geonode%3Ahistoric_counties_bng_rcahmw_ply/metadata_detail
+- key: lordship_merida
+  name_key: area_lordship_merida
+  name: Lordship of Merida
+  region: iberia
+  kind: historical_administration
+  source: https://archivohistorico.merida.es/merida-aspectos-historicos-y-administrativos/
+- key: lordship_of_man
+  name_key: area_lordship_of_man
+  name: Lordship of Man
+  region: british_and_irish_isles
+  kind: historical_polity
+  source: https://isle-of-man.com/manxnotebook/history/1792/c002.htm
+- key: lordship_roscommon
+  name_key: area_lordship_roscommon
+  name: Lordship of Roscommon
+  region: british_and_irish_isles
+  kind: historical_polity
+  source: https://heritageireland.ie/places-to-visit/roscommon-castle-south-west-tower/
+- key: marcher_lordship_gower
+  name_key: area_marcher_lordship_gower
+  name: Marcher Lordship of Gower
+  region: british_and_irish_isles
+  kind: historical_administration
+  source: https://cadw.gov.wales/sites/default/files/2019-04/InterpplanlordsSouthernMarch_EN_CY.pdf
+- key: norfolk
+  name_key: area_norfolk
+  name: Norfolk
+  region: british_and_irish_isles
+  kind: historical_administration
+  source: https://discovery.nationalarchives.gov.uk/manor-search
+- key: north_africa_unclassified
+  name_key: area_north_africa_unclassified
+  name: North Africa (Unclassified)
+  region: north_africa
+  kind: unclassified
+  source: null
+- key: north_sea_sea
+  name_key: area_north_sea_sea
+  name: North Sea Waters
+  region: north_sea
+  kind: water
+  source: null
+- key: northamptonshire
+  name_key: area_northamptonshire
+  name: Northamptonshire
+  region: british_and_irish_isles
+  kind: historical_administration
+  source: https://discovery.nationalarchives.gov.uk/manor-search
+- key: northern_continental_europe_duchy_of_burgundy
+  name_key: area_northern_continental_europe_duchy_of_burgundy
+  name: Duchy of Burgundy
+  region: northern_continental_europe
+  kind: historical_polity
+  source: https://github.com/Seshat-Global-History-Databank/cliopatria/releases/tag/v0.1.3
+- key: northern_continental_europe_duchy_of_luxembourg
+  name_key: area_northern_continental_europe_duchy_of_luxembourg
+  name: Duchy of Luxembourg
+  region: northern_continental_europe
+  kind: historical_polity
+  source: https://github.com/Seshat-Global-History-Databank/cliopatria/releases/tag/v0.1.3
+- key: northern_continental_europe_unclassified
+  name_key: area_northern_continental_europe_unclassified
+  name: Northern Continental Europe (Unclassified)
+  region: northern_continental_europe
+  kind: unclassified
+  source: null
+- key: northumberland
+  name_key: area_northumberland
+  name: Northumberland
+  region: british_and_irish_isles
+  kind: historical_administration
+  source: https://discovery.nationalarchives.gov.uk/manor-search
+- key: nottinghamshire
+  name_key: area_nottinghamshire
+  name: Nottinghamshire
+  region: british_and_irish_isles
+  kind: historical_administration
+  source: https://discovery.nationalarchives.gov.uk/manor-search
+- key: oxfordshire
+  name_key: area_oxfordshire
+  name: Oxfordshire
+  region: british_and_irish_isles
+  kind: historical_administration
+  source: https://discovery.nationalarchives.gov.uk/manor-search
+- key: portuguese_estremadura
+  name_key: area_portuguese_estremadura
+  name: Portuguese Estremadura
+  region: iberia
+  kind: historical_administration
+  source: https://riull.ull.es/xmlui/bitstream/handle/915/46414/CC_34_%282026%29_10.pdf?isAllowed=y&sequence=1
+- key: prevote_paris
+  name_key: area_prevote_paris
+  name: Prevote of Paris
+  region: western_continental_europe
+  kind: historical_administration
+  source: https://www.persee.fr/doc/bec_0373-6237_1999_num_157_2_450994?pageId=T1_567
+- key: prince_bishopric_wurzburg
+  name_key: area_prince_bishopric_wurzburg
+  name: Prince-Bishopric of Wurzburg
+  region: northern_continental_europe
+  kind: historical_polity
+  source: https://www.historisches-lexikon-bayerns.de/Lexikon/Artikel_45374
+- key: principality_catalonia
+  name_key: area_principality_catalonia
+  name: Principality of Catalonia
+  region: iberia
+  kind: historical_administration
+  source: https://www.aragon.es/estatuto-de-autonomia/reyes-de-aragon
+- key: scandinavia_unclassified
+  name_key: area_scandinavia_unclassified
+  name: Scandinavia (Unclassified)
+  region: scandinavia
+  kind: unclassified
+  source: null
+- key: seigneurie_versailles
+  name_key: area_seigneurie_versailles
+  name: Seigneurie of Versailles
+  region: western_continental_europe
+  kind: historical_administration
+  source: https://www.versailles.fr/fileadmin/www.versailles.fr/MEDIA/Formation/Aurelia/1a-rapport-de-presentation-partie-1.pdf
+- key: senechaussee_agenais
+  name_key: area_senechaussee_agenais
+  name: Senechaussee of Agenais
+  region: western_continental_europe
+  kind: historical_administration
+  source: https://www.francescas.info/archives/economie_antan/taxes1461.pdf
+- key: senechaussee_limousin
+  name_key: area_senechaussee_limousin
+  name: Royal Senechaussee of Limousin
+  region: western_continental_europe
+  kind: historical_administration
+  source: https://www.guyenne.fr/ArchivesPerigord/Index_Guyenne/inventaire_guyenne_part5.pdf
+- key: senechaussee_lyon
+  name_key: area_senechaussee_lyon
+  name: Senechaussee of Lyon
+  region: western_continental_europe
+  kind: historical_administration
+  source: https://archives.rhone.fr/media/d48f2c26-d8cd-4d95-8a0f-b91e6dcc5950.pdf
+- key: senechaussee_nimes_beaucaire
+  name_key: area_senechaussee_nimes_beaucaire
+  name: Senechaussee of Nimes and Beaucaire
+  region: western_continental_europe
+  kind: historical_administration
+  source: https://archives.gard.fr/transmettre/pour-memoire/chroniques-passees/traces-darchives-laffaire-est-dans-le-sac.html
+- key: senechaussee_poitou
+  name_key: area_senechaussee_poitou
+  name: Royal Senechaussee of Poitou
+  region: western_continental_europe
+  kind: historical_administration
+  source: https://sigilla.irht.cnrs.fr/223145
+- key: sheriffdom_aberdeen
+  name_key: area_sheriffdom_aberdeen
+  name: Sheriffdom of Aberdeen
+  region: british_and_irish_isles
+  kind: historical_administration
+  source: https://books.socantscot.org/digital-books/catalog/book/25
+- key: sheriffdom_ayr
+  name_key: area_sheriffdom_ayr
+  name: Sheriffdom of Ayr
+  region: british_and_irish_isles
+  kind: historical_administration
+  source: https://books.socantscot.org/digital-books/catalog/book/25
+- key: sheriffdom_dumfries
+  name_key: area_sheriffdom_dumfries
+  name: Sheriffdom of Dumfries
+  region: british_and_irish_isles
+  kind: historical_administration
+  source: https://books.socantscot.org/digital-books/catalog/book/25
+- key: sheriffdom_edinburgh
+  name_key: area_sheriffdom_edinburgh
+  name: Sheriffdom of Edinburgh
+  region: british_and_irish_isles
+  kind: historical_administration
+  source: https://books.socantscot.org/digital-books/catalog/book/25
+- key: sheriffdom_forfar
+  name_key: area_sheriffdom_forfar
+  name: Sheriffdom of Forfar
+  region: british_and_irish_isles
+  kind: historical_administration
+  source: https://books.socantscot.org/digital-books/catalog/book/25
+- key: sheriffdom_inverness
+  name_key: area_sheriffdom_inverness
+  name: Sheriffdom of Inverness
+  region: british_and_irish_isles
+  kind: historical_administration
+  source: https://books.socantscot.org/digital-books/catalog/book/25
+- key: sheriffdom_lanark
+  name_key: area_sheriffdom_lanark
+  name: Sheriffdom of Lanark
+  region: british_and_irish_isles
+  kind: historical_administration
+  source: https://books.socantscot.org/digital-books/catalog/book/25
+- key: sheriffdom_perth
+  name_key: area_sheriffdom_perth
+  name: Sheriffdom of Perth
+  region: british_and_irish_isles
+  kind: historical_administration
+  source: https://books.socantscot.org/digital-books/catalog/book/25
+- key: sheriffdom_renfrew
+  name_key: area_sheriffdom_renfrew
+  name: Sheriffdom of Renfrew
+  region: british_and_irish_isles
+  kind: historical_administration
+  source: https://books.socantscot.org/digital-books/catalog/book/25
+- key: somerset
+  name_key: area_somerset
+  name: Somerset
+  region: british_and_irish_isles
+  kind: historical_administration
+  source: https://discovery.nationalarchives.gov.uk/manor-search
+- key: staffordshire
+  name_key: area_staffordshire
+  name: Staffordshire
+  region: british_and_irish_isles
+  kind: historical_administration
+  source: https://discovery.nationalarchives.gov.uk/manor-search
+- key: suffolk
+  name_key: area_suffolk
+  name: Suffolk
+  region: british_and_irish_isles
+  kind: historical_administration
+  source: https://discovery.nationalarchives.gov.uk/manor-search
+- key: sussex
+  name_key: area_sussex
+  name: Sussex
+  region: british_and_irish_isles
+  kind: historical_administration
+  source: https://discovery.nationalarchives.gov.uk/manor-search
+- key: town_of_galway
+  name_key: area_town_of_galway
+  name: Chartered Town of Galway
+  region: british_and_irish_isles
+  kind: historical_administration
+  source: https://www.cambridge.org/core/journals/irish-historical-studies/article/urban-rebels-in-medieval-connacht-the-revolt-of-galway-13889/F6940548B2F597517C1651D601CAB71C
+- key: tras_os_montes
+  name_key: area_tras_os_montes
+  name: Tras-os-Montes
+  region: iberia
+  kind: historical_administration
+  source: https://riull.ull.es/xmlui/bitstream/handle/915/46414/CC_34_%282026%29_10.pdf?isAllowed=y&sequence=1
+- key: viscounty_turenne
+  name_key: area_viscounty_turenne
+  name: Viscounty of Turenne
+  region: western_continental_europe
+  kind: historical_administration
+  source: https://raw.githubusercontent.com/chartes/encpos/metadata/data/ENCPOS_1992/ENCPOS_1992_17.PDF
+- key: warwickshire
+  name_key: area_warwickshire
+  name: Warwickshire
+  region: british_and_irish_isles
+  kind: historical_administration
+  source: https://discovery.nationalarchives.gov.uk/manor-search
+- key: western_continental_europe_county_of_armagnac
+  name_key: area_western_continental_europe_county_of_armagnac
+  name: County of Armagnac
+  region: western_continental_europe
+  kind: historical_polity
+  source: https://github.com/Seshat-Global-History-Databank/cliopatria/releases/tag/v0.1.3
+- key: western_continental_europe_county_of_nevers
+  name_key: area_western_continental_europe_county_of_nevers
+  name: County of Nevers
+  region: western_continental_europe
+  kind: historical_polity
+  source: https://github.com/Seshat-Global-History-Databank/cliopatria/releases/tag/v0.1.3
+- key: western_continental_europe_duchy_of_brittany
+  name_key: area_western_continental_europe_duchy_of_brittany
+  name: Duchy of Brittany
+  region: western_continental_europe
+  kind: historical_polity
+  source: https://github.com/Seshat-Global-History-Databank/cliopatria/releases/tag/v0.1.3
+- key: western_continental_europe_duchy_of_burgundy
+  name_key: area_western_continental_europe_duchy_of_burgundy
+  name: Duchy of Burgundy
+  region: western_continental_europe
+  kind: historical_polity
+  source: https://github.com/Seshat-Global-History-Databank/cliopatria/releases/tag/v0.1.3
+- key: western_continental_europe_unclassified
+  name_key: area_western_continental_europe_unclassified
+  name: Western Continental Europe (Unclassified)
+  region: western_continental_europe
+  kind: unclassified
+  source: null
+- key: western_mediterranean_sea
+  name_key: area_western_mediterranean_sea
+  name: Western Mediterranean Waters
+  region: western_mediterranean
+  kind: water
+  source: null
+- key: western_mediterranean_unclassified
+  name_key: area_western_mediterranean_unclassified
+  name: Western Mediterranean (Unclassified)
+  region: western_mediterranean
+  kind: unclassified
+  source: null
+- key: yorkshire
+  name_key: area_yorkshire
+  name: Yorkshire
+  region: british_and_irish_isles
+  kind: historical_administration
+  source: https://discovery.nationalarchives.gov.uk/manor-search

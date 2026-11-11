@@ -1,9 +1,9 @@
-use std::{fs, io, path::PathBuf};
+use std::{collections::BTreeSet, fs, io, path::PathBuf};
 
 use serde_json::{json, Value};
 use strategy_data::{
-    load_game, load_provinces, load_scenario, load_scenario_from_reader, save_game, state_hash,
-    SaveError, ScenarioLoadError,
+    load_game, load_provinces, load_scenario, load_scenario_from_reader, parse_provinces,
+    save_game, state_hash, SaveError, ScenarioLoadError,
 };
 use strategy_sim::{Controller, GameState, ProvinceGraph, ProvinceKind};
 
@@ -12,11 +12,33 @@ fn data_root() -> PathBuf {
 }
 
 fn graph() -> ProvinceGraph {
-    load_provinces(data_root().join("map/western_europe/provinces.json")).unwrap()
+    parse_provinces(include_bytes!("fixtures/western_europe_v2.json")).unwrap()
+}
+
+// Keep the old graph and its ownership together for tests with fixed IDs and routes.
+// Rulers, profiles and the rest of each country record come from the scenario assets.
+fn legacy_read(logical: &str) -> io::Result<Vec<u8>> {
+    let data = fs::read(data_root().join(logical))?;
+    let mut file: Value = serde_json::from_slice(&data).unwrap();
+    let legacy: Value =
+        serde_json::from_str(include_str!("fixtures/western_europe_v2_ownership.json")).unwrap();
+    if logical == "scenarios/1440.json" {
+        file.as_object_mut().unwrap().remove("unowned_provinces");
+        file["military"]["forts"] = legacy["forts"].clone();
+    } else if let Some(tag) = logical
+        .strip_prefix("countries/")
+        .and_then(|path| path.strip_suffix(".json"))
+    {
+        if let Some(country) = legacy["countries"].get(tag) {
+            file["capital"] = country["capital"].clone();
+            file["start"]["provinces"] = country["provinces"].clone();
+        }
+    }
+    Ok(serde_json::to_vec(&file).unwrap())
 }
 
 fn original() -> GameState {
-    load_scenario(graph(), data_root().join("scenarios/1440.json")).unwrap()
+    load_scenario_from_reader(graph(), "1440", legacy_read).unwrap()
 }
 
 fn m3_state() -> GameState {
@@ -27,15 +49,14 @@ fn m3_state() -> GameState {
 }
 
 fn edited_file(path: &str, edit: impl FnOnce(&mut Value)) -> Result<GameState, ScenarioLoadError> {
-    let root = data_root();
-    let mut value: Value = serde_json::from_slice(&fs::read(root.join(path)).unwrap()).unwrap();
+    let mut value: Value = serde_json::from_slice(&legacy_read(path).unwrap()).unwrap();
     edit(&mut value);
     let replacement = serde_json::to_vec(&value).unwrap();
     load_scenario_from_reader(graph(), "1440", |logical| {
         if logical == path {
             Ok(replacement.clone())
         } else {
-            fs::read(root.join(logical))
+            legacy_read(logical)
         }
     })
 }
@@ -216,16 +237,15 @@ fn rejects_duplicate_human_slots_and_paths_outside_the_resolver_contract() {
         "invalid country key",
     );
 
-    let root = data_root();
-    let bytes = fs::read_to_string(root.join("scenarios/1440.json")).unwrap();
-    let duplicate = bytes.replace("\"eng\": 1", "\"eng\": 1, \"eng\": 2");
+    let bytes = String::from_utf8(legacy_read("scenarios/1440.json").unwrap()).unwrap();
+    let duplicate = bytes.replace("\"eng\":1", "\"eng\":1,\"eng\":2");
     assert_ne!(duplicate, bytes);
     assert_invalid(
         load_scenario_from_reader(graph(), "1440", |path| -> io::Result<Vec<u8>> {
             if path == "scenarios/1440.json" {
                 Ok(duplicate.as_bytes().to_vec())
             } else {
-                fs::read(root.join(path))
+                legacy_read(path)
             }
         }),
         "duplicate object key",
@@ -475,5 +495,71 @@ fn save_v3_preserves_active_armies_movement_sieges_and_treaties() {
     assert!(matches!(
         load_game(&serde_json::to_vec(&invalid).unwrap(), graph()),
         Err(SaveError::InvalidMilitary(_))
+    ));
+}
+
+#[test]
+fn explicit_unowned_land_must_partition_the_map() {
+    let state = original();
+    let unowned: Vec<_> = state
+        .province_graph()
+        .iter()
+        .filter(|province| province.kind == ProvinceKind::Land)
+        .filter(|province| state.owner_of_province(province.id).is_none())
+        .map(|province| province.key.clone())
+        .collect();
+    assert_eq!(unowned.len(), 18);
+    let with_unowned = |provinces: Value| {
+        edited_file("scenarios/1440.json", |scenario| {
+            scenario["unowned_provinces"] = provinces;
+        })
+    };
+    assert_eq!(with_unowned(json!(unowned)).unwrap(), original());
+    assert_invalid(
+        with_unowned(json!([])),
+        "neither owned nor declared unowned",
+    );
+
+    for (key, expected) in [
+        ("london", "both owned and declared unowned"),
+        ("north_sea", "is not land"),
+        ("nonexistent", "unknown province"),
+        (unowned[0].as_str(), "duplicate unowned province"),
+    ] {
+        let mut declared = unowned.clone();
+        declared.push(key.into());
+        assert_invalid(with_unowned(json!(declared)), expected);
+    }
+    assert_invalid(with_unowned(Value::Null), "invalid type: null");
+}
+
+#[test]
+fn city_map_scenario_loads_with_explicit_land_partition_and_round_trips() {
+    let data = data_root();
+    let map = load_provinces(data.join("map/western_europe/provinces.json")).unwrap();
+    let scenario_path = data.join("scenarios/1440.json");
+    let state = load_scenario(map.clone(), &scenario_path).unwrap();
+    let scenario: Value = serde_json::from_slice(&fs::read(scenario_path).unwrap()).unwrap();
+    let declared: BTreeSet<_> = scenario["unowned_provinces"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|entry| entry.as_str().unwrap())
+        .collect();
+    let neutral: BTreeSet<_> = map
+        .iter()
+        .filter(|province| province.kind == ProvinceKind::Land)
+        .filter(|province| state.owner_of_province(province.id).is_none())
+        .map(|province| province.key.as_str())
+        .collect();
+    assert_eq!(declared, neutral);
+    assert_eq!(map.identity().version.get(), 3);
+    assert_eq!(state.polity().unwrap().countries.len(), 6);
+    assert_eq!(state.polity().unwrap().characters.len(), 13);
+    let bytes = save_game(&state).unwrap();
+    assert_eq!(load_game(&bytes, map).unwrap(), state);
+    assert!(matches!(
+        load_game(&bytes, graph()),
+        Err(SaveError::MapMismatch(_))
     ));
 }

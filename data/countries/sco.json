@@ -7,14 +7,25 @@
     99,
     177
   ],
-  "capital": "lowlands",
+  "capital": "edinburgh",
   "ai_profile": "balanced",
   "start": {
     "ruler": "james_ii_scotland",
     "heir": null,
     "provinces": [
-      "highlands",
-      "lowlands"
+      "aberdeen",
+      "ayr",
+      "belfast",
+      "dumfries",
+      "dundee",
+      "edinburgh",
+      "fort_william",
+      "glasgow",
+      "greenock",
+      "inverness",
+      "londonderry_derry",
+      "perth",
+      "wick"
     ],
     "treasury": 65000,
     "tax_rate": 230,

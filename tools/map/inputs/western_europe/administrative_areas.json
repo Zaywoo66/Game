@@ -1,0 +1,1295 @@
+{
+  "sources": {
+    "castile": "https://tesauros.cultura.gob.es/tesauros/contextosculturales/1172659.html",
+    "aragon": "https://www.aragon.es/estatuto-de-autonomia/reyes-de-aragon",
+    "aragon_archive": "https://doi.org/10.1177/0265691416649289",
+    "england": "https://discovery.nationalarchives.gov.uk/manor-search",
+    "scotland": "https://books.socantscot.org/digital-books/catalog/book/25",
+    "normandy": "https://arca.irht.cnrs.fr/ark%3A/63955/md39x059fd5p",
+    "france": "https://archives.dijon.fr/ARCHIVES/basicfilesdownload.ashx?itemGuid=D5806B66-5C83-4E8F-9EFC-948A20249178",
+    "portugal": "https://riull.ull.es/xmlui/bitstream/handle/915/46414/CC_34_%282026%29_10.pdf?isAllowed=y&sequence=1",
+    "algarve": "https://journals.openedition.org/medievalista/pdf/6324",
+    "rouen": "https://rouen.fr/index.php/fr/moyen-age",
+    "andorra": "https://www.govern.ad/ca/w/arxius-en-linia-amplia-els-fons-de-consulta-amb-22-documents-textuals-1",
+    "navarre": "https://www.pamplona.es/en/turismo/palacioreal",
+    "basque": "https://www.euskadi.eus/web01-s1ezaleh/es/contenidos/informacion/historia/es_429/historia_c.html",
+    "provence": "https://officiersgrepsomm.uqam.ca/page/biographie.php?tri=A",
+    "dauphine": "https://archives.isere.fr/sites/isere-archives-fr/files/inline-files/04%20Grenoble%20au%20Moyen%20%C3%82ge_0.pdf",
+    "nimes_beaucaire": "https://archives.gard.fr/transmettre/pour-memoire/chroniques-passees/traces-darchives-laffaire-est-dans-le-sac.html",
+    "forez": "https://archives.saint-etienne.fr/histoires-stephanoises-1/tranches-dhistoire/histoire-de-la-ville-et-de-son-administration/saint-etienne-toute-une-histoire-/les-origines",
+    "corsica": "https://www.treccani.it/enciclopedia/corsica/",
+    "free_imperial_city_lubeck": "https://www2.luebeck.de/de/stadtleben/tourismus/luebeck/geschichte/luebecks-weg-zur-reichsfreiheit.html",
+    "imperial_city_nuremberg": "https://www.historisches-lexikon-bayerns.de/Lexikon/Artikel_45427",
+    "imperial_city_ulm": "https://www.historisches-lexikon-bayerns.de/artikel/artikel_45432",
+    "imperial_city_augsburg": "https://www.historisches-lexikon-bayerns.de/Lexikon/Artikel_45414",
+    "prince_bishopric_wurzburg": "https://www.historisches-lexikon-bayerns.de/Lexikon/Artikel_45374",
+    "county_wurttemberg": "https://www.leo-bw.de/en-GB/detail/-/Detail/details/PERSON/wlbblb_personen/121765482/W%C3%BCrttemberg%2BUlrich%2BV%3B%2BGraf%2Bvon",
+    "bernese_aargau": "https://hls-dhs-dss.ch/de/articles/007392/2018-02-06",
+    "county_holland": "https://www.geschiedenisvanzuidholland.nl/verhalen/verhalen/bestuurscentrum-van-de-graven-1000-1572/",
+    "senechaussee_lyon": "https://archives.rhone.fr/media/d48f2c26-d8cd-4d95-8a0f-b91e6dcc5950.pdf",
+    "duchy_guyenne": "https://theses.fr/api/v1/document/2021BRES0046/These-2021-STT-Histoire-SOZZI_Serena-Volume_1.pdf",
+    "grand_bailliage_touraine": "https://www.a2t.univ-tours.fr/pdf/RACF_suppl53_AAT-79.pdf",
+    "duchy_orleans": "https://bibliographienumeriquedhistoiredudroit-ifg.univ-lorraine.fr/s/droit/item/133323",
+    "bailliage_troyes": "https://sigilla.irht.cnrs.fr/42305",
+    "duchy_bourbonnais": "https://bibliotheque-numerique.bu.uca.fr/files/original/377316/377681/BCU_Vichy_et_ses_environs_294948.pdf",
+    "earldom_orkney": "https://www.orkney.gov.uk/media/i1snj5i3/kirkwall_conservation_area_appraisal.pdf",
+    "lochaber": "https://portal.historicenvironment.scot/apex/f?p=1505%3A300%3A%3A%3A%3A%3AVIEWTYPE%2CVIEWREF%3Adesignation%2CBTL34",
+    "lordship_roscommon": "https://heritageireland.ie/places-to-visit/roscommon-castle-south-west-tower/",
+    "capitoulat_toulouse": "https://www.archives.toulouse.fr/archives-en-ligne/consultez-les-archives-numerisees/les-enluminures-des-annales/enluminure-1440",
+    "lordship_merida": "https://archivohistorico.merida.es/merida-aspectos-historicos-y-administrativos/",
+    "marcher_lordship_gower": "https://cadw.gov.wales/sites/default/files/2019-04/InterpplanlordsSouthernMarch_EN_CY.pdf",
+    "lordship_glamorgan": "https://datamap.gov.wales/layers/geonode%3Ahistoric_counties_bng_rcahmw_ply/metadata_detail",
+    "duchy_anjou": "https://archives.angers.fr/aide-memoire/angers-en-dates/angers-dans-l-histoire/les-princes-angevins/index.html",
+    "county_maine": "https://books.openedition.org/efr/4038?lang=fr",
+    "duchy_berry": "https://journals.openedition.org/tabularia/pdf/1400",
+    "senechaussee_poitou": "https://sigilla.irht.cnrs.fr/223145",
+    "senechaussee_agenais": "https://www.francescas.info/archives/economie_antan/taxes1461.pdf",
+    "prevote_paris": "https://www.persee.fr/doc/bec_0373-6237_1999_num_157_2_450994?pageId=T1_567",
+    "seigneurie_versailles": "https://www.versailles.fr/fileadmin/www.versailles.fr/MEDIA/Formation/Aurelia/1a-rapport-de-presentation-partie-1.pdf",
+    "viscounty_turenne": "https://raw.githubusercontent.com/chartes/encpos/metadata/data/ENCPOS_1992/ENCPOS_1992_17.PDF",
+    "city_of_cork": "https://www.corkcity.ie/en/council-services/councillors-and-democracy/history-of-the-council/charters/",
+    "city_of_waterford": "https://waterfordcouncil.ie/services/culture-heritage/archives/collections/waterford-city-council-collection-2/",
+    "city_of_dublin": "https://www.dublincity.ie/libraries/heritage-and-history-resources/dublin-city-assembly",
+    "earldom_of_ormond": "https://www.kilkennycastle.ie/wp-content/uploads/2022/08/kilkenny_networks_brochure.pdf",
+    "town_of_galway": "https://www.cambridge.org/core/journals/irish-historical-studies/article/urban-rebels-in-medieval-connacht-the-revolt-of-galway-13889/F6940548B2F597517C1651D601CAB71C",
+    "lordship_of_man": "https://isle-of-man.com/manxnotebook/history/1792/c002.htm",
+    "county_town_drogheda": "https://www.archaeology.ie/app/uploads/2025/05/County_Louth_Urban_Archaeology_Survey_1985-1.pdf",
+    "concejo_badajoz": "https://www.aytobadajoz.es/es/ayto/publicaciones/categoria/96/facsmil/listado/0/",
+    "consulate_beziers": "https://www.persee.fr/doc/amime_0758-7708_1989_num_7_1_1191",
+    "aunis": "https://books.openedition.org/pur/pdf/19535",
+    "senechaussee_limousin": "https://www.guyenne.fr/ArchivesPerigord/Index_Guyenne/inventaire_guyenne_part5.pdf"
+  },
+  "areas": [
+    {
+      "key": "alava",
+      "name": "Alava",
+      "region": "iberia",
+      "region_name": "Iberia",
+      "source": "basque",
+      "cities": [
+        "vitoria"
+      ],
+      "kind": "historical_administration"
+    },
+    {
+      "key": "andorran_co_lordship",
+      "name": "Andorran Co-lordship",
+      "region": "iberia",
+      "region_name": "Iberia",
+      "source": "andorra",
+      "cities": [
+        "andorra"
+      ],
+      "kind": "historical_polity"
+    },
+    {
+      "key": "aunis",
+      "name": "Aunis",
+      "region": "western_continental_europe",
+      "region_name": "Western Continental Europe",
+      "source": "aunis",
+      "cities": [
+        "la_rochelle"
+      ],
+      "kind": "historical_administration"
+    },
+    {
+      "key": "bailliage_auxerre",
+      "name": "Bailliage of Auxerre",
+      "region": "western_continental_europe",
+      "region_name": "Western Continental Europe",
+      "source": "france",
+      "cities": [
+        "auxerre"
+      ],
+      "kind": "historical_administration"
+    },
+    {
+      "key": "bailliage_melun",
+      "name": "Bailliage of Melun",
+      "region": "western_continental_europe",
+      "region_name": "Western Continental Europe",
+      "source": "france",
+      "cities": [
+        "melun"
+      ],
+      "kind": "historical_administration"
+    },
+    {
+      "key": "bailliage_troyes",
+      "name": "Bailliage of Troyes",
+      "region": "western_continental_europe",
+      "region_name": "Western Continental Europe",
+      "source": "bailliage_troyes",
+      "cities": [
+        "troyes"
+      ],
+      "kind": "historical_administration"
+    },
+    {
+      "key": "bedfordshire",
+      "name": "Bedfordshire",
+      "region": "british_and_irish_isles",
+      "region_name": "British and Irish Isles",
+      "source": "england",
+      "cities": [
+        "luton"
+      ],
+      "kind": "historical_administration"
+    },
+    {
+      "key": "beira",
+      "name": "Beira",
+      "region": "iberia",
+      "region_name": "Iberia",
+      "source": "portugal",
+      "cities": [
+        "aveiro",
+        "castelo_branco",
+        "coimbra",
+        "covilha",
+        "guarda",
+        "viseu"
+      ],
+      "kind": "historical_administration"
+    },
+    {
+      "key": "berkshire",
+      "name": "Berkshire",
+      "region": "british_and_irish_isles",
+      "region_name": "British and Irish Isles",
+      "source": "england",
+      "cities": [
+        "reading"
+      ],
+      "kind": "historical_administration"
+    },
+    {
+      "key": "bernese_aargau",
+      "name": "Bernese Aargau",
+      "region": "alpine_europe",
+      "region_name": "Alpine Europe",
+      "source": "bernese_aargau",
+      "cities": [
+        "aarau"
+      ],
+      "kind": "historical_administration"
+    },
+    {
+      "key": "cambridgeshire",
+      "name": "Cambridgeshire",
+      "region": "british_and_irish_isles",
+      "region_name": "British and Irish Isles",
+      "source": "england",
+      "cities": [
+        "cambridge"
+      ],
+      "kind": "historical_administration"
+    },
+    {
+      "key": "capitoulat_toulouse",
+      "name": "Capitoulat of Toulouse",
+      "region": "western_continental_europe",
+      "region_name": "Western Continental Europe",
+      "source": "capitoulat_toulouse",
+      "cities": [
+        "toulouse"
+      ],
+      "kind": "historical_administration"
+    },
+    {
+      "key": "castilian_andalusia",
+      "name": "Castilian Andalusia",
+      "region": "iberia",
+      "region_name": "Iberia",
+      "source": "castile",
+      "cities": [
+        "cadiz",
+        "cordoba",
+        "huelva",
+        "jaen",
+        "linares",
+        "seville"
+      ],
+      "kind": "historical_administration"
+    },
+    {
+      "key": "cheshire",
+      "name": "Cheshire",
+      "region": "british_and_irish_isles",
+      "region_name": "British and Irish Isles",
+      "source": "england",
+      "cities": [
+        "chester"
+      ],
+      "kind": "historical_administration"
+    },
+    {
+      "key": "city_of_cork",
+      "name": "Chartered City of Cork",
+      "region": "british_and_irish_isles",
+      "region_name": "British and Irish Isles",
+      "source": "city_of_cork",
+      "cities": [
+        "cork"
+      ],
+      "kind": "historical_administration"
+    },
+    {
+      "key": "city_of_dublin",
+      "name": "City of Dublin",
+      "region": "british_and_irish_isles",
+      "region_name": "British and Irish Isles",
+      "source": "city_of_dublin",
+      "cities": [
+        "dublin"
+      ],
+      "kind": "historical_administration"
+    },
+    {
+      "key": "city_of_london",
+      "name": "City of London",
+      "region": "british_and_irish_isles",
+      "region_name": "British and Irish Isles",
+      "source": "england",
+      "cities": [
+        "london"
+      ],
+      "kind": "historical_administration"
+    },
+    {
+      "key": "city_of_waterford",
+      "name": "Chartered City of Waterford",
+      "region": "british_and_irish_isles",
+      "region_name": "British and Irish Isles",
+      "source": "city_of_waterford",
+      "cities": [
+        "waterford"
+      ],
+      "kind": "historical_administration"
+    },
+    {
+      "key": "concejo_badajoz",
+      "name": "Concejo of Badajoz",
+      "region": "iberia",
+      "region_name": "Iberia",
+      "source": "concejo_badajoz",
+      "cities": [
+        "badajoz"
+      ],
+      "kind": "historical_administration"
+    },
+    {
+      "key": "consulate_beziers",
+      "name": "Consulate of Beziers",
+      "region": "western_continental_europe",
+      "region_name": "Western Continental Europe",
+      "source": "consulate_beziers",
+      "cities": [
+        "beziers"
+      ],
+      "kind": "historical_administration"
+    },
+    {
+      "key": "cornwall",
+      "name": "Cornwall",
+      "region": "british_and_irish_isles",
+      "region_name": "British and Irish Isles",
+      "source": "england",
+      "cities": [
+        "penzance"
+      ],
+      "kind": "historical_administration"
+    },
+    {
+      "key": "county_durham",
+      "name": "County Durham",
+      "region": "british_and_irish_isles",
+      "region_name": "British and Irish Isles",
+      "source": "england",
+      "cities": [
+        "sunderland"
+      ],
+      "kind": "historical_administration"
+    },
+    {
+      "key": "county_forez",
+      "name": "County of Forez",
+      "region": "western_continental_europe",
+      "region_name": "Western Continental Europe",
+      "source": "forez",
+      "cities": [
+        "saint_etienne"
+      ],
+      "kind": "historical_administration"
+    },
+    {
+      "key": "county_holland",
+      "name": "County of Holland",
+      "region": "northern_continental_europe",
+      "region_name": "Northern Continental Europe",
+      "source": "county_holland",
+      "cities": [
+        "the_hague"
+      ],
+      "kind": "historical_administration"
+    },
+    {
+      "key": "county_maine",
+      "name": "County of Maine",
+      "region": "western_continental_europe",
+      "region_name": "Western Continental Europe",
+      "source": "county_maine",
+      "cities": [
+        "le_mans"
+      ],
+      "kind": "historical_administration"
+    },
+    {
+      "key": "county_of_bristol",
+      "name": "County of Bristol",
+      "region": "british_and_irish_isles",
+      "region_name": "British and Irish Isles",
+      "source": "england",
+      "cities": [
+        "bristol"
+      ],
+      "kind": "historical_administration"
+    },
+    {
+      "key": "county_provence",
+      "name": "County of Provence",
+      "region": "western_continental_europe",
+      "region_name": "Western Continental Europe",
+      "source": "provence",
+      "cities": [
+        "aix_en_provence",
+        "marseille",
+        "toulon"
+      ],
+      "kind": "historical_administration"
+    },
+    {
+      "key": "county_town_drogheda",
+      "name": "County of the Town of Drogheda",
+      "region": "british_and_irish_isles",
+      "region_name": "British and Irish Isles",
+      "source": "county_town_drogheda",
+      "cities": [
+        "drogheda"
+      ],
+      "kind": "historical_administration"
+    },
+    {
+      "key": "county_wurttemberg",
+      "name": "County of Wurttemberg",
+      "region": "alpine_europe",
+      "region_name": "Alpine Europe",
+      "source": "county_wurttemberg",
+      "cities": [
+        "stuttgart"
+      ],
+      "kind": "historical_administration"
+    },
+    {
+      "key": "cumberland",
+      "name": "Cumberland",
+      "region": "british_and_irish_isles",
+      "region_name": "British and Irish Isles",
+      "source": "england",
+      "cities": [
+        "carlisle"
+      ],
+      "kind": "historical_administration"
+    },
+    {
+      "key": "dauphine",
+      "name": "Dauphine",
+      "region": "western_continental_europe",
+      "region_name": "Western Continental Europe",
+      "source": "dauphine",
+      "cities": [
+        "grenoble"
+      ],
+      "kind": "historical_administration"
+    },
+    {
+      "key": "devon",
+      "name": "Devon",
+      "region": "british_and_irish_isles",
+      "region_name": "British and Irish Isles",
+      "source": "england",
+      "cities": [
+        "exeter",
+        "plymouth"
+      ],
+      "kind": "historical_administration"
+    },
+    {
+      "key": "dorset",
+      "name": "Dorset",
+      "region": "british_and_irish_isles",
+      "region_name": "British and Irish Isles",
+      "source": "england",
+      "cities": [
+        "bournemouth"
+      ],
+      "kind": "historical_administration"
+    },
+    {
+      "key": "duchy_anjou",
+      "name": "Duchy of Anjou",
+      "region": "western_continental_europe",
+      "region_name": "Western Continental Europe",
+      "source": "duchy_anjou",
+      "cities": [
+        "angers"
+      ],
+      "kind": "historical_administration"
+    },
+    {
+      "key": "duchy_berry",
+      "name": "Duchy of Berry",
+      "region": "western_continental_europe",
+      "region_name": "Western Continental Europe",
+      "source": "duchy_berry",
+      "cities": [
+        "bourges"
+      ],
+      "kind": "historical_administration"
+    },
+    {
+      "key": "duchy_bourbonnais",
+      "name": "Duchy of Bourbonnais",
+      "region": "western_continental_europe",
+      "region_name": "Western Continental Europe",
+      "source": "duchy_bourbonnais",
+      "cities": [
+        "vichy"
+      ],
+      "kind": "historical_administration"
+    },
+    {
+      "key": "duchy_guyenne",
+      "name": "Duchy of Guyenne",
+      "region": "western_continental_europe",
+      "region_name": "Western Continental Europe",
+      "source": "duchy_guyenne",
+      "cities": [
+        "bordeaux"
+      ],
+      "kind": "historical_administration"
+    },
+    {
+      "key": "duchy_normandy",
+      "name": "Duchy of Normandy",
+      "region": "western_continental_europe",
+      "region_name": "Western Continental Europe",
+      "source": "normandy",
+      "cities": [
+        "caen",
+        "cherbourg",
+        "dieppe",
+        "le_havre",
+        "rouen"
+      ],
+      "kind": "historical_administration"
+    },
+    {
+      "key": "duchy_orleans",
+      "name": "Duchy of Orleans",
+      "region": "western_continental_europe",
+      "region_name": "Western Continental Europe",
+      "source": "duchy_orleans",
+      "cities": [
+        "orleans"
+      ],
+      "kind": "historical_administration"
+    },
+    {
+      "key": "earldom_of_ormond",
+      "name": "Earldom of Ormond",
+      "region": "british_and_irish_isles",
+      "region_name": "British and Irish Isles",
+      "source": "earldom_of_ormond",
+      "cities": [
+        "kilkenny"
+      ],
+      "kind": "historical_administration"
+    },
+    {
+      "key": "earldom_orkney",
+      "name": "Earldom of Orkney",
+      "region": "british_and_irish_isles",
+      "region_name": "British and Irish Isles",
+      "source": "earldom_orkney",
+      "cities": [
+        "kirkwall"
+      ],
+      "kind": "historical_administration"
+    },
+    {
+      "key": "entre_douro_e_minho",
+      "name": "Entre Douro e Minho",
+      "region": "iberia",
+      "region_name": "Iberia",
+      "source": "portugal",
+      "cities": [
+        "braga",
+        "porto",
+        "viana_do_castelo"
+      ],
+      "kind": "historical_administration"
+    },
+    {
+      "key": "entre_tejo_e_odiana",
+      "name": "Entre Tejo e Odiana",
+      "region": "iberia",
+      "region_name": "Iberia",
+      "source": "portugal",
+      "cities": [
+        "beja",
+        "evora",
+        "portalegre"
+      ],
+      "kind": "historical_administration"
+    },
+    {
+      "key": "essex",
+      "name": "Essex",
+      "region": "british_and_irish_isles",
+      "region_name": "British and Irish Isles",
+      "source": "england",
+      "cities": [
+        "southend_on_sea"
+      ],
+      "kind": "historical_administration"
+    },
+    {
+      "key": "free_imperial_city_lubeck",
+      "name": "Free Imperial City of Lubeck",
+      "region": "northern_continental_europe",
+      "region_name": "Northern Continental Europe",
+      "source": "free_imperial_city_lubeck",
+      "cities": [
+        "lubeck"
+      ],
+      "kind": "historical_polity"
+    },
+    {
+      "key": "gipuzkoa",
+      "name": "Gipuzkoa",
+      "region": "iberia",
+      "region_name": "Iberia",
+      "source": "basque",
+      "cities": [
+        "san_sebastian"
+      ],
+      "kind": "historical_administration"
+    },
+    {
+      "key": "grand_bailliage_touraine",
+      "name": "Grand Bailliage of Touraine",
+      "region": "western_continental_europe",
+      "region_name": "Western Continental Europe",
+      "source": "grand_bailliage_touraine",
+      "cities": [
+        "tours"
+      ],
+      "kind": "historical_administration"
+    },
+    {
+      "key": "hampshire",
+      "name": "Hampshire",
+      "region": "british_and_irish_isles",
+      "region_name": "British and Irish Isles",
+      "source": "england",
+      "cities": [
+        "portsmouth",
+        "southampton"
+      ],
+      "kind": "historical_administration"
+    },
+    {
+      "key": "imperial_city_augsburg",
+      "name": "Imperial City of Augsburg",
+      "region": "alpine_europe",
+      "region_name": "Alpine Europe",
+      "source": "imperial_city_augsburg",
+      "cities": [
+        "augsburg"
+      ],
+      "kind": "historical_polity"
+    },
+    {
+      "key": "imperial_city_nuremberg",
+      "name": "Imperial City of Nuremberg",
+      "region": "northern_continental_europe",
+      "region_name": "Northern Continental Europe",
+      "source": "imperial_city_nuremberg",
+      "cities": [
+        "nurnberg"
+      ],
+      "kind": "historical_polity"
+    },
+    {
+      "key": "imperial_city_ulm",
+      "name": "Imperial City of Ulm",
+      "region": "alpine_europe",
+      "region_name": "Alpine Europe",
+      "source": "imperial_city_ulm",
+      "cities": [
+        "ulm"
+      ],
+      "kind": "historical_polity"
+    },
+    {
+      "key": "kent",
+      "name": "Kent",
+      "region": "british_and_irish_isles",
+      "region_name": "British and Irish Isles",
+      "source": "england",
+      "cities": [
+        "dover"
+      ],
+      "kind": "historical_administration"
+    },
+    {
+      "key": "kingdom_algarve",
+      "name": "Kingdom of the Algarve",
+      "region": "iberia",
+      "region_name": "Iberia",
+      "source": "algarve",
+      "cities": [
+        "faro",
+        "portimao"
+      ],
+      "kind": "historical_administration"
+    },
+    {
+      "key": "kingdom_aragon",
+      "name": "Kingdom of Aragon",
+      "region": "iberia",
+      "region_name": "Iberia",
+      "source": "aragon",
+      "cities": [
+        "zaragoza"
+      ],
+      "kind": "historical_administration"
+    },
+    {
+      "key": "kingdom_castile",
+      "name": "Kingdom of Castile",
+      "region": "iberia",
+      "region_name": "Iberia",
+      "source": "castile",
+      "cities": [
+        "burgos",
+        "guadalajara",
+        "logrono",
+        "madrid",
+        "santander",
+        "toledo"
+      ],
+      "kind": "historical_administration"
+    },
+    {
+      "key": "kingdom_galicia",
+      "name": "Kingdom of Galicia",
+      "region": "iberia",
+      "region_name": "Iberia",
+      "source": "castile",
+      "cities": [
+        "la_coruna",
+        "ourense",
+        "santiago_de_compostela",
+        "vigo"
+      ],
+      "kind": "historical_administration"
+    },
+    {
+      "key": "kingdom_leon",
+      "name": "Kingdom of Leon",
+      "region": "iberia",
+      "region_name": "Iberia",
+      "source": "castile",
+      "cities": [
+        "gijon",
+        "leon",
+        "oviedo",
+        "salamanca",
+        "valladolid"
+      ],
+      "kind": "historical_administration"
+    },
+    {
+      "key": "kingdom_mallorca",
+      "name": "Kingdom of Mallorca",
+      "region": "western_mediterranean",
+      "region_name": "Western Mediterranean",
+      "source": "aragon",
+      "cities": [
+        "palma"
+      ],
+      "kind": "historical_administration"
+    },
+    {
+      "key": "kingdom_murcia",
+      "name": "Kingdom of Murcia",
+      "region": "iberia",
+      "region_name": "Iberia",
+      "source": "castile",
+      "cities": [
+        "albacete",
+        "cartagena",
+        "lorca",
+        "murcia"
+      ],
+      "kind": "historical_administration"
+    },
+    {
+      "key": "kingdom_navarra",
+      "name": "Kingdom of Navarre",
+      "region": "iberia",
+      "region_name": "Iberia",
+      "source": "navarre",
+      "cities": [
+        "pamplona"
+      ],
+      "kind": "historical_polity"
+    },
+    {
+      "key": "kingdom_sardinia",
+      "name": "Kingdom of Sardinia",
+      "region": "western_mediterranean",
+      "region_name": "Western Mediterranean",
+      "source": "aragon_archive",
+      "cities": [
+        "cagliari",
+        "olbia",
+        "sassari"
+      ],
+      "kind": "historical_administration"
+    },
+    {
+      "key": "kingdom_valencia",
+      "name": "Kingdom of Valencia",
+      "region": "iberia",
+      "region_name": "Iberia",
+      "source": "aragon",
+      "cities": [
+        "alicante",
+        "castello",
+        "valencia"
+      ],
+      "kind": "historical_administration"
+    },
+    {
+      "key": "lancashire",
+      "name": "Lancashire",
+      "region": "british_and_irish_isles",
+      "region_name": "British and Irish Isles",
+      "source": "england",
+      "cities": [
+        "blackpool",
+        "liverpool",
+        "manchester"
+      ],
+      "kind": "historical_administration"
+    },
+    {
+      "key": "leicestershire",
+      "name": "Leicestershire",
+      "region": "british_and_irish_isles",
+      "region_name": "British and Irish Isles",
+      "source": "england",
+      "cities": [
+        "leicester"
+      ],
+      "kind": "historical_administration"
+    },
+    {
+      "key": "lochaber",
+      "name": "Lochaber",
+      "region": "british_and_irish_isles",
+      "region_name": "British and Irish Isles",
+      "source": "lochaber",
+      "cities": [
+        "fort_william"
+      ],
+      "kind": "historical_administration"
+    },
+    {
+      "key": "lordship_biscay",
+      "name": "Lordship of Biscay",
+      "region": "iberia",
+      "region_name": "Iberia",
+      "source": "basque",
+      "cities": [
+        "bilbao"
+      ],
+      "kind": "historical_administration"
+    },
+    {
+      "key": "lordship_glamorgan",
+      "name": "Lordship of Glamorgan",
+      "region": "british_and_irish_isles",
+      "region_name": "British and Irish Isles",
+      "source": "lordship_glamorgan",
+      "cities": [
+        "cardiff"
+      ],
+      "kind": "historical_administration"
+    },
+    {
+      "key": "lordship_merida",
+      "name": "Lordship of Merida",
+      "region": "iberia",
+      "region_name": "Iberia",
+      "source": "lordship_merida",
+      "cities": [
+        "merida"
+      ],
+      "kind": "historical_administration"
+    },
+    {
+      "key": "lordship_of_man",
+      "name": "Lordship of Man",
+      "region": "british_and_irish_isles",
+      "region_name": "British and Irish Isles",
+      "source": "lordship_of_man",
+      "cities": [
+        "douglas"
+      ],
+      "kind": "historical_polity"
+    },
+    {
+      "key": "lordship_roscommon",
+      "name": "Lordship of Roscommon",
+      "region": "british_and_irish_isles",
+      "region_name": "British and Irish Isles",
+      "source": "lordship_roscommon",
+      "cities": [
+        "ros_comain"
+      ],
+      "kind": "historical_polity"
+    },
+    {
+      "key": "marcher_lordship_gower",
+      "name": "Marcher Lordship of Gower",
+      "region": "british_and_irish_isles",
+      "region_name": "British and Irish Isles",
+      "source": "marcher_lordship_gower",
+      "cities": [
+        "swansea"
+      ],
+      "kind": "historical_administration"
+    },
+    {
+      "key": "norfolk",
+      "name": "Norfolk",
+      "region": "british_and_irish_isles",
+      "region_name": "British and Irish Isles",
+      "source": "england",
+      "cities": [
+        "norwich"
+      ],
+      "kind": "historical_administration"
+    },
+    {
+      "key": "northamptonshire",
+      "name": "Northamptonshire",
+      "region": "british_and_irish_isles",
+      "region_name": "British and Irish Isles",
+      "source": "england",
+      "cities": [
+        "peterborough"
+      ],
+      "kind": "historical_administration"
+    },
+    {
+      "key": "northumberland",
+      "name": "Northumberland",
+      "region": "british_and_irish_isles",
+      "region_name": "British and Irish Isles",
+      "source": "england",
+      "cities": [
+        "newcastle"
+      ],
+      "kind": "historical_administration"
+    },
+    {
+      "key": "nottinghamshire",
+      "name": "Nottinghamshire",
+      "region": "british_and_irish_isles",
+      "region_name": "British and Irish Isles",
+      "source": "england",
+      "cities": [
+        "nottingham"
+      ],
+      "kind": "historical_administration"
+    },
+    {
+      "key": "oxfordshire",
+      "name": "Oxfordshire",
+      "region": "british_and_irish_isles",
+      "region_name": "British and Irish Isles",
+      "source": "england",
+      "cities": [
+        "oxford"
+      ],
+      "kind": "historical_administration"
+    },
+    {
+      "key": "portuguese_estremadura",
+      "name": "Portuguese Estremadura",
+      "region": "iberia",
+      "region_name": "Iberia",
+      "source": "portugal",
+      "cities": [
+        "leiria",
+        "lisbon",
+        "santarem",
+        "setubal"
+      ],
+      "kind": "historical_administration"
+    },
+    {
+      "key": "prevote_paris",
+      "name": "Prevote of Paris",
+      "region": "western_continental_europe",
+      "region_name": "Western Continental Europe",
+      "source": "prevote_paris",
+      "cities": [
+        "paris"
+      ],
+      "kind": "historical_administration"
+    },
+    {
+      "key": "prince_bishopric_wurzburg",
+      "name": "Prince-Bishopric of Wurzburg",
+      "region": "northern_continental_europe",
+      "region_name": "Northern Continental Europe",
+      "source": "prince_bishopric_wurzburg",
+      "cities": [
+        "wurzburg"
+      ],
+      "kind": "historical_polity"
+    },
+    {
+      "key": "principality_catalonia",
+      "name": "Principality of Catalonia",
+      "region": "iberia",
+      "region_name": "Iberia",
+      "source": "aragon",
+      "cities": [
+        "barcelona",
+        "mataro",
+        "perpignan",
+        "tarragona"
+      ],
+      "kind": "historical_administration"
+    },
+    {
+      "key": "seigneurie_versailles",
+      "name": "Seigneurie of Versailles",
+      "region": "western_continental_europe",
+      "region_name": "Western Continental Europe",
+      "source": "seigneurie_versailles",
+      "cities": [
+        "versailles"
+      ],
+      "kind": "historical_administration"
+    },
+    {
+      "key": "senechaussee_agenais",
+      "name": "Senechaussee of Agenais",
+      "region": "western_continental_europe",
+      "region_name": "Western Continental Europe",
+      "source": "senechaussee_agenais",
+      "cities": [
+        "agen"
+      ],
+      "kind": "historical_administration"
+    },
+    {
+      "key": "senechaussee_limousin",
+      "name": "Royal Senechaussee of Limousin",
+      "region": "western_continental_europe",
+      "region_name": "Western Continental Europe",
+      "source": "senechaussee_limousin",
+      "cities": [
+        "limoges"
+      ],
+      "kind": "historical_administration"
+    },
+    {
+      "key": "senechaussee_lyon",
+      "name": "Senechaussee of Lyon",
+      "region": "western_continental_europe",
+      "region_name": "Western Continental Europe",
+      "source": "senechaussee_lyon",
+      "cities": [
+        "lyon"
+      ],
+      "kind": "historical_administration"
+    },
+    {
+      "key": "senechaussee_nimes_beaucaire",
+      "name": "Senechaussee of Nimes and Beaucaire",
+      "region": "western_continental_europe",
+      "region_name": "Western Continental Europe",
+      "source": "nimes_beaucaire",
+      "cities": [
+        "nimes",
+        "montpellier"
+      ],
+      "kind": "historical_administration"
+    },
+    {
+      "key": "senechaussee_poitou",
+      "name": "Royal Senechaussee of Poitou",
+      "region": "western_continental_europe",
+      "region_name": "Western Continental Europe",
+      "source": "senechaussee_poitou",
+      "cities": [
+        "poitier"
+      ],
+      "kind": "historical_administration"
+    },
+    {
+      "key": "sheriffdom_aberdeen",
+      "name": "Sheriffdom of Aberdeen",
+      "region": "british_and_irish_isles",
+      "region_name": "British and Irish Isles",
+      "source": "scotland",
+      "cities": [
+        "aberdeen"
+      ],
+      "kind": "historical_administration"
+    },
+    {
+      "key": "sheriffdom_ayr",
+      "name": "Sheriffdom of Ayr",
+      "region": "british_and_irish_isles",
+      "region_name": "British and Irish Isles",
+      "source": "scotland",
+      "cities": [
+        "ayr"
+      ],
+      "kind": "historical_administration"
+    },
+    {
+      "key": "sheriffdom_dumfries",
+      "name": "Sheriffdom of Dumfries",
+      "region": "british_and_irish_isles",
+      "region_name": "British and Irish Isles",
+      "source": "scotland",
+      "cities": [
+        "dumfries"
+      ],
+      "kind": "historical_administration"
+    },
+    {
+      "key": "sheriffdom_edinburgh",
+      "name": "Sheriffdom of Edinburgh",
+      "region": "british_and_irish_isles",
+      "region_name": "British and Irish Isles",
+      "source": "scotland",
+      "cities": [
+        "edinburgh"
+      ],
+      "kind": "historical_administration"
+    },
+    {
+      "key": "sheriffdom_forfar",
+      "name": "Sheriffdom of Forfar",
+      "region": "british_and_irish_isles",
+      "region_name": "British and Irish Isles",
+      "source": "scotland",
+      "cities": [
+        "dundee"
+      ],
+      "kind": "historical_administration"
+    },
+    {
+      "key": "sheriffdom_inverness",
+      "name": "Sheriffdom of Inverness",
+      "region": "british_and_irish_isles",
+      "region_name": "British and Irish Isles",
+      "source": "scotland",
+      "cities": [
+        "inverness"
+      ],
+      "kind": "historical_administration"
+    },
+    {
+      "key": "sheriffdom_lanark",
+      "name": "Sheriffdom of Lanark",
+      "region": "british_and_irish_isles",
+      "region_name": "British and Irish Isles",
+      "source": "scotland",
+      "cities": [
+        "glasgow"
+      ],
+      "kind": "historical_administration"
+    },
+    {
+      "key": "sheriffdom_perth",
+      "name": "Sheriffdom of Perth",
+      "region": "british_and_irish_isles",
+      "region_name": "British and Irish Isles",
+      "source": "scotland",
+      "cities": [
+        "perth"
+      ],
+      "kind": "historical_administration"
+    },
+    {
+      "key": "sheriffdom_renfrew",
+      "name": "Sheriffdom of Renfrew",
+      "region": "british_and_irish_isles",
+      "region_name": "British and Irish Isles",
+      "source": "scotland",
+      "cities": [
+        "greenock"
+      ],
+      "kind": "historical_administration"
+    },
+    {
+      "key": "somerset",
+      "name": "Somerset",
+      "region": "british_and_irish_isles",
+      "region_name": "British and Irish Isles",
+      "source": "england",
+      "cities": [
+        "bath"
+      ],
+      "kind": "historical_administration"
+    },
+    {
+      "key": "staffordshire",
+      "name": "Staffordshire",
+      "region": "british_and_irish_isles",
+      "region_name": "British and Irish Isles",
+      "source": "england",
+      "cities": [
+        "stoke"
+      ],
+      "kind": "historical_administration"
+    },
+    {
+      "key": "suffolk",
+      "name": "Suffolk",
+      "region": "british_and_irish_isles",
+      "region_name": "British and Irish Isles",
+      "source": "england",
+      "cities": [
+        "ipswich"
+      ],
+      "kind": "historical_administration"
+    },
+    {
+      "key": "sussex",
+      "name": "Sussex",
+      "region": "british_and_irish_isles",
+      "region_name": "British and Irish Isles",
+      "source": "england",
+      "cities": [
+        "brighton"
+      ],
+      "kind": "historical_administration"
+    },
+    {
+      "key": "town_of_galway",
+      "name": "Chartered Town of Galway",
+      "region": "british_and_irish_isles",
+      "region_name": "British and Irish Isles",
+      "source": "town_of_galway",
+      "cities": [
+        "galway"
+      ],
+      "kind": "historical_administration"
+    },
+    {
+      "key": "tras_os_montes",
+      "name": "Tras-os-Montes",
+      "region": "iberia",
+      "region_name": "Iberia",
+      "source": "portugal",
+      "cities": [
+        "braganca",
+        "vila_real"
+      ],
+      "kind": "historical_administration"
+    },
+    {
+      "key": "viscounty_turenne",
+      "name": "Viscounty of Turenne",
+      "region": "western_continental_europe",
+      "region_name": "Western Continental Europe",
+      "source": "viscounty_turenne",
+      "cities": [
+        "brive"
+      ],
+      "kind": "historical_administration"
+    },
+    {
+      "key": "warwickshire",
+      "name": "Warwickshire",
+      "region": "british_and_irish_isles",
+      "region_name": "British and Irish Isles",
+      "source": "england",
+      "cities": [
+        "birmingham",
+        "coventry"
+      ],
+      "kind": "historical_administration"
+    },
+    {
+      "key": "yorkshire",
+      "name": "Yorkshire",
+      "region": "british_and_irish_isles",
+      "region_name": "British and Irish Isles",
+      "source": "england",
+      "cities": [
+        "bradford",
+        "kingston_upon_hull",
+        "leeds",
+        "middlesbrough",
+        "scarborough",
+        "sheffield",
+        "york"
+      ],
+      "kind": "historical_administration"
+    }
+  ],
+  "ignored_polity_matches": [
+    "ajaccio",
+    "amsterdam",
+    "andorra",
+    "bastia",
+    "charleroi",
+    "haarlem",
+    "middelburg",
+    "mons",
+    "pamplona",
+    "rotterdam",
+    "the_hague"
+  ],
+  "historical_polities": [
+    "County of Armagnac",
+    "County of Nevers",
+    "County of Savoy",
+    "County of Urgell",
+    "Duchy of Bavaria",
+    "Duchy of Brittany",
+    "Duchy of Burgundy",
+    "Duchy of Luxembourg",
+    "Duchy of Milan",
+    "Emirate of Granada",
+    "Republic of Florence",
+    "Republic of Venice",
+    "Swiss Confederation"
+  ]
+}

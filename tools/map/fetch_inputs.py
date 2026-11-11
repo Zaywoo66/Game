@@ -20,6 +20,11 @@ NATURAL_EARTH = (
     "https://raw.githubusercontent.com/nvkelso/natural-earth-vector/v5.1.2/"
     "geojson/ne_50m_"
 )
+PLACES = (
+    "https://raw.githubusercontent.com/nvkelso/natural-earth-vector/v5.1.2/"
+    "geojson/ne_10m_populated_places.geojson"
+)
+PLACES_HASH = "9b8e3de09048ef00dfc70357dbb9fa324493f214b5e0ae4daf1aa79a8d10116b"
 HISTORY = (
     "https://raw.githubusercontent.com/Seshat-Global-History-Databank/"
     "cliopatria/v0.1.3/cliopatria.geojson.zip"
@@ -110,6 +115,24 @@ def physical_layers(cache):
         write_layer(INPUTS / f"{output_name}.geojson", items)
 
 
+def populated_places_layer(cache):
+    source = download(cache, "populated_places.geojson", PLACES, PLACES_HASH)
+    places = []
+    for feature in read_json(source)["features"]:
+        geometry = shape(feature["geometry"])
+        lon, lat = geometry.coords[0]
+        west, south, east, north = BOUNDS
+        if not (west <= lon < east and south < lat <= north):
+            continue
+        fields = feature["properties"]
+        places.append((geometry, {
+            "name": fields["NAME"],
+            "rank": fields["SCALERANK"],
+            "population": fields["POP_MAX"],
+        }))
+    write_layer(INPUTS / "populated_places.geojson", places)
+
+
 def historical_layer(cache):
     source = download(cache, "cliopatria.zip", HISTORY, HISTORY_HASH)
     items = []
@@ -151,6 +174,7 @@ def main():
     args.cache.mkdir(parents=True, exist_ok=True)
     INPUTS.mkdir(parents=True, exist_ok=True)
     physical_layers(args.cache)
+    populated_places_layer(args.cache)
     historical_layer(args.cache)
     relief_layer(args.cache)
     print(f"Regenerated source subsets in {INPUTS}")
