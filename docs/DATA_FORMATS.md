@@ -229,6 +229,15 @@ canonical YAML scalar rules as events:
 lowercase booleans and decimal integer literals without separators or leading
 zeros.
 
+`strategy_data::parse_technology_branch_yaml` converts one branch to typed
+definitions with whole research-point costs, signed layout positions, and
+simulation `Effect` values. `strategy_data::load_technologies_from_dir`
+reads `.yaml`/`.yml` files in filename order, returns a technology-key ordered
+map, and rejects duplicate branch files, duplicate technology keys, missing
+prerequisites and cycles. The Rust loader uses the existing pinned
+`yaml_serde` 0.10.7. Technology runtime state and AI selection remain a
+separate M9 task.
+
 ## Ideas (`data/ideas/<tag>.yaml`)
 `key, name, modifiers:[{key,value,kind}], unlock: Trigger`
 

@@ -80,6 +80,12 @@ impl std::error::Error for EventLoadError {}
 
 /// Parse one event YAML document into simulation trigger/effect types.
 pub fn parse_event_yaml(yaml: &str) -> Result<EventDefinition, EventLoadError> {
+    if let Some((line, token)) = crate::yaml_tokens::noncanonical_integer(yaml) {
+        return Err(invalid(
+            &format!("line {line}"),
+            format!("integer token {token:?} must be plain decimal"),
+        ));
+    }
     let raw: RawEvent = yaml_serde::from_str(yaml).map_err(EventLoadError::Yaml)?;
     for (field, key) in [
         ("key", raw.key.as_str()),
@@ -282,7 +288,7 @@ fn parse_trigger(value: &Value, field: &str) -> Result<Trigger, EventLoadError> 
     }
 }
 
-fn parse_effect(value: &Value, field: &str) -> Result<Effect, EventLoadError> {
+pub(crate) fn parse_effect(value: &Value, field: &str) -> Result<Effect, EventLoadError> {
     let (kind, child) = one_key(value, field)?;
     if kind != "add_modifier" {
         return Err(invalid(field, format!("unknown effect {kind}")));

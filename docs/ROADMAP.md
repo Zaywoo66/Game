@@ -28,6 +28,7 @@ AI levels L0–L3 are delivered inside M3, M4, M6, M7–M9 (see each milestone's
 After the 5b.2 dense-map rebuild passes CI, M6–M11 may proceed while physical two-PC M5 acceptance and the remaining M5b visual/UI checks are open. M12 cannot start until M5 and M5b are accepted. Local loopback and accelerated runs support development but do not close the two-PC acceptance.
 The owner authorized independent small M6–M11 PRs in parallel on 2026-11-11. M7 has begun with the event data contract and linter; event runtime, content and multiplayer acceptance remain open.
 The M7 data loader now maps event YAML to typed simulation triggers/effects; event firing and choices remain open.
+The M9 technology YAML contract and typed loader validate branch files, effect units, and the cross-branch prerequisite DAG; research-point gameplay and AI remain open.
 M5b.4 camera, water, borders and terrain have browser screenshot evidence; native 1080p FPS/RAM and owner visual review remain open for M5b acceptance.
 M5b.5 map modes, historical evidence display, English fallback labels and army badges have browser checks; Russian localization, fleet UI, native performance and owner visual acceptance remain open.
 

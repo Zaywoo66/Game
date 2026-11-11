@@ -87,7 +87,7 @@ fn rejects_unknown_trigger_effect_and_missing_ai_weight() {
 fn rejects_invalid_units_keys_and_repeat_rules() {
     let fractional = VALID.replace("mean_time_to_happen: 365", "mean_time_to_happen: 0.5");
     assert!(parse_event_yaml(&fractional).is_err());
-    for noncanonical in ["012", "1_000"] {
+    for noncanonical in ["012", "1_000", "+365", "0x16d"] {
         let yaml = VALID.replace(
             "mean_time_to_happen: 365",
             &format!("mean_time_to_happen: {noncanonical}"),
