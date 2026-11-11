@@ -579,3 +579,21 @@ least one guarantee; v1–v8 saves may not carry guarantees. V9 may also carry
 the v7 marriage and v8 event payloads, which remain validated and retained
 on load. LAN protocol v7 transports the same canonical snapshot and the
 validated guarantee/revoke commands.
+
+## Saved games (schema version 10)
+
+A game with attached navy uses save schema v10 and hash domain
+`strategy:game-state:v10` followed by NUL and canonical save bytes. The
+`state.navy` object contains `fleets` sorted by positive numeric `id` and
+`next_fleet_id` (positive unsigned 32-bit, greater than every stored ID).
+Each fleet stores `country` (positive country ID), `sea` (positive sea province
+ID), `ships` (positive whole unsigned 32-bit ship count), `movement` (null or
+`{route,elapsed_ticks}`), and `cargo` (null or a positive army ID). Route
+legs are ordered `{to,kind,cost}` with a sea destination ID, `normal` or
+`strait` edge kind, and positive whole daily tick cost; `elapsed_ticks` is
+nonnegative and smaller than the first leg's cost. The referenced army must
+belong to the same country, be stationary and fit at 1,000 whole soldiers per
+ship; an army cannot appear in two cargo slots. V10 requires a navy payload
+and may retain the prior marriage, event and guarantee payloads. V1–v9 saves
+remain readable without navy. LAN protocol v8 carries v10 snapshots and
+validated fleet, embark and disembark commands.

@@ -2,8 +2,7 @@ use std::collections::BTreeMap;
 
 use serde::{Deserialize, Serialize};
 use strategy_sim::{
-    ArmyId, CountryId, EdgeKind, Fleet, FleetId, FleetMovement, NavyState, ProvinceEdge,
-    ProvinceId,
+    ArmyId, CountryId, EdgeKind, Fleet, FleetId, FleetMovement, NavyState, ProvinceEdge, ProvinceId,
 };
 
 use super::{require_sorted, required_optional, SaveError};

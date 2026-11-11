@@ -955,3 +955,93 @@ fn scenario_fleets_use_explicit_owned_port_and_adjacent_sea() {
     }
     assert!(dense_with_navy(Value::Null).is_err());
 }
+
+#[test]
+fn navy_save_v10_round_trips_embarked_army_and_route_and_rejects_bad_records() {
+    let root = data_root();
+    let graph = load_provinces(root.join("map/western_europe/provinces.json")).unwrap();
+    let mut state = load_scenario(graph.clone(), root.join("scenarios/1440.json")).unwrap();
+    let fleet_id = strategy_sim::FleetId::new(1);
+    let fleet = state.navy().unwrap().fleets[&fleet_id].clone();
+    let actor = strategy_sim::CommandActor::Ai(fleet.country);
+    let port = graph.by_key("barcelona").unwrap().id;
+    state
+        .apply(
+            actor,
+            &strategy_sim::Command::RaiseArmy {
+                country: fleet.country,
+                province: port,
+                soldiers: 1000,
+            },
+        )
+        .unwrap();
+    let army_id = *state.war_state().unwrap().armies.keys().next().unwrap();
+    state
+        .apply(
+            actor,
+            &strategy_sim::Command::EmbarkArmy {
+                country: fleet.country,
+                army: army_id,
+                fleet: fleet_id,
+            },
+        )
+        .unwrap();
+    let destination = graph
+        .neighbors(fleet.sea)
+        .unwrap()
+        .iter()
+        .find(|edge| {
+            graph.get(edge.to).is_some_and(|province| {
+                province.kind == ProvinceKind::Sea
+                    && matches!(
+                        edge.kind,
+                        strategy_sim::EdgeKind::Normal | strategy_sim::EdgeKind::Strait
+                    )
+            })
+        })
+        .unwrap()
+        .to;
+    state
+        .apply(
+            actor,
+            &strategy_sim::Command::MoveFleet {
+                country: fleet.country,
+                fleet: fleet_id,
+                destination,
+            },
+        )
+        .unwrap();
+    let bytes = save_game(&state).unwrap();
+    let document: Value = serde_json::from_slice(&bytes).unwrap();
+    assert_eq!(document["schema_version"], json!(10));
+    assert_eq!(
+        document["state"]["navy"]["fleets"][0]["cargo"],
+        json!(army_id.get())
+    );
+    let restored = load_game(&bytes, graph.clone()).unwrap();
+    assert_eq!(restored, state);
+    assert_eq!(save_game(&restored).unwrap(), bytes);
+    assert_eq!(state_hash(&restored).unwrap(), state_hash(&state).unwrap());
+
+    let mut missing = document.clone();
+    missing["state"].as_object_mut().unwrap().remove("navy");
+    assert!(matches!(
+        load_game(&serde_json::to_vec(&missing).unwrap(), graph.clone()),
+        Err(SaveError::VersionNavyMismatch(10))
+    ));
+    let mut duplicate = document.clone();
+    let fleets = duplicate["state"]["navy"]["fleets"].as_array_mut().unwrap();
+    fleets.push(fleets[0].clone());
+    assert!(matches!(
+        load_game(&serde_json::to_vec(&duplicate).unwrap(), graph.clone()),
+        Err(SaveError::UnorderedRecords("fleets"))
+    ));
+    for (field, bad) in [("ships", json!(0)), ("cargo", json!(999999))] {
+        let mut invalid = document.clone();
+        invalid["state"]["navy"]["fleets"][0][field] = bad;
+        assert!(matches!(
+            load_game(&serde_json::to_vec(&invalid).unwrap(), graph.clone()),
+            Err(SaveError::InvalidNavy(_))
+        ));
+    }
+}
