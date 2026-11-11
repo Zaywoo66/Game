@@ -18,6 +18,8 @@ struct ActiveSession {
     role: &'static str,
     started: Instant,
     next_sample: Instant,
+    tick: u64,
+    metrics: LanMetrics,
 }
 
 impl LanLog {
@@ -34,31 +36,28 @@ impl LanLog {
             role,
             started: now,
             next_sample: now + SAMPLE_INTERVAL,
+            tick,
+            metrics: LanMetrics::default(),
         });
         self.report("session_start", &format!("role={role} tick={tick}"));
     }
 
-    pub(super) fn sample_due(&self, now: Instant) -> bool {
-        self.active
-            .as_ref()
-            .is_some_and(|session| now >= session.next_sample)
-    }
-
-    pub(super) fn sample(&mut self, now: Instant, tick: u64, metrics: LanMetrics) {
+    pub(super) fn observe(&mut self, now: Instant, tick: u64, metrics: LanMetrics) {
         let Some(session) = &mut self.active else {
             return;
         };
-        if now < session.next_sample {
-            return;
+        session.tick = tick;
+        session.metrics = metrics;
+        if now >= session.next_sample {
+            session.next_sample = now + SAMPLE_INTERVAL;
+            let fields = session.fields(now);
+            self.report("minute", &fields);
         }
-        session.next_sample = now + SAMPLE_INTERVAL;
-        let fields = session.fields(now, tick, metrics);
-        self.report("minute", &fields);
     }
 
-    pub(super) fn finish(&mut self, reason: &str, tick: u64, metrics: LanMetrics) {
+    pub(super) fn finish(&mut self, reason: &str) {
         if let Some(session) = self.active.take() {
-            let fields = session.fields(Instant::now(), tick, metrics);
+            let fields = session.fields(Instant::now());
             self.report("session_summary", &format!("reason={reason} {fields}"));
             println!("LAN session summary ({reason})\n{fields}");
         }
@@ -85,7 +84,9 @@ impl LanLog {
 }
 
 impl ActiveSession {
-    fn fields(&self, now: Instant, tick: u64, metrics: LanMetrics) -> String {
+    fn fields(&self, now: Instant) -> String {
+        let tick = self.tick;
+        let metrics = self.metrics;
         let checksum = metrics.last_checksum.map_or_else(
             || "checksum_tick=none checksum=none".to_owned(),
             |(tick, hash)| {
@@ -128,9 +129,9 @@ mod tests {
             last_checksum: Some((90, [0xab; 32])),
             ..LanMetrics::default()
         };
-        log.sample(start + Duration::from_secs(59), 89, metrics);
-        log.sample(start + SAMPLE_INTERVAL, 90, metrics);
-        log.finish("app_exit", 91, metrics);
+        log.observe(start + Duration::from_secs(59), 89, metrics);
+        log.observe(start + SAMPLE_INTERVAL, 90, metrics);
+        log.finish("app_exit");
         log.exit(0);
         drop(log);
         assert!(
