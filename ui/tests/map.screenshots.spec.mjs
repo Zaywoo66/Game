@@ -1,5 +1,6 @@
 import { mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
+import process from 'node:process';
 import { fileURLToPath } from 'node:url';
 import { expect, test } from '@playwright/test';
 
