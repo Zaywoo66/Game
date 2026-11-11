@@ -24,4 +24,25 @@ test('capture historical and terrain modes at named views', async ({ page }) => 
     await page.evaluate((camera) => window.strategyMapTest.setCameraPreset(camera), preset);
     await page.screenshot({ path: join(output, `${name}.png`), animations: 'disabled' });
   }
+  const metadata = await (await page.request.get('/map/western_europe/provinces.json')).json();
+  const london = metadata.provinces.find((province) => province.key === 'london');
+  const neighbor = london.neighbors.map(({ id }) => metadata.provinces.find((province) => province.id === id))
+    .find((province) => province?.kind === 'land');
+  expect(neighbor).toBeTruthy();
+  await page.getByRole('button', { name: 'Game political' }).click();
+  await page.evaluate(({ londonId, neighborId }) => {
+    const map = window.strategyMapTest;
+    map.setCameraPreset('province');
+    map.setOwnerColor(londonId, [188, 88, 72, 255]);
+    map.setOwnerColor(neighborId, [188, 88, 72, 255]);
+    map.setArmies([{ id: 1, province: londonId, destination: neighborId, progress: 250,
+      color: '#bc5848', soldiers: 1200 }]);
+    map.setArmySelection(1, false);
+    map.renderFrame();
+  }, { londonId: london.id, neighborId: neighbor.id });
+  await expect(page.locator('.map-army-badge[data-army-id="1"]')).toBeVisible();
+  await expect(page.locator('.map-army-path')).toBeVisible();
+  await expect(page.locator('[data-map-viewport]')).toHaveAttribute('data-map-army-instances', '1', { timeout: 30_000 });
+  await page.evaluate(() => window.strategyMapTest.renderFrame());
+  await page.screenshot({ path: join(output, 'army-marker-demo.png'), animations: 'disabled' });
 });

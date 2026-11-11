@@ -35,6 +35,8 @@ export interface MapTestControls {
   setMapMode(mode: MapMode): void;
   readMapMode(): MapMode;
   focusProvince(id: number): void;
+  setArmies(armies: readonly ArmyMarker[]): void;
+  setArmySelection(id: number, targeting: boolean): void;
 }
 
 interface MapViewer {
@@ -248,8 +250,10 @@ export function createMapViewer(
     if (now - lastLabelRender < 90) return;
     lastLabelRender = now;
     const bounds = viewport.getBoundingClientRect();
+    const minimumHistoricalArea = camera.zoom < 1.5 ? 5_500 : 700;
     const labels = mapMode === 'historical'
-      ? historical.labels.map((item) => ({ ...item, capital: false }))
+      ? historical.labels.filter((item) => item.weight >= minimumHistoricalArea)
+        .map((item) => ({ ...item, capital: false }))
       : countryLabels;
     const candidates = camera.zoom < 2.2
       ? mapMode === 'terrain' ? [] : labels
@@ -545,6 +549,8 @@ export function createMapViewer(
       setMapMode,
       readMapMode: () => mapMode,
       focusProvince,
+      setArmies: armyLayer.setMarkers,
+      setArmySelection(id, orderTargeting) { armyLayer.select(id); targeting = orderTargeting; },
     },
     dispose() {
       cancelAnimationFrame(frame);

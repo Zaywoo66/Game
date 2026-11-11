@@ -130,6 +130,11 @@ test('map modes keep host owner bytes separate from 1440 evidence', async ({ pag
 test('historical unknown and coarse entries are explicit while labels and sea picking work', async ({ page }) => {
   const evidence = await (await page.request.get('/map/western_europe/polities_1440.json')).json();
   await page.getByRole('button', { name: 'Historical 1440' }).click();
+  await page.evaluate(() => window.strategyMapTest.setCameraPreset('whole-region'));
+  await expect(page.locator('.map-label', { hasText: 'Kingdom of England' })).toBeVisible();
+  await expect(page.locator('.map-label', { hasText: 'Earldom of Desmond' })).toHaveCount(0);
+  await page.evaluate(() => window.strategyMapTest.setCameraPreset('britain'));
+  await expect(page.locator('.map-label', { hasText: 'Earldom of Desmond' })).toBeVisible();
   for (const [resolution, expected] of [['unmatched', 'Unknown attribution'], ['coarse_group', 'Low precision group']]) {
     const entry = evidence.assignments.find((item) => item.resolution === resolution);
     expect(entry).toBeTruthy();
