@@ -40,6 +40,7 @@ pub enum Reason {
     MarriageAccepted,
     MarriageRejected,
     MarriageProposed,
+    GuaranteeIssued,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -71,6 +72,7 @@ impl Reason {
             Self::MarriageAccepted => "MarriageAccepted",
             Self::MarriageRejected => "MarriageRejected",
             Self::MarriageProposed => "MarriageProposed",
+            Self::GuaranteeIssued => "GuaranteeIssued",
             Self::Military { action, .. } => match action {
                 MilitaryReason::RaiseArmy => "RaiseArmy",
                 MilitaryReason::CombineArmies => "CombineArmies",
@@ -182,8 +184,13 @@ pub fn decide(
     if let Some(command) = military::decide(state, country, nation, profile, ctx) {
         commands.push(command);
     }
-    if let Some(command) = diplomacy::decide(state, country, profile, ctx) {
-        commands.push(command);
+    if !commands
+        .iter()
+        .any(|(command, _)| matches!(command, Command::DeclareWar { .. }))
+    {
+        if let Some(command) = diplomacy::decide(state, country, profile, ctx) {
+            commands.push(command);
+        }
     }
     if let Some(command) = marriage::decide(state, country, profile) {
         commands.push(command);

@@ -457,6 +457,8 @@ struct DiplomacyFile {
     cooldowns: Vec<DatedPairFile>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     marriage_offers: Vec<DatedPairFile>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    guarantees: Vec<PairFile>,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -512,6 +514,14 @@ impl From<&DiplomacyState> for DiplomacyFile {
                     until: until.components(),
                 })
                 .collect(),
+            guarantees: state
+                .guarantees
+                .iter()
+                .map(|&(a, b)| PairFile {
+                    a: a.get(),
+                    b: b.get(),
+                })
+                .collect(),
         }
     }
 }
@@ -526,6 +536,7 @@ impl DiplomacyFile {
         require_sorted(&self.marriage_offers, "marriage offers", |item| {
             (item.a, item.b)
         })?;
+        require_sorted(&self.guarantees, "guarantees", |item| (item.a, item.b))?;
         let alliances = self
             .alliances
             .into_iter()
@@ -560,6 +571,11 @@ impl DiplomacyFile {
             offers,
             cooldowns,
             marriage_offers,
+            guarantees: self
+                .guarantees
+                .into_iter()
+                .map(|item| (CountryId::new(item.a), CountryId::new(item.b)))
+                .collect(),
         })
     }
 }

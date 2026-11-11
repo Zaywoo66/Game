@@ -18,6 +18,12 @@ identity fields before accepting a guest.
 - V4 adds coalition participants to the canonical save snapshots; command messages are unchanged.
 - V5 adds royal-marriage commands and v7 character/marriage data to canonical save snapshots.
 - V6 adds event-choice commands and v8 event definitions, pending choices and resolution history to canonical snapshots.
+- Guarantee and revoke commands carry guarantor and protected country IDs.
+  Host validation enforces controller authority and peace-only creation. A
+  declaration that attacks a protected country adds free guarantors to the
+  defender side or records the broken commitment and opinion penalty. The
+  canonical snapshot and byte delta include guarantees and war supporters;
+  clients cannot choose whether their guaranteed country is defended.
 - See [LAN_ACCEPTANCE.md](LAN_ACCEPTANCE.md) for the two-PC checklist and `--lan-log` mode.
 - Welcome includes a private 128-bit resume token. The guest confirms it
   after parsing its first snapshot. A disconnected, unconfirmed handshake

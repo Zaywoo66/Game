@@ -254,6 +254,47 @@ fn m3_state() -> GameState {
     .unwrap()
 }
 
+#[test]
+fn guarantee_save_round_trip_preserves_direction_order_and_hash() {
+    let base = original();
+    let country = |tag| {
+        *base
+            .polity()
+            .unwrap()
+            .countries
+            .iter()
+            .find(|(_, country)| country.tag == tag)
+            .unwrap()
+            .0
+    };
+    let portugal = country("por");
+    let castile = country("cas");
+    let england = country("eng");
+    let mut diplomacy = DiplomacyState::default();
+    diplomacy.guarantees.insert((portugal, england));
+    diplomacy.guarantees.insert((castile, england));
+    let state = base.with_diplomacy(diplomacy).unwrap();
+    let bytes = save_game(&state).unwrap();
+    let restored = load_game(&bytes, graph()).unwrap();
+    assert_eq!(restored, state);
+    assert_eq!(state_hash(&restored).unwrap(), state_hash(&state).unwrap());
+    let mut invalid: Value = serde_json::from_slice(&bytes).unwrap();
+    let guarantees = invalid["state"]["diplomacy"]["guarantees"]
+        .as_array_mut()
+        .unwrap();
+    guarantees.reverse();
+    assert!(matches!(
+        load_game(&serde_json::to_vec(&invalid).unwrap(), graph()),
+        Err(SaveError::UnorderedRecords("guarantees"))
+    ));
+    let mut invalid: Value = serde_json::from_slice(&bytes).unwrap();
+    invalid["state"]["diplomacy"]["guarantees"][0]["a"] = json!(0);
+    assert!(matches!(
+        load_game(&serde_json::to_vec(&invalid).unwrap(), graph()),
+        Err(SaveError::InvalidDiplomacy(DiplomacyError::InvalidState))
+    ));
+}
+
 fn edited_file(path: &str, edit: impl FnOnce(&mut Value)) -> Result<GameState, ScenarioLoadError> {
     let mut value: Value = serde_json::from_slice(&legacy_read(path).unwrap()).unwrap();
     edit(&mut value);

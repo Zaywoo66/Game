@@ -49,6 +49,8 @@ pub struct DiplomacyState {
     pub offers: BTreeMap<(CountryId, CountryId), Date>,
     pub cooldowns: BTreeMap<(CountryId, CountryId), Date>,
     pub marriage_offers: BTreeMap<(CharacterId, CharacterId), Date>,
+    /// Directed (guarantor, protected) pairs; no expiry.
+    pub guarantees: BTreeSet<(CountryId, CountryId)>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -57,8 +59,12 @@ pub enum DiplomacyError {
     SameCountry,
     DirectWar,
     MustBreakAlliance,
+    MustRevokeGuarantee,
     AlreadyAllied,
     NotAllied,
+    AlreadyGuaranteed,
+    NotGuaranteed,
+    AtWar,
     OfferAlreadyPending,
     NoOffer,
     Cooldown(Date),
@@ -125,6 +131,16 @@ impl DiplomacyState {
         }
         expired
     }
+
+    pub fn guarantees(&self, guarantor: CountryId, protected: CountryId) -> bool {
+        self.guarantees.contains(&(guarantor, protected))
+    }
+
+    pub fn guarantors_of(&self, protected: CountryId) -> impl Iterator<Item = CountryId> + '_ {
+        self.guarantees
+            .iter()
+            .filter_map(move |&(guarantor, target)| (target == protected).then_some(guarantor))
+    }
     pub fn allied(&self, a: CountryId, b: CountryId) -> bool {
         self.alliances.contains(&pair(a, b))
     }
@@ -179,6 +195,14 @@ impl DiplomacyState {
         let countries: BTreeSet<_> = countries.into_iter().collect();
         for &(a, b) in &self.alliances {
             if a >= b || !countries.contains(&a) || !countries.contains(&b) {
+                return Err(DiplomacyError::InvalidState);
+            }
+        }
+        for &(guarantor, protected) in &self.guarantees {
+            if guarantor == protected
+                || !countries.contains(&guarantor)
+                || !countries.contains(&protected)
+            {
                 return Err(DiplomacyError::InvalidState);
             }
         }
