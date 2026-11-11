@@ -3,7 +3,7 @@
 import re
 
 
-KEY = re.compile(r"[a-z][a-z0-9_]*\Z", re.ASCII)
+KEY = re.compile(r"[a-z][a-z0-9]*(?:_[a-z0-9]+)*\Z", re.ASCII)
 U32_MAX = (1 << 32) - 1
 U64_MAX = (1 << 64) - 1
 I32_MIN = -(1 << 31)

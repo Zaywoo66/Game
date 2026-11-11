@@ -82,6 +82,11 @@ class DataLintTest(unittest.TestCase):
         self.assertIn("second.yaml: $.key: duplicate event key also in", result.stderr)
         self.assertIn("first.yaml", result.stderr)
 
+    def test_rejects_empty_snake_case_segments(self):
+        result = run_lint("bad_event_key")
+        self.assertEqual(result.returncode, 1, result)
+        self.assertIn("$.key: expected an ASCII snake_case", result.stderr)
+
 
 def run_lint(fixture):
     test_dir = Path(__file__).resolve().parent
