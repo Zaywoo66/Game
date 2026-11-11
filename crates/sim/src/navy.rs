@@ -161,13 +161,51 @@ impl NavyState {
             .ok_or(NavyError::Unreachable(destination))
     }
 
-    /// Advances one game day. Returns IDs of fleets whose position or route changed.
-    pub fn advance(&mut self) -> Vec<FleetId> {
+    /// Advances one game day. An enemy in the next zone blocks entry and ends
+    /// the route; naval combat will replace this barrier in a later M8 task.
+    /// Returns changed fleet IDs and an optional blocking fleet ID.
+    pub fn advance(
+        &mut self,
+        opposed: impl Fn(CountryId, CountryId) -> bool,
+    ) -> Vec<(FleetId, Option<FleetId>)> {
+        let arrivals: BTreeMap<_, _> = self
+            .fleets
+            .iter()
+            .map(|(&id, fleet)| {
+                let target = fleet.movement.as_ref().and_then(|movement| {
+                    (movement.elapsed_ticks + 1 == movement.route[0].cost)
+                        .then_some(movement.route[0].to)
+                });
+                (id, target.unwrap_or(fleet.sea))
+            })
+            .collect();
+        let starting: BTreeMap<_, _> = self
+            .fleets
+            .iter()
+            .map(|(&id, fleet)| (id, (fleet.country, fleet.sea)))
+            .collect();
         let mut changed = Vec::new();
         for (&id, fleet) in &mut self.fleets {
             let Some(movement) = &mut fleet.movement else {
                 continue;
             };
+            let destination = arrivals[&id];
+            if destination != fleet.sea {
+                let blocker =
+                    starting
+                        .iter()
+                        .find_map(|(&other_id, &(other_country, other_sea))| {
+                            (other_id != id
+                                && opposed(fleet.country, other_country)
+                                && (other_sea == destination || arrivals[&other_id] == destination))
+                                .then_some(other_id)
+                        });
+                if let Some(blocker) = blocker {
+                    fleet.movement = None;
+                    changed.push((id, Some(blocker)));
+                    continue;
+                }
+            }
             movement.elapsed_ticks += 1;
             if movement.elapsed_ticks == movement.route[0].cost {
                 fleet.sea = movement.route.remove(0).to;
@@ -176,7 +214,7 @@ impl NavyState {
                     fleet.movement = None;
                 }
             }
-            changed.push(id);
+            changed.push((id, None));
         }
         changed
     }

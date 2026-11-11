@@ -207,6 +207,10 @@ pub enum StateChange {
         fleet: FleetId,
         state: Option<Fleet>,
     },
+    FleetBlocked {
+        fleet: FleetId,
+        by: FleetId,
+    },
     WarChanged {
         war: WarId,
         state: Option<War>,
@@ -1222,7 +1226,7 @@ impl GameState {
         army_id: ArmyId,
         fleet_id: FleetId,
     ) -> Result<PreparedCommand<'static>, CommandError> {
-        let polity = self.authorized_polity(actor, country)?;
+        self.authorized_polity(actor, country)?;
         let war = self
             .war_state()
             .ok_or(CommandError::Navy(NavyError::Unavailable))?;
@@ -1261,9 +1265,13 @@ impl GameState {
                 fleet_id,
             )));
         }
-        if !polity.countries[&country]
-            .provinces
-            .contains(&army.province)
+        let port_access = self.owner_of_province(army.province).is_some_and(|owner| {
+            owner == country
+                || war
+                    .war_for(country)
+                    .is_some_and(|(_, conflict)| conflict.side(owner) == conflict.side(country))
+        });
+        if !port_access
             || !self.province_graph.get(army.province).is_some_and(|port| {
                 port.kind == crate::ProvinceKind::Land
                     && port.ports.contains(&fleet.sea)
@@ -1305,7 +1313,11 @@ impl GameState {
         let owner = self
             .owner_of_province(destination)
             .ok_or(CommandError::Navy(NavyError::InvalidPort(destination)))?;
-        if owner != country && !self.directly_at_war(country, owner) {
+        let same_side = self.war_state().is_some_and(|war| {
+            war.war_for(country)
+                .is_some_and(|(_, conflict)| conflict.side(owner) == conflict.side(country))
+        });
+        if owner != country && !same_side && !self.directly_at_war(country, owner) {
             return Err(CommandError::Navy(NavyError::NotAtWar));
         }
         if !self.province_graph.get(destination).is_some_and(|port| {
@@ -1439,12 +1451,38 @@ impl GameState {
             }
         }
         self.advance_military(&mut report);
+        let opposed_pairs: BTreeSet<_> = self
+            .war_state
+            .iter()
+            .flat_map(|war| war.wars.values())
+            .flat_map(|war| {
+                war.attacker_supporters
+                    .iter()
+                    .copied()
+                    .chain(std::iter::once(war.attacker))
+                    .flat_map(move |a| {
+                        war.defender_supporters
+                            .iter()
+                            .copied()
+                            .chain(std::iter::once(war.defender))
+                            .map(move |b| (a.min(b), a.max(b)))
+                    })
+            })
+            .collect();
         if let Some(navy) = &mut self.navy {
-            for id in navy.advance() {
+            for (id, blocked_by) in
+                navy.advance(|a, b| opposed_pairs.contains(&(a.min(b), a.max(b))))
+            {
                 report.delta.changes.push(StateChange::FleetChanged {
                     fleet: id,
                     state: navy.fleets.get(&id).cloned(),
                 });
+                if let Some(by) = blocked_by {
+                    report
+                        .delta
+                        .changes
+                        .push(StateChange::FleetBlocked { fleet: id, by });
+                }
             }
         }
         Ok(report)

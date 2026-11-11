@@ -73,6 +73,7 @@ fn legacy_read(logical: &str) -> io::Result<Vec<u8>> {
         serde_json::from_str(include_str!("fixtures/western_europe_v2_ownership.json")).unwrap();
     if logical == "scenarios/1440.json" {
         file.as_object_mut().unwrap().remove("unowned_provinces");
+        file.as_object_mut().unwrap().remove("navy");
         file["military"]["forts"] = legacy["forts"].clone();
     } else if let Some(tag) = logical
         .strip_prefix("countries/")

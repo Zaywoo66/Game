@@ -8,9 +8,9 @@ use std::{
 use serde::{de, Deserialize, Deserializer};
 use strategy_sim::{
     AiProfileKey, AiThresholds, AiWeights, CharacterId, CharacterState, CharacterStats, Controller,
-    CountryId, CountryPolity, CountryState, Date, EconomyState, FiscalPolicy, Fixed, GameState,
-    ModifierSourceId, ModifierStore, Opinion, PlayerId, PolityState, ProvinceGraph, ProvinceId,
-    ProvinceKind, SimTime, Speed, SuccessionState, WarState,
+    CountryId, CountryPolity, CountryState, Date, EconomyState, FiscalPolicy, Fixed, Fleet,
+    FleetId, GameState, ModifierSourceId, ModifierStore, NavyState, Opinion, PlayerId, PolityState,
+    ProvinceGraph, ProvinceId, ProvinceKind, SimTime, Speed, SuccessionState, WarState,
 };
 
 use crate::{
@@ -77,6 +77,8 @@ struct ScenarioFile {
     #[serde(deserialize_with = "unique_map")]
     traits: BTreeMap<String, Vec<ModifierFile>>,
     military: Option<MilitaryFile>,
+    #[serde(default, deserialize_with = "deserialize_present")]
+    navy: Option<NavyFile>,
     #[serde(default)]
     opinions: Vec<OpinionFile>,
     #[serde(default, deserialize_with = "deserialize_present")]
@@ -97,6 +99,78 @@ struct MilitaryFile {
     rules: WarRulesFile,
     #[serde(deserialize_with = "unique_map")]
     forts: BTreeMap<String, u8>,
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct NavyFile {
+    fleets: Vec<StartingFleetFile>,
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct StartingFleetFile {
+    country: String,
+    port: String,
+    sea: String,
+    ships: u32,
+}
+
+impl NavyFile {
+    fn resolve(
+        self,
+        graph: &ProvinceGraph,
+        countries: &BTreeMap<&str, CountryId>,
+        polity: &BTreeMap<CountryId, CountryPolity>,
+    ) -> Result<NavyState> {
+        let mut navy = NavyState::new();
+        let mut keys = BTreeSet::new();
+        for (index, entry) in self.fleets.into_iter().enumerate() {
+            let id = FleetId::new(
+                u32::try_from(index + 1).map_err(|_| invalid("too many fleets in scenario"))?,
+            );
+            let country = *countries.get(entry.country.as_str()).ok_or_else(|| {
+                invalid(format!(
+                    "navy fleet {index}: unknown country {}",
+                    entry.country
+                ))
+            })?;
+            let port = graph.by_key(&entry.port).ok_or_else(|| {
+                invalid(format!("navy fleet {index}: unknown port {}", entry.port))
+            })?;
+            let sea = graph
+                .by_key(&entry.sea)
+                .ok_or_else(|| invalid(format!("navy fleet {index}: unknown sea {}", entry.sea)))?;
+            if entry.ships == 0
+                || port.kind != ProvinceKind::Land
+                || sea.kind != ProvinceKind::Sea
+                || !polity[&country].provinces.contains(&port.id)
+                || !port.ports.contains(&sea.id)
+                || !port
+                    .neighbors
+                    .iter()
+                    .any(|edge| edge.to == sea.id && edge.kind == strategy_sim::EdgeKind::Port)
+                || !keys.insert((country, port.id, sea.id))
+            {
+                return Err(invalid(format!(
+                    "navy fleet {index}: invalid or repeated home port, sea, or ship count"
+                )));
+            }
+            navy.fleets.insert(
+                id,
+                Fleet {
+                    country,
+                    sea: sea.id,
+                    ships: entry.ships,
+                    movement: None,
+                    cargo: None,
+                },
+            );
+        }
+        navy.next_fleet_id = u32::try_from(navy.fleets.len() + 1)
+            .map_err(|_| invalid("too many fleets in scenario"))?;
+        Ok(navy)
+    }
 }
 
 impl MilitaryFile {
@@ -401,6 +475,10 @@ pub fn load_scenario_from_reader(
         .military
         .map(|file| file.resolve(&graph))
         .transpose()?;
+    let navy = scenario
+        .navy
+        .map(|file| file.resolve(&graph, &countries, &country_polities))
+        .transpose()?;
     let state = GameState::new(
         SimTime::new(date, Speed::One, false),
         scenario.seed,
@@ -418,12 +496,19 @@ pub fn load_scenario_from_reader(
     .map_err(|error| invalid(format!("{path}: invalid polity: {error:?}")))?
     .with_opinions(opinions)
     .map_err(|error| invalid(format!("{path}: invalid initial opinions: {error:?}")))?;
-    if let Some(military) = military {
+    let state = if let Some(military) = military {
         state.with_war_state(military).map_err(|error| {
             invalid(format!(
                 "{path}: invalid military rules or state: {error:?}"
             ))
-        })
+        })?
+    } else {
+        state
+    };
+    if let Some(navy) = navy {
+        state
+            .with_navy(navy)
+            .map_err(|error| invalid(format!("{path}: invalid navy: {error:?}")))
     } else {
         Ok(state)
     }

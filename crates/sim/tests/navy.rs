@@ -74,12 +74,12 @@ fn sea_movement_uses_whole_daily_cost_and_validates_ownership() {
         route,
         elapsed_ticks: 0,
     });
-    assert_eq!(navy.advance(), [id]);
+    assert_eq!(navy.advance(|_, _| false), [(id, None)]);
     assert_eq!(navy.fleets[&id].sea, ProvinceId::new(1));
-    assert_eq!(navy.advance(), [id]);
+    assert_eq!(navy.advance(|_, _| false), [(id, None)]);
     assert_eq!(navy.fleets[&id].sea, ProvinceId::new(2));
     assert!(navy.fleets[&id].movement.is_none());
-    assert_eq!(navy.advance(), []);
+    assert_eq!(navy.advance(|_, _| false), []);
 }
 
 #[test]
@@ -104,4 +104,32 @@ fn cargo_validation_rejects_over_capacity_and_duplicates() {
         navy.validate(&graph, [CountryId::new(1)], armies),
         Err(NavyError::CargoAlreadyAboard(ArmyId::new(8)))
     );
+}
+
+#[test]
+fn enemy_in_next_sea_zone_blocks_entry_with_explicit_fleet_id() {
+    let graph = graph();
+    let (id, mut navy) = fleet();
+    let enemy = FleetId::new(2);
+    navy.fleets.insert(
+        enemy,
+        Fleet {
+            country: CountryId::new(2),
+            sea: ProvinceId::new(2),
+            ships: 1,
+            movement: None,
+            cargo: None,
+        },
+    );
+    navy.next_fleet_id = 3;
+    let route = navy
+        .fleet_route(&graph, id, CountryId::new(1), ProvinceId::new(2))
+        .unwrap();
+    navy.fleets.get_mut(&id).unwrap().movement = Some(strategy_sim::FleetMovement {
+        route,
+        elapsed_ticks: 1,
+    });
+    assert_eq!(navy.advance(|a, b| a != b), [(id, Some(enemy))]);
+    assert_eq!(navy.fleets[&id].sea, ProvinceId::new(1));
+    assert!(navy.fleets[&id].movement.is_none());
 }
