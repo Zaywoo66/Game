@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { ArmyMarker, createArmyLayer } from './armyLayer';
 import { decodeProvinceId, MapAssets, pickProvinceId, Raster, Rgba, updateOwnerLookup } from './mapData';
-import { mapFragmentShader, mapVertexShader } from './mapShaders';
+import { mapFragmentShader, mapVertexShader, oceanFragmentShader, oceanVertexShader } from './mapShaders';
 import { createTerrain } from './terrain';
 
 interface OwnerUpdate {
@@ -28,6 +28,9 @@ export interface MapTestControls {
   setOwnerColor(id: number, rgba: Rgba): OwnerUpdate;
   startBenchmark(): void;
   readBenchmark(): BenchmarkSample;
+  setCameraPreset(name: 'whole-region' | 'britain' | 'iberia' | 'province'): void;
+  readCamera(): { target: [number, number]; zoom: number; polarAngle: number };
+  readPixel(clientX: number, clientY: number): Rgba;
 }
 
 interface MapViewer {
@@ -96,10 +99,18 @@ export function createMapViewer(
   const ownerBytes = new Uint8Array(lookupPixels * 4);
   const occupationBytes = new Uint8Array(lookupPixels * 4);
   const waterBytes = new Uint8Array(lookupPixels);
+  const areaBytes = new Uint8Array(lookupPixels * 4);
+  const areaKeys = [...new Set([...provinces.values()].map((province) => province.area).filter((area): area is string => Boolean(area)))].sort();
+  const areaIds = new Map(areaKeys.map((area, index) => [area, index + 1]));
   waterBytes[0] = 1;
   for (const [id, province] of provinces) {
     if (province.kind === 'sea') waterBytes[id] = 1;
     if (province.kind === 'lake') waterBytes[id] = 2;
+    const area = province.area ? areaIds.get(province.area) ?? 0 : 0;
+    areaBytes[id * 4] = area >> 16;
+    areaBytes[id * 4 + 1] = (area >> 8) & 0xff;
+    areaBytes[id * 4 + 2] = area & 0xff;
+    areaBytes[id * 4 + 3] = 255;
   }
 
   const provinceTexture = texture(new Uint8Array(data.buffer, data.byteOffset, data.byteLength), width, height);
@@ -110,7 +121,14 @@ export function createMapViewer(
   const occupationTexture = texture(occupationBytes, lookupWidth, lookupHeight);
   occupationTexture.colorSpace = THREE.SRGBColorSpace;
   const waterTexture = texture(waterBytes, lookupWidth, lookupHeight, THREE.RedFormat);
-  const textures = [provinceTexture, terrainTexture, riverTexture, ownerTexture, occupationTexture, waterTexture];
+  const areaTexture = texture(areaBytes, lookupWidth, lookupHeight);
+  const heightTexture = new THREE.DataTexture(assets.heightmap.samples, width, height, THREE.RedFormat, THREE.UnsignedShortType);
+  heightTexture.magFilter = THREE.NearestFilter;
+  heightTexture.minFilter = THREE.NearestFilter;
+  heightTexture.generateMipmaps = false;
+  heightTexture.unpackAlignment = 1;
+  heightTexture.needsUpdate = true;
+  const textures = [provinceTexture, terrainTexture, riverTexture, ownerTexture, occupationTexture, waterTexture, areaTexture, heightTexture];
   const uniforms = {
     provinceRaster: { value: provinceTexture },
     terrainRaster: { value: terrainTexture },
@@ -118,6 +136,8 @@ export function createMapViewer(
     ownerLookup: { value: ownerTexture },
     occupationLookup: { value: occupationTexture },
     waterLookup: { value: waterTexture },
+    areaLookup: { value: areaTexture },
+    heightRaster: { value: heightTexture },
     rasterSize: { value: new THREE.Vector2(width, height) },
     lookupSize: { value: new THREE.Vector2(lookupWidth, lookupHeight) },
     selectedId: { value: 0 },
@@ -133,17 +153,30 @@ export function createMapViewer(
   const scene = new THREE.Scene();
   scene.add(...chunks);
 
+  // Open water beyond the finite regional raster keeps wide windows and
+  // tilted views from exposing the scene background at the map edge.
+  const oceanGeometry = new THREE.PlaneGeometry(width * 5, height * 5);
+  oceanGeometry.rotateX(-Math.PI / 2);
+  oceanGeometry.translate(width / 2, -1, height / 2);
+  const oceanMaterial = new THREE.ShaderMaterial({
+    uniforms: { rasterSize: uniforms.rasterSize, seconds: uniforms.seconds },
+    vertexShader: oceanVertexShader,
+    fragmentShader: oceanFragmentShader,
+    side: THREE.DoubleSide,
+  });
+  scene.add(new THREE.Mesh(oceanGeometry, oceanMaterial));
+
   const span = Math.max(width, height);
-  const camera = new THREE.PerspectiveCamera(43, 1, Math.max(0.1, span / 2_000), span * 8);
+  const camera = new THREE.OrthographicCamera(-span / 2, span / 2, span / 2, -span / 2, 0.1, span * 8);
   const controls = new OrbitControls(camera, renderer.domElement);
   controls.target.set(width / 2, 0, height / 2);
-  controls.minDistance = span * 0.14;
-  controls.maxDistance = span * 4;
-  controls.minPolarAngle = 0.10;
-  controls.maxPolarAngle = 1.20;
+  controls.minZoom = 0.85;
+  controls.maxZoom = 6;
+  controls.minPolarAngle = 0.02;
+  controls.maxPolarAngle = 0.72;
   controls.enableDamping = true;
   controls.dampingFactor = 0.14;
-  controls.zoomToCursor = true;
+  controls.zoomToCursor = false;
   controls.screenSpacePanning = false;
   controls.mouseButtons = { LEFT: THREE.MOUSE.PAN, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: THREE.MOUSE.ROTATE };
   controls.touches = { ONE: THREE.TOUCH.PAN, TWO: THREE.TOUCH.DOLLY_ROTATE };
@@ -156,17 +189,23 @@ export function createMapViewer(
     if (w === 0 || h === 0) return;
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.setSize(w, h, false);
-    camera.aspect = w / h;
+    const frameHeight = height * 1.08;
+    camera.left = -frameHeight * w / h / 2;
+    camera.right = -camera.left;
+    camera.top = frameHeight / 2;
+    camera.bottom = -camera.top;
     camera.updateProjectionMatrix();
 
     if (!fitted) {
-      const distance = 0.64 * Math.max(height, width / camera.aspect) / Math.tan(camera.fov * Math.PI / 360);
-      const tilt = 0.50;
+      const distance = span * 1.6;
+      const tilt = 0.12;
       camera.position.copy(controls.target).add(new THREE.Vector3(
         0,
         distance * Math.cos(tilt),
         distance * Math.sin(tilt),
       ));
+      camera.zoom = manualFrames ? 1 : 1.6;
+      camera.updateProjectionMatrix();
       fitted = true;
     }
     controls.update();
@@ -341,8 +380,12 @@ export function createMapViewer(
   const start = performance.now();
   function renderFrame(now: number) {
     controls.update();
-    const boundedX = THREE.MathUtils.clamp(controls.target.x, 0, width);
-    const boundedZ = THREE.MathUtils.clamp(controls.target.z, 0, height);
+    const halfWidth = (camera.right - camera.left) / (2 * camera.zoom);
+    const halfHeight = (camera.top - camera.bottom) / (2 * camera.zoom);
+    const horizontalPan = Math.max(0, width / 2 - halfWidth * 0.7);
+    const verticalPan = Math.max(0, height / 2 - halfHeight * 0.7);
+    const boundedX = THREE.MathUtils.clamp(controls.target.x, width / 2 - horizontalPan, width / 2 + horizontalPan);
+    const boundedZ = THREE.MathUtils.clamp(controls.target.z, height / 2 - verticalPan, height / 2 + verticalPan);
     camera.position.x += boundedX - controls.target.x;
     camera.position.z += boundedZ - controls.target.z;
     controls.target.x = boundedX;
@@ -363,6 +406,24 @@ export function createMapViewer(
   }
   if (manualFrames) renderFrame(start);
   else animate(start);
+
+  function setCameraPreset(name: 'whole-region' | 'britain' | 'iberia' | 'province') {
+    const london = [...provinces.values()].find((province) => province.key === 'london');
+    const presets = {
+      'whole-region': { x: width / 2, z: height / 2, zoom: 1, tilt: 0.12 },
+      britain: { x: width * 0.39, z: height * 0.27, zoom: 2.1, tilt: 0.15 },
+      iberia: { x: width * 0.38, z: height * 0.72, zoom: 2.1, tilt: 0.15 },
+      province: { x: london?.centroid[0] ?? width / 2, z: london?.centroid[1] ?? height / 2, zoom: 4.2, tilt: 0.23 },
+    };
+    const preset = presets[name];
+    const distance = span * 1.6;
+    controls.target.set(preset.x, 0, preset.z);
+    camera.position.copy(controls.target).add(new THREE.Vector3(0, distance * Math.cos(preset.tilt), distance * Math.sin(preset.tilt)));
+    camera.zoom = preset.zoom;
+    camera.updateProjectionMatrix();
+    controls.update();
+    renderFrame(performance.now());
+  }
 
   return {
     renderer: gpu,
@@ -386,6 +447,17 @@ export function createMapViewer(
         return armyLayer.readPosition(id);
       },
       setOwnerColor, startBenchmark, readBenchmark,
+      setCameraPreset,
+      readCamera: () => ({ target: [controls.target.x, controls.target.z], zoom: camera.zoom, polarAngle: controls.getPolarAngle() }),
+      readPixel(clientX, clientY) {
+        renderFrame(performance.now());
+        const rect = renderer.domElement.getBoundingClientRect();
+        const x = Math.floor((clientX - rect.left) / rect.width * context.drawingBufferWidth);
+        const y = Math.floor((rect.bottom - clientY) / rect.height * context.drawingBufferHeight);
+        const pixel = new Uint8Array(4);
+        context.readPixels(x, y, 1, 1, context.RGBA, context.UNSIGNED_BYTE, pixel);
+        return [pixel[0], pixel[1], pixel[2], pixel[3]];
+      },
     },
     dispose() {
       cancelAnimationFrame(frame);
@@ -397,6 +469,8 @@ export function createMapViewer(
       renderer.domElement.remove();
       armyLayer.dispose();
       chunks.forEach(({ geometry }) => geometry.dispose());
+      oceanGeometry.dispose();
+      oceanMaterial.dispose();
       textures.forEach((value) => value.dispose());
       material.dispose();
       renderer.dispose();

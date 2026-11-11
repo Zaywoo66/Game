@@ -72,6 +72,31 @@ test('owner recoloring changes the rendered province in place', async ({ page })
     .toBe(target.id);
 });
 
+test('camera presets stay bounded and wide margins render as ocean', async ({ page }) => {
+  const result = await page.evaluate(() => {
+    const map = window.strategyMapTest;
+    const samples = {};
+    for (const name of ['whole-region', 'britain', 'iberia', 'province']) {
+      map.setCameraPreset(name);
+      samples[name] = map.readCamera();
+    }
+    map.setCameraPreset('whole-region');
+    const margin = map.readPixel(8, window.innerHeight / 2);
+    return { samples, margin };
+  });
+  for (const camera of Object.values(result.samples)) {
+    expect(camera.target[0]).toBeGreaterThanOrEqual(0);
+    expect(camera.target[0]).toBeLessThanOrEqual(800);
+    expect(camera.target[1]).toBeGreaterThanOrEqual(0);
+    expect(camera.target[1]).toBeLessThanOrEqual(744);
+    expect(camera.polarAngle).toBeLessThanOrEqual(0.72);
+  }
+  expect(result.samples['whole-region'].zoom).toBe(1);
+  expect(result.samples.province.zoom).toBeGreaterThan(result.samples.britain.zoom);
+  expect(result.margin[2]).toBeGreaterThan(result.margin[0] * 2);
+  expect(result.margin).not.toEqual([21, 35, 44, 255]);
+});
+
 async function loadProvinces(page) {
   const response = await page.request.get('/map/western_europe/provinces.json');
   expect(response.ok()).toBe(true);

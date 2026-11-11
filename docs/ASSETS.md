@@ -31,3 +31,4 @@
 | `data/map/western_europe/heightmap.png` | NOAA ETOPO1 input above | NOAA and project team | Public domain source, original encoding | Interpolated elevation and bathymetry in 16-bit grayscale |
 | `data/map/western_europe/terrain.png` | NOAA ETOPO1 and Natural Earth inputs above | NOAA, Natural Earth contributors and project team | Public domain sources, original encoding | Generated terrain classification |
 | `data/map/western_europe/rivers.png` | Natural Earth river input above | Natural Earth contributors and project team | Public domain source, original encoding | Rasterized river mask |
+| `docs/screenshots/m5b4/*.png` | Generated from the registered Western Europe map rasters above with `npm run capture:map` | Project team and the credited map-data authors | CC BY 4.0 for Cliopatria-derived content | Four 1920 × 1080 Chromium software-WebGL review captures; screenshots are evidence, not additional map source data. |
