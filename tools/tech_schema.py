@@ -57,7 +57,14 @@ def validate_tech_branch(document, expected_branch):
             errors.append(f"{path}.effects: expected a list")
         else:
             for effect_index, effect in enumerate(effects):
-                _effect(effect, f"{path}.effects[{effect_index}]", errors)
+                effect_path = f"{path}.effects[{effect_index}]"
+                _effect(effect, effect_path, errors)
+                if (isinstance(effect, dict)
+                        and isinstance(effect.get("add_modifier"), dict)
+                        and "duration_days" in effect["add_modifier"]):
+                    errors.append(
+                        f"{effect_path}.add_modifier.duration_days: technology effects must be permanent"
+                    )
 
         if isinstance(key, str) and KEY.fullmatch(key) and isinstance(requirements, list):
             entries.append((key, tuple(required for required in requirements

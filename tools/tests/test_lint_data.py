@@ -141,6 +141,11 @@ class DataLintTest(unittest.TestCase):
         self.assertEqual(result.returncode, 1, result)
         self.assertIn("duplicate technology branch military", result.stderr)
 
+    def test_rejects_timed_technology_modifier(self):
+        result = run_lint("bad_tech_duration")
+        self.assertEqual(result.returncode, 1, result)
+        self.assertIn("technology effects must be permanent", result.stderr)
+
 
 def run_lint(fixture):
     test_dir = Path(__file__).resolve().parent

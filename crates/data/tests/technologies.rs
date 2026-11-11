@@ -50,6 +50,7 @@ fn parser_rejects_wrong_branch_schema_keys_and_units() {
         ("value: 50", "value: 0.1"),
         ("value: 50", "value: \"10%\""),
         ("kind: additive", "kind: future"),
+        ("kind: additive", "kind: additive, duration_days: 30"),
         ("add_modifier:", "future_effect:"),
     ] {
         let source = MILITARY.replace(from, to);

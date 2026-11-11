@@ -206,7 +206,7 @@ points, unlock commands, or AI technology choices.
 | `technologies[].cost` | Positive unsigned 32-bit integer in whole research points. |
 | `technologies[].requires` | List of unique technology keys; an empty list denotes a root node. |
 | `technologies[].pos.x`, `pos.y` | Signed 32-bit integers in tech-tree layout grid units. |
-| `technologies[].effects` | List of `add_modifier` effects in the Trigger and effect syntax section. Modifier `value` uses raw Fixed thousandths; optional `duration_days` uses whole game days. |
+| `technologies[].effects` | List of permanent `add_modifier` effects in the Trigger and effect syntax section. Modifier `value` uses raw Fixed thousandths; `duration_days` is forbidden for technology effects. |
 
 For example:
 
