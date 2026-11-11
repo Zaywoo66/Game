@@ -92,6 +92,7 @@ test('M4 renders armies and applies only authoritative land-war updates', async 
   expect((await modelResponse).ok()).toBe(true);
   const viewport = page.locator('[data-map-viewport]');
   await expect(viewport).toHaveAttribute('data-map-army-instances', '3', { timeout: 30_000 });
+  await page.evaluate(() => window.strategyMapTest.renderFrame());
   await expect(page.getByText('Died 1460-01-01')).toHaveCount(0);
   await page.getByRole('button', { name: 'Military', exact: true }).click();
   const panel = page.getByRole('region', { name: 'Military' });

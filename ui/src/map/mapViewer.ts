@@ -19,6 +19,7 @@ export interface BenchmarkSample {
 }
 
 export interface MapTestControls {
+  renderFrame(): void;
   decodeProvinceId: typeof decodeProvinceId;
   pickAt(clientX: number, clientY: number): number;
   projectProvince(id: number): { x: number; y: number } | null;
@@ -69,6 +70,7 @@ export function createMapViewer(
   assets: MapAssets,
   onSelect: (id: number) => void,
   onArmySelect: (id: number) => void,
+  manualFrames = false,
 ): MapViewer {
   const { width, height, data } = assets.raster;
   const { provinces } = assets;
@@ -337,7 +339,7 @@ export function createMapViewer(
 
   let frame = 0;
   const start = performance.now();
-  function animate(now: number) {
+  function renderFrame(now: number) {
     controls.update();
     const boundedX = THREE.MathUtils.clamp(controls.target.x, 0, width);
     const boundedZ = THREE.MathUtils.clamp(controls.target.z, 0, height);
@@ -345,7 +347,7 @@ export function createMapViewer(
     camera.position.z += boundedZ - controls.target.z;
     controls.target.x = boundedX;
     controls.target.z = boundedZ;
-    uniforms.seconds.value = (now - start) / 1_000;
+    uniforms.seconds.value = manualFrames ? 0 : (now - start) / 1_000;
     armyLayer.update(now);
     renderer.render(scene, camera);
 
@@ -353,9 +355,14 @@ export function createMapViewer(
       if (previousFrame !== null && sample.length < 10_000) sample.push(now - previousFrame);
       previousFrame = now;
     }
+  }
+
+  function animate(now: number) {
+    renderFrame(now);
     frame = requestAnimationFrame(animate);
   }
-  animate(start);
+  if (manualFrames) renderFrame(start);
+  else animate(start);
 
   return {
     renderer: gpu,
@@ -372,7 +379,12 @@ export function createMapViewer(
     startBenchmark,
     readBenchmark,
     testControls: {
-      decodeProvinceId, pickAt, projectProvince, readOwnerColor, readArmyPosition: armyLayer.readPosition,
+      renderFrame: () => renderFrame(performance.now()),
+      decodeProvinceId, pickAt, projectProvince, readOwnerColor,
+      readArmyPosition(id) {
+        armyLayer.update(performance.now());
+        return armyLayer.readPosition(id);
+      },
       setOwnerColor, startBenchmark, readBenchmark,
     },
     dispose() {

@@ -7,6 +7,8 @@ export default defineConfig({
   testDir: '.',
   outputDir: '../node_modules/.cache/map-test-results',
   workers: 1,
+  reporter: 'list',
+  retries: 0,
   timeout: 120_000,
   use: {
     baseURL,
