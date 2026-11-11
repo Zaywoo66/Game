@@ -89,7 +89,7 @@ pub fn parse_provinces(bytes: &[u8]) -> Result<ProvinceGraph, ProvinceLoadError>
     Ok(graph)
 }
 
-fn decode_hash(text: &str) -> Option<[u8; 32]> {
+pub(crate) fn decode_hash(text: &str) -> Option<[u8; 32]> {
     if text.len() != 64
         || !text
             .bytes()

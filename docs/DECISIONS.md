@@ -22,3 +22,4 @@
 | Date | Item | Result |
 |------|------|--------|
 | 2026-11-11 | First Windows PC, [PR #2](https://github.com/Zaywoo66/Game/pull/2) Tauri WebView | WebGL renderer/GPU: ANGLE (NVIDIA, NVIDIA GeForce RTX 4050 Laptop GPU (0x000028E1) Direct3D11 vs_5_0 ps_5_0, D3D11); version: WebGL 2.0 (OpenGL ES 3.0 Chromium) |
+| 2026-11-11 | M1 synthetic tick benchmark (provisional) | Criterion median 243.27 ns/tick (95% CI 242.22–246.23 ns, 100 samples). `cargo bench --locked -p strategy-data --bench tick`, optimized bench profile, Rust 1.99.1 MSVC, Windows 11 Pro, Ryzen 7 7435HS. The fixture has 400 provinces and 8 AI-stub countries with one permanent modifier source each. This measures the M1 tick shell only. The full beta-map and gameplay benchmark is still pending. |

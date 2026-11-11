@@ -235,3 +235,39 @@ fn rejects_a_bundle_whose_modifiers_name_a_different_source() {
     );
     assert_eq!(store, ModifierStore::default());
 }
+#[test]
+fn rejects_an_unrepresentable_multiplier_without_inserting_its_bundle() {
+    let key = ModKey::new("test_stat");
+    let source = ModifierSourceId::new(7);
+    let mut store = ModifierStore::default();
+    store
+        .insert_source(
+            ModifierSourceId::new(3),
+            None,
+            vec![modifier(
+                &key,
+                3,
+                ModifierKind::Multiplicative,
+                i64::MAX - Fixed::SCALE,
+            )],
+        )
+        .unwrap();
+    assert_eq!(
+        store.effective_value(Fixed::ONE, &key),
+        Some(Fixed::from_raw(i64::MAX))
+    );
+
+    let previous = store.clone();
+    assert_eq!(
+        store.insert_source(
+            source,
+            None,
+            vec![
+                modifier(&key, 7, ModifierKind::Additive, 100),
+                modifier(&key, 7, ModifierKind::Multiplicative, i64::MAX),
+            ]
+        ),
+        Err(ModifierInsertError::InvalidMultiplier { source, index: 1 })
+    );
+    assert_eq!(store, previous);
+}

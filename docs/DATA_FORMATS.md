@@ -55,6 +55,43 @@ Run `cargo run --locked -p strategy-data --bin lint-provinces -- data/provinces.
 to validate the generated file. CI always tests the validator against
 fixtures and additionally validates the canonical file when it exists.
 
+## Saved games (schema version 1)
+
+`strategy_data::save_game` encodes an authoritative simulation snapshot in
+compact UTF-8 JSON without a trailing newline. The envelope fields are
+`schema_version`, `map_version`, `map_hash`, and `state` in that order. The
+map identity comes from the game's graph. The static graph is supplied
+separately to `load_game` and is never serialized in the save. Loading first
+checks the save version and compares both map identity fields against the
+supplied graph before decoding its game state.
+
+The state contains the clock, RNG, country records, and scheduled modifier
+grants. Its numeric fields use these representations:
+
+| Field | Representation and unit |
+|---|---|
+| `schema_version` | Unsigned 32-bit schema version number. Save v1 requires `1`. |
+| `map_version` | Positive unsigned 32-bit map version number. |
+| `start_date` | `[year, month, day]` in the proleptic Gregorian calendar. Year is unsigned 32-bit; month and day are unsigned 8-bit and start at one. |
+| `tick`, scheduled `due`, and `expires_at` | Unsigned 64-bit ticks since the scenario started, at one tick per game day. A null expiry means a permanent source. A timed active source must expire after the saved tick. A scheduled expiry must be after its due tick. |
+| `speed` | Unsigned 8-bit speed level, 1 through 5. |
+| `seed`, `rng_state` | Unsigned 64-bit seed and generator state, respectively. |
+| Country IDs, player IDs, and source IDs | Unsigned 32-bit identifiers. |
+| Modifier `value` | Signed 64-bit integer in raw Fixed thousandths. A multiplicative value must allow `1 + value` to fit in Fixed. |
+
+Countries and modifier source bundles are ordered by numeric ID. Known
+technologies are ordered lexicographically. Scheduled grants are ordered by
+due tick, country ID, then source ID. These arrays must be strictly ordered
+and have no duplicate keys. Modifiers within a source retain their original
+order. Whitespace and object field order are accepted on load. Saving again
+emits the canonical representation. A readable example is
+`crates/data/tests/fixtures/save_v1.json`.
+
+The state hash is SHA-256 over the UTF-8 bytes of `strategy:game-state:v1`,
+then a single NUL byte, then the canonical save bytes. Hashing includes the
+map identity and schema version. Runtime state in memory uses the integer
+and ordered types from `sim`. Callers handle file input/output.
+
 ## Countries (`data/countries/<tag>.yaml`)
 `tag, name, color, capital, culture, religion, government, start: { ruler, treasury, provinces:[...] }, unique_ideas:[idea_key]`
 

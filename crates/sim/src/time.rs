@@ -180,6 +180,28 @@ impl SimTime {
         }
     }
 
+    /// Reconstructs a saved clock, checking that its current date is representable.
+    pub fn restore(
+        start_date: Date,
+        tick: Tick,
+        speed: Speed,
+        paused: bool,
+    ) -> Result<Self, TimeError> {
+        start_date
+            .checked_add_days(tick.get())
+            .ok_or(TimeError::DateOverflow)?;
+        Ok(Self {
+            start_date,
+            tick,
+            speed,
+            paused,
+        })
+    }
+
+    pub const fn start_date(&self) -> Date {
+        self.start_date
+    }
+
     pub const fn tick(&self) -> Tick {
         self.tick
     }
