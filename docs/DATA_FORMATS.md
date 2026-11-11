@@ -181,7 +181,44 @@ Country and character numeric IDs are assigned in sorted key order starting at 1
 | `traits` | Unique keys from the scenario's trait map. |
 
 ## Technologies (`data/techs/<branch>.yaml`) — DAG
-`key, branch, cost, requires:[keys], pos:{x,y}, effects:[Effect]`
+
+Technology branch files use YAML with `schema_version: 1`, a `branch` key
+equal to the ASCII snake_case filename stem, and a `technologies` list. Every
+technology key is unique across all branch files. Prerequisites may refer to
+another branch, but every referenced key must exist and the complete directed
+graph must have no cycles. The data linter checks those conditions before
+technology content enters the game. This format task does not yet add research
+points, unlock commands, or AI technology choices.
+
+| Field | Representation and unit |
+|---|---|
+| `schema_version` | Integer `1` for the branch file. |
+| `branch` | ASCII snake_case branch key, equal to the filename stem. Branch names are content keys, not a fixed list in code. |
+| `technologies[].key` | Globally unique ASCII snake_case technology key. |
+| `technologies[].cost` | Positive unsigned 32-bit integer in whole research points. |
+| `technologies[].requires` | List of unique technology keys; an empty list denotes a root node. |
+| `technologies[].pos.x`, `pos.y` | Signed 32-bit integers in tech-tree layout grid units. |
+| `technologies[].effects` | List of `add_modifier` effects in the Trigger and effect syntax section. Modifier `value` uses raw Fixed thousandths; optional `duration_days` uses whole game days. |
+
+For example:
+
+```yaml
+schema_version: 1
+branch: military
+technologies:
+  - key: professional_officers
+    cost: 250
+    requires: [recordkeeping]
+    pos: {x: 2, y: -1}
+    effects:
+      - add_modifier: {key: army_morale, value: 100, kind: multiplicative}
+```
+
+Run `python tools/lint_data.py` to check this contract. It rejects missing or
+duplicate keys, repeated prerequisites, unknown fields/effects, invalid units,
+and cycles. The parser applies the same canonical YAML scalar rules as events:
+lowercase booleans and decimal integer literals without separators or leading
+zeros.
 
 ## Ideas (`data/ideas/<tag>.yaml`)
 `key, name, modifiers:[{key,value,kind}], unlock: Trigger`
