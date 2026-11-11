@@ -32,6 +32,13 @@ jobs:
       - run: npm run build
         working-directory: ui
       - run: cargo fmt --check
+      - name: Reject floating-point types in the simulation
+        shell: pwsh
+        run: |
+          git grep -n -E 'f32|f64' -- crates/sim
+          if ($LASTEXITCODE -eq 0) { throw 'Floating-point types are forbidden in crates/sim.' }
+          if ($LASTEXITCODE -ne 1) { exit $LASTEXITCODE }
+          exit 0
       - run: cargo clippy --all-targets -- -D warnings
       - run: cargo test --workspace
       - run: python tools/lint_data.py
