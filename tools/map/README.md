@@ -79,6 +79,13 @@ areas mark gaps in coverage. Area boundaries follow gameplay cells.
 `areas.yaml` and `regions.yaml` describe the generated hierarchy and
 `names.en.json` provides English display names.
 
+`polities_1440.json` records the largest Cliopatria 1440 polygon overlap for
+all land cells, with the checked-in source SHA-256 and map identity. It keeps
+Irish cells with no source polygon as `unmatched` and broad polity labels such
+as `Holy Roman Empire Minor States` as `coarse_group`. This evidence does not
+assign scenario ownership; review local records before converting a match to
+game content.
+
 The dense ownership raises the levy estimates of neighboring countries toward
 the same cap. `data/ai/profiles/balanced.json` therefore uses a war threshold
 of 0 rather than 250. The 10-year military autoplay and 10,000-tick LAN replay

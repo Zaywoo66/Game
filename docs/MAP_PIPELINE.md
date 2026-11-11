@@ -17,10 +17,16 @@
 | provinces.json | Schema v3 graph, projection and area keys. See DATA_FORMATS.md. |
 | areas.yaml, regions.yaml | Area and region tables with historical provenance where available. |
 | names.en.json | English fallback names for provinces, areas and regions. |
+| polities_1440.json | Cliopatria 1440 best-overlap evidence for every land province, pinned to the map hash; unmatched and coarse groups remain explicit. |
 | heightmap.png | 16-bit grayscale elevation in metres, decoded as sample minus 32768 |
 | terrain.png | 8-bit terrain index: 0 sea, 1 plains, 2 hills, 3 mountains, 4 lake |
 | rivers.png | 8-bit mask: 0 background, 255 river |
 | water mask | derived from sea provinces |
+
+`polities_1440.json` is generated offline from the checked-in clipped
+Cliopatria source. It does not change scenario ownership or owner-color
+rendering. The source release, license and SHA-256 are recorded in the
+sidecar; the Python map validator checks provenance and land coverage.
 
 The generator writes symmetric movement costs in the map metadata using the
 region's `movement_costs` in `overrides.yaml`. Changing these costs changes

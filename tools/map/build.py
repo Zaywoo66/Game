@@ -19,6 +19,7 @@ from map_common import (
 )
 from validate import validate_directory
 from historical_areas import classify_seeds, slug, update_ownership
+from polity_evidence import build_evidence
 from topology import paired_slices, raster_contacts, regular_edge, snap_point, strait_pairs
 
 SHAPE = (HEIGHT, WIDTH)
@@ -282,6 +283,10 @@ def generate(output):
     Image.fromarray(terrain).save(output / "terrain.png", compress_level=9)
     Image.fromarray(rivers.astype(np.uint8) * 255).save(output / "rivers.png", compress_level=9)
     (output / "provinces.json").write_bytes(json_bytes(metadata, pretty=True))
+    (output / "polities_1440.json").write_bytes(json_bytes(
+        build_evidence(ids, history, historical_features, provinces, config["map_version"], metadata["map_hash"]),
+        pretty=True,
+    ))
     (output / "areas.yaml").write_bytes(yaml_bytes(areas))
     (output / "regions.yaml").write_bytes(yaml_bytes(regions))
     labels = {f"province_{key}": value for key, value in names.items()}
