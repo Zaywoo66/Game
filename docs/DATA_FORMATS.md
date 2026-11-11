@@ -16,7 +16,7 @@ Version 1 is a JSON object with `schema_version: 1`, a positive `map_version`
 | `centroid` | `[x, y]` in integer pixel units, each a signed 32-bit integer. Raster bounds are checked in M2. |
 | `neighbors` | Array of directed `{ "id": <target ID>, "edge": "normal\|river\|strait\|port" }` records. |
 | `ports` | Array of IDs for sea provinces. |
-| `development` | Nonnegative 32-bit unsigned integer. |
+| `development` | Nonnegative 32-bit unsigned integer in whole development points. |
 
 Neighbor and port references within this file use numeric IDs. Other content
 files reference provinces by their stable string key. Each directed neighbor
@@ -75,16 +75,45 @@ Every option requires an integer `ai_weight`, optionally conditioned by a trigge
 ## Scenarios (`data/scenarios/<year>.yaml`)
 `start_date, seed, countries:[tags], ownership overrides, diplomacy start state`
 
-## Trigger / Effect syntax
+## Trigger and effect syntax
+
+A trigger is a single-key mapping. The country that owns the trigger is its subject.
+
+| Trigger field | Representation and unit |
+|---|---|
+| `all` | List of triggers. True for an empty list. |
+| `any` | List of triggers. False for an empty list. |
+| `not` | One trigger. |
+| `country_has_tech` | Technology key, as a snake_case string. |
+| `at_war` | Boolean. Compares with the subject's current war state. |
+
+Effects are listed in declaration order. The `add_modifier` effect applies
+to the subject country. Trusted scenario or event code supplies the source ID.
+The simulation calculates expiry in ticks, with one tick per game day.
+
+| Modifier field | Representation and unit |
+|---|---|
+| `key` | Modifier key, as a snake_case string. |
+| `value` | Signed 64-bit integer in raw Fixed thousandths for both modifier kinds. `1000` means `1.000` and `100` means `0.100`. |
+| `kind` | `additive` adds a flat amount. `multiplicative` multiplies by `1 + value`. |
+| `duration_days` | For `add_modifier` only. Positive whole game days. Omit the field for a permanent source. |
+
+For a flat bonus of +1, write `value: 1000, kind: additive`. For a
+10% bonus, write `value: 100, kind: multiplicative`. Numeric fractions and
+strings such as `0.1` and `"10%"` are invalid modifier values, including in
+ordinary `modifiers` lists.
+
 ```yaml
 trigger: { all: [ { country_has_tech: mil_3 }, { not: { at_war: true } } ] }
-effects: [ { add_modifier: { key: army_morale, value: 100, kind: additive, duration_days: 3650 } } ]
+effects: [ { add_modifier: { key: army_morale, value: 100, kind: multiplicative, duration_days: 3650 } } ]
 ```
+
 Add new leaves here first, then implement.
 
 ## Rules
 - Localizable strings use keys; text lives in `data/loc/en.yaml`.
 - Every file has `schema_version`. Breaking change = bump version + migration note.
+- Every schema field declares its representation and unit. Fixed values use raw thousandths. Counts, IDs, versions, pixel coordinates and durations are ordinary integers in their own units, with no Fixed scaling.
 
 ## AI profiles (`data/ai/profiles/<key>.yaml`)
 - `key`

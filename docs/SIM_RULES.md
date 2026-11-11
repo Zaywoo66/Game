@@ -12,6 +12,7 @@
 
 ## Modifiers
 - `Modifier { key: ModKey, value: Fixed, kind: Additive | Multiplicative }`.
+- Modifier values in data are raw Fixed integers in thousandths for both additive and multiplicative kinds.
 - Sources: tech, idea, trait, law, event, terrain, building. Each source has an id for removal/expiry.
 - Effective value = (base + sum additive) * product(1 + multiplicative). Document any deviation here.
 
