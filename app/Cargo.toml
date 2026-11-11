@@ -1,0 +1,19 @@
+[package]
+name = "strategy-app"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+build = "build.rs"
+
+[features]
+custom-protocol = ["tauri/custom-protocol"]
+
+[dependencies]
+tauri = "=2.12.5"
+strategy-sim = { path = "../crates/sim" }
+strategy-net = { path = "../crates/net" }
+strategy-data = { path = "../crates/data" }
+
+[build-dependencies]
+tauri-build = "=2.7.4"
+
