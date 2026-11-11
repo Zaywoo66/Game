@@ -13,6 +13,7 @@ tauri = "=2.12.5"
 strategy-sim = { path = "../crates/sim" }
 strategy-net = { path = "../crates/net" }
 strategy-data = { path = "../crates/data" }
+strategy-ai = { path = "../crates/ai" }
 
 [build-dependencies]
 tauri-build = "=2.7.4"
