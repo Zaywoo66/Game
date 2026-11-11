@@ -4,6 +4,7 @@ mod effect;
 mod fixed;
 mod ids;
 mod modifiers;
+mod opinion;
 mod polity;
 mod province_graph;
 mod rng;
@@ -19,6 +20,7 @@ pub use modifiers::{
     effective_value, ModKey, Modifier, ModifierInsertError, ModifierKind, ModifierSourceId,
     ModifierStore,
 };
+pub use opinion::{Opinion, OpinionError, OpinionStateError};
 pub use polity::{
     AiThresholds, AiWeights, CharacterState, CharacterStats, CountryPolity, EconomyState,
     FiscalAiProfile, FiscalError, FiscalPolicy, MonthlyBudget, PolityError, PolityRules,

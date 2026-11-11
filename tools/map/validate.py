@@ -15,6 +15,7 @@ from map_common import (
     map_hash, read_json, read_yaml,
 )
 from topology import raster_contacts, regular_edge, strait_pairs
+from polity_evidence import COARSE_GROUPS, SOURCE_FILE, source_digest
 
 KEY_PATTERN = re.compile(r"[a-z][a-z0-9]*(?:_[a-z0-9]+)*")
 MAX_RGB_ID = (1 << 24) - 1
@@ -239,6 +240,48 @@ def validate_edges(ids, river, land, sea, records, config):
             raise ValueError(f"province {province}: raster/override adjacency differs (missing={missing}, extra={extra})")
 
 
+def validate_polity_evidence(directory, records, pixels, map_version, map_digest):
+    path = directory / "polities_1440.json"
+    evidence = read_json(path)
+    require(isinstance(evidence, dict) and set(evidence) == {
+        "schema_version", "map_version", "map_hash", "reference_year", "source", "method", "assignments",
+    }, "polities_1440.json: invalid envelope")
+    require(evidence["schema_version"] == 1 and evidence["reference_year"] == 1440,
+            "polities_1440.json: unsupported schema or reference year")
+    require(evidence["map_version"] == map_version and evidence["map_hash"] == map_digest,
+            "polities_1440.json: map identity mismatch")
+    source = evidence["source"]
+    require(isinstance(source, dict) and set(source) == {"name", "release", "url", "license", "file", "sha256"},
+            "polities_1440.json: invalid source provenance")
+    require(source["name"] == "Cliopatria" and source["release"] == "v0.1.3"
+            and source["license"] == "CC BY 4.0"
+            and source["file"] == "tools/map/inputs/western_europe/historical_1440.geojson"
+            and source["sha256"] == source_digest(),
+            "polities_1440.json: source provenance mismatch")
+    require(source["url"] == "https://github.com/Seshat-Global-History-Databank/cliopatria/releases/tag/v0.1.3"
+            and evidence["method"] == "largest rasterized source-polygon pixel overlap; lexical tie break",
+            "polities_1440.json: method or source URL mismatch")
+    source_names = {feature["properties"]["name"] for feature in read_json(SOURCE_FILE)["features"]}
+    assignments = evidence["assignments"]
+    expected_ids = sorted(province for province, record in records.items() if record["kind"] == "land")
+    require(isinstance(assignments, list) and [entry.get("province_id") for entry in assignments
+            if isinstance(entry, dict)] == expected_ids and len(assignments) == len(expected_ids),
+            "polities_1440.json: assignments must cover every land province exactly once in ID order")
+    for entry in assignments:
+        require(set(entry) == {"province_id", "province_key", "polity_name", "resolution", "overlap_pixels", "province_pixels"},
+                "polities_1440.json: invalid assignment fields")
+        province = entry["province_id"]
+        name = entry["polity_name"]
+        resolution = "unmatched" if name is None else "coarse_group" if name in COARSE_GROUPS else "polygon"
+        require(entry["province_key"] == records[province]["key"] and entry["resolution"] == resolution
+                and (name is None or name in source_names),
+                f"polities_1440.json: invalid source match or resolution for province {province}")
+        overlap = entry["overlap_pixels"]
+        require(integer(entry["province_pixels"], 1, 1 << 32) and entry["province_pixels"] == pixels[province]
+                and integer(overlap, 0, pixels[province]) and (overlap == 0) == (name is None),
+                f"polities_1440.json: invalid overlap count for province {province}")
+
+
 def validate_directory(directory):
     config = read_yaml(INPUTS / "overrides.yaml")
     records = parse_provinces(directory / "provinces.json", config)
@@ -270,6 +313,8 @@ def validate_directory(directory):
         masks[entry["kind"]] |= mask
     require(not np.any((rivers != 0) & ~masks["land"]), "rivers.png: river pixels must be on land")
     validate_edges(ids, rivers != 0, masks["land"], masks["sea"], records, config)
+    metadata = read_json(directory / "provinces.json")
+    validate_polity_evidence(directory, records, pixels, metadata["map_version"], metadata["map_hash"])
     return Counter(record["kind"] for record in records.values())
 
 

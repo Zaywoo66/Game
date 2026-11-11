@@ -8,10 +8,13 @@ import unittest
 
 import numpy as np
 from PIL import Image
+from rasterio.features import rasterize
+from rasterio.transform import from_bounds
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from map_common import OUTPUT, json_bytes, map_hash, read_json, read_yaml, yaml_bytes
+from map_common import BOUNDS, HEIGHT, INPUTS, OUTPUT, WIDTH, json_bytes, map_hash, read_json, read_yaml, yaml_bytes
+from polity_evidence import build_evidence
 from validate import validate_directory
 
 
@@ -23,6 +26,7 @@ class MapValidationTests(unittest.TestCase):
         for name in (
             "provinces.json", "provinces.png", "heightmap.png", "terrain.png", "rivers.png",
             "areas.yaml", "regions.yaml", "names.en.json",
+            "polities_1440.json",
         ):
             shutil.copyfile(OUTPUT / name, self.directory / name)
         self.metadata = read_json(self.directory / "provinces.json")
@@ -49,6 +53,59 @@ class MapValidationTests(unittest.TestCase):
             validate_directory(self.directory),
             {"land": 362, "sea": 66, "lake": 1},
         )
+
+    def test_polity_evidence_covers_land_and_marks_uncertainty(self):
+        evidence = read_json(self.directory / "polities_1440.json")
+        assignments = evidence["assignments"]
+        self.assertEqual(len(assignments), 362)
+        self.assertEqual({entry["province_key"] for entry in assignments if entry["resolution"] == "unmatched"}, {
+            "cork", "galway", "sligo", "lisburn", "killarney", "tralee", "omagh", "shannon", "donegal",
+        })
+        self.assertEqual(sum(entry["polity_name"] == "Holy Roman Empire Minor States" for entry in assignments), 67)
+        self.assertTrue(all(entry["resolution"] == "coarse_group" for entry in assignments
+                            if entry["polity_name"] == "Holy Roman Empire Minor States"))
+
+    def test_polity_evidence_rebuilds_from_pinned_source(self):
+        features = read_json(INPUTS / "historical_1440.geojson")["features"]
+        history = rasterize(
+            ((feature["geometry"], index) for index, feature in enumerate(features, 1)),
+            out_shape=(HEIGHT, WIDTH), transform=from_bounds(*BOUNDS, WIDTH, HEIGHT), dtype=np.uint16,
+        )
+        rgb = self.png("provinces.png").astype(np.uint32)
+        ids = (rgb[..., 0] << 16) | (rgb[..., 1] << 8) | rgb[..., 2]
+        expected = build_evidence(ids, history, features, self.metadata["provinces"],
+                                  self.metadata["map_version"], self.metadata["map_hash"])
+        self.assertEqual(read_json(self.directory / "polities_1440.json"), expected)
+
+    def test_polity_evidence_rejects_wrong_map_identity(self):
+        path = self.directory / "polities_1440.json"
+        evidence = read_json(path)
+        evidence["map_hash"] = "0" * 64
+        path.write_bytes(json_bytes(evidence, pretty=True))
+        with self.assertRaisesRegex(ValueError, "map identity mismatch"):
+            validate_directory(self.directory)
+
+    def test_polity_evidence_rejects_wrong_source_digest(self):
+        path = self.directory / "polities_1440.json"
+        evidence = read_json(path)
+        evidence["source"]["sha256"] = "0" * 64
+        path.write_bytes(json_bytes(evidence, pretty=True))
+        with self.assertRaisesRegex(ValueError, "source provenance mismatch"):
+            validate_directory(self.directory)
+
+    def test_polity_evidence_rejects_missing_and_overclaimed_matches(self):
+        path = self.directory / "polities_1440.json"
+        evidence = read_json(path)
+        evidence["assignments"].pop()
+        path.write_bytes(json_bytes(evidence, pretty=True))
+        with self.assertRaisesRegex(ValueError, "cover every land province"):
+            validate_directory(self.directory)
+        evidence = read_json(OUTPUT / "polities_1440.json")
+        coarse = next(entry for entry in evidence["assignments"] if entry["polity_name"] == "Holy Roman Empire Minor States")
+        coarse["resolution"] = "polygon"
+        path.write_bytes(json_bytes(evidence, pretty=True))
+        with self.assertRaisesRegex(ValueError, "invalid source match or resolution"):
+            validate_directory(self.directory)
 
     def test_unknown_area_is_rejected(self):
         self.metadata["provinces"][0]["area"] = "missing_area"

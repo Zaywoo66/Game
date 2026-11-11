@@ -10,7 +10,7 @@ Status: [ ] todo, [~] in progress, [x] done. Update in the PR that changes it. W
 | M4 | Armies and land war | [x] | milestones/M04_armies_war.md |
 | M5 | LAN multiplayer | [~] | milestones/M05_multiplayer.md |
 | M5b | Map density and visual/UI pass | [~] | milestones/M05b_visual_pass.md |
-| M6 | Diplomacy | [ ] | milestones/M06_diplomacy.md |
+| M6 | Diplomacy | [~] | milestones/M06_diplomacy.md |
 | M7 | Events and RP | [~] | milestones/M07_events_rp.md |
 | M8 | Naval | [ ] | milestones/M08_naval.md |
 | M9 | Technology and ideas | [ ] | milestones/M09_tech_ideas.md |
@@ -18,6 +18,10 @@ Status: [ ] todo, [~] in progress, [x] done. Update in the PR that changes it. W
 | M11 | Beta content (1440) | [ ] | milestones/M11_content.md |
 | M12 | Beta release | [ ] | milestones/M12_release.md |
 | M13 | World map (post-beta) | [ ] | milestones/M13_world.md |
+
+M5b political-source audit: generated 1440 overlap evidence covers every
+land province and marks unknown or coarse matches. Scenario ownership and
+visual acceptance remain in progress.
 
 AI levels L0–L3 are delivered inside M3, M4, M6, M7–M9 (see each milestone's AI slice); M10 only completes L4.
 
