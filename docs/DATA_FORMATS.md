@@ -155,9 +155,46 @@ Country and character numeric IDs are assigned in sorted key order starting at 1
 `key, name, modifiers:[{key,value,kind}], unlock: Trigger`
 
 ## Events (`data/events/*.yaml`)
-`key, title, desc, trigger: Trigger, mean_time_to_happen?, options:[{text, effects:[Effect], ai_weight}]`
 
-Every option requires an integer `ai_weight`, optionally conditioned by a trigger.
+Each YAML file contains one event. The linter rejects duplicate event keys,
+unknown trigger/effect names, missing AI weights, and noninteger durations or
+weights. This is the M7 data contract; the event engine is implemented in a
+separate M7 task.
+
+| Field | Representation and unit |
+|---|---|
+| `key` | Unique ASCII snake_case event key; unitless. |
+| `title`, `desc` | ASCII snake_case localization keys, not display text. |
+| `trigger` | One `Trigger` mapping from the supported syntax below. Evaluated for the subject country. |
+| `mean_time_to_happen` | Optional positive unsigned 64-bit integer in game days. While the trigger is true, each day has probability `1 / mean_time_to_happen` using a deterministic draw keyed by seed, tick, country ID and event key. Omission means no random automatic firing. |
+| `repeatable` | Optional Boolean, default `false`. A nonrepeatable event can fire once per country. |
+| `cooldown_days` | Positive unsigned 64-bit game days, required only when `repeatable: true`; counts after resolution. A pending choice never duplicates. |
+| `options` | Nonempty ordered list of option mappings. At least one base AI weight must be positive. |
+| `options[].text` | ASCII snake_case localization key. |
+| `options[].effects` | Ordered list of supported `Effect` mappings below; may be empty. |
+| `options[].ai_weight` | Required nonnegative unsigned 32-bit integer weight, unitless. |
+| `options[].ai_weight_if` | Optional `{when: Trigger, add: signed i32 integer}`. When true, add to the base weight and clamp below at zero. If every adjusted option weighs zero, AI uses the base weights. |
+
+Example:
+
+```yaml
+key: harvest_festival
+title: event_harvest_title
+desc: event_harvest_desc
+trigger: {not: {at_war: true}}
+mean_time_to_happen: 365
+repeatable: true
+cooldown_days: 365
+options:
+  - text: event_harvest_accept
+    ai_weight: 10
+    ai_weight_if: {when: {country_has_tech: agrarian_reform}, add: 5}
+    effects:
+      - add_modifier: {key: harvest_tax, value: 100, kind: multiplicative, duration_days: 30}
+  - text: event_harvest_decline
+    ai_weight: 1
+    effects: []
+```
 
 ## Scenarios (`data/scenarios/<year>.json`)
 

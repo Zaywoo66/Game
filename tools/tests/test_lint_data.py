@@ -48,6 +48,40 @@ class DataLintTest(unittest.TestCase):
         self.assertEqual(result.stderr, "")
         self.assertIn("Checked 3 JSON and YAML data files", result.stdout)
 
+    def test_accepts_event_contract_with_conditional_ai_weight(self):
+        result = run_lint("good_event")
+        self.assertEqual(result.returncode, 0, result)
+        self.assertEqual(result.stderr, "")
+
+    def test_rejects_unknown_trigger_effect_missing_weight_and_fractional_mtth(self):
+        result = run_lint("bad_event")
+        self.assertEqual(result.returncode, 1, result)
+        for field in (
+            "$.trigger.unknown_trigger: unknown trigger",
+            "$.mean_time_to_happen: expected an integer",
+            "$.options[0].ai_weight: required field",
+            "$.options[0].effects[0].unknown_effect: unknown effect",
+        ):
+            with self.subTest(field=field):
+                self.assertIn(field, result.stderr)
+
+    def test_rejects_noninteger_ai_weights_and_cooldown(self):
+        result = run_lint("bad_event_weights")
+        self.assertEqual(result.returncode, 1, result)
+        for field in (
+            "$.cooldown_days: expected an integer",
+            "$.options[0].ai_weight: expected an integer",
+            "$.options[0].ai_weight_if.add: expected an integer",
+        ):
+            with self.subTest(field=field):
+                self.assertIn(field, result.stderr)
+
+    def test_rejects_duplicate_event_keys(self):
+        result = run_lint("duplicate_events")
+        self.assertEqual(result.returncode, 1, result)
+        self.assertIn("second.yaml: $.key: duplicate event key also in", result.stderr)
+        self.assertIn("first.yaml", result.stderr)
+
 
 def run_lint(fixture):
     test_dir = Path(__file__).resolve().parent

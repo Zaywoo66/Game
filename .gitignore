@@ -4,4 +4,5 @@
 /ui/*.tsbuildinfo
 /app/gen/
 *.log
+__pycache__/
 
