@@ -9,7 +9,10 @@ mod time;
 
 pub use fixed::Fixed;
 pub use ids::{ArmyId, CharacterId, CountryId, ProvinceId};
-pub use modifiers::{effective_value, ModKey, Modifier, ModifierKind, ModifierSourceId};
+pub use modifiers::{
+    effective_value, ModKey, Modifier, ModifierInsertError, ModifierKind, ModifierSourceId,
+    ModifierStore,
+};
 pub use province_graph::{
     EdgeKind, MapIdentity, MapIdentityMismatch, Province, ProvinceEdge, ProvinceGraph,
     ProvinceGraphError, ProvinceKind,
