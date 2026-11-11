@@ -123,3 +123,9 @@ fn rejects_yaml_boolean_words_not_understood_by_the_runtime_parser() {
         ));
     }
 }
+
+#[test]
+fn rejects_multiple_events_in_one_yaml_file() {
+    let two_documents = format!("{VALID}\n---\n{VALID}");
+    assert!(parse_event_yaml(&two_documents).is_err());
+}
