@@ -8,25 +8,32 @@ use strategy_sim::{
     InvalidSpeed, MapIdentity, MapIdentityMismatch, ModKey, Modifier, ModifierInsertError,
     ModifierKind, ModifierSourceId, ModifierStore, PlayerId, PolityError, ProvinceGraph,
     ScheduleError, ScheduledEffect, SeededRng, SimTime, Speed, Tick, TimeError, TriggerView,
+    WarError,
 };
 
 use crate::provinces::decode_hash;
 
+mod military;
 mod polity;
 
+use military::WarStateFile;
 use polity::PolityFile;
 
 const LEGACY_VERSION: u32 = 1;
 const POLITY_VERSION: u32 = 2;
+const MILITARY_VERSION: u32 = 3;
 const STATE_HASH_DOMAIN_V1: &[u8] = b"strategy:game-state:v1\0";
 const STATE_HASH_DOMAIN_V2: &[u8] = b"strategy:game-state:v2\0";
+const STATE_HASH_DOMAIN_V3: &[u8] = b"strategy:game-state:v3\0";
 
 #[derive(Debug)]
 pub enum SaveError {
     Json(serde_json::Error),
     UnsupportedSchemaVersion(u32),
     VersionPolityMismatch(u32),
+    VersionMilitaryMismatch(u32),
     InvalidPolity(PolityError),
+    InvalidMilitary(WarError),
     InvalidMapHash,
     MapMismatch(MapIdentityMismatch),
     UnorderedRecords(&'static str),
@@ -49,6 +56,10 @@ impl fmt::Display for SaveError {
                 write!(f, "save version {version} has the wrong polity payload")
             }
             Self::InvalidPolity(error) => write!(f, "invalid saved polity: {error:?}"),
+            Self::VersionMilitaryMismatch(version) => {
+                write!(f, "save version {version} has the wrong military payload")
+            }
+            Self::InvalidMilitary(error) => write!(f, "invalid saved military state: {error:?}"),
             Self::InvalidMapHash => f.write_str("map_hash must be 64 lowercase hexadecimal digits"),
             Self::MapMismatch(error) => error.fmt(f),
             Self::UnorderedRecords(records) => write!(f, "{records} must be unique and sorted"),
@@ -96,11 +107,7 @@ pub fn save_game(state: &GameState) -> Result<Vec<u8>, SaveError> {
         .map(|byte| format!("{byte:02x}"))
         .collect();
     serde_json::to_vec(&SaveFile {
-        schema_version: if state.polity().is_some() {
-            POLITY_VERSION
-        } else {
-            LEGACY_VERSION
-        },
+        schema_version: schema_version(state),
         map_version: identity.version,
         map_hash,
         state: StateFile::from(state),
@@ -111,7 +118,10 @@ pub fn save_game(state: &GameState) -> Result<Vec<u8>, SaveError> {
 /// Loads a save against an already validated map. The static graph is not in the save.
 pub fn load_game(bytes: &[u8], graph: ProvinceGraph) -> Result<GameState, SaveError> {
     let save: SaveFile<&RawValue> = serde_json::from_slice(bytes).map_err(SaveError::Json)?;
-    if !matches!(save.schema_version, LEGACY_VERSION | POLITY_VERSION) {
+    if !matches!(
+        save.schema_version,
+        LEGACY_VERSION | POLITY_VERSION | MILITARY_VERSION
+    ) {
         return Err(SaveError::UnsupportedSchemaVersion(save.schema_version));
     }
 
@@ -125,8 +135,11 @@ pub fn load_game(bytes: &[u8], graph: ProvinceGraph) -> Result<GameState, SaveEr
         .map_err(SaveError::MapMismatch)?;
 
     let state: StateFile = serde_json::from_str(save.state.get()).map_err(SaveError::Json)?;
-    if state.polity.is_some() != (save.schema_version == POLITY_VERSION) {
+    if state.polity.is_some() != (save.schema_version >= POLITY_VERSION) {
         return Err(SaveError::VersionPolityMismatch(save.schema_version));
+    }
+    if state.military.is_some() != (save.schema_version == MILITARY_VERSION) {
+        return Err(SaveError::VersionMilitaryMismatch(save.schema_version));
     }
     state.restore(graph)
 }
@@ -134,13 +147,23 @@ pub fn load_game(bytes: &[u8], graph: ProvinceGraph) -> Result<GameState, SaveEr
 /// SHA-256 of the canonical state, including its map identity and save version.
 pub fn state_hash(state: &GameState) -> Result<[u8; 32], SaveError> {
     let mut hash = Sha256::new();
-    hash.update(if state.polity().is_some() {
-        STATE_HASH_DOMAIN_V2
-    } else {
-        STATE_HASH_DOMAIN_V1
+    hash.update(match schema_version(state) {
+        MILITARY_VERSION => STATE_HASH_DOMAIN_V3,
+        POLITY_VERSION => STATE_HASH_DOMAIN_V2,
+        _ => STATE_HASH_DOMAIN_V1,
     });
     hash.update(save_game(state)?);
     Ok(hash.finalize().into())
+}
+
+fn schema_version(state: &GameState) -> u32 {
+    if state.war_state().is_some() {
+        MILITARY_VERSION
+    } else if state.polity().is_some() {
+        POLITY_VERSION
+    } else {
+        LEGACY_VERSION
+    }
 }
 
 #[derive(Serialize, Deserialize)]
@@ -169,6 +192,12 @@ struct StateFile {
         deserialize_with = "present_polity"
     )]
     polity: Option<PolityFile>,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "present_military"
+    )]
+    military: Option<WarStateFile>,
 }
 
 impl From<&GameState> for StateFile {
@@ -195,6 +224,7 @@ impl From<&GameState> for StateFile {
                 })
                 .collect(),
             polity: state.polity().map(PolityFile::from),
+            military: state.war_state().map(WarStateFile::from),
         }
     }
 }
@@ -231,11 +261,18 @@ impl StateFile {
             schedule,
         )
         .map_err(SaveError::InvalidSchedule)?;
-        if let Some(polity) = self.polity {
+        let state = if let Some(polity) = self.polity {
             base.with_polity(polity.restore()?)
-                .map_err(SaveError::InvalidPolity)
+                .map_err(SaveError::InvalidPolity)?
         } else {
-            Ok(base)
+            base
+        };
+        if let Some(military) = self.military {
+            state
+                .with_war_state(military.restore()?)
+                .map_err(SaveError::InvalidMilitary)
+        } else {
+            Ok(state)
         }
     }
 }
@@ -449,4 +486,10 @@ fn present_polity<'de, D: Deserializer<'de>>(
     deserializer: D,
 ) -> Result<Option<PolityFile>, D::Error> {
     PolityFile::deserialize(deserializer).map(Some)
+}
+
+fn present_military<'de, D: Deserializer<'de>>(
+    deserializer: D,
+) -> Result<Option<WarStateFile>, D::Error> {
+    WarStateFile::deserialize(deserializer).map(Some)
 }

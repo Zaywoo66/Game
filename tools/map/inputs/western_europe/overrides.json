@@ -1,5 +1,11 @@
 {
-  "map_version": 1,
+  "map_version": 2,
+  "movement_costs": {
+    "normal": 2,
+    "river": 3,
+    "strait": 5,
+    "port": 2
+  },
   "land": {
     "highlands": [
       -4.2,

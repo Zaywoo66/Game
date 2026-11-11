@@ -56,5 +56,36 @@
         "kind": "additive"
       }
     ]
+  },
+  "military": {
+    "rules": {
+      "raise_cost_per_soldier": 8,
+      "max_army_size": 2000,
+      "max_morale": 1000,
+      "morale_recovery_per_tick": 20,
+      "retreat_morale_threshold": 250,
+      "winner_casualty_rate": 90,
+      "loser_casualty_rate": 220,
+      "battle_morale_loss": 340,
+      "base_supply": 1200,
+      "supply_per_development": 300,
+      "attrition_rate": 25,
+      "siege_days_per_level": 15,
+      "battle_score": 20,
+      "occupation_score": 45,
+      "peace_score": 40,
+      "truce_ticks": 365,
+      "combat_modifier": "army_combat",
+      "morale_modifier": "army_morale"
+    },
+    "forts": {
+      "aragon": 1,
+      "castile": 1,
+      "ile_de_france": 2,
+      "lisboa": 1,
+      "london": 2,
+      "lowlands": 1,
+      "normandie": 1
+    }
   }
 }

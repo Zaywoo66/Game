@@ -1,4 +1,4 @@
-"""Validate the Western Europe M2 raster and province graph."""
+"""Validate the Western Europe raster and province graph."""
 
 import argparse
 from collections import Counter
@@ -10,7 +10,7 @@ import numpy as np
 from PIL import Image
 
 from map_common import (
-    EDGE_ORDER, ELEVATION_BIAS, HEIGHT, INPUTS, OUTPUT, PROVINCE_FIELDS, REGION, TERRAINS, WIDTH,
+    EDGE_ORDER, ELEVATION_BIAS, HEIGHT, INPUTS, OUTPUT, PROVINCE_FIELDS, REGION, SCHEMA_VERSION, TERRAINS, WIDTH,
     map_hash, read_json,
 )
 from topology import raster_contacts, regular_edge, strait_pairs
@@ -53,7 +53,7 @@ def parse_provinces(path, config):
     require(isinstance(metadata, dict) and set(metadata) == {
         "schema_version", "map_version", "map_hash", "provinces",
     }, "provinces.json: invalid metadata fields")
-    require(integer(metadata["schema_version"], 1, 1), "provinces.json: unsupported schema_version")
+    require(integer(metadata["schema_version"], SCHEMA_VERSION, SCHEMA_VERSION), "provinces.json: unsupported schema_version")
     require(
         integer(metadata["map_version"], 1, (1 << 32) - 1)
         and metadata["map_version"] == config["map_version"],
@@ -83,17 +83,24 @@ def parse_provinces(path, config):
     expected = {key: kind for kind in KINDS for key in config[kind]}
     require({p["key"]: p["kind"] for p in entries} == expected, "province keys/kinds differ from region overrides")
 
+    costs = config.get("movement_costs")
+    require(
+        isinstance(costs, dict) and set(costs) == set(EDGE_ORDER)
+        and all(integer(cost, 1, (1 << 32) - 1) for cost in costs.values()),
+        "region movement_costs must assign positive u32 ticks to every edge type",
+    )
     for province, entry in ids.items():
         key = entry["key"]
         edges = set()
         for edge in entry["neighbors"]:
-            require(isinstance(edge, dict) and set(edge) == {"id", "edge"}, f"{key}: invalid edge fields")
+            require(isinstance(edge, dict) and set(edge) == {"id", "edge", "cost"}, f"{key}: invalid edge fields")
             target, kind = edge["id"], edge["edge"]
             require(
                 integer(target, 1, MAX_RGB_ID) and target in ids and target != province
                 and isinstance(kind, str) and kind in EDGE_ORDER,
                 f"{key}: invalid neighbor {edge}",
             )
+            require(integer(edge["cost"], 1, (1 << 32) - 1), f"{key}: invalid edge cost {edge['cost']}")
             require((target, kind) not in edges, f"{key}: duplicate edge {edge}")
             edges.add((target, kind))
         ports = entry["ports"]
@@ -124,13 +131,17 @@ def require_land_reachable(records, neighbors):
 def validate_edges(ids, river, land, sea, records, config):
     contacts, river_contacts = raster_contacts(ids, river)
     kinds = {province: entry["kind"] for province, entry in records.items()}
-    actual = {
-        province: {(edge["id"], edge["edge"]) for edge in entry["neighbors"]}
+    weighted = {
+        province: {(edge["id"], edge["edge"]): edge["cost"] for edge in entry["neighbors"]}
         for province, entry in records.items()
     }
-    for province, edges in actual.items():
-        for target, kind in sorted(edges):
-            require((province, kind) in actual[target], f"missing reverse {kind} edge {target} -> {province}")
+    for province, edges in weighted.items():
+        for (target, kind), cost in sorted(edges.items()):
+            reverse = weighted[target].get((province, kind))
+            require(reverse is not None, f"missing reverse {kind} edge {target} -> {province}")
+            require(reverse == cost, f"reverse {kind} edge cost mismatch for {province} and {target}")
+            require(cost == config["movement_costs"][kind], f"{province} -> {target}: edge cost differs from region configuration")
+    actual = {province: set(edges) for province, edges in weighted.items()}
 
     expected = {province: set() for province in records}
 

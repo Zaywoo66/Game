@@ -67,6 +67,8 @@ pub enum EdgeKind {
 pub struct ProvinceEdge {
     pub to: ProvinceId,
     pub kind: EdgeKind,
+    /// Movement cost in whole game ticks.
+    pub cost: u32,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -133,7 +135,16 @@ impl ProvinceGraph {
 
             province.neighbors.sort_unstable();
             province.ports.sort_unstable();
-            if province.neighbors.windows(2).any(|pair| pair[0] == pair[1]) {
+            if province.neighbors.iter().any(|edge| edge.cost == 0) {
+                return Err(ProvinceGraphError(format!(
+                    "province {id} has a zero-cost edge"
+                )));
+            }
+            if province
+                .neighbors
+                .windows(2)
+                .any(|pair| (pair[0].to, pair[0].kind) == (pair[1].to, pair[1].kind))
+            {
                 return Err(ProvinceGraphError(format!(
                     "province {id} has a duplicate typed edge"
                 )));
@@ -158,10 +169,11 @@ impl ProvinceGraph {
                 let reverse = ProvinceEdge {
                     to: province.id,
                     kind: edge.kind,
+                    cost: edge.cost,
                 };
                 if target.neighbors.binary_search(&reverse).is_err() {
                     return Err(ProvinceGraphError(format!(
-                        "province {} has no reverse {:?} edge to province {}",
+                        "province {} has no matching reverse {:?} edge and cost to province {}",
                         target.id.get(),
                         edge.kind,
                         province.id.get()

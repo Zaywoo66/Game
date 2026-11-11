@@ -19,6 +19,13 @@ fn original() -> GameState {
     load_scenario(graph(), data_root().join("scenarios/1440.json")).unwrap()
 }
 
+fn m3_state() -> GameState {
+    edited_file("scenarios/1440.json", |scenario| {
+        scenario.as_object_mut().unwrap().remove("military");
+    })
+    .unwrap()
+}
+
 fn edited_file(path: &str, edit: impl FnOnce(&mut Value)) -> Result<GameState, ScenarioLoadError> {
     let root = data_root();
     let mut value: Value = serde_json::from_slice(&fs::read(root.join(path)).unwrap()).unwrap();
@@ -227,7 +234,7 @@ fn rejects_duplicate_human_slots_and_paths_outside_the_resolver_contract() {
 
 #[test]
 fn save_v2_round_trips_country_economy_characters_profiles_and_rules() {
-    let mut state = original();
+    let mut state = m3_state();
     for _ in 0..62 {
         state.tick(|_, _| Vec::new()).unwrap();
     }
@@ -250,7 +257,7 @@ fn save_v2_round_trips_country_economy_characters_profiles_and_rules() {
 
 #[test]
 fn v2_rejects_wrong_envelope_missing_polity_and_invalid_capital() {
-    let mut save: Value = serde_json::from_slice(&save_game(&original()).unwrap()).unwrap();
+    let mut save: Value = serde_json::from_slice(&save_game(&m3_state()).unwrap()).unwrap();
     save["schema_version"] = json!(1);
     assert!(matches!(
         load_game(&serde_json::to_vec(&save).unwrap(), graph()),
@@ -268,5 +275,205 @@ fn v2_rejects_wrong_envelope_missing_polity_and_invalid_capital() {
     assert!(matches!(
         load_game(&serde_json::to_vec(&save).unwrap(), graph()),
         Err(SaveError::VersionPolityMismatch(2))
+    ));
+}
+
+#[test]
+fn m4_scenario_validates_fort_references_and_rules() {
+    let state = original();
+    let war = state.war_state().unwrap();
+    assert_eq!(war.forts.len(), 7);
+    let london = state.province_graph().by_key("london").unwrap().id;
+    assert_eq!(war.forts[&london], 2);
+    assert_eq!(war.rules.raise_cost_per_soldier.raw(), 8);
+    assert_eq!(war.rules.siege_days_per_level, 15);
+    for province in ["unknown_province", "north_sea"] {
+        assert_invalid(
+            edited_file("scenarios/1440.json", |scenario| {
+                scenario["military"]["forts"][province] = json!(1);
+            }),
+            "existing land province",
+        );
+    }
+    assert_invalid(
+        edited_file("scenarios/1440.json", |scenario| {
+            scenario["military"]["forts"]["london"] = json!(0);
+        }),
+        "fort level must be positive",
+    );
+    assert_invalid(
+        edited_file("scenarios/1440.json", |scenario| {
+            scenario["military"]["rules"]["max_army_size"] = json!(0);
+        }),
+        "invalid military rules",
+    );
+}
+
+#[test]
+fn save_v3_round_trips_military_rules_and_forts() {
+    let state = original();
+    let bytes = save_game(&state).unwrap();
+    let json: Value = serde_json::from_slice(&bytes).unwrap();
+    assert_eq!(json["schema_version"], 3);
+    assert_eq!(
+        json["state"]["military"]["forts"].as_array().unwrap().len(),
+        7
+    );
+    let restored = load_game(&bytes, graph()).unwrap();
+    assert_eq!(restored, state);
+    assert_eq!(state_hash(&restored).unwrap(), state_hash(&state).unwrap());
+    assert_eq!(save_game(&restored).unwrap(), bytes);
+}
+
+#[test]
+fn save_v3_rejects_bad_versions_and_military_records() {
+    let bytes = save_game(&original()).unwrap();
+    let mut save: Value = serde_json::from_slice(&bytes).unwrap();
+    save["schema_version"] = json!(2);
+    assert!(matches!(
+        load_game(&serde_json::to_vec(&save).unwrap(), graph()),
+        Err(SaveError::VersionMilitaryMismatch(2))
+    ));
+
+    save["schema_version"] = json!(3);
+    let forts = save["state"]["military"]["forts"].as_array_mut().unwrap();
+    forts.insert(0, forts[0].clone());
+    assert!(matches!(
+        load_game(&serde_json::to_vec(&save).unwrap(), graph()),
+        Err(SaveError::UnorderedRecords("forts"))
+    ));
+
+    save = serde_json::from_slice(&bytes).unwrap();
+    save["state"]["military"]["forts"][0]["province"] = json!(0);
+    assert!(matches!(
+        load_game(&serde_json::to_vec(&save).unwrap(), graph()),
+        Err(SaveError::InvalidMilitary(_))
+    ));
+
+    save["state"].as_object_mut().unwrap().remove("military");
+    assert!(matches!(
+        load_game(&serde_json::to_vec(&save).unwrap(), graph()),
+        Err(SaveError::VersionMilitaryMismatch(3))
+    ));
+}
+
+#[test]
+fn save_v3_preserves_active_armies_movement_sieges_and_treaties() {
+    use std::collections::BTreeMap;
+
+    use strategy_sim::{
+        Army, ArmyId, ArmyMovement, Fixed, MovementLeg, PeaceOffer, PeaceTreaty, Siege, Tick, War,
+        WarId,
+    };
+
+    let mut military = original().war_state().unwrap().clone();
+    let state = m3_state();
+    let polity = state.polity().unwrap();
+    let country = |tag| {
+        polity
+            .countries
+            .iter()
+            .find(|(_, country)| country.tag == tag)
+            .unwrap()
+            .0
+    };
+    let province = |key| state.province_graph().by_key(key).unwrap().id;
+    let attacker = *country("eng");
+    let defender = *country("sco");
+    let from = province("northumbria");
+    let first_leg = province("lowlands");
+    let goal = province("highlands");
+    let siege_province = goal;
+    let edge = state
+        .province_graph()
+        .neighbors(from)
+        .unwrap()
+        .iter()
+        .find(|edge| edge.to == first_leg)
+        .unwrap();
+    military.armies = BTreeMap::from([
+        (
+            ArmyId::new(1),
+            Army {
+                country: attacker,
+                province: from,
+                soldiers: 400,
+                morale: Fixed::ONE,
+                movement: Some(ArmyMovement {
+                    route: vec![MovementLeg {
+                        to: first_leg,
+                        kind: edge.kind,
+                        cost: edge.cost,
+                    }],
+                    elapsed_ticks: 1,
+                }),
+            },
+        ),
+        (
+            ArmyId::new(2),
+            Army {
+                country: attacker,
+                province: siege_province,
+                soldiers: 250,
+                morale: Fixed::from_raw(600),
+                movement: None,
+            },
+        ),
+    ]);
+    let active = WarId::new(2);
+    military.wars.insert(
+        active,
+        War {
+            attacker,
+            defender,
+            goal,
+            started_at: Tick::ZERO,
+            score: -15,
+            occupations: BTreeMap::from([(province("yorkshire"), defender)]),
+            offer: Some(PeaceOffer {
+                offered_by: defender,
+                cede_goal: false,
+            }),
+        },
+    );
+    military.sieges.insert(
+        siege_province,
+        Siege {
+            war: active,
+            besieger: attacker,
+            progress_days: 1,
+        },
+    );
+    military.treaties.insert(
+        WarId::new(1),
+        PeaceTreaty {
+            attacker: *country("cas"),
+            defender: *country("por"),
+            ceded: None,
+            concluded_at: Tick::ZERO,
+        },
+    );
+    military.next_army_id = 3;
+    military.next_war_id = 3;
+
+    let state = state.with_war_state(military).unwrap();
+    let bytes = save_game(&state).unwrap();
+    let restored = load_game(&bytes, graph()).unwrap();
+    assert_eq!(restored, state);
+    assert_eq!(save_game(&restored).unwrap(), bytes);
+    assert_eq!(state_hash(&restored).unwrap(), state_hash(&state).unwrap());
+
+    let mut invalid: Value = serde_json::from_slice(&bytes).unwrap();
+    invalid["state"]["military"]["armies"][0]["movement"]["route"][0]["cost"] = json!(999);
+    assert!(matches!(
+        load_game(&serde_json::to_vec(&invalid).unwrap(), graph()),
+        Err(SaveError::InvalidMilitary(_))
+    ));
+
+    let mut invalid: Value = serde_json::from_slice(&bytes).unwrap();
+    invalid["state"]["military"]["wars"][0]["started_at"] = json!(1);
+    assert!(matches!(
+        load_game(&serde_json::to_vec(&invalid).unwrap(), graph()),
+        Err(SaveError::InvalidMilitary(_))
     ));
 }

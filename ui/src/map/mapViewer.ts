@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { ArmyMarker, createArmyLayer } from './armyLayer';
 import { decodeProvinceId, MapAssets, pickProvinceId, Raster, Rgba, updateOwnerLookup } from './mapData';
 import { mapFragmentShader, mapVertexShader } from './mapShaders';
 import { createTerrain } from './terrain';
@@ -21,6 +22,8 @@ export interface MapTestControls {
   decodeProvinceId: typeof decodeProvinceId;
   pickAt(clientX: number, clientY: number): number;
   projectProvince(id: number): { x: number; y: number } | null;
+  readOwnerColor(id: number): Rgba;
+  readArmyPosition(id: number): [number, number, number] | null;
   setOwnerColor(id: number, rgba: Rgba): OwnerUpdate;
   startBenchmark(): void;
   readBenchmark(): BenchmarkSample;
@@ -29,6 +32,9 @@ export interface MapTestControls {
 interface MapViewer {
   renderer: string;
   setOwnerColors(colors: ReadonlyMap<number, Rgba>): void;
+  setOccupationColors(colors: ReadonlyMap<number, Rgba>): void;
+  setArmies(armies: readonly ArmyMarker[]): void;
+  setArmySelection(id: number, targeting: boolean): void;
   startBenchmark(): void;
   readBenchmark(): BenchmarkSample;
   testControls: MapTestControls;
@@ -62,6 +68,7 @@ export function createMapViewer(
   viewport: HTMLElement,
   assets: MapAssets,
   onSelect: (id: number) => void,
+  onArmySelect: (id: number) => void,
 ): MapViewer {
   const { width, height, data } = assets.raster;
   const { provinces } = assets;
@@ -85,6 +92,7 @@ export function createMapViewer(
 
   const lookupPixels = lookupWidth * lookupHeight;
   const ownerBytes = new Uint8Array(lookupPixels * 4);
+  const occupationBytes = new Uint8Array(lookupPixels * 4);
   const waterBytes = new Uint8Array(lookupPixels);
   waterBytes[0] = 1;
   for (const [id, province] of provinces) {
@@ -97,17 +105,21 @@ export function createMapViewer(
   const riverTexture = texture(redChannel(assets.rivers), width, height, THREE.RedFormat);
   const ownerTexture = texture(ownerBytes, lookupWidth, lookupHeight);
   ownerTexture.colorSpace = THREE.SRGBColorSpace;
+  const occupationTexture = texture(occupationBytes, lookupWidth, lookupHeight);
+  occupationTexture.colorSpace = THREE.SRGBColorSpace;
   const waterTexture = texture(waterBytes, lookupWidth, lookupHeight, THREE.RedFormat);
-  const textures = [provinceTexture, terrainTexture, riverTexture, ownerTexture, waterTexture];
+  const textures = [provinceTexture, terrainTexture, riverTexture, ownerTexture, occupationTexture, waterTexture];
   const uniforms = {
     provinceRaster: { value: provinceTexture },
     terrainRaster: { value: terrainTexture },
     riverRaster: { value: riverTexture },
     ownerLookup: { value: ownerTexture },
+    occupationLookup: { value: occupationTexture },
     waterLookup: { value: waterTexture },
     rasterSize: { value: new THREE.Vector2(width, height) },
     lookupSize: { value: new THREE.Vector2(lookupWidth, lookupHeight) },
     selectedId: { value: 0 },
+    hasOccupations: { value: false },
     seconds: { value: 0 },
   };
   const material = new THREE.ShaderMaterial({
@@ -208,15 +220,24 @@ export function createMapViewer(
     return best;
   }
 
-  function projectProvince(id: number): { x: number; y: number } | null {
+  const anchors = new Map<number, THREE.Vector3>();
+  function provinceAnchor(id: number): THREE.Vector3 | null {
+    const existing = anchors.get(id);
+    if (existing) return existing;
     const pixel = representative(id);
     if (!pixel) return null;
     const [x, y] = pixel;
     raycaster.set(new THREE.Vector3(x + 0.5, span, y + 0.5), new THREE.Vector3(0, -1, 0));
     const hit = raycaster.intersectObjects(chunks, false)[0];
     if (!hit) return null;
+    anchors.set(id, hit.point);
+    return hit.point;
+  }
 
-    const point = hit.point.project(camera);
+  function projectProvince(id: number): { x: number; y: number } | null {
+    const anchor = provinceAnchor(id);
+    if (!anchor) return null;
+    const point = anchor.clone().project(camera);
     if (Math.abs(point.x) > 1 || Math.abs(point.y) > 1 || Math.abs(point.z) > 1) return null;
     const rect = renderer.domElement.getBoundingClientRect();
     return {
@@ -225,15 +246,18 @@ export function createMapViewer(
     };
   }
 
-  function setOwnerColor(id: number, rgba: Rgba): OwnerUpdate {
+  function readOwnerColor(id: number): Rgba {
     if (!provinces.has(id)) throw new RangeError('Unknown map province');
-    const read = (): Rgba => [
+    return [
       ownerBytes[id * 4],
       ownerBytes[id * 4 + 1],
       ownerBytes[id * 4 + 2],
       ownerBytes[id * 4 + 3],
     ];
-    const before = read();
+  }
+
+  function setOwnerColor(id: number, rgba: Rgba): OwnerUpdate {
+    const before = readOwnerColor(id);
     const rasterBefore = uniforms.provinceRaster.value;
     const rasterVersion = provinceTexture.version;
     const rasterData = provinceTexture.image.data;
@@ -242,7 +266,7 @@ export function createMapViewer(
     if (updateOwnerLookup(ownerBytes, id, rgba)) ownerTexture.needsUpdate = true;
     return {
       before,
-      after: read(),
+      after: readOwnerColor(id),
       rasterUnchanged: uniforms.provinceRaster.value === rasterBefore
         && provinceTexture.version === rasterVersion && provinceTexture.image.data === rasterData,
       ownerTextureUnchanged: uniforms.ownerLookup.value === ownerBefore
@@ -250,14 +274,20 @@ export function createMapViewer(
     };
   }
 
-  function setOwnerColors(colors: ReadonlyMap<number, Rgba>) {
+  function updateLookup(
+    bytes: Uint8Array,
+    target: THREE.DataTexture,
+    colors: ReadonlyMap<number, Rgba>,
+  ) {
     let changed = false;
     for (const id of provinces.keys()) {
-      if (updateOwnerLookup(ownerBytes, id, colors.get(id) ?? [0, 0, 0, 0])) changed = true;
+      if (updateOwnerLookup(bytes, id, colors.get(id) ?? [0, 0, 0, 0])) changed = true;
     }
-    if (changed) ownerTexture.needsUpdate = true;
+    if (changed) target.needsUpdate = true;
   }
 
+  const armyLayer = createArmyLayer(scene, viewport, provinceAnchor);
+  let targeting = false;
   let press: { x: number; y: number; id: number } | null = null;
   function pointerDown(event: PointerEvent) {
     if (event.button === 0 && event.isPrimary) {
@@ -273,6 +303,11 @@ export function createMapViewer(
     press = null;
     if (Math.hypot(original.x - event.clientX, original.y - event.clientY) > 4) return;
     const id = pickAt(event.clientX, event.clientY);
+    const army = id > 0 && !targeting ? armyLayer.pick(raycaster) : 0;
+    if (army) {
+      onArmySelect(army);
+      return;
+    }
     uniforms.selectedId.value = id;
     onSelect(id);
   }
@@ -311,6 +346,7 @@ export function createMapViewer(
     controls.target.x = boundedX;
     controls.target.z = boundedZ;
     uniforms.seconds.value = (now - start) / 1_000;
+    armyLayer.update(now);
     renderer.render(scene, camera);
 
     if (recording) {
@@ -323,10 +359,22 @@ export function createMapViewer(
 
   return {
     renderer: gpu,
-    setOwnerColors,
+    setOwnerColors: (colors) => updateLookup(ownerBytes, ownerTexture, colors),
+    setOccupationColors(colors) {
+      uniforms.hasOccupations.value = colors.size > 0;
+      updateLookup(occupationBytes, occupationTexture, colors);
+    },
+    setArmies: armyLayer.setMarkers,
+    setArmySelection(id, orderTargeting) {
+      armyLayer.select(id);
+      targeting = orderTargeting;
+    },
     startBenchmark,
     readBenchmark,
-    testControls: { decodeProvinceId, pickAt, projectProvince, setOwnerColor, startBenchmark, readBenchmark },
+    testControls: {
+      decodeProvinceId, pickAt, projectProvince, readOwnerColor, readArmyPosition: armyLayer.readPosition,
+      setOwnerColor, startBenchmark, readBenchmark,
+    },
     dispose() {
       cancelAnimationFrame(frame);
       observer.disconnect();
@@ -335,6 +383,7 @@ export function createMapViewer(
       renderer.domElement.removeEventListener('pointerup', pointerUp);
       renderer.domElement.removeEventListener('pointercancel', cancelPointer);
       renderer.domElement.remove();
+      armyLayer.dispose();
       chunks.forEach(({ geometry }) => geometry.dispose());
       textures.forEach((value) => value.dispose());
       material.dispose();

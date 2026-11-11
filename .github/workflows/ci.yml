@@ -47,7 +47,8 @@ jobs:
           if ($LASTEXITCODE -ne 1) { exit $LASTEXITCODE }
           exit 0
       - run: cargo clippy --all-targets -- -D warnings
-      - run: cargo test --workspace
+      - name: Workspace tests including three-seed AI smoke
+        run: cargo test --workspace
       - run: python -m pip install --requirement tools/requirements.txt --requirement tools/map/requirements.txt
       - run: python tools/lint_data.py
       - run: python -B -m unittest discover -s tools/tests
@@ -55,7 +56,7 @@ jobs:
       - run: python tools/map/validate.py --region western_europe
       - run: cargo run --locked -p strategy-data --bin lint-provinces -- data/map/western_europe/provinces.json
       - run: cargo run --locked -p strategy-data --bin lint-scenario -- data/scenarios/1440.json data/map/western_europe/provinces.json
-      - run: cargo build --locked -p strategy-app --features custom-protocol
+      - run: cargo build --locked -p strategy-app --features custom-protocol --bin strategy-app
       - uses: actions/upload-artifact@v4
         with:
           name: strategy-windows-x64

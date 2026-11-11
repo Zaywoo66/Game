@@ -124,29 +124,17 @@ test('M3 colors a province from the host ownership snapshot', async ({ page }) =
   const map = await page.request.get('/map/western_europe/provinces.json');
   expect(map.ok()).toBe(true);
   const provinces = (await map.json()).provinces;
-  await page.goto('/?verify=1');
-  const ready = page.locator('main[data-map-status="ready"]');
-  await expect(ready).toBeVisible({ timeout: 60_000 });
-
-  const representative = await page.evaluate((ids) => {
-    for (const id of ids) {
-      const point = window.strategyMapTest.projectProvince(id);
-      if (point && point.x > 300 && point.x < 830 && point.y > 140 && point.y < 800) {
-        return { id, point };
-      }
-    }
-    return null;
-  }, provinces.filter(({ kind }) => kind === 'land').map(({ id }) => id));
-  expect(representative).not.toBeNull();
-  const { id, point } = representative;
-  const clip = { x: Math.round(point.x), y: Math.round(point.y), width: 1, height: 1 };
-  const before = await page.screenshot({ clip });
-
+  const id = provinces.find(({ key }) => key === 'london').id;
   await mockHost(page, id);
-  await page.goto('/');
-  await expect(ready).toBeVisible({ timeout: 60_000 });
+  await page.goto('/?verify=1&verifyHost=1');
+  await expect(page.locator('main[data-map-status="ready"]')).toBeVisible({ timeout: 60_000 });
   await expect(page.getByRole('region', { name: 'Country and rulers' })).toBeVisible();
-  await expect.poll(async () => (await page.screenshot({ clip })).equals(before)).toBe(false);
+  await expect.poll(() => page.evaluate((provinceId) => {
+    return window.strategyMapTest.readOwnerColor(provinceId);
+  }, id)).toEqual([247, 11, 171, 255]);
+
+  const point = await page.evaluate((provinceId) => window.strategyMapTest.projectProvince(provinceId), id);
+  expect(point).not.toBeNull();
   await page.mouse.click(point.x, point.y);
   const selected = page.locator('[data-map-selected]');
   await expect(selected).toHaveAttribute('data-map-selected', String(id));

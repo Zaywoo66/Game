@@ -18,12 +18,17 @@ Version 1 is a JSON object with `schema_version: 1`, a positive `map_version`
 | `ports` | Array of IDs for sea provinces. |
 | `development` | Nonnegative 32-bit unsigned integer in whole development points. |
 
+M4 uses `schema_version: 2` and adds required `cost` to each neighbor.
+Cost is a positive unsigned 32-bit integer in whole daily movement ticks.
+The corresponding reverse edge must have the same cost. A legacy v1 file
+loads with a cost of one tick for every edge.
+
 Neighbor and port references within this file use numeric IDs. Other content
 files reference provinces by their stable string key. Each directed neighbor
 record must have a reverse record of the same type. Repeated records with the
 same source, target, and type are invalid. Different types between the same
 endpoints are valid. Port IDs must exist, be unique within the list, and point
-to a sea province. Movement costs arrive in M4. Fields outside this schema
+to a sea province. Fields outside this schema
 are rejected.
 
 ### Map hash and saves
@@ -32,7 +37,8 @@ Compute `map_hash` from the UTF-8 bytes of a compact JSON encoding of the
 `provinces` array alone. Emit no whitespace outside JSON strings and no
 trailing newline. Write each province's fields in this exact order:
 `id`, `key`, `kind`, `terrain`, `centroid`, `neighbors`, `ports`,
-`development`. Write neighbor fields in the order `id`, `edge`.
+`development`. Write v1 neighbor fields in the order `id`, `edge`,
+and v2 neighbor fields in the order `id`, `edge`, `cost`.
 Write integers as decimal JSON integers without leading zeros, using `0` for
 zero. String values in the canonical form use the ASCII field values from
 the table and need no escape sequences.
@@ -147,6 +153,7 @@ Every option requires an integer `ai_weight`, optionally conditioned by a trigge
 | `rules.debt_limit` | Nonnegative raw Fixed treasury amount. The debt floor is its negative. |
 | `rules.income_modifier` | Modifier key used to calculate monthly tax income. |
 | `traits` | Trait keys mapped to arrays of permanent modifier records in the format below. |
+| `military` | Optional object containing `rules` and `forts`. Forts map land province keys to positive unsigned 8-bit levels. |
 
 Validate content and cross-references with
 `cargo run --locked -p strategy-data --bin lint-scenario -- data/scenarios/1440.json data/map/western_europe/provinces.json`.
@@ -228,3 +235,44 @@ canonical save bytes.
 Other country and character metadata keeps the content field representations.
 Country, character and province records are sorted by ID, profiles and trait
 keys by key, and modifier sources by ID.
+
+## Military rules
+
+| Rule | Representation and unit |
+|---|---|
+| `raise_cost_per_soldier` | Raw Fixed treasury amount per soldier raised. |
+| `max_army_size`, `base_supply` | Unsigned 32-bit whole soldiers per army and base whole soldiers supplied per province. |
+| `supply_per_development` | Unsigned 32-bit whole soldiers supplied per development point. |
+| `max_morale`, `retreat_morale_threshold`, `battle_morale_loss` | Raw Fixed morale amounts. |
+| `morale_recovery_per_tick` | Raw Fixed morale amount recovered per game day. |
+| `winner_casualty_rate`, `loser_casualty_rate`, `attrition_rate` | Raw Fixed fractions from 0 through 1000. `100` means 10%. |
+| `siege_days_per_level` | Unsigned 32-bit whole game days per fort level. |
+| `battle_score`, `occupation_score`, `peace_score` | Signed 32-bit whole war-score points for a battle, an occupation and the minimum for a cession, respectively. |
+| `truce_ticks` | Unsigned 32-bit whole days during which the same pair cannot declare another war. |
+| `combat_modifier`, `morale_modifier` | Modifier keys used for battle strength and morale. |
+
+## Saved games (schema version 3)
+
+A game with military rules adds `state.military` to the v2 payload. V3
+uses the hash domain `strategy:game-state:v3` followed by NUL and the
+canonical save bytes. V1 and v2 remain readable with their original map
+identities. The weighted map has a new identity and does not migrate older
+saves automatically.
+
+| Additional save field | Representation and unit |
+|---|---|
+| `military.rules` | Military rules as specified above. |
+| `next_army_id`, `next_war_id` | Next positive unsigned 32-bit identifiers. |
+| `armies[].id`, `country`, `province` | Unsigned 32-bit army, country and province identifiers. |
+| `armies[].soldiers`, `morale` | Whole unsigned 32-bit soldiers and raw Fixed morale. |
+| `armies[].movement` | Null or `{route, elapsed_ticks}`. The route is ordered `{to, kind, cost}` edges, with province ID, edge type and positive whole tick cost. `elapsed_ticks` is unsigned 32-bit days into the first edge. |
+| `wars[].id`, `attacker`, `defender`, `goal` | Unsigned 32-bit war, country and goal province identifiers. |
+| `wars[].started_at`, `score` | Unsigned 64-bit tick and signed 32-bit score points from the attacker's perspective. |
+| `wars[].occupations` | Sorted `{province, country}` pairs of unsigned 32-bit occupied province and occupying country IDs. |
+| `wars[].offer` | Null or `{offered_by, cede_goal}`, an unsigned 32-bit country ID and a boolean. |
+| `forts[].province`, `level` | Unsigned 32-bit province ID and positive unsigned 8-bit fort level. |
+| `sieges[].province`, `war`, `besieger`, `progress_days` | Unsigned 32-bit province, war and country IDs, and whole days of progress. |
+| `treaties[].war`, `attacker`, `defender`, `ceded`, `concluded_at` | Unsigned 32-bit war, country and ceded province IDs, then an unsigned 64-bit tick. `ceded` is null for white peace. |
+
+Armies and wars are sorted by ID, forts and sieges by province, and
+treaties by war ID. An active movement route must match the loaded graph.

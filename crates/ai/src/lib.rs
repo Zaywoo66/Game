@@ -5,6 +5,8 @@ use strategy_sim::{
     SeededRng,
 };
 
+mod military;
+
 /// Fresh context for one country's decision on one simulation tick.
 pub struct AiContext {
     rng: SeededRng,
@@ -28,13 +30,60 @@ pub enum Reason {
     AvoidDebt,
     RecoverDebt,
     NominateSuccessor,
+    Military { action: MilitaryReason, score: i32 },
 }
 
-/// Chooses L0 fiscal and succession commands without mutating the simulation.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum MilitaryReason {
+    RaiseArmy,
+    CombineArmies,
+    ReduceSupplyPressure,
+    DeclareAgainstWeakerNeighbor,
+    DefendCapital,
+    DefendWarGoal,
+    BesiegeWarGoal,
+    Retreat,
+    OfferGoal,
+    OfferWhitePeace,
+    AcceptPeace,
+}
+
+impl Reason {
+    pub fn label(self) -> &'static str {
+        match self {
+            Self::ProfileBudget => "ProfileBudget",
+            Self::AvoidDebt => "AvoidDebt",
+            Self::RecoverDebt => "RecoverDebt",
+            Self::NominateSuccessor => "NominateSuccessor",
+            Self::Military { action, .. } => match action {
+                MilitaryReason::RaiseArmy => "RaiseArmy",
+                MilitaryReason::CombineArmies => "CombineArmies",
+                MilitaryReason::ReduceSupplyPressure => "ReduceSupplyPressure",
+                MilitaryReason::DeclareAgainstWeakerNeighbor => "DeclareAgainstWeakerNeighbor",
+                MilitaryReason::DefendCapital => "DefendCapital",
+                MilitaryReason::DefendWarGoal => "DefendWarGoal",
+                MilitaryReason::BesiegeWarGoal => "BesiegeWarGoal",
+                MilitaryReason::Retreat => "Retreat",
+                MilitaryReason::OfferGoal => "OfferGoal",
+                MilitaryReason::OfferWhitePeace => "OfferWhitePeace",
+                MilitaryReason::AcceptPeace => "AcceptPeace",
+            },
+        }
+    }
+
+    pub fn score(self) -> Option<i32> {
+        match self {
+            Self::Military { score, .. } => Some(score),
+            _ => None,
+        }
+    }
+}
+
+/// Chooses fiscal, succession and military commands through read-only queries.
 pub fn decide(
     state: &GameState,
     country: CountryId,
-    _ctx: &mut AiContext,
+    ctx: &mut AiContext,
 ) -> Vec<(Command, Reason)> {
     let Some(polity) = state.polity() else {
         return Vec::new();
@@ -89,6 +138,9 @@ pub fn decide(
                 commands.push((command, Reason::NominateSuccessor));
             }
         }
+    }
+    if let Some(command) = military::decide(state, country, nation, profile, ctx) {
+        commands.push(command);
     }
     commands
 }

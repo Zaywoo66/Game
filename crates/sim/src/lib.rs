@@ -10,10 +10,11 @@ mod rng;
 mod state;
 mod time;
 mod trigger;
+mod war;
 
 pub use effect::{Effect, EffectError, PreparedModifier};
 pub use fixed::Fixed;
-pub use ids::{ArmyId, CharacterId, CountryId, PlayerId, ProvinceId};
+pub use ids::{ArmyId, CharacterId, CountryId, PlayerId, ProvinceId, WarId};
 pub use modifiers::{
     effective_value, ModKey, Modifier, ModifierInsertError, ModifierKind, ModifierSourceId,
     ModifierStore,
@@ -37,3 +38,7 @@ pub use time::{
     Date, InvalidDate, InvalidSpeed, SimTime, Speed, Tick, TimeActor, TimeCommand, TimeError,
 };
 pub use trigger::{Trigger, TriggerView};
+pub use war::{
+    Army, ArmyMovement, MilitaryTickFailure, MovementLeg, PeaceOffer, PeaceTreaty, Siege, War,
+    WarError, WarRules, WarState,
+};

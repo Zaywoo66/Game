@@ -20,6 +20,10 @@
 | rivers.png | 8-bit mask: 0 background, 255 river |
 | water mask | derived from sea provinces |
 
+M4 writes symmetric movement costs in the map metadata using the region's
+`movement_costs` in `overrides.json`. This changes the metadata hash and map
+version while preserving the four generated rasters.
+
 ## Province generation
 The 768 × 1024 equirectangular M2 raster covers longitudes −13 to 12 and latitudes 36 to 59.25. Seeded Voronoi cells respect coastlines and penalize crossings of rivers and 1440 polity boundaries. `overrides.json` supplies seeds, ports and named straits. The validator checks for unassigned pixels, one-pixel provinces, typed symmetric adjacency, valid centroids and a connected land graph.
 

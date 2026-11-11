@@ -17,15 +17,22 @@ pub struct AiDecision {
 }
 
 #[derive(Default)]
-pub struct AiDecisionLog(BTreeMap<CountryId, VecDeque<AiDecision>>);
+pub struct AiDecisionLog {
+    entries: BTreeMap<CountryId, VecDeque<AiDecision>>,
+    failures: u64,
+}
 
 impl AiDecisionLog {
     pub fn entries(&self) -> impl Iterator<Item = &AiDecision> {
-        self.0.values().flatten()
+        self.entries.values().flatten()
+    }
+
+    pub fn failures(&self) -> u64 {
+        self.failures
     }
 
     fn record(&mut self, decision: AiDecision) {
-        let decisions = self.0.entry(decision.country).or_default();
+        let decisions = self.entries.entry(decision.country).or_default();
         if decisions.len() == AI_LOG_CAPACITY {
             decisions.pop_front();
         }
@@ -35,7 +42,7 @@ impl AiDecisionLog {
 
 /// Advances the authoritative simulation with the host's AI implementation.
 pub fn tick_host(state: &mut GameState) -> Result<TickReport, TimeError> {
-    tick_with_decider(state, decide)
+    tick_with_decider(state, decide).map(|(report, _)| report)
 }
 
 /// Advances a live session and retains a bounded record of AI commands.
@@ -43,7 +50,7 @@ pub fn tick_host_with_log(
     state: &mut GameState,
     log: &mut AiDecisionLog,
 ) -> Result<TickReport, TimeError> {
-    tick_with_decider(state, |snapshot, country, context| {
+    let (report, failures) = tick_with_decider(state, |snapshot, country, context| {
         let commands = decide(snapshot, country, context);
         for (command, reason) in &commands {
             log.record(AiDecision {
@@ -54,14 +61,17 @@ pub fn tick_host_with_log(
             });
         }
         commands
-    })
+    })?;
+    log.failures = log.failures.saturating_add(failures);
+    Ok(report)
 }
 
 fn tick_with_decider(
     state: &mut GameState,
     mut decide_ai: impl FnMut(&GameState, CountryId, &mut AiContext) -> Vec<(Command, Reason)>,
-) -> Result<TickReport, TimeError> {
-    state.tick(|snapshot, country| {
+) -> Result<(TickReport, u64), TimeError> {
+    let mut failures = 0;
+    let report = state.tick(|snapshot, country| {
         let mut context = AiContext::new(snapshot, country);
         // The decider borrows an immutable snapshot and owns no simulation state.
         // A failed decision discards this country's temporary context.
@@ -71,6 +81,7 @@ fn tick_with_decider(
         match decision {
             Ok(commands) => commands.into_iter().map(|(command, _)| command).collect(),
             Err(_) => {
+                failures += 1;
                 eprintln!(
                     "AI decision panicked for country {} at tick {}",
                     country.get(),
@@ -79,7 +90,8 @@ fn tick_with_decider(
                 Vec::new()
             }
         }
-    })
+    })?;
+    Ok((report, failures))
 }
 
 #[cfg(test)]
@@ -147,21 +159,23 @@ mod tests {
         let key = ModKey::new("test_stat");
         for tick in 1..=10_000 {
             let mut decisions = Vec::new();
-            let observed = tick_with_decider(&mut first_run, |snapshot, country, ctx| {
-                let commands = decide(snapshot, country, ctx);
-                let value = snapshot
-                    .country(FIRST)
-                    .and_then(|facts| facts.effective_value(Fixed::ONE, &key));
-                decisions.push((
-                    country,
-                    snapshot.time().tick(),
-                    ctx.rng().next_u64(),
-                    value,
-                    commands.len(),
-                ));
-                commands
-            })
-            .unwrap();
+            let (observed, failures) =
+                tick_with_decider(&mut first_run, |snapshot, country, ctx| {
+                    let commands = decide(snapshot, country, ctx);
+                    let value = snapshot
+                        .country(FIRST)
+                        .and_then(|facts| facts.effective_value(Fixed::ONE, &key));
+                    decisions.push((
+                        country,
+                        snapshot.time().tick(),
+                        ctx.rng().next_u64(),
+                        value,
+                        commands.len(),
+                    ));
+                    commands
+                })
+                .unwrap();
+            assert_eq!(failures, 0);
 
             let expected_value = if tick == 1 {
                 Fixed::from_raw(2_000)
@@ -201,13 +215,14 @@ mod tests {
     fn a_panicking_decision_does_not_skip_the_next_country() {
         let mut state = all_ai_state();
         let mut visited = Vec::new();
-        tick_with_decider(&mut state, |_, country, _| {
+        let (_, failures) = tick_with_decider(&mut state, |_, country, _| {
             visited.push(country);
             assert_ne!(country, FIRST, "simulated decider panic");
             Vec::new()
         })
         .unwrap();
 
+        assert_eq!(failures, 1);
         assert_eq!(visited, [FIRST, LAST]);
         assert_eq!(state.time().tick(), Tick::new(1));
     }

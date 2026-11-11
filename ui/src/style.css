@@ -87,3 +87,26 @@ p { font-size: 14px; color: #a8b6cf; }
 .character-panel h3 { margin: 0 0 3px; color: #e1c48c; font-size: 13px; font-weight: 600; }
 .character-panel .character-name { color: #f5ebd5; }
 .map-panel .game-error, .map-panel .game-regency { margin-top: 6px; color: #f0b28a; }
+
+.inspector-tabs { display: flex; gap: 6px; margin-top: 9px; }
+.inspector-tabs button { flex: 1; }
+.inspector-tabs button[aria-pressed="true"] { border-color: #e1c48c; color: #ffe2a0; }
+.military-panel { margin-top: 11px; padding-top: 8px; border-top: 1px solid #78918d55; }
+.military-panel h3, .military-panel h4 { margin: 7px 0 4px; color: #f5ebd5; }
+.military-panel h3 { font-size: 15px; }
+.military-panel h4 { font-size: 14px; font-weight: 600; }
+.army-picker, .military-form label { display: grid; min-width: 0; gap: 4px; color: #c5d2ca; font-size: 13px; }
+.army-picker select { width: 100%; }
+.military-actions { display: flex; flex-wrap: wrap; gap: 5px; margin: 6px 0; }
+.military-panel button { font-size: 13px; }
+.military-form { display: flex; gap: 6px; align-items: flex-end; margin: 6px 0; }
+.military-form label { flex: 1; }
+.military-form input, .military-form select { width: 100%; }
+.military-target { padding: 6px; margin: 5px 0; border-left: 2px solid #e1c48c; background: #2c3c38; }
+.military-target button { margin-top: 4px; }
+.active-war { margin: 5px 0; padding: 6px; border: 1px solid #78918d55; border-radius: 4px; }
+.active-war h4 { margin-top: 0; }
+.military-debug { margin-top: 10px; padding-top: 7px; border-top: 1px solid #78918d55; }
+.military-debug summary { color: #e1c48c; cursor: pointer; margin-bottom: 5px; }
+.military-debug ul { max-height: 170px; overflow: auto; margin: 4px 0; padding-left: 17px; }
+.military-debug li + li { margin-top: 5px; }

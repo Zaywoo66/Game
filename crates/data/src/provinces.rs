@@ -1,19 +1,25 @@
 use std::{fmt, fs, num::NonZeroU32, path::Path};
 
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
 use sha2::{Digest, Sha256};
 use strategy_sim::{
     EdgeKind, MapIdentity, Province, ProvinceEdge, ProvinceGraph, ProvinceGraphError, ProvinceId,
     ProvinceKind,
 };
 
-const SCHEMA_VERSION: u32 = 1;
+const LEGACY_VERSION: u32 = 1;
+const WEIGHTED_VERSION: u32 = 2;
 
 #[derive(Debug)]
 pub enum ProvinceLoadError {
     Io(std::io::Error),
     Json(serde_json::Error),
     UnsupportedSchemaVersion(u32),
+    EdgeCostVersionMismatch {
+        version: u32,
+        province: u32,
+        target: u32,
+    },
     InvalidMapHash,
     MapHashMismatch {
         declared: MapIdentity,
@@ -29,6 +35,13 @@ impl fmt::Display for ProvinceLoadError {
             Self::Json(error) => write!(f, "invalid province JSON: {error}"),
             Self::UnsupportedSchemaVersion(version) => {
                 write!(f, "unsupported province schema_version {version}")
+            }
+            Self::EdgeCostVersionMismatch {
+                version,
+                province,
+                target,
+            } => {
+                write!(f, "province schema v{version} has the wrong cost field for edge {province} -> {target}")
             }
             Self::InvalidMapHash => f.write_str("map_hash must be 64 lowercase hexadecimal digits"),
             Self::MapHashMismatch { declared, computed } => {
@@ -59,7 +72,7 @@ pub fn load_provinces(path: impl AsRef<Path>) -> Result<ProvinceGraph, ProvinceL
 /// Validates the file structure, cross-references and canonical hash.
 pub fn parse_provinces(bytes: &[u8]) -> Result<ProvinceGraph, ProvinceLoadError> {
     let mut map: MapFile = serde_json::from_slice(bytes).map_err(ProvinceLoadError::Json)?;
-    if map.schema_version != SCHEMA_VERSION {
+    if !matches!(map.schema_version, LEGACY_VERSION | WEIGHTED_VERSION) {
         return Err(ProvinceLoadError::UnsupportedSchemaVersion(
             map.schema_version,
         ));
@@ -72,6 +85,15 @@ pub fn parse_provinces(bytes: &[u8]) -> Result<ProvinceGraph, ProvinceLoadError>
 
     map.provinces.sort_unstable_by_key(|province| province.id);
     for province in &mut map.provinces {
+        for edge in &province.neighbors {
+            if edge.cost.is_some() != (map.schema_version == WEIGHTED_VERSION) {
+                return Err(ProvinceLoadError::EdgeCostVersionMismatch {
+                    version: map.schema_version,
+                    province: province.id,
+                    target: edge.id,
+                });
+            }
+        }
         province.neighbors.sort_unstable();
         province.ports.sort_unstable();
     }
@@ -142,6 +164,7 @@ impl From<ProvinceFile> for Province {
                 .map(|edge| ProvinceEdge {
                     to: ProvinceId::new(edge.id),
                     kind: edge.edge,
+                    cost: edge.cost.unwrap_or(NonZeroU32::MIN).get(),
                 })
                 .collect(),
             ports: value.ports.into_iter().map(ProvinceId::new).collect(),
@@ -164,11 +187,23 @@ struct EdgeFile {
     id: u32,
     #[serde(with = "EdgeKindDef")]
     edge: EdgeKind,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "present_cost"
+    )]
+    cost: Option<NonZeroU32>,
+}
+
+fn present_cost<'de, D: Deserializer<'de>>(
+    deserializer: D,
+) -> Result<Option<NonZeroU32>, D::Error> {
+    NonZeroU32::deserialize(deserializer).map(Some)
 }
 
 #[derive(Deserialize, Serialize)]
 #[serde(remote = "EdgeKind", rename_all = "snake_case")]
-enum EdgeKindDef {
+pub(super) enum EdgeKindDef {
     Normal,
     River,
     Strait,

@@ -1,4 +1,4 @@
-# M2 map generator
+# Western Europe map generator
 
 Install the pinned dependencies using Python 3.12, then build and verify the
 offline Western Europe slice:
@@ -53,7 +53,10 @@ restricted by the coastline, with crossing penalties for rivers and 1440
 polity boundaries. Small land fragments without a seed are assigned intact
 to the nearest seed. Sea and lake labels use nearest seeds inside their masks.
 
-Cardinal pixel contact generates adjacency. At least three river pixels and
+Cardinal pixel contact generates adjacency. Region `movement_costs` set
+positive whole movement ticks for each edge type. The generator writes both
+directions with the same cost and hashes `id`, `edge`, and `cost` as part of
+the map schema v2. This metadata update leaves the original raster bytes intact. At least three river pixels and
 20% river coverage on a shared land boundary give a river edge. Dover Strait
 and the North Channel are explicit, checked crossings. Each selected port
 attaches to the sea province with the longest shared coastline.
