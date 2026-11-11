@@ -94,9 +94,23 @@ class MapValidationTests(unittest.TestCase):
         province, edge = self.first_edge()
         province["neighbors"].remove(edge)
         target = next(p for p in self.metadata["provinces"] if p["id"] == edge["id"])
-        target["neighbors"].remove({"id": province["id"], "edge": edge["edge"]})
+        target["neighbors"].remove({**edge, "id": province["id"]})
         self.write_metadata()
         with self.assertRaisesRegex(ValueError, "raster/override adjacency differs"):
+            validate_directory(self.directory)
+
+    def test_edge_cost_must_be_positive(self):
+        _, edge = self.first_edge()
+        edge["cost"] = 0
+        self.write_metadata()
+        with self.assertRaisesRegex(ValueError, "invalid edge cost"):
+            validate_directory(self.directory)
+
+    def test_reverse_edge_cost_must_match(self):
+        _, edge = self.first_edge()
+        edge["cost"] += 1
+        self.write_metadata()
+        with self.assertRaisesRegex(ValueError, "edge cost mismatch"):
             validate_directory(self.directory)
 
     def test_heightmap_must_be_16_bit_grayscale(self):

@@ -31,6 +31,21 @@ the ruler's dynasty, then the oldest remaining eligible character, with
 character ID breaking age ties. The host retains the last 128 decisions
 per country with their command and reason.
 
+L1 schedules military orders every three ticks and checks war targets when
+that schedule coincides with its 31-tick strategy schedule. It raises at its capital when it has no
+army, compares reachable neighbors' strength, and scores declarations
+with aggression, expansion and caution from its profile. The derived
+country RNG contributes a bounded tie-breaking adjustment. At war it
+defends a threatened capital or the war goal, concentrates supplied
+armies, splits oversized armies, and retreats when outnumbered with low
+morale. It offers or accepts cession according to occupation, war score
+and relative strength. A two-year stalemate allows white peace. Every
+military order includes a score and reason in the per-country decision log.
+
+Run the same host tick without a window with
+`cargo run --locked -p strategy-app --bin ai-smoke -- 3653 1440 1441 1442`.
+The arguments are the daily tick count followed by one or more seeds.
+
 ## Decision layers (utility scoring, not machine learning)
 | Layer | Cadence | Decides |
 |-------|---------|---------|

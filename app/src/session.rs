@@ -8,8 +8,8 @@ use std::{
 use serde::{Deserialize, Serialize};
 use strategy_app::{load_embedded_scenario, tick_host_with_log, AiDecisionLog};
 use strategy_sim::{
-    Command, CommandActor, Controller, CountryId, Date, FiscalPolicy, Fixed, GameState, PlayerId,
-    Speed, TimeCommand,
+    ArmyId, Command, CommandActor, Controller, CountryId, Date, FiscalPolicy, Fixed, GameState,
+    PlayerId, ProvinceId, Speed, TimeCommand, WarId,
 };
 use tauri::{App, AppHandle, Emitter, Manager, State};
 
@@ -20,6 +20,8 @@ pub(crate) struct Session {
     game: GameState,
     sequence: u64,
     visible_countries: BTreeMap<u32, CountryView>,
+    visible_owners: BTreeMap<u32, u32>,
+    military: MilitaryView,
     ai_log: AiDecisionLog,
 }
 
@@ -63,10 +65,60 @@ struct CountryView {
     heir: Option<CharacterView>,
 }
 
-#[derive(Serialize)]
+#[derive(Clone, PartialEq, Eq, Serialize)]
 struct OwnerView {
     province_id: u32,
+    country_id: Option<u32>,
+}
+
+#[derive(Clone, PartialEq, Eq, Serialize)]
+struct ArmyView {
+    id: u32,
     country_id: u32,
+    province_id: u32,
+    soldiers: u32,
+    morale: i64,
+    to_province_id: Option<u32>,
+    progress: i64,
+}
+
+#[derive(Clone, PartialEq, Eq, Serialize)]
+struct PeaceView {
+    offered_by: u32,
+    cede_goal: bool,
+}
+
+#[derive(Clone, PartialEq, Eq, Serialize)]
+struct WarView {
+    id: u32,
+    attacker_id: u32,
+    defender_id: u32,
+    goal_province_id: u32,
+    score: i32,
+    occupations: Vec<OwnerView>,
+    offer: Option<PeaceView>,
+}
+
+#[derive(Clone, PartialEq, Eq, Serialize)]
+struct SiegeView {
+    province_id: u32,
+    war_id: u32,
+    country_id: u32,
+    progress_days: u32,
+    required_days: u32,
+}
+
+#[derive(Serialize)]
+struct FortView {
+    province_id: u32,
+    level: u8,
+}
+
+#[derive(Default)]
+struct MilitaryView {
+    armies: BTreeMap<u32, ArmyView>,
+    wars: BTreeMap<u32, WarView>,
+    sieges: Vec<SiegeView>,
 }
 
 #[derive(Serialize)]
@@ -78,6 +130,12 @@ pub(crate) struct Snapshot {
     owners: Vec<OwnerView>,
     max_tax_rate: i64,
     max_monthly_spending: String,
+    armies: Vec<ArmyView>,
+    wars: Vec<WarView>,
+    sieges: Vec<SiegeView>,
+    forts: Vec<FortView>,
+    min_raise_soldiers: u32,
+    max_raise_soldiers: u32,
 }
 
 #[derive(Clone, Serialize)]
@@ -85,6 +143,12 @@ struct Update {
     sequence: u64,
     clock: ClockView,
     countries: Vec<CountryView>,
+    owners: Vec<OwnerView>,
+    armies: Vec<ArmyView>,
+    removed_armies: Vec<u32>,
+    wars: Vec<WarView>,
+    removed_wars: Vec<u32>,
+    sieges: Option<Vec<SiegeView>>,
 }
 
 #[derive(Serialize)]
@@ -93,20 +157,64 @@ pub(crate) struct AiLogEntry {
     country_id: u32,
     reason: String,
     command: String,
+    score: Option<i32>,
 }
 
 #[derive(Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case", deny_unknown_fields)]
 pub(crate) enum UiCommand {
     #[serde(rename = "set_paused")]
-    Paused { paused: bool },
+    Paused {
+        paused: bool,
+    },
     #[serde(rename = "set_speed")]
-    Speed { speed: u8 },
+    Speed {
+        speed: u8,
+    },
     #[serde(rename = "set_fiscal_policy")]
     FiscalPolicy {
         country_id: u32,
         tax_rate: i64,
         monthly_spending: String,
+    },
+    RaiseArmy {
+        country_id: u32,
+        province_id: u32,
+        soldiers: u32,
+    },
+    MergeArmies {
+        country_id: u32,
+        into: u32,
+        from: u32,
+    },
+    SplitArmy {
+        country_id: u32,
+        army_id: u32,
+        soldiers: u32,
+    },
+    MoveArmy {
+        country_id: u32,
+        army_id: u32,
+        destination: u32,
+    },
+    RetreatArmy {
+        country_id: u32,
+        army_id: u32,
+        destination: u32,
+    },
+    DeclareWar {
+        country_id: u32,
+        defender_id: u32,
+        goal_province_id: u32,
+    },
+    OfferPeace {
+        country_id: u32,
+        war_id: u32,
+        cede_goal: bool,
+    },
+    AcceptPeace {
+        country_id: u32,
+        war_id: u32,
     },
 }
 
@@ -132,6 +240,73 @@ impl UiCommand {
                     ),
                 },
             },
+            Self::RaiseArmy {
+                country_id,
+                province_id,
+                soldiers,
+            } => Command::RaiseArmy {
+                country: CountryId::new(country_id),
+                province: ProvinceId::new(province_id),
+                soldiers,
+            },
+            Self::MergeArmies {
+                country_id,
+                into,
+                from,
+            } => Command::MergeArmies {
+                country: CountryId::new(country_id),
+                into: ArmyId::new(into),
+                from: ArmyId::new(from),
+            },
+            Self::SplitArmy {
+                country_id,
+                army_id,
+                soldiers,
+            } => Command::SplitArmy {
+                country: CountryId::new(country_id),
+                army: ArmyId::new(army_id),
+                soldiers,
+            },
+            Self::MoveArmy {
+                country_id,
+                army_id,
+                destination,
+            } => Command::MoveArmy {
+                country: CountryId::new(country_id),
+                army: ArmyId::new(army_id),
+                destination: ProvinceId::new(destination),
+            },
+            Self::RetreatArmy {
+                country_id,
+                army_id,
+                destination,
+            } => Command::RetreatArmy {
+                country: CountryId::new(country_id),
+                army: ArmyId::new(army_id),
+                destination: ProvinceId::new(destination),
+            },
+            Self::DeclareWar {
+                country_id,
+                defender_id,
+                goal_province_id,
+            } => Command::DeclareWar {
+                country: CountryId::new(country_id),
+                defender: CountryId::new(defender_id),
+                goal: ProvinceId::new(goal_province_id),
+            },
+            Self::OfferPeace {
+                country_id,
+                war_id,
+                cede_goal,
+            } => Command::OfferPeace {
+                country: CountryId::new(country_id),
+                war: WarId::new(war_id),
+                cede_goal,
+            },
+            Self::AcceptPeace { country_id, war_id } => Command::AcceptPeace {
+                country: CountryId::new(country_id),
+                war: WarId::new(war_id),
+            },
         })
     }
 }
@@ -139,10 +314,14 @@ impl UiCommand {
 pub(crate) fn setup(app: &mut App) -> Result<(), Box<dyn std::error::Error>> {
     let game = load_embedded_scenario().map_err(std::io::Error::other)?;
     let visible_countries = country_views(&game);
+    let visible_owners = owner_views(&game);
+    let military = military_view(&game);
     app.manage(Mutex::new(Session {
         game,
         sequence: 0,
         visible_countries,
+        visible_owners,
+        military,
         ai_log: AiDecisionLog::default(),
     }));
 
@@ -165,24 +344,35 @@ pub(crate) fn game_snapshot(state: State<'_, Mutex<Session>>) -> Result<Snapshot
     let local_country_id = session.game.countries().find_map(|(id, country)| {
         (country.controller() == &Controller::Human(HOST)).then_some(id.get())
     });
-    let owners = polity
-        .countries
-        .iter()
-        .flat_map(|(id, country)| {
-            country.provinces.iter().map(|province| OwnerView {
-                province_id: province.get(),
-                country_id: id.get(),
-            })
-        })
-        .collect();
+    let war = session.game.war_state();
     Ok(Snapshot {
         sequence: session.sequence,
         clock: clock_view(&session.game),
         local_country_id,
         countries: session.visible_countries.values().cloned().collect(),
-        owners,
+        owners: session
+            .visible_owners
+            .iter()
+            .map(|(&province_id, &country_id)| OwnerView {
+                province_id,
+                country_id: Some(country_id),
+            })
+            .collect(),
         max_tax_rate: polity.rules.max_tax_rate.raw(),
         max_monthly_spending: money(polity.rules.max_monthly_spending),
+        armies: session.military.armies.values().cloned().collect(),
+        wars: session.military.wars.values().cloned().collect(),
+        sieges: session.military.sieges.clone(),
+        forts: war
+            .into_iter()
+            .flat_map(|war| &war.forts)
+            .map(|(&province, &level)| FortView {
+                province_id: province.get(),
+                level,
+            })
+            .collect(),
+        min_raise_soldiers: 1,
+        max_raise_soldiers: war.map_or(0, |war| war.rules.max_army_size),
     })
 }
 
@@ -217,8 +407,9 @@ pub(crate) fn game_ai_log(state: State<'_, Mutex<Session>>) -> Result<Vec<AiLogE
         .map(|decision| AiLogEntry {
             tick: decision.tick.get(),
             country_id: decision.country.get(),
-            reason: format!("{:?}", decision.reason),
+            reason: decision.reason.label().into(),
             command: format!("{:?}", decision.command),
+            score: decision.reason.score(),
         })
         .collect())
 }
@@ -258,22 +449,135 @@ fn run_clock(app: AppHandle) {
 
 fn publish(app: &AppHandle, session: &mut Session) {
     let countries = country_views(&session.game);
-    let changed = countries
-        .iter()
-        .filter(|(id, country)| session.visible_countries.get(id) != Some(*country))
-        .map(|(_, country)| country.clone())
-        .collect();
-    session.visible_countries = countries;
+    let owners = owner_views(&session.game);
+    let military = military_view(&session.game);
     session.sequence += 1;
-    if let Err(error) = app.emit(
-        UPDATE_EVENT,
-        Update {
-            sequence: session.sequence,
-            clock: clock_view(&session.game),
-            countries: changed,
-        },
-    ) {
+    let update = Update {
+        sequence: session.sequence,
+        clock: clock_view(&session.game),
+        countries: changed_rows(&session.visible_countries, &countries),
+        owners: owners
+            .iter()
+            .filter(|(id, owner)| session.visible_owners.get(id) != Some(*owner))
+            .map(|(&province_id, &country_id)| OwnerView {
+                province_id,
+                country_id: Some(country_id),
+            })
+            .chain(
+                removed_rows(&session.visible_owners, &owners)
+                    .into_iter()
+                    .map(|province_id| OwnerView {
+                        province_id,
+                        country_id: None,
+                    }),
+            )
+            .collect(),
+        armies: changed_rows(&session.military.armies, &military.armies),
+        removed_armies: removed_rows(&session.military.armies, &military.armies),
+        wars: changed_rows(&session.military.wars, &military.wars),
+        removed_wars: removed_rows(&session.military.wars, &military.wars),
+        sieges: (session.military.sieges != military.sieges).then(|| military.sieges.clone()),
+    };
+    session.visible_countries = countries;
+    session.visible_owners = owners;
+    session.military = military;
+    if let Err(error) = app.emit(UPDATE_EVENT, update) {
         eprintln!("Could not publish the game update: {error}");
+    }
+}
+
+fn changed_rows<T: Clone + PartialEq>(old: &BTreeMap<u32, T>, new: &BTreeMap<u32, T>) -> Vec<T> {
+    new.iter()
+        .filter(|(id, value)| old.get(id) != Some(*value))
+        .map(|(_, value)| value.clone())
+        .collect()
+}
+
+fn removed_rows<T>(old: &BTreeMap<u32, T>, new: &BTreeMap<u32, T>) -> Vec<u32> {
+    old.keys()
+        .copied()
+        .filter(|id| !new.contains_key(id))
+        .collect()
+}
+
+fn owner_views(game: &GameState) -> BTreeMap<u32, u32> {
+    game.polity()
+        .into_iter()
+        .flat_map(|polity| &polity.countries)
+        .flat_map(|(id, country)| {
+            country
+                .provinces
+                .iter()
+                .map(|province| (province.get(), id.get()))
+        })
+        .collect()
+}
+
+fn military_view(game: &GameState) -> MilitaryView {
+    let Some(state) = game.war_state() else {
+        return MilitaryView::default();
+    };
+    MilitaryView {
+        armies: state
+            .armies
+            .iter()
+            .map(|(&id, army)| {
+                let movement = army.movement.as_ref();
+                (
+                    id.get(),
+                    ArmyView {
+                        id: id.get(),
+                        country_id: army.country.get(),
+                        province_id: army.province.get(),
+                        soldiers: army.soldiers,
+                        morale: army.morale.raw(),
+                        to_province_id: movement
+                            .and_then(|movement| movement.route.first())
+                            .map(|leg| leg.to.get()),
+                        progress: movement.map_or(0, |movement| movement.progress().raw()),
+                    },
+                )
+            })
+            .collect(),
+        wars: state
+            .wars
+            .iter()
+            .map(|(&id, war)| {
+                (
+                    id.get(),
+                    WarView {
+                        id: id.get(),
+                        attacker_id: war.attacker.get(),
+                        defender_id: war.defender.get(),
+                        goal_province_id: war.goal.get(),
+                        score: war.score,
+                        occupations: war
+                            .occupations
+                            .iter()
+                            .map(|(&province, &country)| OwnerView {
+                                province_id: province.get(),
+                                country_id: Some(country.get()),
+                            })
+                            .collect(),
+                        offer: war.offer.map(|offer| PeaceView {
+                            offered_by: offer.offered_by.get(),
+                            cede_goal: offer.cede_goal,
+                        }),
+                    },
+                )
+            })
+            .collect(),
+        sieges: state
+            .sieges
+            .iter()
+            .map(|(&province, siege)| SiegeView {
+                province_id: province.get(),
+                war_id: siege.war.get(),
+                country_id: siege.besieger.get(),
+                progress_days: siege.progress_days,
+                required_days: state.siege_required(province),
+            })
+            .collect(),
     }
 }
 
@@ -296,7 +600,10 @@ fn country_views(game: &GameState) -> BTreeMap<u32, CountryView> {
                     dip: character.stats.dip,
                     mil: character.stats.mil,
                     traits: character.traits.iter().cloned().collect(),
-                    death: character.death.map(format_date),
+                    death: character
+                        .death
+                        .filter(|date| *date <= game.time().date())
+                        .map(format_date),
                 })
             };
             let [red, green, blue] = country.color;

@@ -10,12 +10,13 @@ use strategy_sim::{
     AiProfileKey, AiThresholds, AiWeights, CharacterId, CharacterState, CharacterStats, Controller,
     CountryId, CountryPolity, CountryState, Date, EconomyState, FiscalPolicy, Fixed, GameState,
     ModifierSourceId, ModifierStore, PlayerId, PolityState, ProvinceGraph, ProvinceKind, SimTime,
-    Speed, SuccessionState,
+    Speed, SuccessionState, WarState,
 };
 
 use crate::{
     polity_format::{ProfileFile, RulesFile, StatsFile, ThresholdsFile, WeightsFile},
     saves::ModifierFile,
+    war_format::WarRulesFile,
 };
 
 const SCENARIO_VERSION: u32 = 1;
@@ -74,6 +75,36 @@ struct ScenarioFile {
     rules: RulesFile,
     #[serde(deserialize_with = "unique_map")]
     traits: BTreeMap<String, Vec<ModifierFile>>,
+    military: Option<MilitaryFile>,
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct MilitaryFile {
+    rules: WarRulesFile,
+    #[serde(deserialize_with = "unique_map")]
+    forts: BTreeMap<String, u8>,
+}
+
+impl MilitaryFile {
+    fn resolve(self, graph: &ProvinceGraph) -> Result<WarState> {
+        let mut forts = BTreeMap::new();
+        for (key, level) in self.forts {
+            let province = graph
+                .by_key(&key)
+                .filter(|province| province.kind == ProvinceKind::Land)
+                .ok_or_else(|| {
+                    invalid(format!(
+                        "fort must refer to an existing land province: {key}"
+                    ))
+                })?;
+            if level == 0 {
+                return Err(invalid(format!("fort level must be positive for {key}")));
+            }
+            forts.insert(province.id, level);
+        }
+        Ok(WarState::new(self.rules.into(), forts))
+    }
 }
 
 #[derive(Deserialize)]
@@ -324,7 +355,11 @@ pub fn load_scenario_from_reader(
         );
     }
 
-    GameState::new(
+    let military = scenario
+        .military
+        .map(|file| file.resolve(&graph))
+        .transpose()?;
+    let state = GameState::new(
         SimTime::new(date, Speed::One, false),
         scenario.seed,
         graph,
@@ -338,7 +373,16 @@ pub fn load_scenario_from_reader(
         characters: character_states,
         ai_profiles: profiles,
     })
-    .map_err(|error| invalid(format!("{path}: invalid polity: {error:?}")))
+    .map_err(|error| invalid(format!("{path}: invalid polity: {error:?}")))?;
+    if let Some(military) = military {
+        state.with_war_state(military).map_err(|error| {
+            invalid(format!(
+                "{path}: invalid military rules or state: {error:?}"
+            ))
+        })
+    } else {
+        Ok(state)
+    }
 }
 
 fn read_file<T: de::DeserializeOwned>(

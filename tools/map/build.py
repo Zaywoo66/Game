@@ -14,7 +14,7 @@ from scipy.sparse import csr_matrix
 from scipy.sparse.csgraph import dijkstra
 
 from map_common import (
-    BOUNDS, EDGE_ORDER, ELEVATION_BIAS, HEIGHT, INPUTS, OUTPUT, REGION, TERRAINS,
+    BOUNDS, EDGE_ORDER, ELEVATION_BIAS, HEIGHT, INPUTS, OUTPUT, REGION, SCHEMA_VERSION, TERRAINS,
     WIDTH, json_bytes, map_hash, read_json,
 )
 from validate import validate_directory
@@ -183,7 +183,7 @@ def province_records(ids, terrain, rivers, masks, seeds, config):
             "terrain": TERRAINS[dominant],
             "centroid": [int(px[nearest]), int(py[nearest])],
             "neighbors": [
-                {"id": other, "edge": edge}
+                {"id": other, "edge": edge, "cost": config["movement_costs"][edge]}
                 for other, edge in sorted(edges[province], key=lambda item: (item[0], EDGE_ORDER.index(item[1])))
             ],
             "ports": sorted(ports[province]),
@@ -218,7 +218,7 @@ def generate(output):
     terrain[masks["lake"]] = 4
     provinces = province_records(ids, terrain, rivers, masks, seeds, config)
     metadata = {
-        "schema_version": 1,
+        "schema_version": SCHEMA_VERSION,
         "map_version": config["map_version"],
         "map_hash": map_hash(provinces),
         "provinces": provinces,

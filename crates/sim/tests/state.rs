@@ -310,6 +310,7 @@ fn state_exposes_the_loaded_graph_and_its_identity_read_only() {
             [ProvinceEdge {
                 to: ProvinceId::new(2),
                 kind: EdgeKind::River,
+                cost: 1,
             }]
             .as_slice()
         )
@@ -339,6 +340,7 @@ fn province(id: u32, key: &str, neighbor: u32) -> Province {
         neighbors: vec![ProvinceEdge {
             to: ProvinceId::new(neighbor),
             kind: EdgeKind::River,
+            cost: 1,
         }],
         ports: Vec::new(),
     }

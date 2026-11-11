@@ -1,7 +1,7 @@
 {
-  "schema_version": 1,
-  "map_version": 1,
-  "map_hash": "5072831b962ad3ac571375d251cb2d2a63edde76d6b4d59a38c942e8b081d689",
+  "schema_version": 2,
+  "map_version": 2,
+  "map_hash": "b751f8a535f851eebc860e980294b6d935e25191fcc9d745890c5fa1925fea15",
   "provinces": [
     {
       "id": 1,
@@ -15,15 +15,18 @@
       "neighbors": [
         {
           "id": 2,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 43,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 44,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         }
       ],
       "ports": [],
@@ -41,27 +44,33 @@
       "neighbors": [
         {
           "id": 1,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 3,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 9,
-          "edge": "strait"
+          "edge": "strait",
+          "cost": 5
         },
         {
           "id": 43,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 44,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 45,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         }
       ],
       "ports": [],
@@ -79,15 +88,18 @@
       "neighbors": [
         {
           "id": 2,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 4,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 44,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         }
       ],
       "ports": [],
@@ -105,23 +117,28 @@
       "neighbors": [
         {
           "id": 3,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 5,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 6,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 8,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 44,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         }
       ],
       "ports": [],
@@ -139,23 +156,28 @@
       "neighbors": [
         {
           "id": 4,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 6,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 7,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 8,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 45,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         }
       ],
       "ports": [],
@@ -173,35 +195,43 @@
       "neighbors": [
         {
           "id": 4,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 5,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 7,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 29,
-          "edge": "strait"
+          "edge": "strait",
+          "cost": 5
         },
         {
           "id": 44,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 44,
-          "edge": "port"
+          "edge": "port",
+          "cost": 2
         },
         {
           "id": 45,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 46,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         }
       ],
       "ports": [
@@ -221,19 +251,23 @@
       "neighbors": [
         {
           "id": 5,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 6,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 45,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 45,
-          "edge": "port"
+          "edge": "port",
+          "cost": 2
         }
       ],
       "ports": [
@@ -253,19 +287,23 @@
       "neighbors": [
         {
           "id": 4,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 5,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 44,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 45,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         }
       ],
       "ports": [],
@@ -283,27 +321,33 @@
       "neighbors": [
         {
           "id": 2,
-          "edge": "strait"
+          "edge": "strait",
+          "cost": 5
         },
         {
           "id": 10,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 11,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 43,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 43,
-          "edge": "port"
+          "edge": "port",
+          "cost": 2
         },
         {
           "id": 45,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         }
       ],
       "ports": [
@@ -323,15 +367,18 @@
       "neighbors": [
         {
           "id": 9,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 11,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 45,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         }
       ],
       "ports": [],
@@ -349,23 +396,28 @@
       "neighbors": [
         {
           "id": 9,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 10,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 43,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 45,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 45,
-          "edge": "port"
+          "edge": "port",
+          "cost": 2
         }
       ],
       "ports": [
@@ -385,19 +437,23 @@
       "neighbors": [
         {
           "id": 13,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 14,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 24,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 46,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         }
       ],
       "ports": [],
@@ -415,23 +471,28 @@
       "neighbors": [
         {
           "id": 12,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 14,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 15,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 16,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 46,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         }
       ],
       "ports": [],
@@ -449,19 +510,23 @@
       "neighbors": [
         {
           "id": 12,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 13,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 15,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 24,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         }
       ],
       "ports": [],
@@ -479,27 +544,33 @@
       "neighbors": [
         {
           "id": 13,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 14,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 16,
-          "edge": "river"
+          "edge": "river",
+          "cost": 3
         },
         {
           "id": 19,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 20,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 24,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         }
       ],
       "ports": [],
@@ -517,27 +588,33 @@
       "neighbors": [
         {
           "id": 13,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 15,
-          "edge": "river"
+          "edge": "river",
+          "cost": 3
         },
         {
           "id": 17,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 19,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 32,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 46,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         }
       ],
       "ports": [],
@@ -555,27 +632,33 @@
       "neighbors": [
         {
           "id": 16,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 19,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 32,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 33,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 48,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 48,
-          "edge": "port"
+          "edge": "port",
+          "cost": 2
         }
       ],
       "ports": [
@@ -595,23 +678,28 @@
       "neighbors": [
         {
           "id": 19,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 20,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 22,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 48,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 48,
-          "edge": "port"
+          "edge": "port",
+          "cost": 2
         }
       ],
       "ports": [
@@ -631,27 +719,33 @@
       "neighbors": [
         {
           "id": 15,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 16,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 17,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 18,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 20,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 48,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         }
       ],
       "ports": [],
@@ -669,31 +763,38 @@
       "neighbors": [
         {
           "id": 15,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 18,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 19,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 21,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 22,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 23,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 24,
-          "edge": "river"
+          "edge": "river",
+          "cost": 3
         }
       ],
       "ports": [],
@@ -711,27 +812,33 @@
       "neighbors": [
         {
           "id": 20,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 22,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 23,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 25,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 47,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 47,
-          "edge": "port"
+          "edge": "port",
+          "cost": 2
         }
       ],
       "ports": [
@@ -751,23 +858,28 @@
       "neighbors": [
         {
           "id": 18,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 20,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 21,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 47,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 48,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         }
       ],
       "ports": [],
@@ -785,27 +897,33 @@
       "neighbors": [
         {
           "id": 20,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 21,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 24,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 25,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 47,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 47,
-          "edge": "port"
+          "edge": "port",
+          "cost": 2
         }
       ],
       "ports": [
@@ -825,35 +943,43 @@
       "neighbors": [
         {
           "id": 12,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 14,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 15,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 20,
-          "edge": "river"
+          "edge": "river",
+          "cost": 3
         },
         {
           "id": 23,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 46,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 47,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 47,
-          "edge": "port"
+          "edge": "port",
+          "cost": 2
         }
       ],
       "ports": [
@@ -873,15 +999,18 @@
       "neighbors": [
         {
           "id": 21,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 23,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 47,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         }
       ],
       "ports": [],
@@ -899,19 +1028,23 @@
       "neighbors": [
         {
           "id": 27,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 31,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 46,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 46,
-          "edge": "port"
+          "edge": "port",
+          "cost": 2
         }
       ],
       "ports": [
@@ -931,23 +1064,28 @@
       "neighbors": [
         {
           "id": 26,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 28,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 31,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 44,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 46,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         }
       ],
       "ports": [],
@@ -965,27 +1103,33 @@
       "neighbors": [
         {
           "id": 27,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 29,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 31,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 35,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 36,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 44,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         }
       ],
       "ports": [],
@@ -1003,31 +1147,38 @@
       "neighbors": [
         {
           "id": 6,
-          "edge": "strait"
+          "edge": "strait",
+          "cost": 5
         },
         {
           "id": 28,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 30,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 36,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 37,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 44,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 44,
-          "edge": "port"
+          "edge": "port",
+          "cost": 2
         }
       ],
       "ports": [
@@ -1047,15 +1198,18 @@
       "neighbors": [
         {
           "id": 29,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 37,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 44,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         }
       ],
       "ports": [],
@@ -1073,31 +1227,38 @@
       "neighbors": [
         {
           "id": 26,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 27,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 28,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 32,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 33,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 35,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 46,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         }
       ],
       "ports": [],
@@ -1115,23 +1276,28 @@
       "neighbors": [
         {
           "id": 16,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 17,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 31,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 33,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 46,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         }
       ],
       "ports": [],
@@ -1149,27 +1315,33 @@
       "neighbors": [
         {
           "id": 17,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 31,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 32,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 34,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 35,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 48,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         }
       ],
       "ports": [],
@@ -1187,23 +1359,28 @@
       "neighbors": [
         {
           "id": 33,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 35,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 40,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 48,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 48,
-          "edge": "port"
+          "edge": "port",
+          "cost": 2
         }
       ],
       "ports": [
@@ -1223,35 +1400,43 @@
       "neighbors": [
         {
           "id": 28,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 31,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 33,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 34,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 36,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 39,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 40,
-          "edge": "river"
+          "edge": "river",
+          "cost": 3
         },
         {
           "id": 49,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         }
       ],
       "ports": [],
@@ -1269,27 +1454,33 @@
       "neighbors": [
         {
           "id": 28,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 29,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 35,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 37,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 38,
-          "edge": "river"
+          "edge": "river",
+          "cost": 3
         },
         {
           "id": 39,
-          "edge": "river"
+          "edge": "river",
+          "cost": 3
         }
       ],
       "ports": [],
@@ -1307,23 +1498,28 @@
       "neighbors": [
         {
           "id": 29,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 30,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 36,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 38,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 44,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         }
       ],
       "ports": [],
@@ -1341,19 +1537,23 @@
       "neighbors": [
         {
           "id": 36,
-          "edge": "river"
+          "edge": "river",
+          "cost": 3
         },
         {
           "id": 37,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 39,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 41,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         }
       ],
       "ports": [],
@@ -1371,27 +1571,33 @@
       "neighbors": [
         {
           "id": 35,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 36,
-          "edge": "river"
+          "edge": "river",
+          "cost": 3
         },
         {
           "id": 38,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 40,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 41,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 49,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         }
       ],
       "ports": [],
@@ -1409,23 +1615,28 @@
       "neighbors": [
         {
           "id": 34,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 35,
-          "edge": "river"
+          "edge": "river",
+          "cost": 3
         },
         {
           "id": 39,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 41,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 48,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         }
       ],
       "ports": [],
@@ -1443,23 +1654,28 @@
       "neighbors": [
         {
           "id": 38,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 39,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 40,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 42,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 48,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         }
       ],
       "ports": [],
@@ -1477,11 +1693,13 @@
       "neighbors": [
         {
           "id": 41,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 48,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         }
       ],
       "ports": [],
@@ -1499,31 +1717,38 @@
       "neighbors": [
         {
           "id": 1,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 2,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 9,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 9,
-          "edge": "port"
+          "edge": "port",
+          "cost": 2
         },
         {
           "id": 11,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 44,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 45,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         }
       ],
       "ports": [],
@@ -1541,67 +1766,83 @@
       "neighbors": [
         {
           "id": 1,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 2,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 3,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 4,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 6,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 6,
-          "edge": "port"
+          "edge": "port",
+          "cost": 2
         },
         {
           "id": 8,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 27,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 28,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 29,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 29,
-          "edge": "port"
+          "edge": "port",
+          "cost": 2
         },
         {
           "id": 30,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 37,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 43,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 45,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 46,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         }
       ],
       "ports": [],
@@ -1619,55 +1860,68 @@
       "neighbors": [
         {
           "id": 2,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 5,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 6,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 7,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 7,
-          "edge": "port"
+          "edge": "port",
+          "cost": 2
         },
         {
           "id": 8,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 9,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 10,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 11,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 11,
-          "edge": "port"
+          "edge": "port",
+          "cost": 2
         },
         {
           "id": 43,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 44,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 46,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         }
       ],
       "ports": [],
@@ -1685,55 +1939,68 @@
       "neighbors": [
         {
           "id": 6,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 12,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 13,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 16,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 24,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 26,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 26,
-          "edge": "port"
+          "edge": "port",
+          "cost": 2
         },
         {
           "id": 27,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 31,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 32,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 44,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 45,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 47,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         }
       ],
       "ports": [],
@@ -1751,43 +2018,53 @@
       "neighbors": [
         {
           "id": 21,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 21,
-          "edge": "port"
+          "edge": "port",
+          "cost": 2
         },
         {
           "id": 22,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 23,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 23,
-          "edge": "port"
+          "edge": "port",
+          "cost": 2
         },
         {
           "id": 24,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 24,
-          "edge": "port"
+          "edge": "port",
+          "cost": 2
         },
         {
           "id": 25,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 46,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 48,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         }
       ],
       "ports": [],
@@ -1805,55 +2082,68 @@
       "neighbors": [
         {
           "id": 17,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 17,
-          "edge": "port"
+          "edge": "port",
+          "cost": 2
         },
         {
           "id": 18,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 18,
-          "edge": "port"
+          "edge": "port",
+          "cost": 2
         },
         {
           "id": 19,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 22,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 33,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 34,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 34,
-          "edge": "port"
+          "edge": "port",
+          "cost": 2
         },
         {
           "id": 40,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 41,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 42,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 47,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         }
       ],
       "ports": [],
@@ -1871,11 +2161,13 @@
       "neighbors": [
         {
           "id": 35,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         },
         {
           "id": 39,
-          "edge": "normal"
+          "edge": "normal",
+          "cost": 2
         }
       ],
       "ports": [],

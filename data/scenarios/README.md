@@ -31,6 +31,13 @@ Historical references:
   [John II of Aragon, Historia Hispánica](https://historia-hispanica.rah.es/biografias/25004-juan-ii-de-aragon-y-de-navarra)
 - [Afonso V, Bibliothèque nationale de France](https://gallica.bnf.fr/accueil/fr/html/circulations-luso-mediterraneennes-a-la-renaissance)
 
+The M4 scenario adds a military rules block and seven starting forts, with
+no armies or wars at startup. London and Île-de-France have level 2 forts.
+Aragón, Castile, Lisboa, the Lowlands and Normandy have level 1 forts.
+Fort levels are whole numbers. The movement graph in map version 2 uses
+whole ticks per edge, while military morale and fiscal values use raw
+Fixed thousandths. These values are gameplay tuning for the prototype.
+
 Validate the scenario and all of its references using:
 
 ```powershell

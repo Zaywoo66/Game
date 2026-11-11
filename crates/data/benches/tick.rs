@@ -31,6 +31,7 @@ fn synthetic_state() -> GameState {
                     .map(|neighbor| ProvinceEdge {
                         to: ProvinceId::new(neighbor),
                         kind: EdgeKind::Normal,
+                        cost: 1,
                     })
                     .collect(),
                 ports: Vec::new(),

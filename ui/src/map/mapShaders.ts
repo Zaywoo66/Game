@@ -14,11 +14,13 @@ uniform sampler2D provinceRaster;
 uniform sampler2D terrainRaster;
 uniform sampler2D riverRaster;
 uniform sampler2D ownerLookup;
+uniform sampler2D occupationLookup;
 uniform sampler2D waterLookup;
 uniform vec2 rasterSize;
 uniform vec2 lookupSize;
 uniform float selectedId;
 uniform float seconds;
+uniform bool hasOccupations;
 
 varying vec2 mapUv;
 varying vec3 mapNormal;
@@ -59,6 +61,11 @@ void main() {
   }
 
   color = mix(color, owner.rgb, owner.a * 0.72);
+  if (hasOccupations) {
+    vec4 occupier = texture2D(occupationLookup, lookup);
+    float hatch = step(0.55, fract((pixel.x + pixel.y) * 0.20));
+    color = mix(color, occupier.rgb, hatch * occupier.a * 0.76);
+  }
   vec2 stepSize = clamp(fwidth(mapUv) * 0.65, 1.0 / rasterSize, 2.0 / rasterSize);
   float border = max(
     max(step(0.5, abs(id - provinceAt(mapUv + vec2(stepSize.x, 0.0)))),

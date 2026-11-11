@@ -1,5 +1,11 @@
 use std::collections::{BTreeMap, BTreeSet};
 
+use crate::modifiers::effective_value_from;
+use crate::war::{MilitaryAction, MilitaryBonuses, MilitaryOrder};
+use crate::{
+    Army, ArmyId, MilitaryTickFailure, MovementLeg, Siege, War, WarError, WarId, WarState,
+};
+
 use crate::{
     CharacterId, CharacterState, CountryId, CountryPolity, Date, EconomyState, Effect, EffectError,
     FiscalError, FiscalPolicy, Fixed, MapIdentity, ModKey, ModifierInsertError, ModifierSourceId,
@@ -64,6 +70,45 @@ pub enum Command {
         country: CountryId,
         heir: Option<CharacterId>,
     },
+    RaiseArmy {
+        country: CountryId,
+        province: ProvinceId,
+        soldiers: u32,
+    },
+    MergeArmies {
+        country: CountryId,
+        into: ArmyId,
+        from: ArmyId,
+    },
+    SplitArmy {
+        country: CountryId,
+        army: ArmyId,
+        soldiers: u32,
+    },
+    MoveArmy {
+        country: CountryId,
+        army: ArmyId,
+        destination: ProvinceId,
+    },
+    RetreatArmy {
+        country: CountryId,
+        army: ArmyId,
+        destination: ProvinceId,
+    },
+    DeclareWar {
+        country: CountryId,
+        defender: CountryId,
+        goal: ProvinceId,
+    },
+    OfferPeace {
+        country: CountryId,
+        war: WarId,
+        cede_goal: bool,
+    },
+    AcceptPeace {
+        country: CountryId,
+        war: WarId,
+    },
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -75,6 +120,7 @@ pub enum CommandError {
     NotCountryController(CountryId),
     UnknownAiProfile(CountryId),
     Fiscal(FiscalError),
+    War(WarError),
     InvalidHeir {
         country: CountryId,
         heir: CharacterId,
@@ -118,6 +164,36 @@ pub enum StateChange {
         succession: SuccessionState,
         regency: bool,
     },
+    ArmyChanged {
+        army: ArmyId,
+        state: Option<Army>,
+    },
+    WarChanged {
+        war: WarId,
+        state: Option<War>,
+    },
+    SiegeChanged {
+        province: ProvinceId,
+        state: Option<Siege>,
+    },
+    BattleResolved {
+        war: WarId,
+        province: ProvinceId,
+        winner: CountryId,
+        loser: CountryId,
+        winner_casualties: u64,
+        loser_casualties: u64,
+    },
+    ProvinceOwnershipChanged {
+        province: ProvinceId,
+        owner: CountryId,
+    },
+    PeaceConcluded {
+        war: WarId,
+        attacker: CountryId,
+        defender: CountryId,
+        ceded: Option<ProvinceId>,
+    },
 }
 
 /// The ordered state changes caused by an accepted command or tick.
@@ -145,6 +221,7 @@ pub struct TickReport {
     pub ai_rejections: Vec<AiCommandRejection>,
     pub scheduled_failures: Vec<ScheduledEffectFailure>,
     pub polity_failures: Vec<PolityTickFailure>,
+    pub military_failures: Vec<MilitaryTickFailure>,
 }
 
 /// A trusted scenario input for an effect due on an exact simulation tick.
@@ -254,6 +331,7 @@ pub struct GameState {
     countries: BTreeMap<CountryId, CountryState>,
     scheduled: ModifierSchedule,
     polity: Option<PolityState>,
+    war_state: Option<WarState>,
 }
 
 enum PreparedCommand<'a> {
@@ -261,6 +339,7 @@ enum PreparedCommand<'a> {
     SetController(CountryId, &'a Controller),
     SetFiscalPolicy(CountryId, FiscalPolicy),
     NominateHeir(CountryId, Option<CharacterId>),
+    Military(MilitaryAction),
 }
 
 impl GameState {
@@ -328,6 +407,7 @@ impl GameState {
             countries,
             scheduled,
             polity: None,
+            war_state: None,
         })
     }
 
@@ -366,6 +446,36 @@ impl GameState {
         polity.validate(&self.province_graph, &self.countries, self.time.date())?;
         self.polity = Some(polity);
         Ok(self)
+    }
+
+    /// Attaches validated military scenario or save data and derives war flags.
+    pub fn with_war_state(mut self, war_state: WarState) -> Result<Self, WarError> {
+        if self.war_state.is_some() {
+            return Err(WarError::AlreadyConfigured);
+        }
+        let polity = self.polity().ok_or(WarError::Unavailable)?;
+        war_state.validate(polity, &self.province_graph, self.time.tick())?;
+        self.war_state = Some(war_state);
+        self.sync_war_flags();
+        Ok(self)
+    }
+
+    pub const fn war_state(&self) -> Option<&WarState> {
+        self.war_state.as_ref()
+    }
+
+    pub fn country_at_war(&self, country: CountryId) -> bool {
+        self.country(country).is_some_and(TriggerView::is_at_war)
+    }
+
+    pub fn find_army_path(
+        &self,
+        country: CountryId,
+        from: ProvinceId,
+        to: ProvinceId,
+    ) -> Option<Vec<MovementLeg>> {
+        self.war_state()?
+            .find_path(&self.province_graph, self.polity()?, country, from, to)
     }
 
     pub const fn polity(&self) -> Option<&PolityState> {
@@ -524,6 +634,12 @@ impl GameState {
                     });
                 }
             }
+            PreparedCommand::Military(action) => {
+                let war_state = self.war_state.as_mut().expect("military state validated");
+                let polity = self.polity.as_mut().expect("polity validated");
+                delta.changes.extend(war_state.apply(polity, action));
+                self.sync_war_flags();
+            }
         }
         Ok(delta)
     }
@@ -576,6 +692,97 @@ impl GameState {
                     }
                 }
                 Ok(PreparedCommand::NominateHeir(*country, *heir))
+            }
+            Command::RaiseArmy {
+                country,
+                province,
+                soldiers,
+            } => self.prepare_military(actor, *country, MilitaryOrder::Raise(*province, *soldiers)),
+            Command::MergeArmies {
+                country,
+                into,
+                from,
+            } => self.prepare_military(actor, *country, MilitaryOrder::Merge(*into, *from)),
+            Command::SplitArmy {
+                country,
+                army,
+                soldiers,
+            } => self.prepare_military(actor, *country, MilitaryOrder::Split(*army, *soldiers)),
+            Command::MoveArmy {
+                country,
+                army,
+                destination,
+            } => self.prepare_military(actor, *country, MilitaryOrder::Move(*army, *destination)),
+            Command::RetreatArmy {
+                country,
+                army,
+                destination,
+            } => {
+                self.prepare_military(actor, *country, MilitaryOrder::Retreat(*army, *destination))
+            }
+            Command::DeclareWar {
+                country,
+                defender,
+                goal,
+            } => self.prepare_military(actor, *country, MilitaryOrder::Declare(*defender, *goal)),
+            Command::OfferPeace {
+                country,
+                war,
+                cede_goal,
+            } => self.prepare_military(actor, *country, MilitaryOrder::Offer(*war, *cede_goal)),
+            Command::AcceptPeace { country, war } => {
+                self.prepare_military(actor, *country, MilitaryOrder::Accept(*war))
+            }
+        }
+    }
+
+    fn prepare_military(
+        &self,
+        actor: CommandActor,
+        country: CountryId,
+        order: MilitaryOrder,
+    ) -> Result<PreparedCommand<'static>, CommandError> {
+        let polity = self.authorized_polity(actor, country)?;
+        let war = self
+            .war_state()
+            .ok_or(CommandError::War(WarError::Unavailable))?;
+        let raise_morale = if matches!(order, MilitaryOrder::Raise(..)) {
+            self.military_modifier(country, war.rules.max_morale, &war.rules.morale_modifier)
+        } else {
+            None
+        };
+        war.prepare(
+            &self.province_graph,
+            polity,
+            self.time.tick(),
+            country,
+            order,
+            raise_morale,
+        )
+        .map(PreparedCommand::Military)
+        .map_err(CommandError::War)
+    }
+
+    fn military_modifier(&self, country: CountryId, base: Fixed, key: &ModKey) -> Option<Fixed> {
+        let country_modifiers = self
+            .country(country)?
+            .modifiers()
+            .sources()
+            .flat_map(|(_, _, values)| values);
+        let ruler_modifiers = self
+            .ruler(country)
+            .into_iter()
+            .filter(|(_, ruler)| ruler.is_alive_on(self.time.date()))
+            .flat_map(|(_, ruler)| ruler.modifiers.sources())
+            .flat_map(|(_, _, values)| values);
+        effective_value_from(base, key, country_modifiers.chain(ruler_modifiers))
+            .map(|value| value.max(Fixed::ZERO))
+    }
+
+    fn sync_war_flags(&mut self) {
+        if let Some(war) = &self.war_state {
+            for (&country, state) in &mut self.countries {
+                state.at_war = war.war_for(country).is_some();
             }
         }
     }
@@ -662,7 +869,38 @@ impl GameState {
             report.delta.changes.extend(changes);
             report.polity_failures = failures;
         }
+        self.advance_military(&mut report);
         Ok(report)
+    }
+
+    fn advance_military(&mut self, report: &mut TickReport) {
+        let Some(war) = self.war_state() else { return };
+        if war.armies.is_empty() {
+            return;
+        }
+        let countries = war
+            .armies
+            .values()
+            .map(|army| army.country)
+            .collect::<BTreeSet<_>>();
+        let bonuses = countries
+            .into_iter()
+            .map(|country| {
+                let morale = self.military_modifier(
+                    country,
+                    war.rules.max_morale,
+                    &war.rules.morale_modifier,
+                );
+                let combat =
+                    self.military_modifier(country, Fixed::ONE, &war.rules.combat_modifier);
+                (country, MilitaryBonuses { morale, combat })
+            })
+            .collect();
+        let war = self.war_state.as_mut().expect("military state exists");
+        let polity = self.polity.as_ref().expect("military state has a polity");
+        let (changes, failures) = war.advance(&self.province_graph, polity, &bonuses);
+        report.delta.changes.extend(changes);
+        report.military_failures = failures;
     }
 
     fn activate_scheduled_effects(&mut self, tick: Tick, report: &mut TickReport) {

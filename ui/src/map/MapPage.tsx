@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { CountryPanel, HostControls } from '../game/CountryPanel';
 import { CountryView, GameSnapshot, useGameHost } from '../game/host';
+import { ArmyOrder, MilitaryPanel } from '../game/MilitaryPanel';
 import { loadMapAssets, Province, Rgba } from './mapData';
 import { BenchmarkSample, createMapViewer, MapTestControls } from './mapViewer';
 
@@ -82,25 +83,76 @@ export function MapPage() {
   const [error, setError] = useState('');
   const [selected, setSelected] = useState<Province | null>(null);
   const [inspectedCountry, setInspectedCountry] = useState<number | null>(null);
+  const [provinceNames, setProvinceNames] = useState<ReadonlyMap<number, Province>>(new Map());
+  const [section, setSection] = useState<'country' | 'military'>('country');
+  const [inspectedArmy, setInspectedArmy] = useState(0);
+  const [order, setOrder] = useState<ArmyOrder | null>(null);
   const [renderer, setRenderer] = useState('');
   const [benchmarkResult, setBenchmarkResult] = useState('Loading the map…');
   const verifyHost = import.meta.env.DEV && options.get('verifyHost') === '1';
   const hostGame = useGameHost(!benchmark && (!verify || verifyHost));
   const game = hostGame.snapshot;
   const hasGame = Boolean(game);
+  const militaryEnabled = game?.armies !== undefined;
   const colors = useMemo(
     () => provinceColors(game?.owners, game?.countries),
     [game?.owners, game?.countries],
   );
+  const occupationColors = useMemo(
+    () => provinceColors(game?.wars?.flatMap((war) => war.occupations), game?.countries),
+    [game?.wars, game?.countries],
+  );
+  const armies = useMemo(() => {
+    const countries = new Map(game?.countries.map((country) => [country.id, country.color]));
+    return game?.armies?.map((army) => ({
+      id: army.id,
+      province: army.province_id,
+      destination: army.to_province_id,
+      progress: army.progress,
+      color: countries.get(army.country_id) ?? '#ffffff',
+    })) ?? [];
+  }, [game?.armies, game?.countries]);
+
+  const shownArmy = game?.armies?.find((army) => army.id === inspectedArmy);
+  const mayTarget = Boolean(order && shownArmy && shownArmy.country_id === game?.local_country_id);
+  const onProvinceClick = useRef<(province: Province | null) => void>(() => undefined);
+  useEffect(() => {
+    onProvinceClick.current = (province) => {
+      setSelected(province);
+      setInspectedCountry(null);
+      if (order && mayTarget && shownArmy && province?.kind === 'land' && !hostGame.pending) {
+        setOrder(null);
+        void hostGame.send({
+          type: order, country_id: shownArmy.country_id, army_id: shownArmy.id, destination: province.id,
+        });
+      }
+    };
+  }, [order, mayTarget, shownArmy, hostGame.pending, hostGame.send]);
 
   useEffect(() => {
     if (hasGame && status === 'ready') viewerRef.current?.setOwnerColors(colors);
   }, [hasGame, status, colors]);
+  useEffect(() => {
+    if (militaryEnabled && status === 'ready') viewerRef.current?.setOccupationColors(occupationColors);
+  }, [militaryEnabled, status, occupationColors]);
+  useEffect(() => {
+    if (militaryEnabled && status === 'ready') viewerRef.current?.setArmies(armies);
+  }, [militaryEnabled, status, armies]);
+  useEffect(() => {
+    if (militaryEnabled && status === 'ready') viewerRef.current?.setArmySelection(shownArmy?.id ?? 0, mayTarget);
+  }, [militaryEnabled, status, shownArmy?.id, mayTarget]);
 
   const ownerId = selected && game?.owners.find((owner) => owner.province_id === selected.id)?.country_id;
   const shownCountryId = inspectedCountry ?? (selected ? ownerId : game?.local_country_id ?? game?.countries[0]?.id);
   const shownCountry = game?.countries.find((country) => country.id === shownCountryId);
   const provinceOwner = game?.countries.find((country) => country.id === ownerId);
+  const occupierId = game?.wars?.flatMap((war) => war.occupations)
+    .find((occupation) => occupation.province_id === selected?.id)?.country_id;
+  const occupier = game?.countries.find((country) => country.id === occupierId);
+  const provinceName = (id: number) => {
+    const province = provinceNames.get(id);
+    return province ? nameOf(province.key) : 'Province ' + id;
+  };
 
   useEffect(() => {
     const host = viewport.current;
@@ -114,12 +166,19 @@ export function MapPage() {
       .then((assets) => {
         if (abort.signal.aborted) return;
         const { provinces } = assets;
-        const active = createMapViewer(host, assets, (id) => {
-          setSelected(provinces.get(id) ?? null);
-          setInspectedCountry(null);
-        });
+        const active = createMapViewer(
+          host,
+          assets,
+          (id) => onProvinceClick.current(provinces.get(id) ?? null),
+          (id) => {
+            setSection('military');
+            setInspectedArmy(id);
+            setOrder(null);
+          },
+        );
         viewer = active;
         viewerRef.current = active;
+        setProvinceNames(provinces);
         setRenderer(active.renderer);
         if (verify) window.strategyMapTest = active.testControls;
         setStatus('ready');
@@ -191,12 +250,30 @@ export function MapPage() {
               <h2>{nameOf(selected.key)}</h2>
               <p>Province {selected.id} · {nameOf(selected.kind)} · {nameOf(selected.terrain)}</p>
               {game && <p>Owner · {provinceOwner?.name ?? 'Unowned'}</p>}
+              {occupier && <p>Occupied by · {occupier.name}</p>}
             </>
           ) : <p>Click a province to inspect it</p>}
         </div>
-        {game && (
+        {militaryEnabled && (
+          <div className="inspector-tabs" role="group" aria-label="Inspector panels">
+            <button type="button" aria-pressed={section === 'country'} onClick={() => {
+              setSection('country');
+              setOrder(null);
+            }}>Country</button>
+            <button type="button" aria-pressed={section === 'military'}
+              onClick={() => setSection('military')}>Military</button>
+          </div>
+        )}
+        {game && (!militaryEnabled || section === 'country') && (
           <CountryPanel game={game} country={shownCountry} pending={hostGame.pending}
             onSelect={setInspectedCountry} send={hostGame.send} />
+        )}
+        {game && militaryEnabled && section === 'military' && (
+          <MilitaryPanel game={game} pending={hostGame.pending} provinceId={selected?.id ?? null}
+            provinceIsLand={selected?.kind === 'land'} army={shownArmy} order={order}
+            selectArmy={(id) => { setInspectedArmy(id); setOrder(null); }}
+            chooseOrder={setOrder} cancelOrder={() => setOrder(null)} provinceName={provinceName}
+            send={hostGame.send} readAiLog={hostGame.readAiLog} />
         )}
       </aside>
     </main>

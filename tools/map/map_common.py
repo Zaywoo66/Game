@@ -1,4 +1,4 @@
-"""Shared M2 map file conventions."""
+"""Shared map file conventions."""
 
 from hashlib import sha256
 import json
@@ -11,6 +11,7 @@ OUTPUT = ROOT / "data" / "map" / REGION
 BOUNDS = (-13.0, 36.0, 12.0, 59.25)
 WIDTH, HEIGHT = 768, 1024
 ELEVATION_BIAS = 32768
+SCHEMA_VERSION = 2
 EDGE_ORDER = ("normal", "river", "strait", "port")
 PROVINCE_FIELDS = (
     "id", "key", "kind", "terrain", "centroid", "neighbors", "ports", "development"
@@ -37,12 +38,14 @@ def json_bytes(value, *, pretty=False):
     return json.dumps(value, ensure_ascii=True, separators=(",", ":")).encode("ascii")
 
 
-def map_hash(provinces):
+def map_hash(provinces, schema_version=SCHEMA_VERSION):
     canonical = []
     for record in sorted(provinces, key=lambda p: p["id"]):
         province = {field: record[field] for field in PROVINCE_FIELDS}
         province["neighbors"] = [
-            {"id": edge["id"], "edge": edge["edge"]}
+            {"id": edge["id"], "edge": edge["edge"], **(
+                {"cost": edge["cost"]} if schema_version >= 2 else {}
+            )}
             for edge in sorted(
                 record["neighbors"],
                 key=lambda e: (e["id"], EDGE_ORDER.index(e["edge"])),

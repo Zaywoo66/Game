@@ -101,7 +101,7 @@ function FiscalPolicyForm({ country, game, pending, send }: FiscalPolicyProps) {
   );
 }
 
-function CharacterPanel({ title, character }: { title: string; character: CharacterView | null }) {
+function CharacterPanel({ title, character, date }: { title: string; character: CharacterView | null; date: string }) {
   return (
     <section className="character-panel" aria-label={title}>
       <h3>{title}</h3>
@@ -109,7 +109,7 @@ function CharacterPanel({ title, character }: { title: string; character: Charac
         <>
           <p className="character-name">{character.name}</p>
           <p>{character.dynasty} · Age {character.age}</p>
-          {character.death && <p>Died {character.death}</p>}
+          {character.death && character.death <= date && <p>Died {character.death}</p>}
           <dl className="character-stats">
             <div><dt><abbr title="Administration">ADM</abbr></dt><dd>{character.adm}</dd></div>
             <div><dt><abbr title="Diplomacy">DIP</abbr></dt><dd>{character.dip}</dd></div>
@@ -161,8 +161,8 @@ export function CountryPanel({ game, country, pending, onSelect, send }: Country
               country={country} game={game} pending={pending} send={send} />
           )}
           {country.regency && <p className="game-regency">Regency in effect</p>}
-          <CharacterPanel title="Ruler" character={country.ruler} />
-          <CharacterPanel title="Heir" character={country.heir} />
+          <CharacterPanel title="Ruler" character={country.ruler} date={game.clock.date} />
+          <CharacterPanel title="Heir" character={country.heir} date={game.clock.date} />
         </>
       )}
     </section>

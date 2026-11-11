@@ -1,0 +1,119 @@
+{
+  "schema_version": 2,
+  "map_version": 5,
+  "map_hash": "c163abb511bb665266aaa0aa619f4a1203afa0f4d7fcf8ce7212a5b80e57b4dc",
+  "provinces": [
+    {
+      "id": 11,
+      "key": "test_lake",
+      "kind": "lake",
+      "terrain": "inland_water",
+      "centroid": [
+        22,
+        29
+      ],
+      "neighbors": [],
+      "ports": [],
+      "development": 0
+    },
+    {
+      "id": 9,
+      "key": "test_sea",
+      "kind": "sea",
+      "terrain": "open_water",
+      "centroid": [
+        14,
+        35
+      ],
+      "neighbors": [
+        {
+          "id": 1,
+          "edge": "port",
+          "cost": 2
+        }
+      ],
+      "ports": [],
+      "development": 0
+    },
+    {
+      "id": 7,
+      "key": "test_strait",
+      "kind": "sea",
+      "terrain": "open_water",
+      "centroid": [
+        12,
+        25
+      ],
+      "neighbors": [
+        {
+          "id": 1,
+          "edge": "strait",
+          "cost": 5
+        }
+      ],
+      "ports": [],
+      "development": 0
+    },
+    {
+      "id": 2,
+      "key": "test_hills",
+      "kind": "land",
+      "terrain": "hills",
+      "centroid": [
+        7,
+        34
+      ],
+      "neighbors": [
+        {
+          "id": 1,
+          "edge": "normal",
+          "cost": 2
+        },
+        {
+          "id": 1,
+          "edge": "river",
+          "cost": 3
+        }
+      ],
+      "ports": [],
+      "development": 0
+    },
+    {
+      "id": 1,
+      "key": "test_land",
+      "kind": "land",
+      "terrain": "grassland",
+      "centroid": [
+        12,
+        34
+      ],
+      "neighbors": [
+        {
+          "id": 9,
+          "edge": "port",
+          "cost": 2
+        },
+        {
+          "id": 7,
+          "edge": "strait",
+          "cost": 5
+        },
+        {
+          "id": 2,
+          "edge": "river",
+          "cost": 3
+        },
+        {
+          "id": 2,
+          "edge": "normal",
+          "cost": 2
+        }
+      ],
+      "ports": [
+        9,
+        7
+      ],
+      "development": 3
+    }
+  ]
+}

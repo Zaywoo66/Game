@@ -37,6 +37,42 @@ export interface CountryView {
   heir: CharacterView | null;
 }
 
+export interface ArmyView {
+  id: number;
+  country_id: number;
+  province_id: number;
+  soldiers: number;
+  morale: number;
+  to_province_id: number | null;
+  progress: number;
+}
+
+export interface WarView {
+  id: number;
+  attacker_id: number;
+  defender_id: number;
+  goal_province_id: number;
+  score: number;
+  occupations: { province_id: number; country_id: number }[];
+  offer: { offered_by: number; cede_goal: boolean } | null;
+}
+
+export interface SiegeView {
+  province_id: number;
+  war_id: number;
+  country_id: number;
+  progress_days: number;
+  required_days: number;
+}
+
+export interface AiLogEntry {
+  tick: number;
+  country_id: number;
+  reason: string;
+  command: string;
+  score: number | null;
+}
+
 export interface GameSnapshot {
   sequence: number;
   clock: ClockView;
@@ -45,18 +81,37 @@ export interface GameSnapshot {
   owners: { province_id: number; country_id: number }[];
   max_tax_rate: number;
   max_monthly_spending: string;
+  armies?: ArmyView[];
+  wars?: WarView[];
+  sieges?: SiegeView[];
+  forts?: { province_id: number; level: number }[];
+  min_raise_soldiers?: number;
+  max_raise_soldiers?: number;
 }
 
 interface GameUpdate {
   sequence: number;
   clock: ClockView;
   countries: CountryView[];
+  armies?: ArmyView[];
+  removed_armies?: number[];
+  wars?: WarView[];
+  removed_wars?: number[];
+  sieges?: SiegeView[] | null;
+  owners?: { province_id: number; country_id: number | null }[];
 }
 
 export type GameCommand =
   | { type: 'set_paused'; paused: boolean }
   | { type: 'set_speed'; speed: number }
-  | { type: 'set_fiscal_policy'; country_id: number; tax_rate: number; monthly_spending: string };
+  | { type: 'set_fiscal_policy'; country_id: number; tax_rate: number; monthly_spending: string }
+  | { type: 'raise_army'; country_id: number; province_id: number; soldiers: number }
+  | { type: 'merge_armies'; country_id: number; into: number; from: number }
+  | { type: 'split_army'; country_id: number; army_id: number; soldiers: number }
+  | { type: 'move_army' | 'retreat_army'; country_id: number; army_id: number; destination: number }
+  | { type: 'declare_war'; country_id: number; defender_id: number; goal_province_id: number }
+  | { type: 'offer_peace'; country_id: number; war_id: number; cede_goal: boolean }
+  | { type: 'accept_peace'; country_id: number; war_id: number };
 
 interface TauriBridge {
   core: { invoke<T>(name: string, args?: Record<string, unknown>): Promise<T> };
@@ -71,15 +126,39 @@ declare global {
   }
 }
 
+function updateRows<T extends { id: number }>(
+  current: T[] | undefined,
+  changed: T[] = [],
+  removed: number[] = [],
+): T[] | undefined {
+  if (!changed.length && !removed.length) return current;
+  const rows = new Map(current?.map((row) => [row.id, row]));
+  for (const row of changed) rows.set(row.id, row);
+  for (const id of removed) rows.delete(id);
+  return [...rows.values()];
+}
+
 function applyUpdate(snapshot: GameSnapshot, update: GameUpdate): GameSnapshot {
   if (update.sequence <= snapshot.sequence) return snapshot;
-  let countries = snapshot.countries;
-  if (update.countries.length > 0) {
-    const rows = new Map(countries.map((country) => [country.id, country]));
-    for (const country of update.countries) rows.set(country.id, country);
-    countries = [...rows.values()];
+  let owners = snapshot.owners;
+  if (update.owners?.length) {
+    const byProvince = new Map(owners.map(({ province_id, country_id }) => [province_id, country_id]));
+    for (const { province_id, country_id } of update.owners) {
+      if (country_id === null) byProvince.delete(province_id);
+      else byProvince.set(province_id, country_id);
+    }
+    owners = [...byProvince].map(([province_id, country_id]) => ({ province_id, country_id }));
   }
-  return { ...snapshot, sequence: update.sequence, clock: update.clock, countries };
+  return {
+    ...snapshot,
+    sequence: update.sequence,
+    clock: update.clock,
+    countries: updateRows(snapshot.countries, update.countries) ?? snapshot.countries,
+    owners,
+    armies: updateRows(snapshot.armies, update.armies, update.removed_armies),
+    wars: updateRows(snapshot.wars, update.wars, update.removed_wars),
+    sieges: update.sieges ?? snapshot.sieges,
+  };
 }
 
 function errorText(reason: unknown): string {
@@ -158,5 +237,9 @@ export function useGameHost(enabled: boolean) {
     }
   }
 
-  return { connected: Boolean(bridge), snapshot, connectionError, commandError, pending, send };
+  function readAiLog(): Promise<AiLogEntry[]> {
+    return bridge ? bridge.core.invoke<AiLogEntry[]>('game_ai_log') : Promise.resolve([]);
+  }
+
+  return { connected: Boolean(bridge), snapshot, connectionError, commandError, pending, send, readAiLog };
 }

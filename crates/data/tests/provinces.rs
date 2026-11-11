@@ -58,6 +58,10 @@ fn loads_sparse_ids_and_preserves_distinct_edge_types() {
         ]
     );
     assert_eq!(graph.neighbors(ProvinceId::new(99)), None);
+    assert!(graph
+        .iter()
+        .flat_map(|province| &province.neighbors)
+        .all(|edge| edge.cost == 1));
 }
 
 #[test]
@@ -80,10 +84,10 @@ fn reordered_and_reformatted_json_has_the_same_golden_hash() {
 #[test]
 fn rejects_invalid_schema_fields_and_versions() {
     let mut map = fixture();
-    map["schema_version"] = json!(2);
+    map["schema_version"] = json!(3);
     assert!(matches!(
         parse(&map),
-        Err(ProvinceLoadError::UnsupportedSchemaVersion(2))
+        Err(ProvinceLoadError::UnsupportedSchemaVersion(3))
     ));
     map = fixture();
     map.as_object_mut().unwrap().remove("schema_version");
@@ -130,7 +134,7 @@ fn rejects_dangling_unpaired_and_duplicate_edges() {
 
     map = fixture();
     province(&mut map, 2)["neighbors"][1]["edge"] = json!("strait");
-    assert_graph_error(&map, "no reverse River edge");
+    assert_graph_error(&map, "reverse River edge");
 
     map = fixture();
     let edges = province(&mut map, 1)["neighbors"].as_array_mut().unwrap();
@@ -199,4 +203,82 @@ fn lint_cli_uses_the_same_graph_validator() {
     let invalid = run("dangling-province.json");
     assert_eq!(invalid.status.code(), Some(1));
     assert!(String::from_utf8_lossy(&invalid.stderr).contains("edge to unknown province"));
+}
+
+const V2_FIXTURE: &[u8] = include_bytes!("fixtures/provinces_v2.json");
+const V2_GOLDEN_HASH: &str = "c163abb511bb665266aaa0aa619f4a1203afa0f4d7fcf8ce7212a5b80e57b4dc";
+
+#[test]
+fn weighted_map_preserves_costs_and_the_canonical_v2_hash() {
+    let graph = parse_provinces(V2_FIXTURE).unwrap();
+    assert_eq!(
+        graph.identity().to_string(),
+        format!("map version 5, SHA-256 {V2_GOLDEN_HASH}")
+    );
+    let edges: Vec<_> = graph
+        .neighbors(ProvinceId::new(1))
+        .unwrap()
+        .iter()
+        .map(|edge| (edge.to.get(), edge.kind, edge.cost))
+        .collect();
+    assert_eq!(
+        edges,
+        [
+            (2, EdgeKind::Normal, 2),
+            (2, EdgeKind::River, 3),
+            (7, EdgeKind::Strait, 5),
+            (9, EdgeKind::Port, 2),
+        ]
+    );
+    let mut map: Value = serde_json::from_slice(V2_FIXTURE).unwrap();
+    let entries = map["provinces"].as_array_mut().unwrap();
+    entries.reverse();
+    for entry in entries {
+        entry["neighbors"].as_array_mut().unwrap().reverse();
+    }
+    assert_eq!(parse(&map).unwrap(), graph);
+}
+
+#[test]
+fn rejects_missing_or_nonpositive_costs_and_costs_on_legacy_maps() {
+    let mut map: Value = serde_json::from_slice(V2_FIXTURE).unwrap();
+    province(&mut map, 1)["neighbors"][0]
+        .as_object_mut()
+        .unwrap()
+        .remove("cost");
+    assert!(matches!(
+        parse(&map),
+        Err(ProvinceLoadError::EdgeCostVersionMismatch { version: 2, .. })
+    ));
+    for bad in [json!(0), json!(-1), json!(1.5), json!(null)] {
+        province(&mut map, 1)["neighbors"][0]["cost"] = bad;
+        assert!(matches!(parse(&map), Err(ProvinceLoadError::Json(_))));
+    }
+    let mut legacy = fixture();
+    province(&mut legacy, 1)["neighbors"][0]["cost"] = json!(1);
+    assert!(matches!(
+        parse(&legacy),
+        Err(ProvinceLoadError::EdgeCostVersionMismatch { version: 1, .. })
+    ));
+}
+
+#[test]
+fn reverse_costs_match_and_cost_changes_are_hashed() {
+    let mut map: Value = serde_json::from_slice(V2_FIXTURE).unwrap();
+    let change = |record: &mut Value, target: u32| {
+        let edge = record["neighbors"]
+            .as_array_mut()
+            .unwrap()
+            .iter_mut()
+            .find(|edge| edge["id"] == target && edge["edge"] == "normal")
+            .unwrap();
+        edge["cost"] = json!(9);
+    };
+    change(province(&mut map, 1), 2);
+    assert!(matches!(parse(&map), Err(ProvinceLoadError::Graph(_))));
+    change(province(&mut map, 2), 1);
+    assert!(matches!(
+        parse(&map),
+        Err(ProvinceLoadError::MapHashMismatch { .. })
+    ));
 }

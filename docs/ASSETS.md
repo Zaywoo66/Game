@@ -16,6 +16,7 @@
 |------|--------|--------|---------|-------|
 | `app/icons/icon.png` | Original geometric placeholder | Project team | Own work | 32×32 PNG generated for the M0 Tauri window |
 | `app/icons/icon.ico` | Converted from `app/icons/icon.png` | Project team | Own work | Windows icon resource for Tauri |
+| `ui/public/models/infantry.glb` | `tools/models/build_infantry.py` | Project team | Own work | Original helmet, shield and spear geometry exported with Blender 4.5.3 LTS. 246 triangles and one embedded 6×1 palette. |
 | `tools/map/inputs/western_europe/land.geojson` | [Natural Earth 5.1.2, 1:50m physical vectors](https://github.com/nvkelso/natural-earth-vector/tree/v5.1.2/geojson) | Nathaniel Vaughn Kelso, Tom Patterson and contributors | [Public domain](https://www.naturalearthdata.com/about/terms-of-use/) | Clipped to the M2 bounding box |
 | `tools/map/inputs/western_europe/lakes.geojson` | [Natural Earth 5.1.2, 1:50m physical vectors](https://github.com/nvkelso/natural-earth-vector/tree/v5.1.2/geojson) | Nathaniel Vaughn Kelso, Tom Patterson and contributors | [Public domain](https://www.naturalearthdata.com/about/terms-of-use/) | Clipped to the M2 bounding box |
 | `tools/map/inputs/western_europe/rivers.geojson` | [Natural Earth 5.1.2, 1:50m physical vectors](https://github.com/nvkelso/natural-earth-vector/tree/v5.1.2/geojson) | Nathaniel Vaughn Kelso, Tom Patterson and contributors | [Public domain](https://www.naturalearthdata.com/about/terms-of-use/) | Clipped river and lake centerlines |
