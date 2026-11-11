@@ -683,10 +683,9 @@ impl GameState {
                 else {
                     return Err(DiplomacyError::InvalidState);
                 };
+                let eligibility = self.marriage_eligibility(a.country, from, b.country, toward);
                 if expires <= self.time.date()
-                    || self
-                        .marriage_eligibility(a.country, from, b.country, toward)
-                        .is_err()
+                    || !matches!(eligibility, Ok(()) | Err(MarriageError::NoRulerOrHeir))
                 {
                     return Err(DiplomacyError::InvalidState);
                 }
