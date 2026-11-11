@@ -18,6 +18,8 @@ pub struct AutoplaySummary {
     pub country_count: usize,
     pub largest_country: usize,
     pub median_tick_ns: u128,
+    pub p95_tick_ns: u128,
+    pub peak_tick_ns: u128,
     pub final_hash: [u8; 32],
 }
 
@@ -133,6 +135,11 @@ pub fn advance_autoplay(game: &mut GameState, end: Date) -> Result<AutoplaySumma
             .max()
             .unwrap_or(0),
         median_tick_ns: samples.get(samples.len() / 2).copied().unwrap_or(0),
+        p95_tick_ns: samples
+            .get(samples.len().saturating_sub(1) * 95 / 100)
+            .copied()
+            .unwrap_or(0),
+        peak_tick_ns: samples.last().copied().unwrap_or(0),
         final_hash: state_hash(game).map_err(|error| error.to_string())?,
     })
 }
