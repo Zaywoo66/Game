@@ -1830,6 +1830,12 @@ impl GameState {
         Ok(PreparedCommand::Disembark(army_id, fleet_id, destination))
     }
 
+    /// Returns the current morale ceiling after country and ruler modifiers.
+    pub fn effective_army_morale_limit(&self, country: CountryId) -> Option<Fixed> {
+        let rules = &self.war_state.as_ref()?.rules;
+        self.military_modifier(country, rules.max_morale, &rules.morale_modifier)
+    }
+
     fn military_modifier(&self, country: CountryId, base: Fixed, key: &ModKey) -> Option<Fixed> {
         let country_modifiers = self
             .country(country)?

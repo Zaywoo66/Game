@@ -54,6 +54,18 @@ p { font-size: 14px; color: #a8b6cf; }
 .map-status { top: 50%; left: 50%; width: max-content; transform: translate(-50%, -50%); }
 
 .game-clock { top: 18px; right: 18px; width: min(280px, calc(100% - 36px)); pointer-events: auto; }
+.event-backdrop { position: absolute; z-index: 8; inset: 0; display: grid; place-items: center; padding: 18px; box-sizing: border-box; background: #07141b99; }
+.event-popup { box-sizing: border-box; width: min(480px, 100%); max-height: 100%; overflow: auto; padding: 24px; border: 1px solid #c4aa73; border-radius: 6px; background: #142329; color: #f5ebd5; box-shadow: 0 10px 35px #0009; }
+.event-popup h2 { margin: 0 0 12px; font: 500 25px Georgia, serif; }
+.event-popup p { color: #c5d2ca; line-height: 1.5; }
+.event-popup .event-queue { margin-bottom: 8px; color: #e1c48c; font-size: 12px; }
+.event-popup .event-description { margin-bottom: 19px; white-space: pre-wrap; }
+.event-options { display: grid; gap: 8px; }
+.event-options button { padding: 9px 12px; border: 1px solid #9a9e82; border-radius: 4px; background: #263e42; color: #f5ebd5; font: inherit; text-align: left; cursor: pointer; }
+.event-options button:hover { background: #365250; }
+.event-options button:focus-visible { outline: 2px solid #e1c48c; outline-offset: 2px; }
+.event-options button:disabled { cursor: default; opacity: .6; }
+.event-popup .game-error { margin-top: 12px; color: #f0b28a; }
 .game-clock time { display: block; margin-bottom: 7px; color: #f5ebd5; font-variant-numeric: tabular-nums; }
 .game-clock-actions { display: flex; align-items: center; gap: 12px; }
 .game-clock-actions label { display: flex; align-items: center; gap: 6px; }
