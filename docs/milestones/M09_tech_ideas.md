@@ -1,8 +1,8 @@
 # M9 Technology and ideas
 Docs: DATA_FORMATS.md, SIM_RULES.md
 
-Progress: technology YAML v1 contract and prerequisite-DAG data linter are in
-progress. The typed Rust loader, research points, unlocks, ideas, reforms,
+Progress: technology YAML v1 contract, prerequisite-DAG data linter, and typed
+Rust loader are in progress. Research points, unlocks, ideas, reforms,
 tech-tree UI, and AI choices remain open.
 
 ## Tasks
