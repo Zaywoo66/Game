@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { ArmyMarker, createArmyLayer } from './armyLayer';
 import { decodeProvinceId, MapAssets, pickProvinceId, Raster, Rgba, updateOwnerLookup } from './mapData';
+import { historicalPresentation, MapMode } from './mapPresentation';
 import { mapFragmentShader, mapVertexShader, oceanFragmentShader, oceanVertexShader } from './mapShaders';
 import { createTerrain } from './terrain';
 
@@ -31,6 +32,11 @@ export interface MapTestControls {
   setCameraPreset(name: 'whole-region' | 'britain' | 'iberia' | 'province'): void;
   readCamera(): { target: [number, number]; zoom: number; polarAngle: number };
   readPixel(clientX: number, clientY: number): Rgba;
+  setMapMode(mode: MapMode): void;
+  readMapMode(): MapMode;
+  focusProvince(id: number): void;
+  setArmies(armies: readonly ArmyMarker[]): void;
+  setArmySelection(id: number, targeting: boolean): void;
 }
 
 interface MapViewer {
@@ -39,6 +45,8 @@ interface MapViewer {
   setOccupationColors(colors: ReadonlyMap<number, Rgba>): void;
   setArmies(armies: readonly ArmyMarker[]): void;
   setArmySelection(id: number, targeting: boolean): void;
+  setMapMode(mode: MapMode): void;
+  setCountryLabels(labels: readonly { id: number; text: string; capital: boolean }[]): void;
   startBenchmark(): void;
   readBenchmark(): BenchmarkSample;
   testControls: MapTestControls;
@@ -100,6 +108,9 @@ export function createMapViewer(
   const occupationBytes = new Uint8Array(lookupPixels * 4);
   const waterBytes = new Uint8Array(lookupPixels);
   const areaBytes = new Uint8Array(lookupPixels * 4);
+  const historicalBytes = new Uint8Array(lookupPixels * 4);
+  const precisionBytes = new Uint8Array(lookupPixels);
+  const historical = historicalPresentation(assets);
   const areaKeys = [...new Set([...provinces.values()].map((province) => province.area).filter((area): area is string => Boolean(area)))].sort();
   const areaIds = new Map(areaKeys.map((area, index) => [area, index + 1]));
   waterBytes[0] = 1;
@@ -111,6 +122,9 @@ export function createMapViewer(
     areaBytes[id * 4 + 1] = (area >> 8) & 0xff;
     areaBytes[id * 4 + 2] = area & 0xff;
     areaBytes[id * 4 + 3] = 255;
+    const historicColor = historical.colors.get(id);
+    if (historicColor) historicalBytes.set(historicColor, id * 4);
+    precisionBytes[id] = historical.precision.get(id) ?? 0;
   }
 
   const provinceTexture = texture(new Uint8Array(data.buffer, data.byteOffset, data.byteLength), width, height);
@@ -122,18 +136,23 @@ export function createMapViewer(
   occupationTexture.colorSpace = THREE.SRGBColorSpace;
   const waterTexture = texture(waterBytes, lookupWidth, lookupHeight, THREE.RedFormat);
   const areaTexture = texture(areaBytes, lookupWidth, lookupHeight);
+  const historicalTexture = texture(historicalBytes, lookupWidth, lookupHeight);
+  historicalTexture.colorSpace = THREE.SRGBColorSpace;
+  const precisionTexture = texture(precisionBytes, lookupWidth, lookupHeight, THREE.RedFormat);
   const heightTexture = new THREE.DataTexture(assets.heightmap.samples, width, height, THREE.RedFormat, THREE.UnsignedShortType);
   heightTexture.magFilter = THREE.NearestFilter;
   heightTexture.minFilter = THREE.NearestFilter;
   heightTexture.generateMipmaps = false;
   heightTexture.unpackAlignment = 1;
   heightTexture.needsUpdate = true;
-  const textures = [provinceTexture, terrainTexture, riverTexture, ownerTexture, occupationTexture, waterTexture, areaTexture, heightTexture];
+  const textures = [provinceTexture, terrainTexture, riverTexture, ownerTexture, occupationTexture, waterTexture, areaTexture, historicalTexture, precisionTexture, heightTexture];
   const uniforms = {
     provinceRaster: { value: provinceTexture },
     terrainRaster: { value: terrainTexture },
     riverRaster: { value: riverTexture },
     ownerLookup: { value: ownerTexture },
+    historicalLookup: { value: historicalTexture },
+    precisionLookup: { value: precisionTexture },
     occupationLookup: { value: occupationTexture },
     waterLookup: { value: waterTexture },
     areaLookup: { value: areaTexture },
@@ -142,6 +161,7 @@ export function createMapViewer(
     lookupSize: { value: new THREE.Vector2(lookupWidth, lookupHeight) },
     selectedId: { value: 0 },
     hasOccupations: { value: false },
+    mapMode: { value: 0 },
     seconds: { value: 0 },
   };
   const material = new THREE.ShaderMaterial({
@@ -152,6 +172,13 @@ export function createMapViewer(
   const chunks = createTerrain(assets, material);
   const scene = new THREE.Scene();
   scene.add(...chunks);
+  let mapMode: MapMode = 'political';
+  function setMapMode(mode: MapMode) {
+    mapMode = mode;
+    uniforms.mapMode.value = mode === 'political' ? 0 : mode === 'terrain' ? 1 : 2;
+    lastLabelRender = -Infinity;
+    renderFrame(performance.now());
+  }
 
   // Open water beyond the finite regional raster keeps wide windows and
   // tilted views from exposing the scene background at the map edge.
@@ -213,6 +240,51 @@ export function createMapViewer(
   }
 
   viewport.appendChild(renderer.domElement);
+  const labelLayer = document.createElement('div');
+  labelLayer.className = 'map-label-layer';
+  labelLayer.setAttribute('aria-hidden', 'true');
+  viewport.appendChild(labelLayer);
+  let countryLabels: readonly { id: number; text: string; capital: boolean }[] = [];
+  let lastLabelRender = -Infinity;
+  function renderLabels(now: number) {
+    if (now - lastLabelRender < 90) return;
+    lastLabelRender = now;
+    const bounds = viewport.getBoundingClientRect();
+    const minimumHistoricalArea = camera.zoom < 1.5 ? 5_500 : 700;
+    const labels = mapMode === 'historical'
+      ? historical.labels.filter((item) => item.weight >= minimumHistoricalArea)
+        .map((item) => ({ ...item, capital: false }))
+      : countryLabels;
+    const candidates = camera.zoom < 2.2
+      ? mapMode === 'terrain' ? [] : labels
+      : [...provinces.values()].filter((province) => province.kind === 'land').map((province) => ({
+        id: province.id,
+        text: assets.names.get(province.name_key ?? '') ?? `Province ${province.id}`,
+        capital: countryLabels.some((country) => country.id === province.id && country.capital),
+      }));
+    const placed: { x: number; y: number; halfWidth: number }[] = [];
+    const nodes: HTMLElement[] = [];
+    for (const item of candidates) {
+      if (nodes.length >= (camera.zoom < 1.5 ? 24 : 70)) break;
+      const point = projectProvince(item.id);
+      if (!point) continue;
+      const x = point.x - bounds.left;
+      const y = point.y - bounds.top;
+      const halfWidth = Math.max(55, item.text.length * (camera.zoom < 2.2 ? 4.9 : 3.7));
+      if (x < halfWidth || y < 25 || x > bounds.width - halfWidth || y > bounds.height - 25
+        || (x < 350 && y < 175)
+        || placed.some((previous) => Math.abs(previous.x - x) < previous.halfWidth + halfWidth + 8 && Math.abs(previous.y - y) < 29)) continue;
+      placed.push({ x, y, halfWidth });
+      const label = document.createElement('span');
+      label.className = item.capital ? 'map-label map-label--capital' : 'map-label';
+      label.dataset.kind = camera.zoom < 2.2 ? 'country' : item.capital ? 'capital' : 'province';
+      label.textContent = item.capital ? `★ ${item.text}` : item.text;
+      label.style.left = `${x}px`;
+      label.style.top = `${y}px`;
+      nodes.push(label);
+    }
+    labelLayer.replaceChildren(...nodes);
+  }
   const observer = new ResizeObserver(resize);
   observer.observe(viewport);
   resize();
@@ -327,7 +399,7 @@ export function createMapViewer(
     if (changed) target.needsUpdate = true;
   }
 
-  const armyLayer = createArmyLayer(scene, viewport, provinceAnchor);
+  const armyLayer = createArmyLayer(scene, viewport, provinceAnchor, camera);
   let targeting = false;
   let press: { x: number; y: number; id: number } | null = null;
   function pointerDown(event: PointerEvent) {
@@ -393,6 +465,7 @@ export function createMapViewer(
     uniforms.seconds.value = manualFrames ? 0 : (now - start) / 1_000;
     armyLayer.update(now);
     renderer.render(scene, camera);
+    renderLabels(now);
 
     if (recording) {
       if (previousFrame !== null && sample.length < 10_000) sample.push(now - previousFrame);
@@ -422,6 +495,19 @@ export function createMapViewer(
     camera.zoom = preset.zoom;
     camera.updateProjectionMatrix();
     controls.update();
+    lastLabelRender = -Infinity;
+    renderFrame(performance.now());
+  }
+
+  function focusProvince(id: number) {
+    const center = provinceAnchor(id);
+    if (!center) return;
+    controls.target.set(center.x, 0, center.z);
+    camera.position.set(center.x, span * 1.6, center.z + span * 0.25);
+    camera.zoom = 2.5;
+    camera.updateProjectionMatrix();
+    controls.update();
+    lastLabelRender = -Infinity;
     renderFrame(performance.now());
   }
 
@@ -437,6 +523,8 @@ export function createMapViewer(
       armyLayer.select(id);
       targeting = orderTargeting;
     },
+    setMapMode,
+    setCountryLabels(labels) { countryLabels = labels; lastLabelRender = -Infinity; renderLabels(performance.now()); },
     startBenchmark,
     readBenchmark,
     testControls: {
@@ -458,6 +546,11 @@ export function createMapViewer(
         context.readPixels(x, y, 1, 1, context.RGBA, context.UNSIGNED_BYTE, pixel);
         return [pixel[0], pixel[1], pixel[2], pixel[3]];
       },
+      setMapMode,
+      readMapMode: () => mapMode,
+      focusProvince,
+      setArmies: armyLayer.setMarkers,
+      setArmySelection(id, orderTargeting) { armyLayer.select(id); targeting = orderTargeting; },
     },
     dispose() {
       cancelAnimationFrame(frame);
@@ -467,6 +560,7 @@ export function createMapViewer(
       renderer.domElement.removeEventListener('pointerup', pointerUp);
       renderer.domElement.removeEventListener('pointercancel', cancelPointer);
       renderer.domElement.remove();
+      labelLayer.remove();
       armyLayer.dispose();
       chunks.forEach(({ geometry }) => geometry.dispose());
       oceanGeometry.dispose();

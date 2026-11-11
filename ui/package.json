@@ -10,6 +10,7 @@
     "lint": "eslint . --ext .js,.cjs,.mjs,.ts,.tsx",
     "test:map": "playwright test --config tests/playwright.config.mjs",
     "capture:map": "node tests/capture-map.mjs",
+    "capture:map-modes": "node tests/capture-map-modes.mjs",
     "tauri": "tauri"
   },
   "dependencies": {

@@ -89,10 +89,13 @@ test('M4 renders armies and applies only authoritative land-war updates', async 
   const modelResponse = page.waitForResponse((response) => response.url().endsWith('/models/infantry.glb'));
   await page.goto('/?verify=1&verifyHost=1');
   await expect(page.locator('main[data-map-status="ready"]')).toBeVisible({ timeout: 60_000 });
+  await expect(page.locator('main')).toHaveAttribute('data-map-mode', 'political');
+  await expect(page.getByText('Reference borders (1440), not game ownership.')).toHaveCount(0);
   expect((await modelResponse).ok()).toBe(true);
   const viewport = page.locator('[data-map-viewport]');
   await expect(viewport).toHaveAttribute('data-map-army-instances', '3', { timeout: 30_000 });
   await page.evaluate(() => window.strategyMapTest.renderFrame());
+  await expect(page.locator('.map-army-badge[data-army-id="1"]')).toContainText('400');
   await expect(page.getByText('Died 1460-01-01')).toHaveCount(0);
   await page.getByRole('button', { name: 'Military', exact: true }).click();
   const panel = page.getByRole('region', { name: 'Military' });
@@ -137,6 +140,9 @@ test('M4 renders armies and applies only authoritative land-war updates', async 
     });
   }, { army, enemyId: enemy.id });
   await expect(panel.getByText(/Moving to.*50%/)).toBeVisible();
+  await page.evaluate(() => window.strategyMapTest.renderFrame());
+  await expect(page.locator('.map-army-badge[data-army-id="1"]')).toHaveAttribute('data-selected', 'true');
+  await expect(page.locator('.map-army-path')).toBeVisible();
   await expect(viewport).toHaveAttribute('data-map-army-instances', '2');
   const midpoint = start.map((coordinate, index) => (coordinate + finish[index]) / 2);
   await expect.poll(async () => {
