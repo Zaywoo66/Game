@@ -11,7 +11,7 @@ Docs: GIT_WORKFLOW.md, ARCHITECTURE.md
 - Install the Rust MSVC toolchain for the PC's architecture (`x86_64-pc-windows-msvc` for the CI build).
 - Install Visual Studio Build Tools with the **Desktop development with C++** workload.
 - Install Microsoft Edge WebView2 Runtime if it is missing.
-- Build with Node.js and npm, or download and extract the `strategy-m0-windows-x64` artifact from a successful GitHub Actions run. The artifact includes the executable and requires WebView2 Runtime on the target PC.
+- Build with Node.js and npm, or download and extract the Windows x64 artifact from a successful GitHub Actions run. The artifact includes the executable and requires WebView2 Runtime on the target PC.
 
 ## Acceptance
 
@@ -20,7 +20,8 @@ Docs: GIT_WORKFLOW.md, ARCHITECTURE.md
 - `main` requires a PR, human review, and passing CI.
 - CI publishes the Windows x64 smoke test executable.
 
-### Per-PC launch checks
-- On each player's Windows PC, launch `strategy-app.exe` from the extracted artifact.
+### Launch checks
+- Launch `strategy-app.exe` from the extracted artifact on the available Windows PC.
 - Confirm the Tauri window opens and the cube rotates. Record the `WebGL renderer/GPU:` line displayed in the window and logged to the WebView console.
+- The owner accepted the verified single-PC launch for M0. A second Windows PC is unavailable (D4).
 - If WebGL fails on a target OS: record in DECISIONS.md and stop to decide on fallback (Godot)

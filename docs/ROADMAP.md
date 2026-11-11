@@ -1,11 +1,11 @@
 # ROADMAP (index only — details live in milestones/)
-Status: [ ] todo, [~] in progress, [x] done. Update in the PR that changes it. Work milestones in order; do not start Mn+1 before Mn acceptance passes, except for the M0 launch check noted below.
+Status: [ ] todo, [~] in progress, [x] done. Update in the PR that changes it. Work milestones in order; do not start Mn+1 before Mn acceptance passes.
 
 | ID | Milestone | Status | File |
 |----|-----------|--------|------|
-| M0 | Foundation | [~] | milestones/M00_foundation.md |
+| M0 | Foundation | [x] | milestones/M00_foundation.md |
 | M1 | Simulation core | [x] | milestones/M01_sim_core.md |
-| M2 | Map | [ ] | milestones/M02_map.md |
+| M2 | Map | [x] | milestones/M02_map.md |
 | M3 | Countries and rulers | [ ] | milestones/M03_countries_rulers.md |
 | M4 | Armies and land war | [ ] | milestones/M04_armies_war.md |
 | M5 | LAN multiplayer | [ ] | milestones/M05_multiplayer.md |
@@ -16,8 +16,6 @@ Status: [ ] todo, [~] in progress, [x] done. Update in the PR that changes it. W
 | M10 | AI strategic layer, balance, tuning (L4) | [ ] | milestones/M10_ai.md |
 | M11 | Beta content (1440) | [ ] | milestones/M11_content.md |
 | M12 | Beta release | [ ] | milestones/M12_release.md |
-
-M0 remains in progress: second-PC launch pending; blocks M2, not M1.
 
 AI levels L0–L3 are delivered inside M3, M4, M6, M7–M9 (see each milestone's AI slice); M10 only completes L4.
 
