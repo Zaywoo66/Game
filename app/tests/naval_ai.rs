@@ -17,24 +17,24 @@ fn ai_lands_an_army_across_the_sea_without_invalid_naval_commands() {
                 .is_some_and(|nation| nation.tag == "por")
         })
         .unwrap();
-    let scotland = countries
+    let aragon = countries
         .iter()
         .copied()
         .find(|&id| {
             state
                 .country_polity(id)
-                .is_some_and(|nation| nation.tag == "sco")
+                .is_some_and(|nation| nation.tag == "ara")
         })
         .unwrap();
-    let belfast = state.province_graph().by_key("belfast").unwrap().id;
+    let valencia = state.province_graph().by_key("valencia").unwrap().id;
     let host = CommandActor::Host(PlayerId::new(1));
     state
         .apply(
             CommandActor::Ai(portugal),
             &Command::DeclareWar {
                 country: portugal,
-                defender: scotland,
-                goal: belfast,
+                defender: aragon,
+                goal: valencia,
             },
         )
         .unwrap();
@@ -80,14 +80,14 @@ fn ai_lands_an_army_across_the_sea_without_invalid_naval_commands() {
             .unwrap()
             .armies
             .values()
-            .any(|army| army.country == portugal && army.province == belfast);
+            .any(|army| army.country == portugal && army.province == valencia);
         if landed {
             break;
         }
     }
     assert!(
         landed,
-        "AI did not land at Belfast within 500 days: {reasons:?}"
+        "AI did not land at Valencia within 500 days: {reasons:?}"
     );
     assert!(reasons.contains("EmbarkArmy"));
     assert!(reasons.contains("SailToGoal"));

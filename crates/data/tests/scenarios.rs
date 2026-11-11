@@ -691,10 +691,9 @@ fn dense_with_navy(navy: Value) -> Result<GameState, ScenarioLoadError> {
 
 #[test]
 fn scenario_fleets_use_explicit_owned_port_and_adjacent_sea() {
-    let scenario: Value = serde_json::from_slice(
-        &fs::read(data_root().join("scenarios/1440.json")).unwrap(),
-    )
-    .unwrap();
+    let scenario: Value =
+        serde_json::from_slice(&fs::read(data_root().join("scenarios/1440.json")).unwrap())
+            .unwrap();
     let navy = scenario["navy"].clone();
     let state = dense_with_navy(navy.clone()).unwrap();
     assert_eq!(state.navy().unwrap().fleets.len(), 5);
