@@ -76,6 +76,12 @@ Run the same host tick without a window with
 `cargo run --locked -p strategy-app --bin ai-smoke -- 3653 1440 1441 1442`.
 The arguments are the daily tick count followed by one or more seeds.
 
+For yearly multi-seed measurements, run
+`cargo run --locked -p strategy-app --bin ai-soak -- 100 1440 1441 1442 1443 1444`.
+It prints tab-separated rows with state hashes, ownership share and local
+median/p95/peak tick times. The opening includes the packaged event catalog
+and diplomacy state. Timing varies by host and is excluded from state hashes.
+
 ## Decision layers (utility scoring, not machine learning)
 | Layer | Cadence | Decides |
 |-------|---------|---------|

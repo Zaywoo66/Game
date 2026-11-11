@@ -47,6 +47,16 @@ pub fn new_autoplay(seed: u64) -> Result<GameState, String> {
     .map_err(|error| format!("invalid autoplay opinions: {error:?}"))?
     .with_war_state(military.clone())
     .map_err(|error| format!("invalid autoplay military: {error:?}"))?;
+    if let Some(diplomacy) = scenario.diplomacy() {
+        game = game
+            .with_diplomacy(diplomacy.clone())
+            .map_err(|error| format!("invalid autoplay diplomacy: {error:?}"))?;
+    }
+    if let Some(events) = scenario.events() {
+        game = game
+            .with_event_state(events.clone())
+            .map_err(|error| format!("invalid autoplay events: {error:?}"))?;
+    }
     let host = CommandActor::Host(PlayerId::new(1));
     for (&country, nation) in &polity.countries {
         game.apply(
@@ -183,21 +193,18 @@ fn check_invariants(game: &GameState, initial_count: usize) -> Result<(), &'stat
     }
     let mut belligerents = BTreeSet::new();
     for war in military.wars.values() {
-        if !belligerents.insert(war.attacker)
-            || !belligerents.insert(war.defender)
-            || game.owner_of_province(war.goal) != Some(war.defender)
+        if game.owner_of_province(war.goal) != Some(war.defender)
+            || std::iter::once(war.attacker)
+                .chain(std::iter::once(war.defender))
+                .chain(war.attacker_supporters.iter().copied())
+                .chain(war.defender_supporters.iter().copied())
+                .any(|country| !belligerents.insert(country))
         {
             return Err("war participants or goal are invalid");
         }
         for (&province, &occupier) in &war.occupations {
-            let opponent = if occupier == war.attacker {
-                war.defender
-            } else if occupier == war.defender {
-                war.attacker
-            } else {
-                return Err("occupier is not a participant");
-            };
-            if game.owner_of_province(province) != Some(opponent) {
+            let owner = game.owner_of_province(province);
+            if owner.is_none_or(|owner| !war.opposed(occupier, owner)) {
                 return Err("occupation does not match the opposing owner");
             }
         }

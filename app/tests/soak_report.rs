@@ -1,4 +1,13 @@
-use strategy_app::{run_ai_soak, SOAK_TSV_HEADER};
+use strategy_app::{load_embedded_scenario, new_autoplay, run_ai_soak, SOAK_TSV_HEADER};
+
+#[test]
+fn soak_uses_packaged_event_rules() {
+    let opening = load_embedded_scenario().unwrap();
+    let autoplay = new_autoplay(1440).unwrap();
+    assert!(opening.events().is_some());
+    assert_eq!(autoplay.events(), opening.events());
+    assert_eq!(autoplay.diplomacy(), opening.diplomacy());
+}
 
 #[test]
 fn yearly_soak_report_is_reproducible_and_machine_readable() {
@@ -10,7 +19,10 @@ fn yearly_soak_report_is_reproducible_and_machine_readable() {
     assert_eq!(a.state_hash, b.state_hash);
     assert_eq!(a.country_count, b.country_count);
     assert_eq!(a.largest_land_provinces, b.largest_land_provinces);
-    assert_eq!(a.largest_share_basis_points(), b.largest_share_basis_points());
+    assert_eq!(
+        a.largest_share_basis_points(),
+        b.largest_share_basis_points()
+    );
     assert!(a.largest_share_basis_points() <= 10_000);
     assert!(a.median_tick_ns <= a.p95_tick_ns);
     assert!(a.p95_tick_ns <= a.peak_tick_ns);
