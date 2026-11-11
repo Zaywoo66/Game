@@ -1,0 +1,17 @@
+{
+  "options": [
+    {
+      "effects": [
+        {"add_modifier": {"key": "test_stat", "value": 0.1, "kind": "multiplicative"}}
+      ]
+    }
+  ],
+  "modifiers": [
+    {"key": "test_stat", "value": "10%", "kind": "multiplicative"},
+    {"key": "test_stat", "value": true, "kind": "additive"},
+    {"key": "test_stat", "value": null, "kind": "additive"},
+    {"key": "test_stat", "value": [], "kind": "additive"},
+    {"key": "test_stat", "value": {}, "kind": "additive"},
+    {"key": "test_stat", "value": 9223372036854775808, "kind": "additive"}
+  ]
+}

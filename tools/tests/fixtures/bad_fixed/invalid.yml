@@ -1,0 +1,4 @@
+modifiers:
+  - {key: test_stat, value: 0.1, kind: multiplicative}
+  - {key: test_stat, value: false, kind: additive}
+  - {key: test_stat, value: "1000", kind: additive}

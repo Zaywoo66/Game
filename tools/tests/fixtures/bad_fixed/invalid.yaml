@@ -1,0 +1,9 @@
+effects:
+  - add_modifier:
+      key: test_stat
+      value: "10%"
+      kind: multiplicative
+  - add_modifier:
+      key: test_stat
+      value: -9223372036854775809
+      kind: additive

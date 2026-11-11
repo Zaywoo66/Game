@@ -1,0 +1,3 @@
+modifiers:
+  - {key: test_stat, value: -1000, kind: additive}
+unrelated: &linked {value: "10%", count: 2, self: *linked}

@@ -1,0 +1,7 @@
+effects:
+  - add_modifier: {key: test_stat, value: 1000, kind: additive, duration_days: 0}
+  - add_modifier: {key: test_stat, value: 1000, kind: additive, duration_days: 0.1}
+  - add_modifier: {key: test_stat, value: 1000, kind: additive, duration_days: "90"}
+  - add_modifier: {key: test_stat, value: 1000, kind: additive, duration_days: true}
+  - add_modifier: {key: test_stat, value: 1000, kind: additive, duration_days: 18446744073709551616}
+  - add_modifier: {key: test_stat, value: 1000, kind: additive, duration_days: null}

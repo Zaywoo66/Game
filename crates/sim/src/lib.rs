@@ -1,12 +1,15 @@
 //! Deterministic simulation core.
 
+mod effect;
 mod fixed;
 mod ids;
 mod modifiers;
 mod province_graph;
 mod rng;
 mod time;
+mod trigger;
 
+pub use effect::{Effect, EffectError, PreparedModifier};
 pub use fixed::Fixed;
 pub use ids::{ArmyId, CharacterId, CountryId, ProvinceId};
 pub use modifiers::{
@@ -21,3 +24,4 @@ pub use rng::{derive_ai_rng, SeededRng};
 pub use time::{
     Date, InvalidDate, InvalidSpeed, SimTime, Speed, Tick, TimeActor, TimeCommand, TimeError,
 };
+pub use trigger::{Trigger, TriggerView};
