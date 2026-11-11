@@ -99,7 +99,7 @@ fn fiscal_and_heir_commands_require_the_country_controller() {
     for actor in [OTHER, CommandActor::Ai(BETA), CommandActor::Ai(ALPHA)] {
         for command in [&command, &nomination] {
             let error = CommandError::NotCountryController(ALPHA);
-            assert_eq!(state.validate_command(actor, command), Err(error));
+            assert_eq!(state.validate_command(actor, command), Err(error.clone()));
             assert_eq!(state.apply(actor, command), Err(error));
         }
     }

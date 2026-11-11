@@ -2,6 +2,7 @@
 
 mod diplomacy;
 mod effect;
+mod events;
 mod fixed;
 mod ids;
 mod modifiers;
@@ -16,6 +17,9 @@ mod war;
 
 pub use diplomacy::{AllianceOffer, DiplomacyError, DiplomacyState, MarriageError, MarriageOffer};
 pub use effect::{Effect, EffectError, PreparedModifier};
+pub use events::{
+    event_rng, ConditionalAiWeight, EventDefinition, EventError, EventOption, EventState,
+};
 pub use fixed::Fixed;
 pub use ids::{ArmyId, CharacterId, CountryId, PlayerId, ProvinceId, WarId};
 pub use modifiers::{
