@@ -8,7 +8,7 @@ use strategy_sim::{
     Effect, Fixed, GameState, InvalidDate, InvalidSpeed, MapIdentity, MapIdentityMismatch, ModKey,
     Modifier, ModifierInsertError, ModifierKind, ModifierSourceId, ModifierStore, Opinion,
     OpinionError, OpinionStateError, PlayerId, PolityError, ProvinceGraph, ScheduleError,
-    ScheduledEffect, SeededRng, SimTime, Speed, Tick, TimeError, TriggerView, WarError,
+    ScheduledEffect, SeededRng, SimTime, Speed, Tick, TimeError, TriggerView, WarError, WarState,
 };
 
 use crate::provinces::decode_hash;
@@ -24,11 +24,13 @@ const POLITY_VERSION: u32 = 2;
 const MILITARY_VERSION: u32 = 3;
 const OPINION_VERSION: u32 = 4;
 const ALLIANCE_VERSION: u32 = 5;
+const COALITION_VERSION: u32 = 6;
 const STATE_HASH_DOMAIN_V1: &[u8] = b"strategy:game-state:v1\0";
 const STATE_HASH_DOMAIN_V2: &[u8] = b"strategy:game-state:v2\0";
 const STATE_HASH_DOMAIN_V3: &[u8] = b"strategy:game-state:v3\0";
 const STATE_HASH_DOMAIN_V4: &[u8] = b"strategy:game-state:v4\0";
 const STATE_HASH_DOMAIN_V5: &[u8] = b"strategy:game-state:v5\0";
+const STATE_HASH_DOMAIN_V6: &[u8] = b"strategy:game-state:v6\0";
 
 #[derive(Debug)]
 pub enum SaveError {
@@ -38,6 +40,7 @@ pub enum SaveError {
     VersionMilitaryMismatch(u32),
     VersionOpinionMismatch(u32),
     VersionDiplomacyMismatch(u32),
+    VersionCoalitionMismatch(u32),
     InvalidPolity(PolityError),
     InvalidMilitary(WarError),
     InvalidOpinion(OpinionError),
@@ -74,6 +77,9 @@ impl fmt::Display for SaveError {
             }
             Self::VersionDiplomacyMismatch(version) => {
                 write!(f, "save version {version} has the wrong diplomacy payload")
+            }
+            Self::VersionCoalitionMismatch(version) => {
+                write!(f, "save version {version} has the wrong coalition payload")
             }
             Self::InvalidOpinion(error) => write!(f, "invalid saved opinion: {error:?}"),
             Self::InvalidOpinionState(error) => write!(f, "invalid saved opinion state: {error:?}"),
@@ -138,7 +144,12 @@ pub fn load_game(bytes: &[u8], graph: ProvinceGraph) -> Result<GameState, SaveEr
     let save: SaveFile<&RawValue> = serde_json::from_slice(bytes).map_err(SaveError::Json)?;
     if !matches!(
         save.schema_version,
-        LEGACY_VERSION | POLITY_VERSION | MILITARY_VERSION | OPINION_VERSION | ALLIANCE_VERSION
+        LEGACY_VERSION
+            | POLITY_VERSION
+            | MILITARY_VERSION
+            | OPINION_VERSION
+            | ALLIANCE_VERSION
+            | COALITION_VERSION
     ) {
         return Err(SaveError::UnsupportedSchemaVersion(save.schema_version));
     }
@@ -169,8 +180,18 @@ pub fn load_game(bytes: &[u8], graph: ProvinceGraph) -> Result<GameState, SaveEr
     {
         return Err(SaveError::VersionOpinionMismatch(save.schema_version));
     }
-    if state.diplomacy.is_some() != (save.schema_version == ALLIANCE_VERSION) {
+    if (save.schema_version == ALLIANCE_VERSION && state.diplomacy.is_none())
+        || (save.schema_version < ALLIANCE_VERSION && state.diplomacy.is_some())
+    {
         return Err(SaveError::VersionDiplomacyMismatch(save.schema_version));
+    }
+    if state
+        .military
+        .as_ref()
+        .is_some_and(WarStateFile::has_coalition_history)
+        != (save.schema_version == COALITION_VERSION)
+    {
+        return Err(SaveError::VersionCoalitionMismatch(save.schema_version));
     }
     state.restore(graph)
 }
@@ -179,6 +200,7 @@ pub fn load_game(bytes: &[u8], graph: ProvinceGraph) -> Result<GameState, SaveEr
 pub fn state_hash(state: &GameState) -> Result<[u8; 32], SaveError> {
     let mut hash = Sha256::new();
     hash.update(match schema_version(state) {
+        COALITION_VERSION => STATE_HASH_DOMAIN_V6,
         ALLIANCE_VERSION => STATE_HASH_DOMAIN_V5,
         OPINION_VERSION => STATE_HASH_DOMAIN_V4,
         MILITARY_VERSION => STATE_HASH_DOMAIN_V3,
@@ -190,7 +212,12 @@ pub fn state_hash(state: &GameState) -> Result<[u8; 32], SaveError> {
 }
 
 fn schema_version(state: &GameState) -> u32 {
-    if state.diplomacy().is_some() {
+    if state
+        .war_state()
+        .is_some_and(WarState::has_coalition_history)
+    {
+        COALITION_VERSION
+    } else if state.diplomacy().is_some() {
         ALLIANCE_VERSION
     } else if state.opinions().next().is_some() {
         OPINION_VERSION

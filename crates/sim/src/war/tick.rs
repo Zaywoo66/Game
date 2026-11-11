@@ -132,41 +132,44 @@ impl WarState {
         changes: &mut Vec<StateChange>,
         failures: &mut BTreeSet<CountryId>,
     ) {
-        let wars: Vec<_> = self
-            .wars
-            .iter()
-            .map(|(&id, war)| (id, war.attacker, war.defender))
-            .collect();
-        for (war_id, attacker, defender) in wars {
+        let wars: Vec<_> = self.wars.keys().copied().collect();
+        for war_id in wars {
             let mut locations: BTreeMap<ProvinceId, (Vec<ArmyId>, Vec<ArmyId>)> = BTreeMap::new();
+            let war = self.wars.get(&war_id).expect("active war exists").clone();
             for (&id, army) in &self.armies {
-                if army.country == attacker {
-                    locations.entry(army.province).or_default().0.push(id);
-                } else if army.country == defender {
-                    locations.entry(army.province).or_default().1.push(id);
+                match war.side(army.country) {
+                    Some(super::WarSide::Attacker) => {
+                        locations.entry(army.province).or_default().0.push(id);
+                    }
+                    Some(super::WarSide::Defender) => {
+                        locations.entry(army.province).or_default().1.push(id);
+                    }
+                    None => {}
                 }
             }
             for (province, (attackers, defenders)) in locations {
                 if attackers.is_empty() || defenders.is_empty() {
                     continue;
                 }
-                let attack = self.strength(&attackers, bonuses[&attacker].combat);
-                let defense = self.strength(&defenders, bonuses[&defender].combat);
+                let attack = self.strength(&attackers, bonuses);
+                let defense = self.strength(&defenders, bonuses);
                 if attack.is_none() {
-                    failures.insert(attacker);
+                    failures.extend(attackers.iter().map(|id| self.armies[id].country));
                 }
                 if defense.is_none() {
-                    failures.insert(defender);
+                    failures.extend(defenders.iter().map(|id| self.armies[id].country));
                 }
                 let (Some(attack), Some(defense)) = (attack, defense) else {
                     continue;
                 };
                 // The defending war party wins ties.
-                let (winner, won, loser, lost) = if attack > defense {
-                    (attacker, attackers, defender, defenders)
+                let (won, lost) = if attack > defense {
+                    (attackers, defenders)
                 } else {
-                    (defender, defenders, attacker, attackers)
+                    (defenders, attackers)
                 };
+                let winner = self.armies[&won[0]].country;
+                let loser = self.armies[&lost[0]].country;
                 let winner_casualties =
                     self.apply_battle_losses(&won, self.rules.winner_casualty_rate, false);
                 let mut loser_casualties =
@@ -179,7 +182,9 @@ impl WarState {
                         .neighbors(army.province)
                         .into_iter()
                         .flatten()
-                        .find(|edge| self.can_retreat(polity, graph, loser, army.province, edge.to))
+                        .find(|edge| {
+                            self.can_retreat(polity, graph, army.country, army.province, edge.to)
+                        })
                         .map(|edge| edge.to);
                     if let Some(destination) = retreat {
                         let army = self.armies.get_mut(&id).expect("losing army exists");
@@ -206,10 +211,14 @@ impl WarState {
         }
     }
 
-    fn strength(&self, ids: &[ArmyId], factor: Option<Fixed>) -> Option<u128> {
-        let factor = factor?;
+    fn strength(
+        &self,
+        ids: &[ArmyId],
+        bonuses: &BTreeMap<CountryId, MilitaryBonuses>,
+    ) -> Option<u128> {
         ids.iter().try_fold(0_u128, |total, id| {
             let army = &self.armies[id];
+            let factor = bonuses.get(&army.country)?.combat?;
             let morale = army.morale.checked_mul(factor)?.raw();
             total.checked_add(u128::from(army.soldiers) * u128::try_from(morale).ok()?)
         })
@@ -249,16 +258,24 @@ impl WarState {
 
         let mut ongoing = BTreeMap::new();
         for (&province, countries) in &locations {
-            if countries.len() != 1 {
+            let Some((&first, (war_id, war))) = countries
+                .iter()
+                .filter_map(|country| self.war_for(*country).map(|pair| (country, pair)))
+                .next()
+            else {
+                continue;
+            };
+            if countries.iter().any(|&country| war.opposed(first, country)) {
                 continue;
             }
-            let country = *countries.first().expect("one army country");
-            if !self.armies.values().any(|army| {
-                army.province == province && army.country == country && army.movement.is_none()
-            }) {
-                continue;
-            }
-            let Some((war_id, war)) = self.war_for(country) else {
+            let Some(country) = countries.iter().copied().find(|&country| {
+                war.side(country) == war.side(first)
+                    && self.armies.values().any(|army| {
+                        army.province == province
+                            && army.country == country
+                            && army.movement.is_none()
+                    })
+            }) else {
                 continue;
             };
             let territorial_owner = owner(polity, province);
@@ -267,7 +284,7 @@ impl WarState {
                 .get(&province)
                 .copied()
                 .or(territorial_owner);
-            if controller != war.opponent(country) {
+            if !controller.is_some_and(|holder| war.opposed(country, holder)) {
                 continue;
             }
             let previous = self
@@ -277,7 +294,7 @@ impl WarState {
             let progress_days = previous.map_or(1, |siege| siege.progress_days.saturating_add(1));
             if progress_days >= self.siege_required(province) {
                 let war = self.wars.get_mut(&war_id).expect("siege war exists");
-                if territorial_owner == Some(country) {
+                if territorial_owner.is_some_and(|owner| war.side(owner) == war.side(country)) {
                     war.occupations.remove(&province);
                 } else {
                     war.occupations.insert(province, country);
@@ -304,7 +321,7 @@ fn losses(soldiers: u32, rate: Fixed) -> u32 {
 }
 
 fn add_score(war: &mut super::War, winner: CountryId, amount: i32) {
-    war.score = if winner == war.attacker {
+    war.score = if war.side(winner) == Some(super::WarSide::Attacker) {
         war.score.saturating_add(amount)
     } else {
         war.score.saturating_sub(amount)

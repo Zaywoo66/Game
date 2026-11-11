@@ -403,3 +403,23 @@ schema v5 and hash domain `strategy:game-state:v5` followed by NUL and the
 canonical bytes; older versions retain their prior encoding and hash.
 An active alliance between two countries directly at war is invalid and
 rejected on load.
+
+## Saved games (schema version 6)
+
+An active war with supporters or a completed coalition truce uses save schema
+v6 and hash domain `strategy:game-state:v6` followed by NUL and canonical
+save bytes. Earlier states retain their previous version and byte encoding.
+The `wars[]` records gain optional `attacker_supporters` and
+`defender_supporters` arrays of positive unsigned 32-bit country IDs, sorted
+ascending without duplicates. Leaders must not appear in either array, a
+country cannot join both sides, and each country can be in only one active
+war. Empty arrays are omitted on save.
+
+`military.coalition_truces` is an optional sorted array of `{a,b,concluded_at}`
+records, where `a` and `b` are positive unsigned 32-bit country IDs with
+`a < b`, and `concluded_at` is an unsigned 64-bit game tick no later than the
+saved tick. Each record represents a former opposing pair other than the
+original leaders. Empty arrays are omitted. The original leader pair stays
+in `military.treaties`. A peace creates a truce for every opposing pair, all
+using the same `military.rules.truce_ticks` duration. V1 through v5 saves
+remain readable with their original map identity.
