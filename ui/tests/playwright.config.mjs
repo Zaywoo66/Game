@@ -12,9 +12,11 @@ export default defineConfig({
     baseURL,
     browserName: 'chromium',
     headless: true,
-    trace: 'retain-on-failure',
+    trace: { mode: 'retain-on-failure', screenshots: false },
     screenshot: 'only-on-failure',
     viewport: { width: 1280, height: 900 },
+    // Keep desktop layout/picking while limiting SwiftShader fragment work.
+    deviceScaleFactor: 0.5,
     launchOptions: {
       args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'],
     },
