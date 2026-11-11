@@ -1,0 +1,9 @@
+schema_version: 1
+branch: military
+technologies:
+  - key: bad__key
+    cost: 0.5
+    requires: [missing, missing]
+    pos: {x: 2147483648, y: 1.5}
+    effects:
+      - add_modifier: {key: army_morale, value: "10%", kind: multiplicative}
