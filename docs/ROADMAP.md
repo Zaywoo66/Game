@@ -22,6 +22,7 @@ Status: [ ] todo, [~] in progress, [x] done. Update in the PR that changes it. W
 AI levels L0–L3 are delivered inside M3, M4, M6, M7–M9 (see each milestone's AI slice); M10 only completes L4.
 
 After the 5b.2 dense-map rebuild passes CI, M6–M11 may proceed while physical two-PC M5 acceptance and the remaining M5b visual/UI checks are open. M12 cannot start until M5 and M5b are accepted. Local loopback and accelerated runs support development but do not close the two-PC acceptance.
+M5b.4 camera, water, borders and terrain have browser screenshot evidence; native 1080p FPS/RAM and owner visual review remain open for M5b acceptance.
 
 M6 alliance slice in progress: validated offers, acceptance/rejection, indefinite alliance, voluntary break penalty/cooldown, AI response and network/save transport. Guarantee, vassalage, marriage, truce proposals and the diplomacy UI remain open.
 The 1440 scenario currently starts with neutral opinions; historically supported positive opening relationships and their values belong to M11 content review. Until then, the alliance AI's favorable branch is covered by a synthetic scenario test.

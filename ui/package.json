@@ -9,6 +9,7 @@
     "typecheck": "tsc -b --pretty false",
     "lint": "eslint . --ext .js,.cjs,.mjs,.ts,.tsx",
     "test:map": "playwright test --config tests/playwright.config.mjs",
+    "capture:map": "node tests/capture-map.mjs",
     "tauri": "tauri"
   },
   "dependencies": {
