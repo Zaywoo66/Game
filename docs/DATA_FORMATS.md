@@ -215,8 +215,9 @@ technologies:
 ```
 
 Run `python tools/lint_data.py` to check this contract. It rejects missing or
-duplicate keys, repeated prerequisites, unknown fields/effects, invalid units,
-and cycles. The parser applies the same canonical YAML scalar rules as events:
+duplicate keys, duplicate branch files, repeated prerequisites, unknown
+fields/effects, invalid units, and cycles. The parser applies the same
+canonical YAML scalar rules as events:
 lowercase booleans and decimal integer literals without separators or leading
 zeros.
 

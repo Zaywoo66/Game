@@ -136,6 +136,11 @@ class DataLintTest(unittest.TestCase):
             with self.subTest(field=field):
                 self.assertIn(field, result.stderr)
 
+    def test_rejects_two_files_for_one_technology_branch(self):
+        result = run_lint("bad_tech_duplicate_branch")
+        self.assertEqual(result.returncode, 1, result)
+        self.assertIn("duplicate technology branch military", result.stderr)
+
 
 def run_lint(fixture):
     test_dir = Path(__file__).resolve().parent

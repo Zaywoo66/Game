@@ -65,6 +65,7 @@ def main():
     errors = []
     checked = 0
     event_keys = {}
+    tech_branches = {}
     tech_keys = {}
     tech_graph = {}
     for path in sorted(root.rglob("*")):
@@ -116,6 +117,13 @@ def main():
             branch_errors, entries = validate_tech_branch(document, path.stem)
             errors.extend(f"{relative_path}: {error}" for error in branch_errors)
             if not branch_errors:
+                if document["branch"] in tech_branches:
+                    errors.append(
+                        f"{relative_path}: duplicate technology branch {document['branch']} "
+                        f"also in {tech_branches[document['branch']]}"
+                    )
+                else:
+                    tech_branches[document["branch"]] = relative_path
                 for key, requirements in entries:
                     if key in tech_keys:
                         errors.append(
