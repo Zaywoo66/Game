@@ -1,0 +1,14 @@
+{
+  "event_court_auditors_title": "Petition for Court Auditors",
+  "event_court_auditors_desc": "Clerks offer to review the realm's tax registers. Their findings may improve collection for the coming year.",
+  "event_court_auditors_appoint": "Appoint the auditors",
+  "event_court_auditors_decline": "Leave the registers as they are",
+  "event_harvest_surplus_title": "A Surplus Harvest",
+  "event_harvest_surplus_desc": "Farmers report full granaries. The court must decide how quickly to collect the extra revenue.",
+  "event_harvest_surplus_collect": "Collect the surplus now",
+  "event_harvest_surplus_store": "Store grain for later markets",
+  "event_frontier_patrol_title": "Reports from the Frontier",
+  "event_frontier_patrol_desc": "Officers ask how to use the next weeks of campaigning.",
+  "event_frontier_patrol_drill": "Drill the field army",
+  "event_frontier_patrol_rest": "Rotate the troops for rest"
+}

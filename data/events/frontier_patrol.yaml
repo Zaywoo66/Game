@@ -1,0 +1,17 @@
+key: frontier_patrol
+title: event_frontier_patrol_title
+desc: event_frontier_patrol_desc
+trigger: {at_war: true}
+mean_time_to_happen: 360
+repeatable: true
+cooldown_days: 180
+options:
+  - text: event_frontier_patrol_drill
+    ai_weight: 3
+    effects:
+      - add_modifier: {key: army_combat, value: 100, kind: multiplicative, duration_days: 30}
+      - add_modifier: {key: tax_income, value: -100, kind: multiplicative, duration_days: 60}
+  - text: event_frontier_patrol_rest
+    ai_weight: 2
+    effects:
+      - add_modifier: {key: army_morale, value: 50, kind: multiplicative, duration_days: 60}
