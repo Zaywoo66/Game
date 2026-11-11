@@ -38,6 +38,14 @@ jobs:
         working-directory: ui
       - run: npm run test:map
         working-directory: ui
+      - name: Upload browser failure diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: browser-failure-diagnostics
+          path: ui/node_modules/.cache/map-test-results
+          if-no-files-found: ignore
+          retention-days: 7
       - run: cargo fmt --check
       - name: Reject floating-point types in the simulation
         shell: pwsh

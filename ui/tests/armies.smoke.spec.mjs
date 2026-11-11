@@ -97,7 +97,10 @@ test('M4 renders armies and applies only authoritative land-war updates', async 
   const panel = page.getByRole('region', { name: 'Military' });
   await expect(panel).toBeVisible();
 
-  await panel.getByRole('button', { name: 'Raise army' }).click();
+  const raiseForm = panel.getByRole('form', { name: 'Raise army' });
+  await expect(raiseForm.getByRole('spinbutton')).toHaveValue('50');
+  await expect(raiseForm.getByRole('button')).toBeEnabled();
+  await raiseForm.getByRole('button').click();
   await expect.poll(() => lastCommand(page)).toEqual({
     type: 'raise_army', country_id: 1, province_id: capital.id, soldiers: 50,
   });
