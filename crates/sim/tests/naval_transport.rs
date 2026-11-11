@@ -243,7 +243,7 @@ fn hostile_fleet_interrupts_landing_until_naval_battle_clears_the_port() {
         .changes()
         .iter()
         .any(|change| matches!(change, StateChange::NavalBattleResolved(_))));
-    assert!(state.navy().unwrap().fleets.get(&FleetId::new(2)).is_none());
+    assert!(!state.navy().unwrap().fleets.contains_key(&FleetId::new(2)));
     assert!(state.validate_command(HOST, &landing).is_ok());
 }
 
