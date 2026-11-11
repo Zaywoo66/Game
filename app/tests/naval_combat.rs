@@ -51,9 +51,9 @@ fn wartime_fleets_meet_at_sea_in_the_1440_scenario() {
     let mut battle = None;
     for _ in 0..100 {
         let report = state.tick(|_, _| Vec::new()).unwrap();
-        battle = report.delta.changes.into_iter().find_map(|change| {
+        battle = report.delta.changes().iter().find_map(|change| {
             if let StateChange::NavalBattleResolved(result) = change {
-                Some(result)
+                Some(result.clone())
             } else {
                 None
             }
