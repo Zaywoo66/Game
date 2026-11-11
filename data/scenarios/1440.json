@@ -90,6 +90,15 @@
       "rouen": 1
     }
   },
+  "navy": {
+    "fleets": [
+      {"country": "ara", "port": "barcelona", "sea": "sea_zone_47", "ships": 2},
+      {"country": "cas", "port": "cadiz", "sea": "sea_zone_60", "ships": 2},
+      {"country": "eng", "port": "plymouth", "sea": "sea_zone_29", "ships": 2},
+      {"country": "por", "port": "lisbon", "sea": "sea_zone_52", "ships": 2},
+      {"country": "sco", "port": "belfast", "sea": "sea_zone_12", "ships": 2}
+    ]
+  },
   "unowned_provinces": [
     "aalborg",
     "aarau",

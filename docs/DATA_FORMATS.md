@@ -339,6 +339,22 @@ current `at_war` trigger and existing `tax_income`, `army_combat`, and
 | `rules.income_modifier` | Modifier key used to calculate monthly tax income. |
 | `traits` | Trait keys mapped to arrays of permanent modifier records in the format below. |
 | `military` | Optional object containing `rules` and `forts`. Forts map land province keys to positive unsigned 8-bit levels. |
+| `navy.fleets[]` | Optional starting fleets. Each record has `country` (country tag), `port` (owned land province key), `sea` (adjacent sea province key with a reciprocal `port` edge), and `ships` (positive unsigned 32-bit count). Records receive stable numeric fleet IDs in array order, starting at 1. `navy` requires `military`. |
+
+M8.2 has one transport ship type. Each ship holds 1,000 whole soldiers; an
+army boards as one unit and must fit in one fleet. Fleets start in the
+specified sea cell, travel only by `normal` or `strait` sea-to-sea edges, and
+spend each edge's positive whole tick cost in game days. A fleet that would
+enter a sea cell occupied by a wartime opponent stops in its previous cell,
+cancels its route and emits `FleetBlocked` with the blocking fleet ID. Naval
+battles, attrition, blockades and ship construction follow in separate M8/M9
+tasks. Peacetime alliance alone grants no port access. Embarkation requires a
+port owned by the country or a participant on its side of the same war;
+landing may use such a port or an enemy port during war, with land combat
+resolved on the next tick. An embarked army keeps its last land province in
+the army record for save compatibility, but is excluded from land movement,
+supply, sieges and battles until landing. Its actual position is its carrier
+fleet's sea cell.
 
 Validate content and cross-references with
 `cargo run --locked -p strategy-data --bin lint-scenario -- data/scenarios/1440.json data/map/western_europe/provinces.json`.
@@ -568,3 +584,21 @@ least one guarantee; v1–v8 saves may not carry guarantees. V9 may also carry
 the v7 marriage and v8 event payloads, which remain validated and retained
 on load. LAN protocol v7 transports the same canonical snapshot and the
 validated guarantee/revoke commands.
+
+## Saved games (schema version 10)
+
+A game with attached navy uses save schema v10 and hash domain
+`strategy:game-state:v10` followed by NUL and canonical save bytes. The
+`state.navy` object contains `fleets` sorted by positive numeric `id` and
+`next_fleet_id` (positive unsigned 32-bit, greater than every stored ID).
+Each fleet stores `country` (positive country ID), `sea` (positive sea province
+ID), `ships` (positive whole unsigned 32-bit ship count), `movement` (null or
+`{route,elapsed_ticks}`), and `cargo` (null or a positive army ID). Route
+legs are ordered `{to,kind,cost}` with a sea destination ID, `normal` or
+`strait` edge kind, and positive whole daily tick cost; `elapsed_ticks` is
+nonnegative and smaller than the first leg's cost. The referenced army must
+belong to the same country, be stationary and fit at 1,000 whole soldiers per
+ship; an army cannot appear in two cargo slots. V10 requires a navy payload
+and may retain the prior marriage, event and guarantee payloads. V1–v9 saves
+remain readable without navy. LAN protocol v8 carries v10 snapshots and
+validated fleet, embark and disembark commands.

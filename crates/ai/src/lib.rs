@@ -8,6 +8,7 @@ use strategy_sim::{
 mod diplomacy;
 mod marriage;
 mod military;
+mod naval;
 
 /// Fresh context for one country's decision on one simulation tick.
 pub struct AiContext {
@@ -33,6 +34,7 @@ pub enum Reason {
     RecoverDebt,
     NominateSuccessor,
     Military { action: MilitaryReason, score: i32 },
+    Naval(NavalReason),
     AllianceAccepted,
     AllianceRejected,
     AllianceProposed,
@@ -56,6 +58,15 @@ pub enum MilitaryReason {
     OfferGoal,
     OfferWhitePeace,
     AcceptPeace,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum NavalReason {
+    MarchToPort,
+    SailToPort,
+    EmbarkArmy,
+    SailToGoal,
+    LandArmy,
 }
 
 impl Reason {
@@ -85,6 +96,13 @@ impl Reason {
                 MilitaryReason::OfferGoal => "OfferGoal",
                 MilitaryReason::OfferWhitePeace => "OfferWhitePeace",
                 MilitaryReason::AcceptPeace => "AcceptPeace",
+            },
+            Self::Naval(action) => match action {
+                NavalReason::MarchToPort => "MarchToPort",
+                NavalReason::SailToPort => "SailToPort",
+                NavalReason::EmbarkArmy => "EmbarkArmy",
+                NavalReason::SailToGoal => "SailToGoal",
+                NavalReason::LandArmy => "LandArmy",
             },
         }
     }
@@ -181,7 +199,9 @@ pub fn decide(
             }
         }
     }
-    if let Some(command) = military::decide(state, country, nation, profile, ctx) {
+    if let Some(command) = naval::decide(state, country, nation)
+        .or_else(|| military::decide(state, country, nation, profile, ctx))
+    {
         commands.push(command);
     }
     if !commands
