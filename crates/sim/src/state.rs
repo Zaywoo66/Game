@@ -8,11 +8,11 @@ use crate::{
 
 use crate::{
     CharacterId, CharacterState, CountryId, CountryPolity, Date, DiplomacyError, DiplomacyState,
-    EconomyState, EdgeKind, Effect, EffectError, FiscalError, FiscalPolicy, Fixed, MapIdentity,
-    MarriageError, ModKey, ModifierInsertError, ModifierSourceId, ModifierStore, Opinion,
-    OpinionStateError, PlayerId, PolityError, PolityState, PolityTickFailure, PreparedModifier,
-    ProvinceGraph, ProvinceId, SeededRng, Sex, SimTime, Speed, SuccessionState, Tick, TimeActor,
-    TimeCommand, TimeError, TriggerView,
+    EconomyState, EdgeKind, Effect, EffectError, EventDefinition, EventError, EventState,
+    FiscalError, FiscalPolicy, Fixed, MapIdentity, MarriageError, ModKey, ModifierInsertError,
+    ModifierSourceId, ModifierStore, Opinion, OpinionStateError, PlayerId, PolityError,
+    PolityState, PolityTickFailure, PreparedModifier, ProvinceGraph, ProvinceId, SeededRng, Sex,
+    SimTime, Speed, SuccessionState, Tick, TimeActor, TimeCommand, TimeError, TriggerView,
 };
 
 /// Reference to a scenario's data-driven AI profile.
@@ -126,6 +126,11 @@ pub enum Command {
         country: CountryId,
         other: CountryId,
     },
+    ChooseEvent {
+        country: CountryId,
+        key: String,
+        option: u32,
+    },
     OfferRoyalMarriage {
         country: CountryId,
         character: CharacterId,
@@ -146,7 +151,7 @@ pub enum Command {
     },
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum CommandError {
     Time(TimeError),
     HostRequired,
@@ -157,6 +162,7 @@ pub enum CommandError {
     Fiscal(FiscalError),
     War(WarError),
     Diplomacy(DiplomacyError),
+    Event(EventError),
     Marriage(MarriageError),
     InvalidHeir {
         country: CountryId,
@@ -263,6 +269,15 @@ pub enum StateChange {
         from: CountryId,
         toward: CountryId,
         opinion: Opinion,
+    },
+    EventFired {
+        country: CountryId,
+        key: String,
+    },
+    EventResolved {
+        country: CountryId,
+        key: String,
+        option: u32,
     },
 }
 
@@ -402,6 +417,7 @@ pub struct GameState {
     scheduled: ModifierSchedule,
     opinions: BTreeMap<(CountryId, CountryId), Opinion>,
     diplomacy: Option<DiplomacyState>,
+    events: Option<EventState>,
     polity: Option<PolityState>,
     war_state: Option<WarState>,
 }
@@ -413,6 +429,12 @@ enum PreparedCommand<'a> {
     NominateHeir(CountryId, Option<CharacterId>),
     Military(MilitaryAction),
     Diplomacy(DiplomacyAction),
+    ChooseEvent(
+        CountryId,
+        &'a str,
+        u32,
+        Vec<(ModifierSourceId, PreparedModifier)>,
+    ),
     Marriage(MarriageAction),
 }
 
@@ -495,6 +517,7 @@ impl GameState {
             scheduled,
             opinions: BTreeMap::new(),
             diplomacy: None,
+            events: None,
             polity: None,
             war_state: None,
         })
@@ -697,6 +720,58 @@ impl GameState {
 
     pub fn diplomacy(&self) -> Option<&DiplomacyState> {
         self.diplomacy.as_ref()
+    }
+
+    /// Copies validated YAML definitions into the authoritative game snapshot.
+    pub fn with_events(
+        mut self,
+        definitions: BTreeMap<String, EventDefinition>,
+    ) -> Result<Self, EventError> {
+        if self.events.is_some() {
+            return Err(EventError::AlreadyConfigured);
+        }
+        let highest_source = self.highest_modifier_source();
+        let next = highest_source
+            .checked_add(1)
+            .ok_or(EventError::ModifierSourceExhausted)?;
+        self.events = Some(EventState::new(definitions, next)?);
+        Ok(self)
+    }
+
+    /// Restores an event snapshot after the save decoder checks its encoding.
+    pub fn with_event_state(mut self, events: EventState) -> Result<Self, EventError> {
+        if self.events.is_some() {
+            return Err(EventError::AlreadyConfigured);
+        }
+        events.validate_saved(
+            self.time.tick(),
+            self.countries.keys().copied(),
+            self.highest_modifier_source(),
+        )?;
+        self.events = Some(events);
+        Ok(self)
+    }
+
+    pub fn events(&self) -> Option<&EventState> {
+        self.events.as_ref()
+    }
+
+    fn highest_modifier_source(&self) -> u32 {
+        self.countries
+            .values()
+            .flat_map(|country| {
+                country
+                    .modifiers()
+                    .sources()
+                    .map(|(source, _, _)| source.get())
+            })
+            .chain(
+                self.scheduled
+                    .values()
+                    .flat_map(|entries| entries.keys().map(|(_, source)| source.get())),
+            )
+            .max()
+            .unwrap_or(0)
     }
 
     pub fn allied(&self, a: CountryId, b: CountryId) -> bool {
@@ -1014,6 +1089,29 @@ impl GameState {
                     }
                 }
             }
+            PreparedCommand::ChooseEvent(country, key, option, prepared) => {
+                let used = prepared.len();
+                for (source, grant) in prepared {
+                    self.countries
+                        .get_mut(&country)
+                        .expect("validated event country")
+                        .modifiers
+                        .insert_source(source, grant.expires_at, vec![grant.modifier.clone()])
+                        .expect("validated event source");
+                    delta
+                        .changes
+                        .push(StateChange::ModifierSourceActivated { country, grant });
+                }
+                self.events
+                    .as_mut()
+                    .expect("validated event state")
+                    .resolve(country, key, self.time.tick(), used);
+                delta.changes.push(StateChange::EventResolved {
+                    country,
+                    key: key.into(),
+                    option,
+                });
+            }
             PreparedCommand::Marriage(action) => {
                 let diplomacy = self.diplomacy.get_or_insert_with(DiplomacyState::default);
                 match action {
@@ -1167,6 +1265,22 @@ impl GameState {
             }
             Command::BreakAlliance { country, other } => {
                 self.prepare_diplomacy(actor, *country, *other, 3)
+            }
+            Command::ChooseEvent {
+                country,
+                key,
+                option,
+            } => {
+                self.authorized_country(actor, *country)?;
+                let prepared = self
+                    .events
+                    .as_ref()
+                    .ok_or_else(|| CommandError::Event(EventError::UnknownEvent(key.clone())))?
+                    .prepare_choice(*country, key, *option, self.time.tick())
+                    .map_err(CommandError::Event)?;
+                Ok(PreparedCommand::ChooseEvent(
+                    *country, key, *option, prepared,
+                ))
             }
             Command::OfferRoyalMarriage {
                 country,
@@ -1391,6 +1505,15 @@ impl GameState {
         actor: CommandActor,
         country: CountryId,
     ) -> Result<&PolityState, CommandError> {
+        self.authorized_country(actor, country)?;
+        self.polity().ok_or(CommandError::PolityUnavailable)
+    }
+
+    fn authorized_country(
+        &self,
+        actor: CommandActor,
+        country: CountryId,
+    ) -> Result<(), CommandError> {
         let base = self
             .country(country)
             .ok_or(CommandError::UnknownCountry(country))?;
@@ -1405,7 +1528,7 @@ impl GameState {
         if !authorized {
             return Err(CommandError::NotCountryController(country));
         }
-        self.polity().ok_or(CommandError::PolityUnavailable)
+        Ok(())
     }
 
     /// Advances time, processes due effects, dispatches AI, then updates countries.
@@ -1491,6 +1614,18 @@ impl GameState {
             }
         }
         self.advance_military(&mut report);
+        if let Some(events) = &mut self.events {
+            let countries = self
+                .countries
+                .iter()
+                .map(|(&id, state)| (id, state as &dyn TriggerView));
+            for (country, key) in events.fire_due(self.seed, tick, countries) {
+                report
+                    .delta
+                    .changes
+                    .push(StateChange::EventFired { country, key });
+            }
+        }
         Ok(report)
     }
 

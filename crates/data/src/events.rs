@@ -10,32 +10,7 @@ use yaml_serde::Value;
 
 use crate::is_content_key;
 
-/// An event definition loaded from data. Text fields remain localization keys.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct EventDefinition {
-    pub key: String,
-    pub title_key: String,
-    pub desc_key: String,
-    pub trigger: Trigger,
-    pub mean_time_to_happen: Option<NonZeroU64>,
-    pub repeatable: bool,
-    pub cooldown_days: Option<NonZeroU64>,
-    pub options: Vec<EventOption>,
-}
-
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct EventOption {
-    pub text_key: String,
-    pub effects: Vec<Effect>,
-    pub ai_weight: u32,
-    pub ai_weight_if: Option<ConditionalAiWeight>,
-}
-
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct ConditionalAiWeight {
-    pub when: Trigger,
-    pub add: i32,
-}
+pub use strategy_sim::{ConditionalAiWeight, EventDefinition, EventOption};
 
 #[derive(Debug)]
 pub enum EventLoadError {
