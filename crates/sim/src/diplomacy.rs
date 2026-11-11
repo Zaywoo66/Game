@@ -30,6 +30,7 @@ pub enum DiplomacyError {
     UnknownCountry(CountryId),
     SameCountry,
     DirectWar,
+    MustBreakAlliance,
     AlreadyAllied,
     NotAllied,
     OfferAlreadyPending,

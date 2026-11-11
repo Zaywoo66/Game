@@ -273,6 +273,47 @@ fn postwar_truce_does_not_block_a_new_alliance() {
         .is_ok());
 }
 
+#[test]
+fn declaring_war_requires_breaking_the_alliance_first() {
+    let mut state = setup(|_| {});
+    apply(
+        &mut state,
+        HOST,
+        Command::OfferAlliance {
+            country: A,
+            toward: B,
+        },
+    );
+    apply(
+        &mut state,
+        GUEST,
+        Command::AcceptAlliance {
+            country: B,
+            from: A,
+        },
+    );
+    let war = Command::DeclareWar {
+        country: A,
+        defender: B,
+        goal: province(5),
+    };
+    let unchanged = state.clone();
+    assert_eq!(
+        state.apply(HOST, &war),
+        Err(CommandError::Diplomacy(DiplomacyError::MustBreakAlliance))
+    );
+    assert_eq!(state, unchanged);
+    apply(
+        &mut state,
+        HOST,
+        Command::BreakAlliance {
+            country: A,
+            other: B,
+        },
+    );
+    assert!(state.validate_command(HOST, &war).is_ok());
+}
+
 const A: CountryId = CountryId::new(1);
 const B: CountryId = CountryId::new(2);
 const C: CountryId = CountryId::new(3);

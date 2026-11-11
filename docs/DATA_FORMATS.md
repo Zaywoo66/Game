@@ -336,3 +336,5 @@ self-pairs, expired timers, simultaneous alliance and offer/cooldown, and
 opposing simultaneous offers are rejected. A state with diplomacy uses
 schema v5 and hash domain `strategy:game-state:v5` followed by NUL and the
 canonical bytes; older versions retain their prior encoding and hash.
+An active alliance between two countries directly at war is invalid and
+rejected on load.

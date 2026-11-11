@@ -542,6 +542,13 @@ impl GameState {
 
     pub fn with_diplomacy(mut self, diplomacy: DiplomacyState) -> Result<Self, DiplomacyError> {
         diplomacy.validate(self.countries.keys().copied(), self.time.date())?;
+        if diplomacy
+            .alliances
+            .iter()
+            .any(|&(a, b)| self.directly_at_war(a, b))
+        {
+            return Err(DiplomacyError::DirectWar);
+        }
         self.diplomacy = Some(diplomacy);
         Ok(self)
     }
@@ -619,6 +626,14 @@ impl GameState {
         }
         let polity = self.polity().ok_or(WarError::Unavailable)?;
         war_state.validate(polity, &self.province_graph, self.time.tick())?;
+        if self.diplomacy.as_ref().is_some_and(|diplomacy| {
+            war_state
+                .wars
+                .values()
+                .any(|war| diplomacy.allied(war.attacker, war.defender))
+        }) {
+            return Err(WarError::AllianceActive);
+        }
         self.war_state = Some(war_state);
         self.sync_war_flags();
         Ok(self)
@@ -1051,6 +1066,11 @@ impl GameState {
         order: MilitaryOrder,
     ) -> Result<PreparedCommand<'static>, CommandError> {
         let polity = self.authorized_polity(actor, country)?;
+        if let MilitaryOrder::Declare(defender, _) = order {
+            if self.allied(country, defender) {
+                return Err(CommandError::Diplomacy(DiplomacyError::MustBreakAlliance));
+            }
+        }
         let war = self
             .war_state()
             .ok_or(CommandError::War(WarError::Unavailable))?;
