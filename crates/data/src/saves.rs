@@ -14,11 +14,9 @@ use strategy_sim::{
 
 use crate::provinces::decode_hash;
 
-mod events;
 mod military;
 mod polity;
 
-use events::EventStateFile;
 use military::WarStateFile;
 use polity::PolityFile;
 
