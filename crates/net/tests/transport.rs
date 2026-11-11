@@ -132,6 +132,22 @@ fn command_conversion_preserves_raw_fixed_units_and_validates_speed() {
             war: 2,
             cede_goal: true,
         },
+        PlayerCommand::OfferAlliance {
+            country: 4,
+            toward: 9,
+        },
+        PlayerCommand::AcceptAlliance {
+            country: 9,
+            from: 4,
+        },
+        PlayerCommand::RejectAlliance {
+            country: 9,
+            from: 4,
+        },
+        PlayerCommand::BreakAlliance {
+            country: 4,
+            other: 9,
+        },
         PlayerCommand::SetPaused { paused: true },
         PlayerCommand::SetSpeed { speed: 5 },
     ];

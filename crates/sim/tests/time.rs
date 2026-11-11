@@ -3,6 +3,34 @@ use strategy_sim::{
 };
 
 #[test]
+fn adding_months_clamps_to_last_gregorian_day() {
+    assert_eq!(
+        Date::new(1440, 12, 31)
+            .unwrap()
+            .checked_add_months(2)
+            .unwrap()
+            .components(),
+        (1441, 2, 28)
+    );
+    assert_eq!(
+        Date::new(1443, 12, 31)
+            .unwrap()
+            .checked_add_months(2)
+            .unwrap()
+            .components(),
+        (1444, 2, 29)
+    );
+    assert_eq!(
+        Date::new(1440, 1, 30)
+            .unwrap()
+            .checked_add_months(2)
+            .unwrap()
+            .components(),
+        (1440, 3, 30)
+    );
+}
+
+#[test]
 fn tick_counts_elapsed_game_days_without_wrapping() {
     assert_eq!(Tick::default(), Tick::ZERO);
     assert_eq!(Tick::ZERO.get(), 0);

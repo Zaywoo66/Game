@@ -122,6 +122,23 @@ impl Date {
         let day = self.0.checked_add(days)?;
         (day <= LAST_DAY).then_some(Self(day))
     }
+
+    /// Adds whole Gregorian months, clamping the day to the target month's end.
+    pub fn checked_add_months(self, months: u32) -> Option<Self> {
+        let (year, month, day) = self.components();
+        let index = u64::from(year - 1)
+            .checked_mul(12)?
+            .checked_add(u64::from(month - 1))?
+            .checked_add(u64::from(months))?;
+        let target_year = u32::try_from(index / 12 + 1).ok()?;
+        let target_month = (index % 12 + 1) as u8;
+        Self::new(
+            target_year,
+            target_month,
+            day.min(days_in_month(target_year, target_month)),
+        )
+        .ok()
+    }
 }
 
 const fn days_before_year(year: u64) -> u64 {
