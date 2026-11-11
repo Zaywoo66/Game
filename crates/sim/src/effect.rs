@@ -48,8 +48,7 @@ impl Effect {
                     })
                     .transpose()?;
 
-                if *kind == ModifierKind::Multiplicative && Fixed::ONE.checked_add(*value).is_none()
-                {
+                if !kind.accepts_value(*value) {
                     return Err(EffectError::InvalidMultiplier);
                 }
 

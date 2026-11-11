@@ -5,9 +5,9 @@ use sha2::{Digest, Sha256};
 use strategy_data::{load_game, parse_provinces, save_game, state_hash, SaveError};
 use strategy_sim::{
     AiProfileKey, Command, CommandActor, Controller, CountryId, CountryState, Date, Effect, Fixed,
-    GameState, ModKey, Modifier, ModifierKind, ModifierSourceId, ModifierStore, PlayerId,
-    ProvinceGraph, ScheduleError, ScheduledEffect, SeededRng, SimTime, Speed, Tick, TimeCommand,
-    TriggerView,
+    GameState, ModKey, Modifier, ModifierInsertError, ModifierKind, ModifierSourceId,
+    ModifierStore, PlayerId, ProvinceGraph, ScheduleError, ScheduledEffect, SeededRng, SimTime,
+    Speed, Tick, TimeCommand, TriggerView,
 };
 
 const MAP: &[u8] = include_bytes!("fixtures/provinces.json");
@@ -300,4 +300,39 @@ fn golden_v1_save_advances_to_the_expected_state_hash() {
         digest,
         "0ef49193f46112406e7555cf8e7d34f62b77da2ecc591b69b1a804b24a9b4512"
     );
+}
+
+#[test]
+fn rejects_saved_active_sources_already_due_or_expired() {
+    let mut save = saved();
+    save["state"]["tick"] = json!(1);
+    save["state"]["paused"] = json!(true);
+    for expires_at in [0, 1] {
+        save["state"]["countries"][0]["sources"][0]["expires_at"] = json!(expires_at);
+        assert!(matches!(
+            from_value(&save, parse_provinces(MAP).unwrap()),
+            Err(SaveError::InvalidSchedule(ScheduleError::ExpiredActiveSource {
+                country: COUNTRY,
+                source,
+                expires_at: expiry,
+                current,
+            })) if source == ModifierSourceId::new(3) && expiry == expires_at && current == Tick::new(1)
+        ));
+    }
+}
+
+#[test]
+fn rejects_saved_active_multipliers_whose_factor_overflows() {
+    let mut save = saved();
+    let modifier = &mut save["state"]["countries"][0]["sources"][0]["modifiers"][0];
+    modifier["kind"] = json!("multiplicative");
+    modifier["value"] = json!(i64::MAX);
+
+    assert!(matches!(
+        from_value(&save, parse_provinces(MAP).unwrap()),
+        Err(SaveError::InvalidModifier(ModifierInsertError::InvalidMultiplier {
+            source,
+            index: 0,
+        })) if source == ModifierSourceId::new(3)
+    ));
 }

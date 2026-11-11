@@ -122,6 +122,12 @@ pub struct ScheduledEffect {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ScheduleError {
+    ExpiredActiveSource {
+        country: CountryId,
+        source: ModifierSourceId,
+        expires_at: u64,
+        current: Tick,
+    },
     NotFuture {
         due: Tick,
         current: Tick,
@@ -219,7 +225,7 @@ enum PreparedCommand<'a> {
 }
 
 impl GameState {
-    /// Initializes state and validates all scheduled effects before play starts.
+    /// Initializes state after validating active expiries and scheduled effects.
     pub fn new(
         time: SimTime,
         seed: u64,
@@ -227,6 +233,20 @@ impl GameState {
         countries: BTreeMap<CountryId, CountryState>,
         schedule: impl IntoIterator<Item = ScheduledEffect>,
     ) -> Result<Self, ScheduleError> {
+        let current = time.tick();
+        for (&country, state) in &countries {
+            for (source, expires_at, _) in state.modifiers().sources() {
+                if let Some(expires_at) = expires_at.filter(|&expiry| expiry <= current.get()) {
+                    return Err(ScheduleError::ExpiredActiveSource {
+                        country,
+                        source,
+                        expires_at,
+                        current,
+                    });
+                }
+            }
+        }
+
         let mut scheduled = ModifierSchedule::new();
         for ScheduledEffect {
             due,
@@ -235,11 +255,8 @@ impl GameState {
             effect,
         } in schedule
         {
-            if due <= time.tick() {
-                return Err(ScheduleError::NotFuture {
-                    due,
-                    current: time.tick(),
-                });
+            if due <= current {
+                return Err(ScheduleError::NotFuture { due, current });
             }
             if !countries.contains_key(&country) {
                 return Err(ScheduleError::UnknownCountry(country));

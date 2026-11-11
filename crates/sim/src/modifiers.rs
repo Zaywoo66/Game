@@ -37,6 +37,12 @@ pub enum ModifierKind {
     Multiplicative,
 }
 
+impl ModifierKind {
+    pub(crate) fn accepts_value(self, value: Fixed) -> bool {
+        self == Self::Additive || Fixed::ONE.checked_add(value).is_some()
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Modifier {
     pub source: ModifierSourceId,
@@ -100,6 +106,10 @@ struct ModifierSource {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ModifierInsertError {
     DuplicateSource(ModifierSourceId),
+    InvalidMultiplier {
+        source: ModifierSourceId,
+        index: usize,
+    },
     SourceMismatch {
         expected: ModifierSourceId,
         actual: ModifierSourceId,
@@ -109,8 +119,8 @@ pub enum ModifierInsertError {
 impl ModifierStore {
     /// Adds a source bundle. `None` means it lasts until explicitly removed.
     ///
-    /// All modifiers must name this source. An existing source remains
-    /// unchanged, including its original expiry.
+    /// All modifiers must name this source and each multiplier's factor
+    /// must fit in Fixed. A rejected insert leaves the store unchanged.
     pub fn insert_source(
         &mut self,
         source: ModifierSourceId,
@@ -121,11 +131,16 @@ impl ModifierStore {
             return Err(ModifierInsertError::DuplicateSource(source));
         };
 
-        if let Some(modifier) = modifiers.iter().find(|modifier| modifier.source != source) {
-            return Err(ModifierInsertError::SourceMismatch {
-                expected: source,
-                actual: modifier.source,
-            });
+        for (index, modifier) in modifiers.iter().enumerate() {
+            if modifier.source != source {
+                return Err(ModifierInsertError::SourceMismatch {
+                    expected: source,
+                    actual: modifier.source,
+                });
+            }
+            if !modifier.kind.accepts_value(modifier.value) {
+                return Err(ModifierInsertError::InvalidMultiplier { source, index });
+            }
         }
 
         entry.insert(ModifierSource {

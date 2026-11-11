@@ -572,3 +572,38 @@ fn activated(country: CountryId, source: u32, value: i64, expires_at: Option<u64
         },
     }
 }
+#[test]
+fn constructor_rejects_an_already_expired_active_source() {
+    let country = CountryId::new(2);
+    let source = ModifierSourceId::new(4);
+    let mut modifiers = ModifierStore::default();
+    modifiers
+        .insert_source(
+            source,
+            Some(0),
+            vec![Modifier {
+                source,
+                key: ModKey::new("test_stat"),
+                kind: ModifierKind::Additive,
+                value: Fixed::ONE,
+            }],
+        )
+        .unwrap();
+
+    assert_eq!(
+        state_with_schedule(
+            false,
+            BTreeMap::from([(
+                country,
+                CountryState::new(ai(), BTreeSet::new(), false, modifiers),
+            )]),
+            [],
+        ),
+        Err(ScheduleError::ExpiredActiveSource {
+            country,
+            source,
+            expires_at: 0,
+            current: Tick::ZERO,
+        })
+    );
+}

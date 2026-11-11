@@ -73,11 +73,11 @@ grants. Its numeric fields use these representations:
 | `schema_version` | Unsigned 32-bit schema version number. Save v1 requires `1`. |
 | `map_version` | Positive unsigned 32-bit map version number. |
 | `start_date` | `[year, month, day]` in the proleptic Gregorian calendar. Year is unsigned 32-bit; month and day are unsigned 8-bit and start at one. |
-| `tick`, scheduled `due`, and `expires_at` | Unsigned 64-bit ticks since the scenario started, at one tick per game day. A null expiry means a permanent source. A scheduled expiry must be after its due tick. |
+| `tick`, scheduled `due`, and `expires_at` | Unsigned 64-bit ticks since the scenario started, at one tick per game day. A null expiry means a permanent source. A timed active source must expire after the saved tick. A scheduled expiry must be after its due tick. |
 | `speed` | Unsigned 8-bit speed level, 1 through 5. |
 | `seed`, `rng_state` | Unsigned 64-bit seed and generator state, respectively. |
 | Country IDs, player IDs, and source IDs | Unsigned 32-bit identifiers. |
-| Modifier `value` | Signed 64-bit integer in raw Fixed thousandths. |
+| Modifier `value` | Signed 64-bit integer in raw Fixed thousandths. A multiplicative value must allow `1 + value` to fit in Fixed. |
 
 Countries and modifier source bundles are ordered by numeric ID. Known
 technologies are ordered lexicographically. Scheduled grants are ordered by

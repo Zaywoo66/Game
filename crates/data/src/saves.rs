@@ -48,6 +48,18 @@ impl fmt::Display for SaveError {
                 f,
                 "scheduled expiry {expires_at} must be after due tick {due}"
             ),
+            Self::InvalidSchedule(ScheduleError::ExpiredActiveSource {
+                country,
+                source,
+                expires_at,
+                current,
+            }) => write!(
+                f,
+                "country {} has active modifier source {} with expiry {expires_at} at saved tick {}",
+                country.get(),
+                source.get(),
+                current.get()
+            ),
             Self::InvalidSchedule(error) => write!(f, "invalid saved schedule: {error:?}"),
         }
     }
