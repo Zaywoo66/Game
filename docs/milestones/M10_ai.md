@@ -2,6 +2,10 @@
 Docs: AI.md, SIM_RULES.md
 Prerequisite: L0–L3 already delivered in M3–M9. This milestone does not introduce AI from scratch.
 
+Progress: a headless multi-seed soak report harness records yearly state hashes,
+country counts, largest land share and local tick-time percentiles. This is a
+measurement tool; the five-seed acceptance run and L4 behavior remain open.
+
 ## Tasks
 - Threat model and balance of power: AI reacts to dominant neighbors, forms coalitions
 - Alliance coordination: call allies, honor/break treaties with consequences
