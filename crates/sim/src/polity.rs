@@ -9,7 +9,7 @@ use crate::{
 mod economy;
 mod succession;
 
-use economy::monthly_economy;
+use economy::{monthly_economy, monthly_tax_income};
 pub use economy::{EconomyState, FiscalError, FiscalPolicy, MonthlyBudget};
 pub use succession::{CharacterState, CharacterStats, Sex, SuccessionState};
 
@@ -57,6 +57,7 @@ pub struct AiThresholds {
     pub peace_accept_score: i32,
     pub alliance_min_opinion: i32,
     pub marriage_min_opinion: i32,
+    pub vassal_min_opinion: i32,
 }
 
 /// Scenario policy preferences. Bot decisions stay in the AI crate.
@@ -295,11 +296,55 @@ impl PolityState {
         date: Date,
         graph: &ProvinceGraph,
         base_countries: &BTreeMap<CountryId, CountryState>,
+        vassals: &BTreeMap<CountryId, CountryId>,
     ) -> (Vec<StateChange>, Vec<PolityTickFailure>) {
         let mut changes = self.advance_characters(previous_date, date);
         let mut failures = Vec::new();
         if date.components().2 != 1 {
             return (changes, failures);
+        }
+
+        // Compute every subject's post-modifier tax before applying anyone's
+        // spending. This makes tribute independent of country ID ordering.
+        let mut paid = BTreeMap::<CountryId, Fixed>::new();
+        let mut received = BTreeMap::<CountryId, Fixed>::new();
+        for (&subject, &overlord) in vassals {
+            let state = &self.countries[&subject];
+            let ruler_traits = state
+                .succession
+                .ruler
+                .and_then(|ruler| self.characters.get(&ruler))
+                .map(|ruler| &ruler.modifiers);
+            match monthly_tax_income(
+                &self.rules,
+                state,
+                graph,
+                base_countries[&subject].modifiers(),
+                ruler_traits,
+                state.economy.policy,
+            ) {
+                Ok(gross) => {
+                    let transfer = Fixed::from_raw(gross.raw() / 10);
+                    let total = received
+                        .get(&overlord)
+                        .copied()
+                        .unwrap_or(Fixed::ZERO)
+                        .checked_add(transfer);
+                    if let Some(total) = total {
+                        paid.insert(subject, transfer);
+                        received.insert(overlord, total);
+                    } else {
+                        failures.push(PolityTickFailure {
+                            country: overlord,
+                            error: FiscalError::ArithmeticOverflow,
+                        });
+                    }
+                }
+                Err(error) => failures.push(PolityTickFailure {
+                    country: subject,
+                    error,
+                }),
+            }
         }
 
         for (&country, state) in &mut self.countries {
@@ -315,6 +360,8 @@ impl PolityState {
                 base_countries[&country].modifiers(),
                 ruler_traits,
                 state.economy.policy,
+                paid.get(&country).copied().unwrap_or(Fixed::ZERO),
+                received.get(&country).copied().unwrap_or(Fixed::ZERO),
             ) {
                 Ok(economy) if economy != state.economy => {
                     state.economy = economy;
@@ -335,12 +382,51 @@ impl PolityState {
         graph: &ProvinceGraph,
         modifiers: &ModifierStore,
         policy: FiscalPolicy,
+        base_countries: &BTreeMap<CountryId, CountryState>,
+        vassals: &BTreeMap<CountryId, CountryId>,
     ) -> Result<EconomyState, FiscalError> {
         let ruler_traits = self
             .projected_succession(country, state, date)
             .ruler
             .and_then(|ruler| self.characters.get(&ruler))
             .map(|ruler| &ruler.modifiers);
-        monthly_economy(&self.rules, state, graph, modifiers, ruler_traits, policy)
+        let mut paid = Fixed::ZERO;
+        let mut received = Fixed::ZERO;
+        if vassals.contains_key(&country) {
+            let gross =
+                monthly_tax_income(&self.rules, state, graph, modifiers, ruler_traits, policy)?;
+            paid = Fixed::from_raw(gross.raw() / 10);
+        }
+        for (&subject, &overlord) in vassals {
+            if overlord == country {
+                let subject_state = &self.countries[&subject];
+                let traits = subject_state
+                    .succession
+                    .ruler
+                    .and_then(|ruler| self.characters.get(&ruler))
+                    .map(|ruler| &ruler.modifiers);
+                let gross = monthly_tax_income(
+                    &self.rules,
+                    subject_state,
+                    graph,
+                    base_countries[&subject].modifiers(),
+                    traits,
+                    subject_state.economy.policy,
+                )?;
+                received = received
+                    .checked_add(Fixed::from_raw(gross.raw() / 10))
+                    .ok_or(FiscalError::ArithmeticOverflow)?;
+            }
+        }
+        monthly_economy(
+            &self.rules,
+            state,
+            graph,
+            modifiers,
+            ruler_traits,
+            policy,
+            paid,
+            received,
+        )
     }
 }

@@ -76,6 +76,86 @@ fn alliance_offer_accept_break_and_calendar_cooldown() {
 }
 
 #[test]
+fn vassal_offers_expire_and_bonds_reject_chains_and_external_treaties() {
+    let mut state = setup_guarantee(|_| {});
+    let proposal = Command::OfferVassalage {
+        country: A,
+        toward: B,
+    };
+    assert_eq!(
+        state.validate_command(GUEST, &proposal),
+        Err(CommandError::NotCountryController(A))
+    );
+    apply(&mut state, HOST, proposal.clone());
+    let expiry = state.diplomacy().unwrap().vassal_offers[&(A, B)];
+    assert_eq!(expiry, Date::new(1440, 1, 31).unwrap());
+    for _ in 0..30 {
+        day(&mut state);
+    }
+    assert!(!state
+        .diplomacy()
+        .unwrap()
+        .vassal_offers
+        .contains_key(&(A, B)));
+    assert_eq!(
+        state.validate_command(
+            GUEST,
+            &Command::AcceptVassalage {
+                country: B,
+                from: A
+            }
+        ),
+        Err(CommandError::Diplomacy(DiplomacyError::NoOffer))
+    );
+    apply(&mut state, HOST, proposal);
+    apply(
+        &mut state,
+        GUEST,
+        Command::AcceptVassalage {
+            country: B,
+            from: A,
+        },
+    );
+    assert_eq!(state.diplomacy().unwrap().overlord_of(B), Some(A));
+    assert_eq!(
+        state.validate_command(
+            GUEST,
+            &Command::OfferAlliance {
+                country: B,
+                toward: C
+            }
+        ),
+        Err(CommandError::Diplomacy(
+            DiplomacyError::SubjectCannotOfferTreaty
+        ))
+    );
+    assert_eq!(
+        state.validate_command(
+            GUEST,
+            &Command::DeclareWar {
+                country: B,
+                defender: C,
+                goal: province(6)
+            }
+        ),
+        Err(CommandError::Diplomacy(
+            DiplomacyError::SubjectCannotDeclareWar
+        ))
+    );
+    let c_actor = CommandActor::Host(PlayerId::new(3));
+    assert_eq!(
+        state.validate_command(
+            c_actor,
+            &Command::OfferVassalage {
+                country: C,
+                toward: A
+            }
+        ),
+        Err(CommandError::Diplomacy(DiplomacyError::VassalChain))
+    );
+}
+
+#[test]
 fn alliance_rejection_and_expiry_are_deterministic() {
     let mut state = setup(|_| {})
         .with_opinions([(A, B, Opinion::new(100).unwrap())])

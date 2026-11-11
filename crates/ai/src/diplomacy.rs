@@ -54,6 +54,34 @@ pub(super) fn decide(
     ctx: &mut AiContext,
 ) -> Option<(Command, Reason)> {
     let actor = CommandActor::Ai(country);
+    if let Some(offer) = state
+        .diplomacy()
+        .and_then(|d| d.vassal_offers_to(country).next())
+    {
+        let factors = vassal_acceptance_factors(state, offer.from, country, profile);
+        let accepts = factors[0].value >= factors[1].value && factors[2].value > factors[3].value;
+        let (command, reason) = if accepts {
+            (
+                Command::AcceptVassalage {
+                    country,
+                    from: offer.from,
+                },
+                Reason::VassalageAccepted,
+            )
+        } else {
+            (
+                Command::RejectVassalage {
+                    country,
+                    from: offer.from,
+                },
+                Reason::VassalageRejected,
+            )
+        };
+        return state
+            .validate_command(actor, &command)
+            .is_ok()
+            .then_some((command, reason));
+    }
     if let Some(offer) = state.diplomacy().and_then(|d| d.offers_to(country).next()) {
         let factors = alliance_acceptance_factors(state, offer.from, country, profile);
         let opinion = factors[0].value;
@@ -139,6 +167,45 @@ pub(super) fn decide(
 
 fn accepts_negative(common_threat: bool, rng: &mut SeededRng) -> bool {
     common_threat && rng.next_u64() % 10 == 0
+}
+
+/// Explainable factors for an AI country's response to an overlord offer.
+pub fn vassal_acceptance_factors(
+    state: &GameState,
+    overlord: CountryId,
+    subject: CountryId,
+    profile: &FiscalAiProfile,
+) -> Vec<AllianceAcceptanceFactor> {
+    let army_strength = |country| -> i32 {
+        let soldiers: u64 = state
+            .war_state()
+            .into_iter()
+            .flat_map(|war| war.armies.values())
+            .filter(|army| army.country == country)
+            .map(|army| u64::from(army.soldiers))
+            .sum();
+        i32::try_from(soldiers).unwrap_or(i32::MAX)
+    };
+    vec![
+        AllianceAcceptanceFactor {
+            key: "effective_opinion",
+            value: state
+                .effective_opinion(subject, overlord)
+                .map_or(0, |o| i32::from(o.points())),
+        },
+        AllianceAcceptanceFactor {
+            key: "profile_minimum",
+            value: profile.thresholds.vassal_min_opinion,
+        },
+        AllianceAcceptanceFactor {
+            key: "overlord_soldiers",
+            value: army_strength(overlord),
+        },
+        AllianceAcceptanceFactor {
+            key: "subject_soldiers",
+            value: army_strength(subject),
+        },
+    ]
 }
 
 #[cfg(test)]

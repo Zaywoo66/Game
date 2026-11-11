@@ -11,6 +11,10 @@ pub struct FiscalPolicy {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct MonthlyBudget {
     pub income: Fixed,
+    /// Tax transferred to an overlord before this country's spending.
+    pub tribute_paid: Fixed,
+    /// Tax received from subjects before this country's spending.
+    pub tribute_received: Fixed,
     /// Paid spending, which can be below the policy target during bankruptcy.
     pub expenses: Fixed,
 }
@@ -52,6 +56,8 @@ impl EconomyState {
         }
         self.last_month.is_none_or(|month| {
             month.income >= Fixed::ZERO
+                && month.tribute_paid >= Fixed::ZERO
+                && month.tribute_received >= Fixed::ZERO
                 && month.expenses >= Fixed::ZERO
                 && month.expenses <= rules.max_monthly_spending
         })
@@ -65,7 +71,51 @@ pub(super) fn monthly_economy(
     country_modifiers: &ModifierStore,
     ruler_traits: Option<&ModifierStore>,
     policy: FiscalPolicy,
+    tribute_paid: Fixed,
+    tribute_received: Fixed,
 ) -> Result<EconomyState, FiscalError> {
+    let income = monthly_tax_income(
+        rules,
+        country,
+        graph,
+        country_modifiers,
+        ruler_traits,
+        policy,
+    )?;
+    let net_income = income
+        .checked_sub(tribute_paid)
+        .and_then(|value| value.checked_add(tribute_received))
+        .ok_or(FiscalError::ArithmeticOverflow)?;
+    if tribute_paid < Fixed::ZERO || tribute_received < Fixed::ZERO || net_income < Fixed::ZERO {
+        return Err(FiscalError::ArithmeticOverflow);
+    }
+    let funds = i128::from(country.economy.treasury.raw()) + i128::from(net_income.raw());
+    let planned = i128::from(policy.monthly_spending.raw());
+    let paid = planned.min(funds + i128::from(rules.debt_limit.raw()));
+    let treasury = fixed_from_wide(funds - paid)?;
+    let bankrupt = paid < planned || (country.economy.bankrupt && treasury < Fixed::ZERO);
+
+    Ok(EconomyState {
+        treasury,
+        policy,
+        last_month: Some(MonthlyBudget {
+            income,
+            tribute_paid,
+            tribute_received,
+            expenses: fixed_from_wide(paid)?,
+        }),
+        bankrupt,
+    })
+}
+
+pub(super) fn monthly_tax_income(
+    rules: &PolityRules,
+    country: &CountryPolity,
+    graph: &ProvinceGraph,
+    country_modifiers: &ModifierStore,
+    ruler_traits: Option<&ModifierStore>,
+    policy: FiscalPolicy,
+) -> Result<Fixed, FiscalError> {
     rules.check_policy(policy)?;
     let development: i128 = country
         .provinces
@@ -89,29 +139,13 @@ pub(super) fn monthly_economy(
         .into_iter()
         .flat_map(ModifierStore::sources)
         .flat_map(|(_, _, modifiers)| modifiers);
-    let income = effective_value_from(
+    Ok(effective_value_from(
         tax,
         &rules.income_modifier,
         country_grants.chain(trait_grants),
     )
     .ok_or(FiscalError::ArithmeticOverflow)?
-    .max(Fixed::ZERO);
-
-    let funds = i128::from(country.economy.treasury.raw()) + i128::from(income.raw());
-    let planned = i128::from(policy.monthly_spending.raw());
-    let paid = planned.min(funds + i128::from(rules.debt_limit.raw()));
-    let treasury = fixed_from_wide(funds - paid)?;
-    let bankrupt = paid < planned || (country.economy.bankrupt && treasury < Fixed::ZERO);
-
-    Ok(EconomyState {
-        treasury,
-        policy,
-        last_month: Some(MonthlyBudget {
-            income,
-            expenses: fixed_from_wide(paid)?,
-        }),
-        bankrupt,
-    })
+    .max(Fixed::ZERO))
 }
 
 fn fixed_from_wide(raw: i128) -> Result<Fixed, FiscalError> {

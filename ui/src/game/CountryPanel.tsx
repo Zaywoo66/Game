@@ -155,6 +155,8 @@ export function CountryPanel({ game, country, pending, onSelect, send }: Country
             <div><dt>Treasury</dt><dd>{fixedText(country.treasury)}</dd></div>
             <div><dt>Tax rate</dt><dd>{percent(country.tax_rate)}%</dd></div>
             <div><dt>Monthly income</dt><dd>{fixedText(country.income)}</dd></div>
+            <div><dt>Tribute paid</dt><dd>{fixedText(country.tribute_paid)}</dd></div>
+            <div><dt>Tribute received</dt><dd>{fixedText(country.tribute_received)}</dd></div>
             <div><dt>Monthly expenses</dt><dd>{fixedText(country.expenses)}</dd></div>
           </dl>
           {country.bankrupt && <p className="game-error">Bankrupt</p>}

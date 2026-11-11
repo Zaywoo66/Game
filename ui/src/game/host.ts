@@ -28,6 +28,8 @@ export interface CountryView {
   capital: string;
   treasury: string;
   income: string;
+  tribute_paid: string;
+  tribute_received: string;
   expenses: string;
   tax_rate: number;
   monthly_spending: string;
@@ -82,6 +84,8 @@ export interface GameSnapshot {
   local_country_id: number | null;
   countries: CountryView[];
   guarantees: { guarantor_id: number; protected_id: number }[];
+  vassals: { subject_id: number; overlord_id: number }[];
+  vassal_offers: { overlord_id: number; subject_id: number; expires_at: string }[];
   owners: { province_id: number; country_id: number }[];
   max_tax_rate: number;
   max_monthly_spending: string;
@@ -99,6 +103,8 @@ interface GameUpdate {
   clock: ClockView;
   countries: CountryView[];
   guarantees: { guarantor_id: number; protected_id: number }[];
+  vassals: { subject_id: number; overlord_id: number }[];
+  vassal_offers: { overlord_id: number; subject_id: number; expires_at: string }[];
   armies?: ArmyView[];
   removed_armies?: number[];
   wars?: WarView[];
@@ -118,7 +124,9 @@ export type GameCommand =
   | { type: 'declare_war'; country_id: number; defender_id: number; goal_province_id: number }
   | { type: 'offer_peace'; country_id: number; war_id: number; cede_goal: boolean }
   | { type: 'accept_peace'; country_id: number; war_id: number }
-  | { type: 'guarantee' | 'revoke_guarantee'; country_id: number; protected_id: number };
+  | { type: 'guarantee' | 'revoke_guarantee'; country_id: number; protected_id: number }
+  | { type: 'offer_vassalage'; country_id: number; toward_id: number }
+  | { type: 'accept_vassalage' | 'reject_vassalage'; country_id: number; from_id: number };
 
 interface TauriBridge {
   core: { invoke<T>(name: string, args?: Record<string, unknown>): Promise<T> };
@@ -162,6 +170,8 @@ function applyUpdate(snapshot: GameSnapshot, update: GameUpdate): GameSnapshot {
     clock: update.clock,
     countries: updateRows(snapshot.countries, update.countries) ?? snapshot.countries,
     guarantees: update.guarantees,
+    vassals: update.vassals,
+    vassal_offers: update.vassal_offers,
     owners,
     armies: updateRows(snapshot.armies, update.armies, update.removed_armies),
     wars: updateRows(snapshot.wars, update.wars, update.removed_wars),

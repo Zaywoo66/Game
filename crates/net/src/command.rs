@@ -117,6 +117,18 @@ pub enum PlayerCommand {
         country: u32,
         protected: u32,
     },
+    OfferVassalage {
+        country: u32,
+        toward: u32,
+    },
+    AcceptVassalage {
+        country: u32,
+        from: u32,
+    },
+    RejectVassalage {
+        country: u32,
+        from: u32,
+    },
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -310,6 +322,18 @@ impl From<&Command> for PlayerCommand {
                 country: country.get(),
                 protected: protected.get(),
             },
+            Command::OfferVassalage { country, toward } => Self::OfferVassalage {
+                country: country.get(),
+                toward: toward.get(),
+            },
+            Command::AcceptVassalage { country, from } => Self::AcceptVassalage {
+                country: country.get(),
+                from: from.get(),
+            },
+            Command::RejectVassalage { country, from } => Self::RejectVassalage {
+                country: country.get(),
+                from: from.get(),
+            },
         }
     }
 }
@@ -483,6 +507,18 @@ impl TryFrom<PlayerCommand> for Command {
             PlayerCommand::RevokeGuarantee { country, protected } => Self::RevokeGuarantee {
                 country: CountryId::new(country),
                 protected: CountryId::new(protected),
+            },
+            PlayerCommand::OfferVassalage { country, toward } => Self::OfferVassalage {
+                country: CountryId::new(country),
+                toward: CountryId::new(toward),
+            },
+            PlayerCommand::AcceptVassalage { country, from } => Self::AcceptVassalage {
+                country: CountryId::new(country),
+                from: CountryId::new(from),
+            },
+            PlayerCommand::RejectVassalage { country, from } => Self::RejectVassalage {
+                country: CountryId::new(country),
+                from: CountryId::new(from),
             },
         })
     }

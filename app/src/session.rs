@@ -107,6 +107,8 @@ struct CountryView {
     capital: String,
     treasury: String,
     income: String,
+    tribute_paid: String,
+    tribute_received: String,
     expenses: String,
     tax_rate: i64,
     monthly_spending: String,
@@ -173,6 +175,19 @@ struct GuaranteeView {
     protected_id: u32,
 }
 
+#[derive(Clone, PartialEq, Eq, Serialize)]
+struct VassalView {
+    subject_id: u32,
+    overlord_id: u32,
+}
+
+#[derive(Clone, PartialEq, Eq, Serialize)]
+struct VassalOfferView {
+    overlord_id: u32,
+    subject_id: u32,
+    expires_at: String,
+}
+
 #[derive(Default)]
 struct MilitaryView {
     armies: BTreeMap<u32, ArmyView>,
@@ -191,6 +206,8 @@ pub(crate) struct Snapshot {
     max_tax_rate: i64,
     max_monthly_spending: String,
     guarantees: Vec<GuaranteeView>,
+    vassals: Vec<VassalView>,
+    vassal_offers: Vec<VassalOfferView>,
     armies: Vec<ArmyView>,
     wars: Vec<WarView>,
     sieges: Vec<SiegeView>,
@@ -206,6 +223,8 @@ struct Update {
     clock: ClockView,
     countries: Vec<CountryView>,
     guarantees: Vec<GuaranteeView>,
+    vassals: Vec<VassalView>,
+    vassal_offers: Vec<VassalOfferView>,
     owners: Vec<OwnerView>,
     armies: Vec<ArmyView>,
     removed_armies: Vec<u32>,
@@ -286,6 +305,18 @@ pub(crate) enum UiCommand {
     RevokeGuarantee {
         country_id: u32,
         protected_id: u32,
+    },
+    OfferVassalage {
+        country_id: u32,
+        toward_id: u32,
+    },
+    AcceptVassalage {
+        country_id: u32,
+        from_id: u32,
+    },
+    RejectVassalage {
+        country_id: u32,
+        from_id: u32,
     },
 }
 
@@ -391,6 +422,27 @@ impl UiCommand {
             } => Command::RevokeGuarantee {
                 country: CountryId::new(country_id),
                 protected: CountryId::new(protected_id),
+            },
+            Self::OfferVassalage {
+                country_id,
+                toward_id,
+            } => Command::OfferVassalage {
+                country: CountryId::new(country_id),
+                toward: CountryId::new(toward_id),
+            },
+            Self::AcceptVassalage {
+                country_id,
+                from_id,
+            } => Command::AcceptVassalage {
+                country: CountryId::new(country_id),
+                from: CountryId::new(from_id),
+            },
+            Self::RejectVassalage {
+                country_id,
+                from_id,
+            } => Command::RejectVassalage {
+                country: CountryId::new(country_id),
+                from: CountryId::new(from_id),
             },
         })
     }
@@ -560,6 +612,8 @@ pub(crate) fn game_snapshot(state: State<'_, Mutex<Session>>) -> Result<Snapshot
         max_tax_rate: polity.rules.max_tax_rate.raw(),
         max_monthly_spending: money(polity.rules.max_monthly_spending),
         guarantees: guarantee_views(&session.game),
+        vassals: vassal_views(&session.game),
+        vassal_offers: vassal_offer_views(&session.game),
         armies: session.military.armies.values().cloned().collect(),
         wars: session.military.wars.values().cloned().collect(),
         sieges: session.military.sieges.clone(),
@@ -999,6 +1053,8 @@ fn publish(app: &AppHandle, session: &mut Session) {
         clock: clock_view(&session.game),
         countries: changed_rows(&session.visible_countries, &countries),
         guarantees: guarantee_views(&session.game),
+        vassals: vassal_views(&session.game),
+        vassal_offers: vassal_offer_views(&session.game),
         owners: owners
             .iter()
             .filter(|(id, owner)| session.visible_owners.get(id) != Some(*owner))
@@ -1050,6 +1106,29 @@ fn guarantee_views(game: &GameState) -> Vec<GuaranteeView> {
         .map(|&(guarantor, protected)| GuaranteeView {
             guarantor_id: guarantor.get(),
             protected_id: protected.get(),
+        })
+        .collect()
+}
+
+fn vassal_views(game: &GameState) -> Vec<VassalView> {
+    game.diplomacy()
+        .into_iter()
+        .flat_map(|diplomacy| &diplomacy.vassals)
+        .map(|(&subject, &overlord)| VassalView {
+            subject_id: subject.get(),
+            overlord_id: overlord.get(),
+        })
+        .collect()
+}
+
+fn vassal_offer_views(game: &GameState) -> Vec<VassalOfferView> {
+    game.diplomacy()
+        .into_iter()
+        .flat_map(|diplomacy| &diplomacy.vassal_offers)
+        .map(|(&(overlord, subject), &expires)| VassalOfferView {
+            overlord_id: overlord.get(),
+            subject_id: subject.get(),
+            expires_at: format_date(expires),
         })
         .collect()
 }
@@ -1189,6 +1268,16 @@ fn country_views(game: &GameState) -> BTreeMap<u32, CountryView> {
                         economy
                             .last_month
                             .map_or(Fixed::ZERO, |budget| budget.income),
+                    ),
+                    tribute_paid: money(
+                        economy
+                            .last_month
+                            .map_or(Fixed::ZERO, |budget| budget.tribute_paid),
+                    ),
+                    tribute_received: money(
+                        economy
+                            .last_month
+                            .map_or(Fixed::ZERO, |budget| budget.tribute_received),
                     ),
                     expenses: money(
                         economy

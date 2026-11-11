@@ -480,6 +480,10 @@ struct DiplomacyFile {
     marriage_offers: Vec<DatedPairFile>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     guarantees: Vec<PairFile>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    vassals: Vec<PairFile>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    vassal_offers: Vec<DatedPairFile>,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -543,6 +547,23 @@ impl From<&DiplomacyState> for DiplomacyFile {
                     b: b.get(),
                 })
                 .collect(),
+            vassals: state
+                .vassals
+                .iter()
+                .map(|(&subject, &overlord)| PairFile {
+                    a: subject.get(),
+                    b: overlord.get(),
+                })
+                .collect(),
+            vassal_offers: state
+                .vassal_offers
+                .iter()
+                .map(|(&(overlord, subject), &until)| DatedPairFile {
+                    a: overlord.get(),
+                    b: subject.get(),
+                    until: until.components(),
+                })
+                .collect(),
         }
     }
 }
@@ -558,6 +579,10 @@ impl DiplomacyFile {
             (item.a, item.b)
         })?;
         require_sorted(&self.guarantees, "guarantees", |item| (item.a, item.b))?;
+        require_sorted(&self.vassals, "vassals", |item| (item.a, item.b))?;
+        require_sorted(&self.vassal_offers, "vassal offers", |item| {
+            (item.a, item.b)
+        })?;
         let alliances = self
             .alliances
             .into_iter()
@@ -587,6 +612,14 @@ impl DiplomacyFile {
                 Date::new(year, month, day).map_err(SaveError::InvalidDate)?,
             );
         }
+        let mut vassal_offers = std::collections::BTreeMap::new();
+        for item in self.vassal_offers {
+            let (year, month, day) = item.until;
+            vassal_offers.insert(
+                (CountryId::new(item.a), CountryId::new(item.b)),
+                Date::new(year, month, day).map_err(SaveError::InvalidDate)?,
+            );
+        }
         Ok(DiplomacyState {
             alliances,
             offers,
@@ -597,6 +630,12 @@ impl DiplomacyFile {
                 .into_iter()
                 .map(|item| (CountryId::new(item.a), CountryId::new(item.b)))
                 .collect(),
+            vassals: self
+                .vassals
+                .into_iter()
+                .map(|item| (CountryId::new(item.a), CountryId::new(item.b)))
+                .collect(),
+            vassal_offers,
         })
     }
 }
