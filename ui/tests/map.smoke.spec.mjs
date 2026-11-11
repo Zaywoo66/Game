@@ -168,6 +168,19 @@ test('rejects historical evidence from a different map hash', async ({ page }) =
   await expect(page.getByText(/does not match the loaded map identity/)).toBeVisible();
 });
 
+test('rejects a missing localized province name', async ({ page }) => {
+  const provinces = await loadProvinces(page);
+  await page.route('**/names.en.json', async (route) => {
+    const response = await route.fetch();
+    const names = await response.json();
+    delete names[provinces[0].name_key];
+    await route.fulfill({ response, json: names });
+  });
+  await page.reload();
+  await expect(page.locator('main[data-map-status="error"]')).toBeVisible();
+  await expect(page.getByText(/no localized display name/)).toBeVisible();
+});
+
 async function loadProvinces(page) {
   const response = await page.request.get('/map/western_europe/provinces.json');
   expect(response.ok()).toBe(true);
