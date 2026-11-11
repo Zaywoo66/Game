@@ -1,0 +1,18 @@
+key: harvest_festival
+title: event_harvest_title
+desc: event_harvest_desc
+trigger: {not: {at_war: true}}
+mean_time_to_happen: 365
+repeatable: true
+cooldown_days: 365
+options:
+  - text: event_harvest_accept
+    ai_weight: 10
+    ai_weight_if:
+      when: {country_has_tech: agrarian_reform}
+      add: 5
+    effects:
+      - add_modifier: {key: harvest_tax, value: 100, kind: multiplicative, duration_days: 30}
+  - text: event_harvest_decline
+    ai_weight: 1
+    effects: []

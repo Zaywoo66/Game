@@ -1,0 +1,13 @@
+key: bad_weights
+title: event_bad_weights_title
+desc: event_bad_weights_desc
+trigger: {at_war: false}
+repeatable: true
+cooldown_days: '30'
+options:
+  - text: event_bad_weights_choice
+    ai_weight: '10%'
+    ai_weight_if:
+      when: {not: {at_war: false}}
+      add: 0.25
+    effects: []

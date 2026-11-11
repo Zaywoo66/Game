@@ -1,4 +1,4 @@
-"""Check JSON/YAML syntax and raw Fixed values in game data files."""
+"""Check JSON/YAML syntax, raw Fixed values, and M7 event contracts."""
 
 import argparse
 import json
@@ -6,6 +6,8 @@ from pathlib import Path
 import sys
 
 import yaml
+
+from event_schema import noncanonical_scalar_tokens, validate_event
 
 
 RAW_FIXED = (-(1 << 63), (1 << 63) - 1, "expected a raw Fixed integer in the signed 64-bit range")
@@ -61,6 +63,7 @@ def main():
 
     errors = []
     checked = 0
+    event_keys = {}
     for path in sorted(root.rglob("*")):
         suffix = path.suffix.lower()
         if suffix not in DATA_SUFFIXES or not path.is_file():
@@ -79,6 +82,26 @@ def main():
             # An exact type check excludes bool, which is a subclass of int.
             if type(value) is not int or not minimum <= value <= maximum:
                 errors.append(f"{relative_path}: {field}: {message}")
+
+        if relative_path.parts[0] == "events":
+            if suffix not in {".yaml", ".yml"}:
+                errors.append(f"{relative_path}: events must use YAML")
+                continue
+            errors.extend(
+                f"{relative_path}: {error}" for error in noncanonical_scalar_tokens(text)
+            )
+            try:
+                event_errors = validate_event(document)
+            except RecursionError:
+                event_errors = ["$: event trigger nesting is too deep or cyclic"]
+            errors.extend(f"{relative_path}: {error}" for error in event_errors)
+            if not event_errors and document["key"] in event_keys:
+                errors.append(
+                    f"{relative_path}: $.key: duplicate event key also in "
+                    f"{event_keys[document['key']]}"
+                )
+            elif not event_errors:
+                event_keys[document["key"]] = relative_path
 
     for error in errors:
         print(error, file=sys.stderr)

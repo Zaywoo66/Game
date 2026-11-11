@@ -1,5 +1,5 @@
 # ROADMAP (index only — details live in milestones/)
-Status: [ ] todo, [~] in progress, [x] done. Update in the PR that changes it. Work milestones in order; do not start Mn+1 before Mn acceptance passes.
+Status: [ ] todo, [~] in progress, [x] done. Update in the PR that changes it. Work milestones in order except independent M6–M11 tasks explicitly authorized to proceed in parallel; M12 still requires M5 and M5b acceptance.
 
 | ID | Milestone | Status | File |
 |----|-----------|--------|------|
@@ -11,7 +11,7 @@ Status: [ ] todo, [~] in progress, [x] done. Update in the PR that changes it. W
 | M5 | LAN multiplayer | [~] | milestones/M05_multiplayer.md |
 | M5b | Map density and visual/UI pass | [~] | milestones/M05b_visual_pass.md |
 | M6 | Diplomacy | [~] | milestones/M06_diplomacy.md |
-| M7 | Events and RP | [ ] | milestones/M07_events_rp.md |
+| M7 | Events and RP | [~] | milestones/M07_events_rp.md |
 | M8 | Naval | [ ] | milestones/M08_naval.md |
 | M9 | Technology and ideas | [ ] | milestones/M09_tech_ideas.md |
 | M10 | AI strategic layer, balance, tuning (L4) | [ ] | milestones/M10_ai.md |
@@ -26,6 +26,7 @@ visual acceptance remain in progress.
 AI levels L0–L3 are delivered inside M3, M4, M6, M7–M9 (see each milestone's AI slice); M10 only completes L4.
 
 After the 5b.2 dense-map rebuild passes CI, M6–M11 may proceed while physical two-PC M5 acceptance and the remaining M5b visual/UI checks are open. M12 cannot start until M5 and M5b are accepted. Local loopback and accelerated runs support development but do not close the two-PC acceptance.
+The owner authorized independent small M6–M11 PRs in parallel on 2026-11-11. M7 has begun with the event data contract and linter; event runtime, content and multiplayer acceptance remain open.
 M5b.4 camera, water, borders and terrain have browser screenshot evidence; native 1080p FPS/RAM and owner visual review remain open for M5b acceptance.
 M5b.5 map modes, historical evidence display, English fallback labels and army badges have browser checks; Russian localization, fleet UI, native performance and owner visual acceptance remain open.
 
