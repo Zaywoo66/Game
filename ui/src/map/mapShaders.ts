@@ -44,6 +44,8 @@ uniform sampler2D provinceRaster;
 uniform sampler2D terrainRaster;
 uniform sampler2D riverRaster;
 uniform sampler2D ownerLookup;
+uniform sampler2D historicalLookup;
+uniform sampler2D precisionLookup;
 uniform sampler2D occupationLookup;
 uniform sampler2D waterLookup;
 uniform sampler2D areaLookup;
@@ -53,6 +55,7 @@ uniform vec2 lookupSize;
 uniform float selectedId;
 uniform float seconds;
 uniform bool hasOccupations;
+uniform int mapMode;
 
 varying vec2 mapUv;
 varying vec3 mapNormal;
@@ -77,7 +80,9 @@ vec3 boundariesAt(vec2 point, float id, float area, vec4 owner) {
   float province = step(0.5, abs(id - neighbor));
   float adjacentArea = areaAt(neighbor);
   float region = province * step(0.5, min(area, adjacentArea)) * step(0.5, abs(area - adjacentArea));
-  vec4 adjacentOwner = texture2D(ownerLookup, lookupAt(neighbor));
+  vec4 adjacentOwner = mapMode == 2
+    ? texture2D(historicalLookup, lookupAt(neighbor))
+    : texture2D(ownerLookup, lookupAt(neighbor));
   float country = province * step(0.06, length(owner.rgb - adjacentOwner.rgb) + abs(owner.a - adjacentOwner.a));
   return vec3(province, region, country);
 }
@@ -87,6 +92,9 @@ void main() {
   vec2 lookup = lookupAt(id);
   float water = texture2D(waterLookup, lookup).r * 255.0;
   vec4 owner = texture2D(ownerLookup, lookup);
+  vec4 historical = texture2D(historicalLookup, lookup);
+  vec4 borderOwner = mapMode == 2 ? historical : owner;
+  float sourceResolution = texture2D(precisionLookup, lookup).r * 255.0;
   float terrain = texture2D(terrainRaster, mapUv).r * 255.0;
   float river = texture2D(riverRaster, mapUv).r;
 
@@ -110,8 +118,15 @@ void main() {
     color = mix(color, vec3(0.027, 0.136, 0.200), river * 0.7);
   }
 
-  color = mix(color, owner.rgb, owner.a * 0.72);
-  if (hasOccupations) {
+  if (mapMode == 0) color = mix(color, owner.rgb, owner.a * 0.72);
+  if (mapMode == 2) {
+    color = mix(color, historical.rgb, historical.a * 0.74);
+    if (sourceResolution > 1.5 && sourceResolution < 3.5) {
+      float hatch = step(0.6, fract((pixel.x + pixel.y) * 0.12));
+      color = mix(color, sourceResolution > 2.5 ? vec3(0.42, 0.46, 0.44) : vec3(0.11, 0.15, 0.17), hatch * 0.19);
+    }
+  }
+  if (mapMode == 0 && hasOccupations) {
     vec4 occupier = texture2D(occupationLookup, lookup);
     float hatch = step(0.55, fract((pixel.x + pixel.y) * 0.20));
     color = mix(color, occupier.rgb, hatch * occupier.a * 0.76);
@@ -119,21 +134,22 @@ void main() {
   vec2 stepSize = clamp(fwidth(mapUv) * 0.62, 0.75 / rasterSize, 2.0 / rasterSize);
   float area = areaAt(id);
   vec3 border = max(
-    max(boundariesAt(mapUv + vec2(stepSize.x, 0.0), id, area, owner),
-        boundariesAt(mapUv - vec2(stepSize.x, 0.0), id, area, owner)),
-    max(boundariesAt(mapUv + vec2(0.0, stepSize.y), id, area, owner),
-        boundariesAt(mapUv - vec2(0.0, stepSize.y), id, area, owner))
+    max(boundariesAt(mapUv + vec2(stepSize.x, 0.0), id, area, borderOwner),
+        boundariesAt(mapUv - vec2(stepSize.x, 0.0), id, area, borderOwner)),
+    max(boundariesAt(mapUv + vec2(0.0, stepSize.y), id, area, borderOwner),
+        boundariesAt(mapUv - vec2(0.0, stepSize.y), id, area, borderOwner))
   );
   vec2 wide = stepSize * 1.7;
   float country = max(border.z, max(
-    max(boundariesAt(mapUv + vec2(wide.x, 0.0), id, area, owner).z,
-        boundariesAt(mapUv - vec2(wide.x, 0.0), id, area, owner).z),
-    max(boundariesAt(mapUv + vec2(0.0, wide.y), id, area, owner).z,
-        boundariesAt(mapUv - vec2(0.0, wide.y), id, area, owner).z)
+    max(boundariesAt(mapUv + vec2(wide.x, 0.0), id, area, borderOwner).z,
+        boundariesAt(mapUv - vec2(wide.x, 0.0), id, area, borderOwner).z),
+    max(boundariesAt(mapUv + vec2(0.0, wide.y), id, area, borderOwner).z,
+        boundariesAt(mapUv - vec2(0.0, wide.y), id, area, borderOwner).z)
   ));
   float rasterPixelsPerScreenPixel = max(fwidth(mapUv.x) * rasterSize.x, fwidth(mapUv.y) * rasterSize.y);
   float detail = 1.0 - smoothstep(1.0, 3.5, rasterPixelsPerScreenPixel);
   float borderOpacity = border.x * (0.17 + 0.20 * detail) + border.y * 0.18 + country * 0.39;
+  if (water > 0.5) borderOpacity *= 0.07;
   color = mix(color, water > 0.5 ? vec3(0.070, 0.153, 0.178) : vec3(0.066, 0.085, 0.057), clamp(borderOpacity, 0.0, 0.78));
   if (selectedId > 0.0 && abs(id - selectedId) < 0.5) {
     color = mix(color, vec3(0.84, 0.62, 0.27), 0.18 + border.x * 0.60);

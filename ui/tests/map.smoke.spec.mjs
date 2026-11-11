@@ -97,6 +97,77 @@ test('camera presets stay bounded and wide margins render as ocean', async ({ pa
   expect(result.margin).not.toEqual([21, 35, 44, 255]);
 });
 
+test('map modes keep host owner bytes separate from 1440 evidence', async ({ page }) => {
+  const evidence = await (await page.request.get('/map/western_europe/polities_1440.json')).json();
+  const polygon = evidence.assignments.find((entry) => entry.resolution === 'polygon');
+  expect(polygon).toBeTruthy();
+  await page.evaluate((id) => {
+    window.strategyMapTest.focusProvince(id);
+    window.strategyMapTest.setOwnerColor(id, [247, 11, 171, 255]);
+    window.strategyMapTest.renderFrame();
+  }, polygon.province_id);
+  const point = await page.evaluate((id) => window.strategyMapTest.projectProvince(id), polygon.province_id);
+  await page.mouse.click(point.x, point.y);
+  const political = await page.evaluate(({ x, y }) => window.strategyMapTest.readPixel(x, y), point);
+  await page.getByRole('button', { name: 'Historical 1440' }).click();
+  await expect.poll(() => page.evaluate(() => window.strategyMapTest.readMapMode())).toBe('historical');
+  const historical = await page.evaluate(({ x, y }) => window.strategyMapTest.readPixel(x, y), point);
+  expect(historical).not.toEqual(political);
+  await expect(page.locator('[data-map-selected]')).toHaveAttribute('data-map-selected', String(polygon.province_id));
+  await expect(page.locator('[data-historical-resolution]')).toHaveAttribute('data-historical-resolution', 'polygon');
+  await page.getByRole('button', { name: 'Terrain', exact: true }).click();
+  await expect.poll(() => page.evaluate(() => window.strategyMapTest.readMapMode())).toBe('terrain');
+  const terrain = await page.evaluate(({ x, y }) => window.strategyMapTest.readPixel(x, y), point);
+  expect(terrain).not.toEqual(political);
+  await page.getByRole('button', { name: 'Game political' }).click();
+  await expect.poll(() => page.evaluate(() => window.strategyMapTest.readMapMode())).toBe('political');
+  const restored = await page.evaluate(({ x, y }) => window.strategyMapTest.readPixel(x, y), point);
+  expect(restored).toEqual(political);
+  expect(await page.evaluate((id) => window.strategyMapTest.readOwnerColor(id), polygon.province_id))
+    .toEqual([247, 11, 171, 255]);
+});
+
+test('historical unknown and coarse entries are explicit while labels and sea picking work', async ({ page }) => {
+  const evidence = await (await page.request.get('/map/western_europe/polities_1440.json')).json();
+  await page.getByRole('button', { name: 'Historical 1440' }).click();
+  for (const [resolution, expected] of [['unmatched', 'Unknown attribution'], ['coarse_group', 'Low precision group']]) {
+    const entry = evidence.assignments.find((item) => item.resolution === resolution);
+    expect(entry).toBeTruthy();
+    const point = await page.evaluate((id) => {
+      window.strategyMapTest.focusProvince(id);
+      return window.strategyMapTest.projectProvince(id);
+    }, entry.province_id);
+    await page.mouse.click(point.x, point.y);
+    await expect(page.locator(`[data-historical-resolution="${resolution}"]`)).toContainText(expected);
+    const province = (await loadProvinces(page)).find((item) => item.id === entry.province_id);
+    const names = await (await page.request.get('/map/western_europe/names.en.json')).json();
+    await expect(page.locator('.map-inspector h2')).toHaveText(names[province.name_key]);
+  }
+  await page.evaluate(() => window.strategyMapTest.setCameraPreset('britain'));
+  await expect(page.locator('.map-label[data-kind="country"]').first()).toBeVisible();
+  await page.evaluate(() => window.strategyMapTest.setCameraPreset('province'));
+  await expect(page.locator('.map-label[data-kind="province"]').first()).toBeVisible();
+  const sea = (await loadProvinces(page)).find((province) => province.kind === 'sea');
+  const point = await page.evaluate((id) => {
+    window.strategyMapTest.focusProvince(id);
+    return window.strategyMapTest.projectProvince(id);
+  }, sea.id);
+  await page.mouse.click(point.x, point.y);
+  await expect(page.locator('[data-map-selected]')).toHaveAttribute('data-map-selected', String(sea.id));
+});
+
+test('rejects historical evidence from a different map hash', async ({ page }) => {
+  await page.route('**/polities_1440.json', async (route) => {
+    const response = await route.fetch();
+    const evidence = await response.json();
+    evidence.map_hash = '0'.repeat(64);
+    await route.fulfill({ response, json: evidence });
+  });
+  await page.reload();
+  await expect(page.locator('main[data-map-status="error"]')).toBeVisible();
+  await expect(page.getByText(/does not match the loaded map identity/)).toBeVisible();
+});
+
 async function loadProvinces(page) {
   const response = await page.request.get('/map/western_europe/provinces.json');
   expect(response.ok()).toBe(true);
