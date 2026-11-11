@@ -171,10 +171,22 @@ fn royal_marriage_save_preserves_spouse_and_effective_opinion() {
         .as_object_mut()
         .unwrap()
         .remove("sex");
-    assert!(matches!(
-        load_game(&serde_json::to_vec(&missing_sex).unwrap(), graph()),
-        Err(SaveError::VersionMarriageMismatch(7))
-    ));
+    let mixed = load_game(&serde_json::to_vec(&missing_sex).unwrap(), graph()).unwrap();
+    assert_eq!(
+        mixed
+            .polity()
+            .unwrap()
+            .characters
+            .values()
+            .next()
+            .unwrap()
+            .sex,
+        strategy_sim::Sex::Unknown
+    );
+    assert_eq!(
+        serde_json::from_slice::<Value>(&save_game(&mixed).unwrap()).unwrap(),
+        missing_sex
+    );
     assert_eq!(load_game(&pending, graph()).unwrap(), state);
     state
         .apply(

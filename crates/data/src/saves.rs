@@ -211,16 +211,7 @@ pub fn load_game(bytes: &[u8], graph: ProvinceGraph) -> Result<GameState, SaveEr
     }) || restored
         .diplomacy()
         .is_some_and(|diplomacy| !diplomacy.marriage_offers.is_empty());
-    let all_sex_known = restored.polity().is_some_and(|polity| {
-        !polity.characters.is_empty()
-            && polity
-                .characters
-                .values()
-                .all(|character| character.sex != strategy_sim::Sex::Unknown)
-    });
-    if (save.schema_version == MARRIAGE_VERSION && !all_sex_known)
-        || (save.schema_version != MARRIAGE_VERSION && has_marriage_data)
-    {
+    if has_marriage_data != (save.schema_version == MARRIAGE_VERSION) {
         return Err(SaveError::VersionMarriageMismatch(save.schema_version));
     }
     Ok(restored)

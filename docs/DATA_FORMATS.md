@@ -460,7 +460,9 @@ marriage offers are directed character-ID pairs with a Gregorian expiry, valid
 for 30 game days. A marriage temporarily adds 20 points to each country's
 effective opinion, clamped to the normal opinion range; it never changes base
 opinion. Character death clears both spouse links. Old v1–v6 saves lacking
-`sex` load with internal `Unknown`; those characters cannot enter a new royal
-marriage. New scenario content must always provide `male` or `female`. The first
+`sex` load with internal `Unknown`. Mixed v7 saves may omit `sex` for these
+legacy characters while storing known values on others. Unknown characters
+cannot enter a new royal marriage. New scenario content must always provide
+`male` or `female`. The first
 1440 slice has no female character entry, so historical marriage content awaits
 M11.
