@@ -17,6 +17,13 @@ Every country not controlled by a human is played by AI. Humans: 2 (host + frien
 - Host tick: after scheduled events, for each AI country (ascending `CountryId`) whose turn it is, call `decide`, validate and apply the returned commands (see SIM_RULES.md tick order).
 - Country control: `controller: Human(player_id) | Ai(profile_key)`, stored in `GameState`, set from the lobby/scenario. Changing it is a host-only command.
 
+The M1 stub returns no commands. `strategy_app::tick_host` supplies it to
+the simulation's ordered callback, with a fresh `AiContext` for each
+country and tick. The host catches and logs a panic for the affected country
+and continues dispatching. The workspace replay test exercises 10,000 ticks
+with every country using the stub. It reloads one run at the halfway point
+and compares canonical state hashes at the checkpoint and end.
+
 ## Decision layers (utility scoring, not machine learning)
 | Layer | Cadence | Decides |
 |-------|---------|---------|
