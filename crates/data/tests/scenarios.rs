@@ -1013,7 +1013,7 @@ fn navy_save_v10_round_trips_embarked_army_and_route_and_rejects_bad_records() {
         .unwrap();
     let bytes = save_game(&state).unwrap();
     let document: Value = serde_json::from_slice(&bytes).unwrap();
-    assert_eq!(document["schema_version"], json!(10));
+    assert_eq!(document["schema_version"], json!(11));
     assert_eq!(
         document["state"]["navy"]["fleets"][0]["cargo"],
         json!(army_id.get())
@@ -1023,7 +1023,11 @@ fn navy_save_v10_round_trips_embarked_army_and_route_and_rejects_bad_records() {
     assert_eq!(save_game(&restored).unwrap(), bytes);
     assert_eq!(state_hash(&restored).unwrap(), state_hash(&state).unwrap());
 
+    // The original v10 contract still requires navy even when newer v11
+    // research snapshots can be constructed without it.
     let mut missing = document.clone();
+    missing["schema_version"] = json!(10);
+    missing["state"].as_object_mut().unwrap().remove("technology");
     missing["state"].as_object_mut().unwrap().remove("navy");
     assert!(matches!(
         load_game(&serde_json::to_vec(&missing).unwrap(), graph.clone()),

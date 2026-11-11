@@ -237,8 +237,8 @@ simulation `Effect` values. `strategy_data::load_technologies_from_dir`
 reads `.yaml`/`.yml` files in filename order, returns a technology-key ordered
 map, and rejects duplicate branch files, duplicate technology keys, missing
 prerequisites and cycles. The Rust loader uses the existing pinned
-`yaml_serde` 0.10.7. Technology runtime state and AI selection remain a
-separate M9 task.
+`yaml_serde` 0.10.7. The research runtime and profile-weighted AI choice are
+recorded below; ideas, reforms and the tech-tree UI remain separate M9 tasks.
 
 ## Ideas (`data/ideas/<tag>.yaml`)
 `key, name, modifiers:[{key,value,kind}], unlock: Trigger`
