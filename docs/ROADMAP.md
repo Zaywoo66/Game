@@ -14,7 +14,7 @@ Status: [ ] todo, [~] in progress, [x] done. Update in the PR that changes it. W
 | M7 | Events and RP | [~] | milestones/M07_events_rp.md |
 | M8 | Naval | [~] | milestones/M08_naval.md |
 | M9 | Technology and ideas | [~] | milestones/M09_tech_ideas.md |
-| M10 | AI strategic layer, balance, tuning (L4) | [ ] | milestones/M10_ai.md |
+| M10 | AI strategic layer, balance, tuning (L4) | [~] | milestones/M10_ai.md |
 | M11 | Beta content (1440) | [ ] | milestones/M11_content.md |
 | M12 | Beta release | [ ] | milestones/M12_release.md |
 | M13 | World map (post-beta) | [ ] | milestones/M13_world.md |
@@ -30,8 +30,10 @@ The owner authorized independent small M6–M11 PRs in parallel on 2026-11-11. M
 The M7 data loader maps event YAML to typed simulation triggers/effects. The
 event runtime adds deterministic daily firing, pending choices and AI weighted
 responses. Starter content adds three generic YAML events and an English
-localization catalog with linted references; the 20–40 event target, Russian
-translation, popup UI, and multiplayer acceptance remain open.
+localization catalog with linted references. The popup shows local-player
+pending events from the host snapshot, resolves English keys and submits a
+validated choice command. The 20–40 event target, Russian translation, and
+multiplayer acceptance remain open.
 The M9 technology YAML contract and typed loader validate branch files, effect
 units, and the cross-branch prerequisite DAG; research-point gameplay and AI
 remain open.
@@ -44,4 +46,5 @@ The war-participants prerequisite supports additional countries on either side o
 The 1440 scenario currently starts with neutral opinions; historically supported positive opening relationships and their values belong to M11 content review. Until then, the alliance AI's favorable branch is covered by a synthetic scenario test.
 
 M13 is the first post-beta milestone; colonization, trade, religion and later eras follow.
+M10 has a yearly multi-seed headless soak report harness; L4 strategy, balance acceptance and the scheduled workflow remain open until M6–M9 mechanics and M11 beta content are ready.
 Vertical slice = M2–M7 on the small test region (see DECISIONS D5), then expand to beta map in M11.

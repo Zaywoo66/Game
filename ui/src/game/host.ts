@@ -77,12 +77,21 @@ export interface AiLogEntry {
   score: number | null;
 }
 
+export interface EventView {
+  country_id: number;
+  key: string;
+  title_key: string;
+  desc_key: string;
+  options: { text_key: string }[];
+}
+
 export interface GameSnapshot {
   generation?: number;
   sequence: number;
   clock: ClockView;
   local_country_id: number | null;
   countries: CountryView[];
+  pending_events?: EventView[];
   guarantees: { guarantor_id: number; protected_id: number }[];
   vassals: { subject_id: number; overlord_id: number }[];
   vassal_offers: { overlord_id: number; subject_id: number; expires_at: string }[];
@@ -102,6 +111,7 @@ interface GameUpdate {
   sequence: number;
   clock: ClockView;
   countries: CountryView[];
+  pending_events?: EventView[] | null;
   guarantees: { guarantor_id: number; protected_id: number }[];
   vassals: { subject_id: number; overlord_id: number }[];
   vassal_offers: { overlord_id: number; subject_id: number; expires_at: string }[];
@@ -124,6 +134,7 @@ export type GameCommand =
   | { type: 'declare_war'; country_id: number; defender_id: number; goal_province_id: number }
   | { type: 'offer_peace'; country_id: number; war_id: number; cede_goal: boolean }
   | { type: 'accept_peace'; country_id: number; war_id: number }
+  | { type: 'choose_event'; country_id: number; key: string; option: number }
   | { type: 'guarantee' | 'revoke_guarantee'; country_id: number; protected_id: number }
   | { type: 'offer_vassalage'; country_id: number; toward_id: number }
   | { type: 'accept_vassalage' | 'reject_vassalage'; country_id: number; from_id: number };
@@ -169,6 +180,7 @@ function applyUpdate(snapshot: GameSnapshot, update: GameUpdate): GameSnapshot {
     sequence: update.sequence,
     clock: update.clock,
     countries: updateRows(snapshot.countries, update.countries) ?? snapshot.countries,
+    pending_events: update.pending_events ?? snapshot.pending_events,
     guarantees: update.guarantees,
     vassals: update.vassals,
     vassal_offers: update.vassal_offers,
