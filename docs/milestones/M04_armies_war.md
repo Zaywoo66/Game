@@ -37,6 +37,14 @@ cede the occupied goal when the attacker's score meets the scenario threshold.
 Both parties must agree. The treaty updates territorial ownership and the
 scenario truce blocks an immediate rematch.
 
+The M6 guarantee prerequisite extends an active war with ordered sets of
+supporting countries on either side. Original attacker and defender remain
+leaders and alone make peace. Supporters move, fight and besiege for their
+side. A goal occupied by any attacking participant can be ceded only to the
+attacker leader. Peace ends the entire war and creates the same truce for
+every pair of former opponents across the two sides. The one-war-per-country
+limit still applies. Adding a guarantor to a war belongs to the guarantee task.
+
 The scripted simulation test covers battle, retreat, a four-day fort siege,
 occupation and territorial peace. The workspace AI gate runs three seeded
 ten-year simulations and checks their invariant and error reports each day.

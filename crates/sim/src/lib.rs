@@ -46,5 +46,5 @@ pub use time::{
 pub use trigger::{Trigger, TriggerView};
 pub use war::{
     Army, ArmyMovement, MilitaryTickFailure, MovementLeg, PeaceOffer, PeaceTreaty, Siege, War,
-    WarError, WarRules, WarState,
+    WarError, WarRules, WarSide, WarState,
 };

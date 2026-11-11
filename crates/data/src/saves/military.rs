@@ -18,6 +18,8 @@ pub(super) struct WarStateFile {
     forts: Vec<FortFile>,
     sieges: Vec<SiegeFile>,
     treaties: Vec<TreatyFile>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    coalition_truces: Vec<CoalitionTruceFile>,
     next_army_id: u32,
     next_war_id: u32,
 }
@@ -65,6 +67,15 @@ impl From<&WarState> for WarStateFile {
                     concluded_at: treaty.concluded_at.get(),
                 })
                 .collect(),
+            coalition_truces: state
+                .coalition_truces
+                .iter()
+                .map(|(&(a, b), &concluded_at)| CoalitionTruceFile {
+                    a: a.get(),
+                    b: b.get(),
+                    concluded_at: concluded_at.get(),
+                })
+                .collect(),
             next_army_id: state.next_army_id,
             next_war_id: state.next_war_id,
         }
@@ -72,12 +83,22 @@ impl From<&WarState> for WarStateFile {
 }
 
 impl WarStateFile {
+    pub(super) fn has_coalition_history(&self) -> bool {
+        !self.coalition_truces.is_empty()
+            || self.wars.iter().any(|war| {
+                !war.attacker_supporters.is_empty() || !war.defender_supporters.is_empty()
+            })
+    }
+
     pub(super) fn restore(self) -> Result<WarState, SaveError> {
         require_sorted(&self.armies, "armies", |army| army.id)?;
         require_sorted(&self.wars, "wars", |war| war.id)?;
         require_sorted(&self.forts, "forts", |fort| fort.province)?;
         require_sorted(&self.sieges, "sieges", |siege| siege.province)?;
         require_sorted(&self.treaties, "treaties", |treaty| treaty.war)?;
+        require_sorted(&self.coalition_truces, "coalition truces", |truce| {
+            (truce.a, truce.b)
+        })?;
         Ok(WarState {
             rules: self.rules.into(),
             armies: self.armies.into_iter().map(ArmyFile::restore).collect(),
@@ -117,6 +138,16 @@ impl WarStateFile {
                             ceded: treaty.ceded.map(ProvinceId::new),
                             concluded_at: Tick::new(treaty.concluded_at),
                         },
+                    )
+                })
+                .collect(),
+            coalition_truces: self
+                .coalition_truces
+                .into_iter()
+                .map(|truce| {
+                    (
+                        (CountryId::new(truce.a), CountryId::new(truce.b)),
+                        Tick::new(truce.concluded_at),
                     )
                 })
                 .collect(),
@@ -208,6 +239,10 @@ struct WarFile {
     id: u32,
     attacker: u32,
     defender: u32,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    attacker_supporters: Vec<u32>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    defender_supporters: Vec<u32>,
     goal: u32,
     started_at: u64,
     score: i32,
@@ -222,6 +257,8 @@ impl WarFile {
             id: id.get(),
             attacker: war.attacker.get(),
             defender: war.defender.get(),
+            attacker_supporters: war.attacker_supporters.iter().map(|id| id.get()).collect(),
+            defender_supporters: war.defender_supporters.iter().map(|id| id.get()).collect(),
             goal: war.goal.get(),
             started_at: war.started_at.get(),
             score: war.score,
@@ -241,6 +278,8 @@ impl WarFile {
     }
 
     fn restore(self) -> Result<(WarId, War), SaveError> {
+        require_sorted(&self.attacker_supporters, "attacker supporters", |&id| id)?;
+        require_sorted(&self.defender_supporters, "defender supporters", |&id| id)?;
         require_sorted(&self.occupations, "war occupations", |record| {
             record.province
         })?;
@@ -249,6 +288,16 @@ impl WarFile {
             War {
                 attacker: CountryId::new(self.attacker),
                 defender: CountryId::new(self.defender),
+                attacker_supporters: self
+                    .attacker_supporters
+                    .into_iter()
+                    .map(CountryId::new)
+                    .collect(),
+                defender_supporters: self
+                    .defender_supporters
+                    .into_iter()
+                    .map(CountryId::new)
+                    .collect(),
                 goal: ProvinceId::new(self.goal),
                 started_at: Tick::new(self.started_at),
                 score: self.score,
@@ -309,5 +358,13 @@ struct TreatyFile {
     defender: u32,
     #[serde(deserialize_with = "required_optional")]
     ceded: Option<u32>,
+    concluded_at: u64,
+}
+
+#[derive(Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct CoalitionTruceFile {
+    a: u32,
+    b: u32,
     concluded_at: u64,
 }

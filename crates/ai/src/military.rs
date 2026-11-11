@@ -2,7 +2,7 @@ use std::{cmp::Reverse, collections::BTreeSet};
 
 use strategy_sim::{
     Army, ArmyId, Command, CommandActor, CountryId, CountryPolity, EdgeKind, FiscalAiProfile,
-    Fixed, GameState, ProvinceId, War, WarId, WarState,
+    Fixed, GameState, ProvinceId, War, WarId, WarSide, WarState,
 };
 
 use crate::{AiContext, MilitaryReason, Reason};
@@ -184,7 +184,10 @@ impl Planner<'_> {
     }
 
     fn peace(&self, id: WarId, war: &War) -> Option<(Command, Reason)> {
-        let attacking = war.attacker == self.country;
+        if !war.is_leader(self.country) {
+            return None;
+        }
+        let attacking = war.side(self.country) == Some(WarSide::Attacker);
         let enemy = if attacking {
             war.defender
         } else {
@@ -201,7 +204,10 @@ impl Planner<'_> {
             .tick()
             .get()
             .saturating_sub(war.started_at.get());
-        let goal_occupied = war.occupations.get(&war.goal) == Some(&war.attacker);
+        let goal_occupied = war
+            .occupations
+            .get(&war.goal)
+            .is_some_and(|occupier| war.side(*occupier) == Some(WarSide::Attacker));
         let decisive = war.score >= self.military.rules.peace_score && goal_occupied;
         let outmatched = self.strength(self.country) < self.strength(enemy);
         let peace_threshold = self.profile.thresholds.peace_accept_score.max(0);
@@ -248,17 +254,12 @@ impl Planner<'_> {
     }
 
     fn orders(&self, war: &War) -> Option<(Command, Reason)> {
-        let attacking = war.attacker == self.country;
-        let enemy = if attacking {
-            war.defender
-        } else {
-            war.attacker
-        };
+        let attacking = war.side(self.country) == Some(WarSide::Attacker);
         let target = if attacking {
             war.goal
         } else {
             let threatened_capital = self.military.armies.values().any(|army| {
-                army.country == enemy
+                war.opposed(self.country, army.country)
                     && (army.province == self.nation.capital
                         || army
                             .movement
@@ -274,19 +275,21 @@ impl Planner<'_> {
         };
         self.raise().or_else(|| {
             self.armies().find_map(|(id, army)| {
-                self.retreat(id, army, enemy)
+                self.retreat(id, army, war)
                     .or_else(|| self.reorganize(id, army))
                     .or_else(|| self.move_towards(id, army, target, attacking))
             })
         })
     }
 
-    fn retreat(&self, id: ArmyId, army: &Army, enemy: CountryId) -> Option<(Command, Reason)> {
+    fn retreat(&self, id: ArmyId, army: &Army, war: &War) -> Option<(Command, Reason)> {
         let threat: u64 = self
             .military
             .armies
             .values()
-            .filter(|unit| unit.country == enemy && unit.province == army.province)
+            .filter(|unit| {
+                war.opposed(self.country, unit.country) && unit.province == army.province
+            })
             .map(|unit| u64::from(unit.soldiers))
             .sum();
         if threat <= u64::from(army.soldiers)
