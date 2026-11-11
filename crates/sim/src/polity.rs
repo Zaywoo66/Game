@@ -11,7 +11,7 @@ mod succession;
 
 use economy::monthly_economy;
 pub use economy::{EconomyState, FiscalError, FiscalPolicy, MonthlyBudget};
-pub use succession::{CharacterState, CharacterStats, SuccessionState};
+pub use succession::{CharacterState, CharacterStats, Sex, SuccessionState};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct PolityRules {
@@ -56,6 +56,7 @@ pub struct AiThresholds {
     pub war_min_score: i32,
     pub peace_accept_score: i32,
     pub alliance_min_opinion: i32,
+    pub marriage_min_opinion: i32,
 }
 
 /// Scenario policy preferences. Bot decisions stay in the AI crate.
@@ -113,6 +114,7 @@ pub enum PolityError {
         country: CountryId,
     },
     InvalidCharacterDates(CharacterId),
+    InvalidSpouse(CharacterId),
     TimedTrait {
         character: CharacterId,
         source: ModifierSourceId,
@@ -184,6 +186,27 @@ impl PolityState {
             }
             if state.death.is_some_and(|death| death <= state.birth) {
                 return Err(PolityError::InvalidCharacterDates(character));
+            }
+            if let Some(spouse) = state.spouse {
+                let partner = self
+                    .characters
+                    .get(&spouse)
+                    .ok_or(PolityError::InvalidSpouse(character))?;
+                if spouse == character
+                    || partner.spouse != Some(character)
+                    || partner.country == state.country
+                    || partner.sex == state.sex
+                    || !state.is_alive_on(date)
+                    || !partner.is_alive_on(date)
+                    || state
+                        .age_years(date)
+                        .is_none_or(|age| age < u32::from(self.rules.adulthood_years))
+                    || partner
+                        .age_years(date)
+                        .is_none_or(|age| age < u32::from(self.rules.adulthood_years))
+                {
+                    return Err(PolityError::InvalidSpouse(character));
+                }
             }
             if let Some((source, _, _)) = state
                 .modifiers

@@ -149,6 +149,7 @@ Country and character numeric IDs are assigned in sorted key order starting at 1
 |---|---|
 | `tag` | Country key and filename stem. |
 | `name` | Nonempty display name. |
+| `sex` | Required `male` or `female`. This content value is checked against biographical sources for historical characters. |
 | `color` | Three unsigned 8-bit RGB channel values in the order red, green, blue. |
 | `capital` | Province key referring to one of this country's land provinces. |
 | `ai_profile` | Profile key. |
@@ -163,6 +164,10 @@ Country and character numeric IDs are assigned in sorted key order starting at 1
 
 ## Characters (`data/characters/<key>.json`)
 
+Character schema v2 makes `sex` mandatory. Schema v1 character content is
+rejected during scenario loading; old saved games remain readable as described
+below.
+
 | Character field | Representation and unit |
 |---|---|
 | `key`, `country`, `dynasty` | Character filename stem, country tag, dynasty key. |
@@ -170,6 +175,8 @@ Country and character numeric IDs are assigned in sorted key order starting at 1
 | `birth`, `death` | Gregorian `[year, month, day]` as in saves. Omit `death` or use null if unspecified. |
 | `stats.adm`, `stats.dip`, `stats.mil` | Whole unsigned 8-bit skill points. |
 | `traits` | Unique keys from the scenario's trait map. |
+
+The 13 existing `male` entries were checked against the [UK Royal Family biographies](https://www.royal.uk/henry-vi) (Henry VI, Edward IV, Humphrey of Gloucester, James II and James III), [France's Larousse biographies](https://www.larousse.fr/encyclopedie/personnage/Charles_VII/112825) (Charles VII and Louis XI), the [Spanish national archives](https://pares.cultura.gob.es/ParesBusquedas20/catalogo/autoridad/46221) (John II of Aragon, Alfonso V of Aragon, John II and Henry IV of Castile), and the [Portuguese expansion encyclopedia](https://eve.fcsh.unl.pt/en/people/prince-dom-fernando-1433-1470) (Ferdinand of Viseu and Afonso V of Portugal). No female historic character has been added to the 1440 slice; that content review belongs to M11.
 
 ## Technologies (`data/techs/<branch>.yaml`) — DAG
 `key, branch, cost, requires:[keys], pos:{x,y}, effects:[Effect]`
@@ -254,7 +261,7 @@ Add new leaves here first, then implement.
 |---|---|
 | `key` | Profile key and filename stem. |
 | `weights.aggression`, `expansion`, `caution`, `diplomacy`, `economy`, `naval`, `loyalty` | Whole weight points from 0 through 1000. |
-| `thresholds.war_min_score`, `peace_accept_score`, `alliance_min_opinion` | Signed 32-bit whole decision score points. |
+| `thresholds.war_min_score`, `peace_accept_score`, `alliance_min_opinion`, `marriage_min_opinion` | Signed 32-bit whole decision score points. The 1440 marriage threshold is 20 effective opinion points. |
 | `preferred_tax_rate` | Raw Fixed fraction within scenario tax limits. |
 | `preferred_monthly_spending` | Raw Fixed treasury amount per month within scenario spending limits. |
 
@@ -361,3 +368,16 @@ schema v5 and hash domain `strategy:game-state:v5` followed by NUL and the
 canonical bytes; older versions retain their prior encoding and hash.
 An active alliance between two countries directly at war is invalid and
 rejected on load.
+
+### Royal marriage migration (save v7 after war-participant v6)
+
+New character snapshots store `sex` (`male` or `female`) and `spouse` (omitted
+when unmarried, otherwise another character ID). Spouse links are reciprocal, cross-country, opposite-sex,
+living and adult on the saved date. Pending marriage offers are directed
+character-ID pairs with a Gregorian expiry, valid for 30 game days. A marriage
+temporarily adds 20 points to each country's effective opinion, clamped to
+the normal opinion range; it never changes base opinion. Character death clears
+both spouse links. Old v1–v6 saves lacking `sex` load with internal `Unknown`;
+those characters cannot enter a new royal marriage. New scenario content must
+always provide `male` or `female`. The first 1440 slice has no female character
+entry, so an eligible historical pair awaits the M11 content pass.

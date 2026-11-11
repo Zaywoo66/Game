@@ -4,11 +4,12 @@ use serde::{Deserialize, Deserializer, Serialize};
 use serde_json::value::RawValue;
 use sha2::{Digest, Sha256};
 use strategy_sim::{
-    AiProfileKey, Controller, CountryId, CountryState, Date, DiplomacyError, DiplomacyState,
-    Effect, Fixed, GameState, InvalidDate, InvalidSpeed, MapIdentity, MapIdentityMismatch, ModKey,
-    Modifier, ModifierInsertError, ModifierKind, ModifierSourceId, ModifierStore, Opinion,
-    OpinionError, OpinionStateError, PlayerId, PolityError, ProvinceGraph, ScheduleError,
-    ScheduledEffect, SeededRng, SimTime, Speed, Tick, TimeError, TriggerView, WarError,
+    AiProfileKey, CharacterId, Controller, CountryId, CountryState, Date, DiplomacyError,
+    DiplomacyState, Effect, Fixed, GameState, InvalidDate, InvalidSpeed, MapIdentity,
+    MapIdentityMismatch, ModKey, Modifier, ModifierInsertError, ModifierKind, ModifierSourceId,
+    ModifierStore, Opinion, OpinionError, OpinionStateError, PlayerId, PolityError, ProvinceGraph,
+    ScheduleError, ScheduledEffect, SeededRng, SimTime, Speed, Tick, TimeError, TriggerView,
+    WarError,
 };
 
 use crate::provinces::decode_hash;
@@ -365,6 +366,8 @@ struct DiplomacyFile {
     alliances: Vec<PairFile>,
     offers: Vec<DatedPairFile>,
     cooldowns: Vec<DatedPairFile>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    marriage_offers: Vec<DatedPairFile>,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -411,6 +414,15 @@ impl From<&DiplomacyState> for DiplomacyFile {
                     until: until.components(),
                 })
                 .collect(),
+            marriage_offers: state
+                .marriage_offers
+                .iter()
+                .map(|(&(a, b), &until)| DatedPairFile {
+                    a: a.get(),
+                    b: b.get(),
+                    until: until.components(),
+                })
+                .collect(),
         }
     }
 }
@@ -422,6 +434,9 @@ impl DiplomacyFile {
         require_sorted(&self.cooldowns, "alliance cooldowns", |item| {
             (item.a, item.b)
         })?;
+        require_sorted(&self.marriage_offers, "marriage offers", |item| {
+            (item.a, item.b)
+        })?;
         let alliances = self
             .alliances
             .into_iter()
@@ -429,6 +444,7 @@ impl DiplomacyFile {
             .collect();
         let mut offers = std::collections::BTreeMap::new();
         let mut cooldowns = std::collections::BTreeMap::new();
+        let mut marriage_offers = std::collections::BTreeMap::new();
         for item in self.offers {
             let (year, month, day) = item.until;
             offers.insert(
@@ -443,10 +459,18 @@ impl DiplomacyFile {
                 Date::new(year, month, day).map_err(SaveError::InvalidDate)?,
             );
         }
+        for item in self.marriage_offers {
+            let (year, month, day) = item.until;
+            marriage_offers.insert(
+                (CharacterId::new(item.a), CharacterId::new(item.b)),
+                Date::new(year, month, day).map_err(SaveError::InvalidDate)?,
+            );
+        }
         Ok(DiplomacyState {
             alliances,
             offers,
             cooldowns,
+            marriage_offers,
         })
     }
 }

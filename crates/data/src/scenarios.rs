@@ -151,11 +151,19 @@ struct CharacterFile {
     country: String,
     name: String,
     dynasty: String,
+    sex: CharacterSexFile,
     birth: DateFields,
     death: Option<DateFields>,
     #[serde(with = "StatsFile")]
     stats: CharacterStats,
     traits: Vec<String>,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "snake_case")]
+enum CharacterSexFile {
+    Male,
+    Female,
 }
 
 #[derive(Deserialize)]
@@ -249,7 +257,11 @@ pub fn load_scenario_from_reader(
     for (key, &id) in &characters {
         let path = format!("characters/{key}.json");
         let file: CharacterFile = read_file(&mut read, &path)?;
-        check_version(&path, file.schema_version)?;
+        if file.schema_version != 2 {
+            return Err(invalid(format!(
+                "{path}: character schema_version must be 2"
+            )));
+        }
         require_file_key(&path, &file.key, key)?;
         check_key(&file.dynasty, "dynasty")?;
         check_name(&file.name, &path)?;
@@ -286,6 +298,11 @@ pub fn load_scenario_from_reader(
                 name: file.name,
                 country,
                 dynasty: file.dynasty,
+                sex: match file.sex {
+                    CharacterSexFile::Male => strategy_sim::Sex::Male,
+                    CharacterSexFile::Female => strategy_sim::Sex::Female,
+                },
+                spouse: None,
                 birth,
                 death,
                 stats: file.stats,

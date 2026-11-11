@@ -56,6 +56,51 @@ fn scenario_opinions_resolve_country_keys_and_validate_bounds() {
     }
 }
 
+#[test]
+fn pre_marriage_save_without_sex_loads_as_unknown() {
+    let mut saved: Value = serde_json::from_slice(&save_game(&m3_state()).unwrap()).unwrap();
+    saved["schema_version"] = json!(2);
+    for character in saved["state"]["polity"]["characters"]
+        .as_array_mut()
+        .unwrap()
+    {
+        character.as_object_mut().unwrap().remove("sex");
+        character.as_object_mut().unwrap().remove("spouse");
+    }
+    for profile in saved["state"]["polity"]["ai_profiles"]
+        .as_array_mut()
+        .unwrap()
+    {
+        profile["thresholds"]
+            .as_object_mut()
+            .unwrap()
+            .remove("marriage_min_opinion");
+    }
+    let loaded = load_game(&serde_json::to_vec(&saved).unwrap(), graph()).unwrap();
+    assert!(loaded
+        .polity()
+        .unwrap()
+        .characters
+        .values()
+        .all(|character| character.sex == strategy_sim::Sex::Unknown));
+}
+
+#[test]
+fn character_v2_requires_binary_sex_content() {
+    for invalid_sex in [Value::Null, json!("unknown"), json!(1)] {
+        let loaded = load_scenario_from_reader(graph(), "1440", |logical| {
+            let bytes = legacy_read(logical)?;
+            if logical != "characters/henry_vi.json" {
+                return Ok(bytes);
+            }
+            let mut character: Value = serde_json::from_slice(&bytes).unwrap();
+            character["sex"] = invalid_sex.clone();
+            Ok(serde_json::to_vec(&character).unwrap())
+        });
+        assert!(loaded.is_err());
+    }
+}
+
 fn data_root() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data")
 }
