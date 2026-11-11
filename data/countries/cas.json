@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "tag": "cas",
+  "name": "Crown of Castile",
+  "color": [
+    216,
+    170,
+    69
+  ],
+  "capital": "castile",
+  "ai_profile": "balanced",
+  "start": {
+    "ruler": "john_ii_castile",
+    "heir": "henry_iv_castile",
+    "provinces": [
+      "andalusia",
+      "asturias",
+      "castile",
+      "galicia",
+      "la_mancha",
+      "leon"
+    ],
+    "treasury": 120000,
+    "tax_rate": 250,
+    "monthly_spending": 11000
+  }
+}

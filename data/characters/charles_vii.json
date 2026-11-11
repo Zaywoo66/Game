@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "key": "charles_vii",
+  "country": "fra",
+  "name": "Charles VII",
+  "dynasty": "valois",
+  "birth": [
+    1403,
+    2,
+    22
+  ],
+  "death": [
+    1461,
+    7,
+    22
+  ],
+  "stats": {
+    "adm": 4,
+    "dip": 4,
+    "mil": 3
+  },
+  "traits": [
+    "administrator"
+  ]
+}

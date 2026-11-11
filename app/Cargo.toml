@@ -9,6 +9,7 @@ build = "build.rs"
 custom-protocol = ["tauri/custom-protocol"]
 
 [dependencies]
+serde = { version = "=1.0.229", features = ["derive"] }
 tauri = "=2.12.5"
 strategy-sim = { path = "../crates/sim" }
 strategy-net = { path = "../crates/net" }

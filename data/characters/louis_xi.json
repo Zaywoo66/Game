@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "key": "louis_xi",
+  "country": "fra",
+  "name": "Louis of France",
+  "dynasty": "valois",
+  "birth": [
+    1423,
+    7,
+    3
+  ],
+  "death": [
+    1483,
+    8,
+    30
+  ],
+  "stats": {
+    "adm": 5,
+    "dip": 5,
+    "mil": 3
+  },
+  "traits": [
+    "administrator"
+  ]
+}

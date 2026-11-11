@@ -1,7 +1,9 @@
 /// <reference types="vite/client" />
 
-import { useEffect, useRef, useState } from 'react';
-import { loadMapAssets, Province } from './mapData';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { CountryPanel, HostControls } from '../game/CountryPanel';
+import { CountryView, GameSnapshot, useGameHost } from '../game/host';
+import { loadMapAssets, Province, Rgba } from './mapData';
 import { BenchmarkSample, createMapViewer, MapTestControls } from './mapViewer';
 
 declare global {
@@ -54,13 +56,50 @@ function MapSources() {
   );
 }
 
+function provinceColors(
+  owners: GameSnapshot['owners'] | undefined,
+  countries: CountryView[] | undefined,
+): Map<number, Rgba> {
+  const colors = new Map<number, Rgba>();
+  if (!owners || !countries) return colors;
+  const byCountry = new Map<number, Rgba>();
+  for (const country of countries) {
+    if (!/^#[a-f\d]{6}$/i.test(country.color)) continue;
+    const rgb = Number.parseInt(country.color.slice(1), 16);
+    byCountry.set(country.id, [rgb >> 16, (rgb >> 8) & 0xff, rgb & 0xff, 255]);
+  }
+  for (const owner of owners) {
+    const color = byCountry.get(owner.country_id);
+    if (color) colors.set(owner.province_id, color);
+  }
+  return colors;
+}
+
 export function MapPage() {
   const viewport = useRef<HTMLDivElement>(null);
+  const viewerRef = useRef<ReturnType<typeof createMapViewer>>();
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
   const [error, setError] = useState('');
   const [selected, setSelected] = useState<Province | null>(null);
+  const [inspectedCountry, setInspectedCountry] = useState<number | null>(null);
   const [renderer, setRenderer] = useState('');
   const [benchmarkResult, setBenchmarkResult] = useState('Loading the map…');
+  const hostGame = useGameHost(!verify && !benchmark);
+  const game = hostGame.snapshot;
+  const hasGame = Boolean(game);
+  const colors = useMemo(
+    () => provinceColors(game?.owners, game?.countries),
+    [game?.owners, game?.countries],
+  );
+
+  useEffect(() => {
+    if (hasGame && status === 'ready') viewerRef.current?.setOwnerColors(colors);
+  }, [hasGame, status, colors]);
+
+  const ownerId = selected && game?.owners.find((owner) => owner.province_id === selected.id)?.country_id;
+  const shownCountryId = inspectedCountry ?? (selected ? ownerId : game?.local_country_id ?? game?.countries[0]?.id);
+  const shownCountry = game?.countries.find((country) => country.id === shownCountryId);
+  const provinceOwner = game?.countries.find((country) => country.id === ownerId);
 
   useEffect(() => {
     const host = viewport.current;
@@ -74,8 +113,12 @@ export function MapPage() {
       .then((assets) => {
         if (abort.signal.aborted) return;
         const { provinces } = assets;
-        const active = createMapViewer(host, assets, (id) => setSelected(provinces.get(id) ?? null));
+        const active = createMapViewer(host, assets, (id) => {
+          setSelected(provinces.get(id) ?? null);
+          setInspectedCountry(null);
+        });
         viewer = active;
+        viewerRef.current = active;
         setRenderer(active.renderer);
         if (verify) window.strategyMapTest = active.testControls;
         setStatus('ready');
@@ -104,6 +147,7 @@ export function MapPage() {
       window.clearTimeout(warmupTimer);
       window.clearTimeout(measurementTimer);
       if (viewer && window.strategyMapTest === viewer.testControls) delete window.strategyMapTest;
+      if (viewerRef.current === viewer) viewerRef.current = undefined;
       viewer?.dispose();
     };
   }, []);
@@ -126,19 +170,33 @@ export function MapPage() {
           </>
         )}
       </header>
+      {game && <HostControls game={game} pending={hostGame.pending} error={hostGame.commandError} send={hostGame.send} />}
+      {hostGame.connected && !game && (
+        <p className="game-clock map-panel" role={hostGame.connectionError ? 'alert' : 'status'}>
+          {hostGame.connectionError || 'Connecting to the game host…'}
+        </p>
+      )}
       {!benchmark && status !== 'ready' && (
         <p className="map-status map-panel" role="status">
           {status === 'loading' ? 'Loading terrain and provinces…' : error}
         </p>
       )}
-      <aside className="map-inspector map-panel" aria-live="polite" data-map-selected={selected?.id ?? 0}
+      <aside className={'map-inspector map-panel' + (game ? ' map-inspector--host' : '')}
+        data-map-selected={selected?.id ?? 0}
         hidden={benchmark || status !== 'ready'}>
-        {selected ? (
-          <>
-            <h2>{nameOf(selected.key)}</h2>
-            <p>Province {selected.id} · {nameOf(selected.kind)} · {nameOf(selected.terrain)}</p>
-          </>
-        ) : <p>Click a province to inspect it</p>}
+        <div aria-live="polite">
+          {selected ? (
+            <>
+              <h2>{nameOf(selected.key)}</h2>
+              <p>Province {selected.id} · {nameOf(selected.kind)} · {nameOf(selected.terrain)}</p>
+              {game && <p>Owner · {provinceOwner?.name ?? 'Unowned'}</p>}
+            </>
+          ) : <p>Click a province to inspect it</p>}
+        </div>
+        {game && (
+          <CountryPanel game={game} country={shownCountry} pending={hostGame.pending}
+            onSelect={setInspectedCountry} send={hostGame.send} />
+        )}
       </aside>
     </main>
   );

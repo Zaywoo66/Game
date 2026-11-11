@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "tag": "por",
+  "name": "Kingdom of Portugal",
+  "color": [
+    63,
+    143,
+    107
+  ],
+  "capital": "lisboa",
+  "ai_profile": "mercantile",
+  "start": {
+    "ruler": "afonso_v_portugal",
+    "heir": "ferdinand_viseu",
+    "provinces": [
+      "algarve",
+      "lisboa",
+      "porto"
+    ],
+    "treasury": 90000,
+    "tax_rate": 240,
+    "monthly_spending": 6000
+  }
+}

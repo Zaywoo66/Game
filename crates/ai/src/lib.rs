@@ -1,6 +1,9 @@
 //! Host-side AI decision entry point.
 
-use strategy_sim::{derive_ai_rng, Command, CountryId, GameState, SeededRng};
+use strategy_sim::{
+    derive_ai_rng, Command, CommandActor, Controller, CountryId, FiscalPolicy, Fixed, GameState,
+    SeededRng,
+};
 
 /// Fresh context for one country's decision on one simulation tick.
 pub struct AiContext {
@@ -19,15 +22,107 @@ impl AiContext {
     }
 }
 
-/// Reason codes will be introduced with the decisions that use them.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Reason {}
+pub enum Reason {
+    ProfileBudget,
+    AvoidDebt,
+    RecoverDebt,
+    NominateSuccessor,
+}
 
-/// M1 stub. The host validates any future commands through the simulation.
+/// Chooses L0 fiscal and succession commands without mutating the simulation.
 pub fn decide(
-    _state: &GameState,
-    _country: CountryId,
+    state: &GameState,
+    country: CountryId,
     _ctx: &mut AiContext,
 ) -> Vec<(Command, Reason)> {
-    Vec::new()
+    let Some(polity) = state.polity() else {
+        return Vec::new();
+    };
+    let Some(nation) = state.country_polity(country) else {
+        return Vec::new();
+    };
+    let Some(Controller::Ai(profile_key)) = state.country(country).map(|state| state.controller())
+    else {
+        return Vec::new();
+    };
+    let Some(profile) = polity.ai_profiles.get(profile_key.as_str()) else {
+        return Vec::new();
+    };
+
+    let actor = CommandActor::Ai(country);
+    let mut commands = Vec::with_capacity(2);
+    let economy_period = 28;
+    if (state.time().tick().get() % economy_period + u64::from(country.get())) % economy_period == 0
+    {
+        if let Some(decision) = fiscal_decision(state, country, profile) {
+            commands.push(decision);
+        }
+    }
+
+    let candidates = state.eligible_heirs(country);
+    if !nation
+        .succession
+        .heir
+        .is_some_and(|heir| candidates.contains(&heir))
+    {
+        let ruler_dynasty = nation
+            .succession
+            .ruler
+            .and_then(|id| state.character(id))
+            .map(|character| character.dynasty.as_str());
+        let candidate = candidates
+            .iter()
+            .copied()
+            .find(|id| {
+                state
+                    .character(*id)
+                    .is_some_and(|candidate| Some(candidate.dynasty.as_str()) == ruler_dynasty)
+            })
+            .or_else(|| candidates.first().copied());
+        if let Some(heir) = candidate {
+            let command = Command::NominateHeir {
+                country,
+                heir: Some(heir),
+            };
+            if state.validate_command(actor, &command).is_ok() {
+                commands.push((command, Reason::NominateSuccessor));
+            }
+        }
+    }
+    commands
+}
+
+fn fiscal_decision(
+    state: &GameState,
+    country: CountryId,
+    profile: &strategy_sim::FiscalAiProfile,
+) -> Option<(Command, Reason)> {
+    let rules = &state.polity()?.rules;
+    let economy = &state.country_polity(country)?.economy;
+    let preferred = FiscalPolicy {
+        tax_rate: profile.preferred_tax_rate,
+        monthly_spending: profile.preferred_monthly_spending,
+    };
+    let debt_policy = FiscalPolicy {
+        tax_rate: rules.max_tax_rate,
+        monthly_spending: Fixed::ZERO,
+    };
+    let (policy, reason) = if economy.treasury < Fixed::ZERO || economy.bankrupt {
+        (debt_policy, Reason::RecoverDebt)
+    } else if state
+        .preview_monthly_economy(country, preferred)
+        .is_ok_and(|economy| economy.treasury >= Fixed::ZERO && !economy.bankrupt)
+    {
+        (preferred, Reason::ProfileBudget)
+    } else {
+        (debt_policy, Reason::AvoidDebt)
+    };
+    let command = Command::SetFiscalPolicy { country, policy };
+    (policy != economy.policy
+        && state.preview_monthly_economy(country, policy).is_ok()
+        && state
+            .validate_command(CommandActor::Ai(country), &command)
+            .is_ok())
+    .then_some((command, reason))
 }

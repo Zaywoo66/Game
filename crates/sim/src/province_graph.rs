@@ -218,7 +218,7 @@ impl ProvinceGraph {
     }
 }
 
-fn is_content_key(key: &str) -> bool {
+pub(crate) fn is_content_key(key: &str) -> bool {
     key.starts_with(|c: char| c.is_ascii_lowercase())
         && key.split('_').all(|part| {
             !part.is_empty()

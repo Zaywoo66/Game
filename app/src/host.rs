@@ -1,11 +1,60 @@
-use std::panic::{catch_unwind, AssertUnwindSafe};
+use std::{
+    collections::{BTreeMap, VecDeque},
+    panic::{catch_unwind, AssertUnwindSafe},
+};
 
 use strategy_ai::{decide, AiContext, Reason};
-use strategy_sim::{Command, CountryId, GameState, TickReport, TimeError};
+use strategy_sim::{Command, CountryId, GameState, Tick, TickReport, TimeError};
+
+const AI_LOG_CAPACITY: usize = 128;
+
+#[derive(Clone, Debug)]
+pub struct AiDecision {
+    pub tick: Tick,
+    pub country: CountryId,
+    pub command: Command,
+    pub reason: Reason,
+}
+
+#[derive(Default)]
+pub struct AiDecisionLog(BTreeMap<CountryId, VecDeque<AiDecision>>);
+
+impl AiDecisionLog {
+    pub fn entries(&self) -> impl Iterator<Item = &AiDecision> {
+        self.0.values().flatten()
+    }
+
+    fn record(&mut self, decision: AiDecision) {
+        let decisions = self.0.entry(decision.country).or_default();
+        if decisions.len() == AI_LOG_CAPACITY {
+            decisions.pop_front();
+        }
+        decisions.push_back(decision);
+    }
+}
 
 /// Advances the authoritative simulation with the host's AI implementation.
 pub fn tick_host(state: &mut GameState) -> Result<TickReport, TimeError> {
     tick_with_decider(state, decide)
+}
+
+/// Advances a live session and retains a bounded record of AI commands.
+pub fn tick_host_with_log(
+    state: &mut GameState,
+    log: &mut AiDecisionLog,
+) -> Result<TickReport, TimeError> {
+    tick_with_decider(state, |snapshot, country, context| {
+        let commands = decide(snapshot, country, context);
+        for (command, reason) in &commands {
+            log.record(AiDecision {
+                tick: snapshot.time().tick(),
+                country,
+                command: command.clone(),
+                reason: *reason,
+            });
+        }
+        commands
+    })
 }
 
 fn tick_with_decider(

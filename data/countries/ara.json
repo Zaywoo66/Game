@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "tag": "ara",
+  "name": "Crown of Aragon",
+  "color": [
+    209,
+    142,
+    63
+  ],
+  "capital": "aragon",
+  "ai_profile": "mercantile",
+  "start": {
+    "ruler": "alfonso_v_aragon",
+    "heir": "john_ii_aragon",
+    "provinces": [
+      "aragon",
+      "catalonia",
+      "valencia"
+    ],
+    "treasury": 85000,
+    "tax_rate": 220,
+    "monthly_spending": 6500
+  }
+}

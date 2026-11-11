@@ -62,7 +62,7 @@ pub fn effective_value(base: Fixed, key: &ModKey, modifiers: &[Modifier]) -> Opt
     effective_value_from(base, key, modifiers.iter())
 }
 
-fn effective_value_from<'a>(
+pub(crate) fn effective_value_from<'a>(
     base: Fixed,
     key: &ModKey,
     modifiers: impl Iterator<Item = &'a Modifier>,

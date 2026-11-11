@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "key": "balanced",
+  "weights": {
+    "aggression": 450,
+    "expansion": 500,
+    "caution": 550,
+    "diplomacy": 500,
+    "economy": 650,
+    "naval": 400,
+    "loyalty": 600
+  },
+  "thresholds": {
+    "war_min_score": 250,
+    "peace_accept_score": 75,
+    "alliance_min_opinion": 30
+  },
+  "preferred_tax_rate": 230,
+  "preferred_monthly_spending": 6000
+}

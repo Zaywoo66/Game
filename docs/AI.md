@@ -17,12 +17,19 @@ Every country not controlled by a human is played by AI. Humans: 2 (host + frien
 - Host tick: after scheduled events, for each AI country (ascending `CountryId`) whose turn it is, call `decide`, validate and apply the returned commands (see SIM_RULES.md tick order).
 - Country control: `controller: Human(player_id) | Ai(profile_key)`, stored in `GameState`, set from the lobby/scenario. Changing it is a host-only command.
 
-The M1 stub returns no commands. `strategy_app::tick_host` supplies it to
-the simulation's ordered callback, with a fresh `AiContext` for each
-country and tick. The host catches and logs a panic for the affected country
-and continues dispatching. The workspace replay test exercises 10,000 ticks
-with every country using the stub. It reloads one run at the halfway point
-and compares canonical state hashes at the checkpoint and end.
+The host supplies the decider to the simulation's ordered callback with a
+fresh `AiContext` for each country and tick. It catches and logs a panic for
+the affected country and continues dispatching. A game without polity
+retains the M1 stub behavior.
+
+L0 checks its budget every 28 ticks, staggered by country ID. It prefers
+the taxes and spending from its profile when the next budget is solvent.
+If debt is projected or already present, it raises taxes to the scenario
+cap and suspends spending until it can afford its preferred budget again.
+When a valid heir is absent, it picks the oldest eligible character of
+the ruler's dynasty, then the oldest remaining eligible character, with
+character ID breaking age ties. The host retains the last 128 decisions
+per country with their command and reason.
 
 ## Decision layers (utility scoring, not machine learning)
 | Layer | Cadence | Decides |

@@ -28,6 +28,7 @@ export interface MapTestControls {
 
 interface MapViewer {
   renderer: string;
+  setOwnerColors(colors: ReadonlyMap<number, Rgba>): void;
   startBenchmark(): void;
   readBenchmark(): BenchmarkSample;
   testControls: MapTestControls;
@@ -249,6 +250,14 @@ export function createMapViewer(
     };
   }
 
+  function setOwnerColors(colors: ReadonlyMap<number, Rgba>) {
+    let changed = false;
+    for (const id of provinces.keys()) {
+      if (updateOwnerLookup(ownerBytes, id, colors.get(id) ?? [0, 0, 0, 0])) changed = true;
+    }
+    if (changed) ownerTexture.needsUpdate = true;
+  }
+
   let press: { x: number; y: number; id: number } | null = null;
   function pointerDown(event: PointerEvent) {
     if (event.button === 0 && event.isPrimary) {
@@ -314,6 +323,7 @@ export function createMapViewer(
 
   return {
     renderer: gpu,
+    setOwnerColors,
     startBenchmark,
     readBenchmark,
     testControls: { decodeProvinceId, pickAt, projectProvince, setOwnerColor, startBenchmark, readBenchmark },

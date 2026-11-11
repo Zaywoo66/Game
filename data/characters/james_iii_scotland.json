@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "key": "james_iii_scotland",
+  "country": "sco",
+  "name": "James of Scotland",
+  "dynasty": "stewart",
+  "birth": [
+    1451,
+    7,
+    10
+  ],
+  "death": [
+    1488,
+    6,
+    11
+  ],
+  "stats": {
+    "adm": 3,
+    "dip": 2,
+    "mil": 2
+  },
+  "traits": []
+}

@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "key": "henry_iv_castile",
+  "country": "cas",
+  "name": "Henry of Castile",
+  "dynasty": "trastamara_castile",
+  "birth": [
+    1425,
+    1,
+    5
+  ],
+  "death": [
+    1474,
+    12,
+    11
+  ],
+  "stats": {
+    "adm": 2,
+    "dip": 3,
+    "mil": 2
+  },
+  "traits": []
+}
