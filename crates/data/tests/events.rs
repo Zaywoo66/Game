@@ -87,6 +87,13 @@ fn rejects_unknown_trigger_effect_and_missing_ai_weight() {
 fn rejects_invalid_units_keys_and_repeat_rules() {
     let fractional = VALID.replace("mean_time_to_happen: 365", "mean_time_to_happen: 0.5");
     assert!(parse_event_yaml(&fractional).is_err());
+    for noncanonical in ["012", "1_000"] {
+        let yaml = VALID.replace(
+            "mean_time_to_happen: 365",
+            &format!("mean_time_to_happen: {noncanonical}"),
+        );
+        assert!(parse_event_yaml(&yaml).is_err());
+    }
 
     let bad_key = VALID.replace("key: harvest_festival", "key: harvest__festival");
     assert!(matches!(
