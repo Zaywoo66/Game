@@ -137,6 +137,99 @@ async fn lan_players_can_reject_accept_and_break_alliance_proposals() {
     .unwrap();
 }
 
+#[tokio::test]
+async fn lan_guest_guarantee_and_revoke_replicate_to_host_and_guest() {
+    let scenario = load_embedded_scenario().unwrap();
+    let graph = scenario.province_graph().clone();
+    let host_id = CountryId::new(country(&scenario, "por"));
+    let guest_id = CountryId::new(country(&scenario, "sco"));
+    let host = LanHost::start(
+        HostConfig {
+            room: "Guarantee commands".into(),
+            host_country_id: host_id.get(),
+            guest_country_id: guest_id.get(),
+            ai_preset: AiPreset::Balanced,
+            grace_minutes: 0,
+            port: 0,
+        },
+        scenario,
+    )
+    .await
+    .unwrap();
+    let guest = LanClient::join(host.address(), "Guarantee guest".into(), graph)
+        .await
+        .unwrap();
+    let mut view = guest.subscribe();
+    guest
+        .command(Command::Guarantee {
+            country: guest_id,
+            protected: host_id,
+        })
+        .await
+        .unwrap();
+    assert!(host
+        .view()
+        .game
+        .diplomacy()
+        .unwrap()
+        .guarantees(guest_id, host_id));
+    timeout(WAIT, async {
+        loop {
+            if view
+                .borrow()
+                .game
+                .diplomacy()
+                .is_some_and(|d| d.guarantees(guest_id, host_id))
+            {
+                break;
+            }
+            view.changed().await.unwrap();
+        }
+    })
+    .await
+    .unwrap();
+    guest
+        .command(Command::RevokeGuarantee {
+            country: guest_id,
+            protected: host_id,
+        })
+        .await
+        .unwrap();
+    assert!(!host
+        .view()
+        .game
+        .diplomacy()
+        .unwrap()
+        .guarantees(guest_id, host_id));
+    assert_eq!(
+        host.view()
+            .game
+            .opinion(host_id, guest_id)
+            .unwrap()
+            .points(),
+        -10
+    );
+    timeout(WAIT, async {
+        loop {
+            let updated = {
+                let current = view.borrow();
+                let game = &current.game;
+                game.diplomacy()
+                    .is_some_and(|d| !d.guarantees(guest_id, host_id))
+                    && game
+                        .opinion(host_id, guest_id)
+                        .is_some_and(|o| o.points() == -10)
+            };
+            if updated {
+                break;
+            }
+            view.changed().await.unwrap();
+        }
+    })
+    .await
+    .unwrap();
+}
+
 fn country(game: &GameState, tag: &str) -> u32 {
     let countries = &game.polity().unwrap().countries;
     countries
