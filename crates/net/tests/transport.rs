@@ -20,8 +20,8 @@ fn handshake_rejects_each_incompatible_identity_component() {
     let map = identity();
     assert_eq!(validate_hello(PROTOCOL_VERSION, 2, [42; 32], map), Ok(()));
     assert_eq!(
-        validate_hello(0, 2, [42; 32], map),
-        Err(HandshakeError::ProtocolVersion { received: 0 })
+        validate_hello(1, 2, [42; 32], map),
+        Err(HandshakeError::ProtocolVersion { received: 1 })
     );
     assert_eq!(
         validate_hello(PROTOCOL_VERSION, 1, [42; 32], map),
@@ -204,6 +204,13 @@ async fn loopback_tcp_exchanges_handshake_command_and_consecutive_frames() {
             write_server(&mut stream, &ServerMessage::Pong { nonce: 9 })
                 .await
                 .unwrap();
+            write_server(&mut stream, &ServerMessage::Ping { nonce: 10 })
+                .await
+                .unwrap();
+            assert_eq!(
+                read_client(&mut stream).await.unwrap(),
+                Some(ClientMessage::Pong { nonce: 10 })
+            );
         };
         let guest = async {
             let mut stream = TcpStream::connect(endpoint).await.unwrap();
@@ -257,6 +264,13 @@ async fn loopback_tcp_exchanges_handshake_command_and_consecutive_frames() {
                 read_server(&mut stream).await.unwrap(),
                 Some(ServerMessage::Pong { nonce: 9 })
             );
+            assert_eq!(
+                read_server(&mut stream).await.unwrap(),
+                Some(ServerMessage::Ping { nonce: 10 })
+            );
+            write_client(&mut stream, &ClientMessage::Pong { nonce: 10 })
+                .await
+                .unwrap();
             assert_eq!(read_server(&mut stream).await.unwrap(), None);
         };
         tokio::join!(host, guest);

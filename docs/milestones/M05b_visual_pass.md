@@ -6,7 +6,7 @@ Why: M2-M5 acceptance was technical only. Later systems (diplomacy, naval, AI) a
 - Rebuild the Western Europe + British Isles slice with city-seeded provinces per MAP_SCALE.md (target ~400-600), plus areas.yaml and regions.yaml.
 - Reassign start ownership by polygon overlap + overrides; keep existing countries and rulers.
 - Calibrate movement speed/edge costs so adjacent-province marches take ~3-10 days; record in DECISIONS.md.
-- Re-measure tick time, FPS, RAM at the new density; record.
+- Re-measure tick time, FPS, RAM, full LAN snapshot size and delta traffic at the new density. Record snapshot bytes and delta bytes over a stated interval in 5b.3.
 - Old saves are rejected (map hash); new saves round-trip.
 
 ## B. Map visuals

@@ -2,14 +2,14 @@
 Docs: NETWORK.md, ARCHITECTURE.md
 
 ## Tasks
-- Protocol v1, host-authoritative server in app, client mode
+- Protocol v2, host-authoritative server in app, client mode
 - mDNS discovery + manual IP entry; room lobby UI
 - Deltas, checksum, resync, pause/speed rules, reconnect
 - Loopback integration tests
 
 ## Acceptance
-- Two native game instances on the available Windows PC play for one hour with zero checksum mismatches, per D4
-- Cross-PC LAN compatibility remains open
+- Two physical Windows PCs play for one hour on the same LAN with zero unexplained checksum mismatches and no crash. Use [the acceptance checklist](../LAN_ACCEPTANCE.md).
+- Record the second GPU, FPS, discovery result and connection details in D4.
 - Firewall and router-isolation troubleshooting in README
 
 ## AI slice (required)

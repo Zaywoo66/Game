@@ -1,6 +1,7 @@
 # DECISIONS (log + open questions)
 
 ## Open
+- D4 Windows x64 is the current test platform. The first PC has a verified Tauri launch and GPU measurement. The second player's GPU and FPS and a one-hour LAN session on two physical Windows PCs remain open. Same-PC runs verify loopback behavior.
 - D8 Disconnect policy. ASSUMED: hold the country for a grace period, then the host may enable temporary AI. M5 exposes a host-selected 0–60 minute grace, initially 2 minutes. Resume tokens last for the running guest process and reserve its seat for the room lifetime. A permanent guest app exit requires recreating the room. This remains a prototype policy for review.
 - D9 AI visibility. ASSUMED: AI sees the full state in beta, with no fog of war.
 - D10 AI difficulty. ASSUMED: no cheats by default. Bonuses require explicit modifiers.
@@ -12,7 +13,6 @@
 - D2 Time controls: either human player may pause or resume. Only the host sets speed.
 - D0 Stack: Rust sim/net, Tauri 2, React/TS UI, three.js map. Fallback if WebView/WebGL fails: Godot.
 - D3 Network: host-authoritative with deltas; lockstep deferred.
-- D4 Windows x64 is the current test platform. The owner approved proceeding with the verified Tauri launch on the available PC because a second Windows PC is unavailable. M5 exercises separate host and client instances on this machine. Cross-PC compatibility remains unmeasured.
 - D5 First vertical-slice region: Western Europe and the British Isles, with 5–8 countries. Slice target ~400–600 provinces (supersedes the ~100-province target, which was too coarse). Confirm density in M5b and record the measurements here.
 - D6 Graphics: 3D terrain + low-poly instanced units, 2D UI; gameplay is province-graph based.
 - D7 Scope: beta starts in 1440 and covers Europe, the Mediterranean and the Near East, with content to ~1500. Density follows MAP_SCALE.md. The world map follows the beta in M13.

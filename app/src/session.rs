@@ -7,7 +7,7 @@ use std::{
 
 use serde::{Deserialize, Serialize};
 use strategy_app::{
-    lan::{ClientPhase, HostConfig, LanClient, LanHost},
+    lan::{ClientPhase, HostConfig, LanClient, LanHost, LanMetrics},
     load_embedded_scenario, tick_host_with_log, AiDecisionLog,
 };
 use strategy_net::discover_rooms;
@@ -22,6 +22,10 @@ const GUEST: PlayerId = PlayerId::new(2);
 const UPDATE_EVENT: &str = "strategy:update";
 const LAN_EVENT: &str = "strategy:lan";
 
+mod lan_log;
+
+use lan_log::LanLog;
+
 pub(crate) struct Session {
     game: GameState,
     sequence: u64,
@@ -35,6 +39,8 @@ pub(crate) struct Session {
     network_sequence: u64,
     client_revision: u64,
     last_lan_status: Option<LanStatus>,
+    lan_log: Option<LanLog>,
+    exit_code: i32,
 }
 
 #[derive(Clone)]
@@ -357,7 +363,20 @@ impl UiCommand {
 }
 
 pub(crate) fn setup(app: &mut App) -> Result<(), Box<dyn std::error::Error>> {
-    let startup = Startup::parse(std::env::args().skip(1))?;
+    let mut args = std::env::args().skip(1).peekable();
+    let lan_log = if args.peek().is_some_and(|argument| argument == "--lan-log") {
+        args.next();
+        let path = args.next().ok_or_else(|| {
+            std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                "Supply a new LAN log file path.",
+            )
+        })?;
+        Some(LanLog::open(std::path::Path::new(&path))?)
+    } else {
+        None
+    };
+    let startup = Startup::parse(args)?;
     let game = load_embedded_scenario().map_err(std::io::Error::other)?;
     let visible_countries = country_views(&game);
     let visible_owners = owner_views(&game);
@@ -375,6 +394,8 @@ pub(crate) fn setup(app: &mut App) -> Result<(), Box<dyn std::error::Error>> {
         network_sequence: 0,
         client_revision: 0,
         last_lan_status: None,
+        lan_log,
+        exit_code: 0,
     }));
 
     let handle = app.handle().clone();
@@ -589,6 +610,7 @@ pub(crate) async fn lan_start(
     }
     session.mode = Mode::Host(host);
     reset_game(&mut session, &view.game, view.sequence);
+    start_lan_log(&mut session, "host");
     Ok(emit_lan_status(&app, &mut session))
 }
 
@@ -616,6 +638,7 @@ pub(crate) async fn lan_join(
     session.mode = Mode::Guest(client);
     reset_game(&mut session, &view.game, view.sequence);
     session.client_revision = view.revision;
+    start_lan_log(&mut session, "guest");
     Ok(emit_lan_status(&app, &mut session))
 }
 
@@ -629,6 +652,7 @@ pub(crate) fn lan_leave(
         .lock()
         .map_err(|_| "The game session is unavailable.")?;
     session.operation += 1;
+    finish_lan_log(&mut session, "room_leave");
     session.mode = Mode::Solo;
     reset_game(&mut session, &game, 0);
     Ok(emit_lan_status(&app, &mut session))
@@ -696,6 +720,17 @@ fn run_clock(app: AppHandle) {
         let speed = time.speed();
         let paused = time.is_paused();
         let now = Instant::now();
+        if session
+            .lan_log
+            .as_ref()
+            .is_some_and(|log| log.sample_due(now))
+        {
+            let tick = session.game.time().tick().get();
+            let metrics = network_metrics(&session.mode);
+            if let Some(log) = &mut session.lan_log {
+                log.sample(now, tick, metrics);
+            }
+        }
         let period = Duration::from_millis(1_000 >> (speed.get() - 1));
         let clock_state = (session.generation, speed, paused);
         if previous != Some(clock_state) {
@@ -719,10 +754,64 @@ fn run_clock(app: AppHandle) {
             Ok(()) => {}
             Err(error) => {
                 eprintln!("Host clock stopped: {error}");
+                finish_lan_log(&mut session, "host_clock_error");
                 return;
             }
         }
         deadline = now + period;
+    }
+}
+
+fn network_metrics(mode: &Mode) -> LanMetrics {
+    match mode {
+        Mode::Solo => LanMetrics::default(),
+        Mode::Host(host) => host.metrics(),
+        Mode::Guest(client) => client.metrics(),
+    }
+}
+
+fn start_lan_log(session: &mut Session, role: &'static str) {
+    let tick = session.game.time().tick().get();
+    if let Some(log) = &mut session.lan_log {
+        log.start(role, tick);
+    }
+}
+
+fn finish_lan_log(session: &mut Session, reason: &str) {
+    if session.lan_log.is_some() {
+        let tick = session.game.time().tick().get();
+        let metrics = network_metrics(&session.mode);
+        if let Some(log) = &mut session.lan_log {
+            log.finish(reason, tick, metrics);
+        }
+    }
+}
+
+pub(crate) fn on_app_event(app: &AppHandle, event: tauri::RunEvent) {
+    if !matches!(
+        event,
+        tauri::RunEvent::ExitRequested { .. } | tauri::RunEvent::Exit
+    ) {
+        return;
+    }
+    let Some(state) = app.try_state::<Mutex<Session>>() else {
+        return;
+    };
+    let Ok(mut session) = state.lock() else {
+        return;
+    };
+    match event {
+        tauri::RunEvent::ExitRequested {
+            code: Some(code), ..
+        } => session.exit_code = code,
+        tauri::RunEvent::Exit => {
+            finish_lan_log(&mut session, "app_exit");
+            let code = session.exit_code;
+            if let Some(log) = &mut session.lan_log {
+                log.exit(code);
+            }
+        }
+        _ => {}
     }
 }
 

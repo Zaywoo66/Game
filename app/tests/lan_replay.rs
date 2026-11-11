@@ -1,8 +1,8 @@
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use strategy_app::{
     lan::{AiPreset, ClientPhase, HostConfig, LanClient, LanHost},
-    load_embedded_scenario,
+    load_embedded_scenario, tick_host_with_log, AiDecisionLog,
 };
 use strategy_data::{load_game, save_game};
 use strategy_net::{
@@ -10,7 +10,7 @@ use strategy_net::{
     LobbyController, PlayerCommand, ServerMessage, PROTOCOL_VERSION,
 };
 use strategy_sim::{
-    Command, CommandActor, Controller, CountryId, GameState, PlayerId, Speed, TimeCommand,
+    Command, CommandActor, Controller, CountryId, Date, GameState, PlayerId, Speed, TimeCommand,
 };
 use tokio::{
     net::{TcpListener, TcpStream},
@@ -114,6 +114,180 @@ async fn lan_guest_matches_host_after_ten_thousand_ticks_with_ai() {
 }
 
 #[tokio::test]
+async fn lan_metrics_capture_checksums_and_ping_on_both_peers() {
+    let scenario = load_embedded_scenario().unwrap();
+    let graph = scenario.province_graph().clone();
+    let host = LanHost::start(
+        HostConfig {
+            room: "Metrics test".into(),
+            host_country_id: country(&scenario, "por"),
+            guest_country_id: country(&scenario, "sco"),
+            ai_preset: AiPreset::Balanced,
+            grace_minutes: 0,
+            port: 0,
+        },
+        scenario,
+    )
+    .await
+    .unwrap();
+    let guest = LanClient::join(host.address(), "Metrics guest".into(), graph)
+        .await
+        .unwrap();
+    guest
+        .command(Command::Time(TimeCommand::SetPaused(false)))
+        .await
+        .unwrap();
+    for _ in 0..30 {
+        host.tick().unwrap();
+    }
+
+    let (host_metrics, guest_metrics) = timeout(WAIT, async {
+        loop {
+            let host_metrics = host.metrics();
+            let guest_metrics = guest.metrics();
+            if host_metrics.ping_samples > 0
+                && guest_metrics.ping_samples > 0
+                && guest_metrics.checksums > 0
+            {
+                break (host_metrics, guest_metrics);
+            }
+            tokio::time::sleep(Duration::from_millis(10)).await;
+        }
+    })
+    .await
+    .expect("both peers should report RTT and the guest should verify a checksum");
+    let checksum = canonical_checksum(&save_game(&host.view().game).unwrap());
+    for metrics in [host_metrics, guest_metrics] {
+        assert_eq!(metrics.checksums, 1);
+        assert_eq!(metrics.last_checksum, Some((30, checksum)));
+        assert_eq!(metrics.mismatches, 0);
+        assert_eq!(metrics.resyncs, 0);
+        let mean = metrics.ping_mean_ms.unwrap();
+        assert!(metrics.ping_min_ms.unwrap() <= mean);
+        assert!(mean <= metrics.ping_max_ms.unwrap());
+    }
+}
+
+#[tokio::test]
+#[ignore = "accelerated 350-year TCP soak, run explicitly"]
+async fn lan_guest_matches_host_from_1440_through_1790() {
+    const TICKS: u64 = 127_836;
+    const CHECKSUM_INTERVAL: u64 = 30;
+    const CHECKPOINT_BATCHES: u64 = 100;
+    let started = Instant::now();
+    let start = Date::new(1440, 1, 1).unwrap();
+    let end = Date::new(1790, 1, 1).unwrap();
+    assert_eq!(start.checked_add_days(TICKS), Some(end));
+
+    let scenario = load_embedded_scenario().unwrap();
+    let graph = scenario.province_graph().clone();
+    let host_country_id = country(&scenario, "por");
+    let guest_country_id = country(&scenario, "sco");
+    let host = LanHost::start(
+        HostConfig {
+            room: "350-year soak".into(),
+            host_country_id,
+            guest_country_id,
+            ai_preset: AiPreset::Aggressive,
+            grace_minutes: 0,
+            port: 0,
+        },
+        scenario,
+    )
+    .await
+    .unwrap();
+    let guest = LanClient::join(host.address(), "Soak guest".into(), graph.clone())
+        .await
+        .unwrap();
+    let mut received = guest.subscribe();
+    guest
+        .command(Command::Time(TimeCommand::SetPaused(false)))
+        .await
+        .unwrap();
+
+    // Drive an independent copy to surface typed failures and caught AI panics.
+    let mut oracle = (*host.view().game).clone();
+    let mut decisions = AiDecisionLog::default();
+    assert_eq!(oracle.time().date(), start);
+    assert!(!oracle.time().is_paused());
+    for (country, player) in [(host_country_id, 1), (guest_country_id, 2)] {
+        assert_eq!(
+            oracle
+                .country(CountryId::new(country))
+                .unwrap()
+                .controller(),
+            &Controller::Human(PlayerId::new(player)),
+        );
+    }
+    assert!(oracle
+        .countries()
+        .any(|(_, country)| matches!(country.controller(), Controller::Ai(_))));
+
+    for first in (0..TICKS).step_by(CHECKSUM_INTERVAL as usize) {
+        let target = (first + CHECKSUM_INTERVAL).min(TICKS);
+        for tick in first + 1..=target {
+            host.tick()
+                .unwrap_or_else(|error| panic!("host tick {tick}: {error}"));
+            let report = tick_host_with_log(&mut oracle, &mut decisions)
+                .unwrap_or_else(|error| panic!("oracle tick {tick}: {error:?}"));
+            assert!(
+                report.ai_rejections.is_empty()
+                    && report.scheduled_failures.is_empty()
+                    && report.polity_failures.is_empty()
+                    && report.military_failures.is_empty()
+                    && decisions.failures() == 0,
+                "simulation failure at tick {tick}: {report:?}",
+            );
+        }
+
+        // Leave the broadcast queue room for the checksum and let the
+        // real TCP guest finish this batch before publishing another.
+        let current = timeout(
+            WAIT,
+            received.wait_for(|view| view.game.time().tick().get() == target),
+        )
+        .await
+        .unwrap_or_else(|_| panic!("guest did not receive tick {target}"))
+        .unwrap();
+        assert_eq!(current.phase, ClientPhase::Connected);
+        assert_eq!(current.checksum_mismatches, 0, "tick {target}");
+
+        if target % (CHECKSUM_INTERVAL * CHECKPOINT_BATCHES) == 0 || target == TICKS {
+            let authoritative = host.view();
+            assert_eq!(current.sequence, authoritative.sequence, "tick {target}");
+            let host_bytes = save_game(&authoritative.game).unwrap();
+            assert_eq!(
+                save_game(&current.game).unwrap(),
+                host_bytes,
+                "tick {target}"
+            );
+            assert_eq!(save_game(&oracle).unwrap(), host_bytes, "tick {target}");
+            let reloaded = load_game(&host_bytes, graph.clone()).unwrap();
+            assert_eq!(save_game(&reloaded).unwrap(), host_bytes, "tick {target}");
+        }
+    }
+
+    let result = received.borrow();
+    let expected_checksums = TICKS / CHECKSUM_INTERVAL;
+    assert_eq!(result.game.time().date(), end);
+    assert!(
+        result.verified_checksums > 0
+            && result.verified_checksums + result.revision >= expected_checksums,
+        "only {} of {expected_checksums} checksums verified, with {} replacement snapshots",
+        result.verified_checksums,
+        result.revision,
+    );
+    assert!(!result.game.war_state().unwrap().treaties.is_empty());
+    eprintln!(
+        "Accelerated LAN soak: {TICKS} ticks, {} verified checksums, {} mismatches, {} replacement snapshots, {:.2?} elapsed",
+        result.verified_checksums,
+        result.checksum_mismatches,
+        result.revision,
+        started.elapsed(),
+    );
+}
+
+#[tokio::test]
 async fn client_requests_snapshot_on_mismatch_and_reconnects_with_original_token() {
     let mut scenario = load_embedded_scenario().unwrap();
     let graph = scenario.province_graph().clone();
@@ -192,6 +366,9 @@ async fn client_requests_snapshot_on_mismatch_and_reconnects_with_original_token
         assert_eq!(result.revision, 1);
         assert_eq!(result.game.time().speed(), Speed::Five);
     }
+    let metrics = client.metrics();
+    assert_eq!(metrics.mismatches, 1);
+    assert_eq!(metrics.resyncs, 1);
     disconnect.send(()).unwrap();
     {
         let result = timeout(

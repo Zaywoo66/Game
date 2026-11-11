@@ -41,6 +41,7 @@ fn main() {
     };
 
     builder
-        .run(tauri::generate_context!())
-        .expect("failed to run Strategy app");
+        .build(tauri::generate_context!())
+        .expect("failed to build Strategy app")
+        .run(session::on_app_event);
 }

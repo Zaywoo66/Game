@@ -19,7 +19,7 @@ const base = import.meta.env.BASE_URL + 'map/western_europe/';
 const options = new URLSearchParams(window.location.search);
 const verify = options.get('verify') === '1';
 const benchmark = options.get('benchmark') === '1';
-const manualFrames = import.meta.env.DEV && verify && !benchmark;
+const manualFrames = import.meta.env.DEV && !benchmark && (verify || options.get('testFrames') === '1');
 
 function nameOf(key: string): string {
   return key.replace(/_/g, ' ').replace(/\b\w/g, (character) => character.toUpperCase());

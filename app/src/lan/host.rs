@@ -23,6 +23,7 @@ use tokio::{
     time::timeout,
 };
 
+use super::metrics::{LanMetrics, Metrics, PingProbe};
 use crate::{tick_host_with_log, AiDecision, AiDecisionLog};
 
 const HOST: PlayerId = PlayerId::new(1);
@@ -72,6 +73,7 @@ struct Shared {
     config: HostConfig,
     address: SocketAddr,
     state: Mutex<RoomState>,
+    metrics: Mutex<Metrics>,
     updates: broadcast::Sender<Arc<ServerMessage>>,
     view: watch::Sender<HostView>,
     shutdown: watch::Sender<bool>,
@@ -155,6 +157,7 @@ impl LanHost {
                 advertisement,
                 detail,
             }),
+            metrics: Mutex::default(),
             updates,
             view,
             shutdown,
@@ -176,6 +179,10 @@ impl LanHost {
             }
         });
         Ok(Self { shared, listener })
+    }
+
+    pub fn metrics(&self) -> LanMetrics {
+        self.shared.metrics().snapshot()
     }
 
     pub fn address(&self) -> SocketAddr {
@@ -267,6 +274,28 @@ impl Drop for LanHost {
 }
 
 impl Shared {
+    fn metrics(&self) -> std::sync::MutexGuard<'_, Metrics> {
+        self.metrics
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+    }
+
+    async fn send_update(
+        &self,
+        writer: &mut (impl AsyncWrite + Unpin),
+        message: &ServerMessage,
+    ) -> Result<(), String> {
+        send(writer, message).await?;
+        match message {
+            ServerMessage::Checksum { tick, hash, .. } => {
+                self.metrics().record_checksum(*tick, *hash, true)
+            }
+            ServerMessage::Snapshot { .. } => self.metrics().record_resync(),
+            _ => {}
+        }
+        Ok(())
+    }
+
     fn lock(&self) -> Result<std::sync::MutexGuard<'_, RoomState>, String> {
         self.state
             .lock()
@@ -547,6 +576,7 @@ async fn serve_peer(shared: Arc<Shared>, mut socket: TcpStream) -> Result<(), St
     let mut sent = sequence_of(&initial).expect("snapshot sequence");
     let mut shutdown = shared.shutdown.subscribe();
     let mut connection_confirmed = false;
+    let mut ping = PingProbe::default();
     let (inbox, mut messages) = mpsc::channel(16);
     let _reader = PeerReader(tokio::spawn(async move {
         while let Ok(Ok(Some(message))) = timeout(PEER_IDLE, read_client(&mut reader)).await {
@@ -566,7 +596,18 @@ async fn serve_peer(shared: Arc<Shared>, mut socket: TcpStream) -> Result<(), St
                 Some(ClientMessage::Command { seq, command }) => shared.player_command(seq, command),
                 Some(ClientMessage::PauseRequest { seq, paused }) =>
                     shared.player_command(seq, PlayerCommand::SetPaused { paused }),
-                Some(ClientMessage::Ping { nonce }) => ServerMessage::Pong { nonce },
+                Some(ClientMessage::Ping { nonce }) => {
+                    send(&mut writer, &ServerMessage::Pong { nonce }).await?;
+                    ping.start(nonce);
+                    send(&mut writer, &ServerMessage::Ping { nonce }).await?;
+                    continue;
+                }
+                Some(ClientMessage::Pong { nonce }) => {
+                    if let Some(elapsed) = ping.complete(nonce) {
+                        shared.metrics().record_ping(elapsed);
+                    }
+                    continue;
+                }
                 Some(ClientMessage::Confirm { resume }) => {
                     let mut state = shared.lock()?;
                     if state.guest.token != Some(resume) {
@@ -605,7 +646,7 @@ async fn serve_peer(shared: Arc<Shared>, mut socket: TcpStream) -> Result<(), St
                             sent = sequence;
                         }
                     }
-                    send(&mut writer, &message).await?;
+                    shared.send_update(&mut writer, &message).await?;
                     continue;
                 }
                 Err(broadcast::error::RecvError::Lagged(_)) => snapshot(&*shared.lock()?),
@@ -615,7 +656,7 @@ async fn serve_peer(shared: Arc<Shared>, mut socket: TcpStream) -> Result<(), St
         if let Some(sequence) = sequence_of(&message) {
             sent = sequence;
         }
-        send(&mut writer, &message).await?;
+        shared.send_update(&mut writer, &message).await?;
     }
     Ok(())
 }

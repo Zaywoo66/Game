@@ -99,7 +99,7 @@ async function ipcCall(page, name) {
 
 test('M5 host selects both human seats and opts into AI after the grace period', async ({ page }) => {
   await mockLan(page);
-  await page.goto('/');
+  await page.goto('/?testFrames=1');
   const lobby = await openLobby(page);
   const form = lobby.getByRole('form', { name: 'Host a LAN game' });
   await expect(form).toBeVisible();
@@ -139,7 +139,7 @@ test('M5 host selects both human seats and opts into AI after the grace period',
 
 test('M5 guest joins discovery or manual address and refreshes the authoritative snapshot on reconnect', async ({ page }) => {
   await mockLan(page);
-  await page.goto('/');
+  await page.goto('/?testFrames=1');
   const lobby = await openLobby(page);
   await lobby.getByLabel('Player name').fill('Second player');
   await lobby.getByRole('button', { name: 'Find LAN rooms' }).click();

@@ -13,6 +13,8 @@ use tokio::{
     time::{interval, sleep, timeout},
 };
 
+use super::metrics::{LanMetrics, Metrics, PingProbe};
+
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(5);
 const RECONNECT_DELAY: Duration = Duration::from_secs(1);
 const HEARTBEAT_INTERVAL: Duration = Duration::from_secs(5);
@@ -40,6 +42,7 @@ pub struct ClientView {
     pub verified_checksums: u64,
     pub checksum_mismatches: u64,
     pub detail: Option<String>,
+    metrics: Metrics,
 }
 
 pub struct LanClient {
@@ -66,6 +69,7 @@ impl LanClient {
             verified_checksums: 0,
             checksum_mismatches: 0,
             detail: None,
+            metrics: Metrics::default(),
         });
         let (commands, requests) = mpsc::channel(MAX_PENDING);
         let task = tokio::spawn(run_client(address, name, graph, session, view_tx, requests));
@@ -74,6 +78,10 @@ impl LanClient {
             commands,
             task,
         })
+    }
+
+    pub fn metrics(&self) -> LanMetrics {
+        self.view.borrow().metrics.snapshot()
     }
 
     pub fn subscribe(&self) -> watch::Receiver<ClientView> {
@@ -304,6 +312,7 @@ async fn run_session(
     let mut pending = BTreeMap::new();
     let mut heartbeat = interval(HEARTBEAT_INTERVAL);
     let mut nonce = 0u64;
+    let mut ping = PingProbe::default();
     let mut resync_deadline = None;
     loop {
         tokio::select! {
@@ -352,17 +361,23 @@ async fn run_session(
                         }
                         session.replica = Replica::new(sequence, state).map_err(|error| error.to_string())?;
                         session.game = read_game(&session.replica, tick, graph)?;
+                        view.send_modify(|view| view.metrics.record_resync());
                         publish_snapshot(view, session, true);
                         resync_deadline = None;
                     }
                     ServerMessage::Checksum { sequence, tick, hash } if resync_deadline.is_none() => {
                         let local = canonical_checksum(session.replica.bytes());
-                        if sequence == session.replica.sequence() && tick == session.game.time().tick().get() && hash == local {
-                            view.send_modify(|view| view.verified_checksums += 1);
-                        } else {
+                        let local_tick = session.game.time().tick().get();
+                        let matched = sequence == session.replica.sequence() && tick == local_tick && hash == local;
+                        view.send_modify(|view| {
+                            view.metrics.record_checksum(local_tick, local, matched);
+                            let totals = view.metrics.snapshot();
+                            view.verified_checksums = totals.checksums;
+                            view.checksum_mismatches = totals.mismatches;
+                        });
+                        if !matched {
                             let error = format!("LAN checksum mismatch at host sequence {sequence}, tick {tick}: host {hash:02x?}, client {local:02x?} at sequence {}", session.replica.sequence());
                             eprintln!("{error}");
-                            view.send_modify(|view| view.checksum_mismatches += 1);
                             begin_resync(session, view, error).await?;
                             resync_deadline = Some(tokio::time::Instant::now() + REQUEST_TIMEOUT);
                         }
@@ -385,13 +400,22 @@ async fn run_session(
                             view.guest_tag.clone_from(&session.guest_tag);
                         });
                     }
+                    ServerMessage::Ping { nonce } => {
+                        session.socket.send(&ClientMessage::Pong { nonce }).await?;
+                    }
+                    ServerMessage::Pong { nonce } => {
+                        if let Some(elapsed) = ping.complete(nonce) {
+                            view.send_modify(|view| view.metrics.record_ping(elapsed));
+                        }
+                    }
                     ServerMessage::Rejected { reason } => return Err(reason),
                     ServerMessage::Delta { .. } | ServerMessage::Checksum { .. }
-                    | ServerMessage::Pause { .. } | ServerMessage::Speed { .. } | ServerMessage::Pong { .. } => {}
+                    | ServerMessage::Pause { .. } | ServerMessage::Speed { .. } => {}
                     ServerMessage::Welcome { .. } => return Err("Unexpected LAN Welcome".into()),
                 }
             }
             _ = heartbeat.tick() => {
+                ping.start(nonce);
                 session.socket.send(&ClientMessage::Ping { nonce }).await?;
                 nonce = nonce.wrapping_add(1);
             }

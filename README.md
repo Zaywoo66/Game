@@ -106,3 +106,5 @@ and machine measurements in `docs/DECISIONS.md`.
 
 The owner has one Windows PC. M5 is exercised with separate native host
 and guest processes on that PC. Cross-PC compatibility is unmeasured.
+
+See [M5 LAN acceptance](docs/LAN_ACCEPTANCE.md) for the two-PC checklist, acceptance logging and exit-code capture.

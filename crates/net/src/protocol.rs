@@ -5,7 +5,7 @@ use strategy_sim::MapIdentity;
 
 use crate::StateDelta;
 
-pub const PROTOCOL_VERSION: u16 = 1;
+pub const PROTOCOL_VERSION: u16 = 2;
 pub type ResumeToken = [u8; 16];
 
 /// A private token issued by the host when reserving a player's slot.
@@ -60,6 +60,9 @@ pub enum ClientMessage {
     Confirm {
         resume: ResumeToken,
     },
+    Pong {
+        nonce: u64,
+    },
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -104,6 +107,9 @@ pub enum ServerMessage {
         speed: u8,
     },
     Pong {
+        nonce: u64,
+    },
+    Ping {
         nonce: u64,
     },
 }
