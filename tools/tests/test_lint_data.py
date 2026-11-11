@@ -105,6 +105,42 @@ class DataLintTest(unittest.TestCase):
         self.assertEqual(result.returncode, 1, result)
         self.assertIn("duplicate YAML mapping key 'ai_weight'", result.stderr)
 
+    def test_accepts_cross_branch_technology_dag_and_fixed_effect(self):
+        result = run_lint("good_tech")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stderr, "")
+        self.assertIn("Checked 2 JSON and YAML data files", result.stdout)
+
+    def test_rejects_missing_duplicate_and_cyclic_technology_keys(self):
+        result = run_lint("bad_tech_graph")
+        self.assertEqual(result.returncode, 1, result)
+        for message in (
+            "duplicate technology key recordkeeping",
+            "recordkeeping: missing prerequisite absent_technology",
+            "cycle: professional_officers -> recordkeeping -> professional_officers",
+        ):
+            with self.subTest(message=message):
+                self.assertIn(message, result.stderr)
+
+    def test_rejects_invalid_technology_units_and_effects(self):
+        result = run_lint("bad_tech_fields")
+        self.assertEqual(result.returncode, 1, result)
+        for field in (
+            "$.technologies[0].key: expected an ASCII snake_case",
+            "$.technologies[0].cost: expected an integer",
+            "$.technologies[0].requires[1]: duplicate prerequisite missing",
+            "$.technologies[0].pos.x: expected an integer",
+            "$.technologies[0].pos.y: expected an integer",
+            "$.technologies[0].effects[0].add_modifier.value: expected an integer",
+        ):
+            with self.subTest(field=field):
+                self.assertIn(field, result.stderr)
+
+    def test_rejects_two_files_for_one_technology_branch(self):
+        result = run_lint("bad_tech_duplicate_branch")
+        self.assertEqual(result.returncode, 1, result)
+        self.assertIn("duplicate technology branch military", result.stderr)
+
 
 def run_lint(fixture):
     test_dir = Path(__file__).resolve().parent
