@@ -75,7 +75,7 @@ requires the generated map to pass validation.
 | `provinces[].area` | Stable area key referencing `areas.yaml`. |
 | `data/map/<region>/areas.yaml` | Schema v1, reference year, assignment method and area records with `key`, `name_key`, `name`, `region`, `kind` and a source URL when historically classified. |
 | `data/map/<region>/regions.yaml` | Schema v1 and region records with `key`, `name_key` and `name`. |
-| `data/map/<region>/names.en.json` | Schema v1 and English fallback names keyed by localization key. |
+| `data/map/<region>/names.en.json` | Flat v1 localization key→English fallback name mapping, with no `schema_version` field. |
 
 MAP_SCALE.md defines the hierarchy and reserved ID ranges. The generated Western Europe map uses `map_version: 3`. The loader still verifies schema v1/v2 maps with their original hash rules. Older saves are accepted only when loaded against their own map identity.
 
@@ -180,15 +180,14 @@ Country and character numeric IDs are assigned in sorted key order starting at 1
 ## Events (`data/events/*.yaml`)
 
 Each YAML file contains one event. The linter rejects duplicate event keys or
-YAML mapping fields,
-unknown trigger/effect names, missing AI weights, and noninteger durations or
-weights. Boolean literals in event YAML use lowercase `true` or `false` only;
-the linter rejects YAML 1.1 aliases such as `yes` that the Rust loader does not
-accept. Event integer literals use plain decimal digits, with an optional
-leading minus for signed fields; leading zeros, separators, plus signs and
-hexadecimal forms are rejected so both parsers read the same value. This is
-the M7 data contract; the event engine is implemented in a
-separate M7 task.
+YAML mapping fields, unknown trigger/effect names, missing AI weights, and
+noninteger durations or weights. Boolean literals in event YAML use lowercase
+`true` or `false` only; the linter rejects YAML 1.1 boolean spellings such as
+`yes` that the Rust loader does not accept. Event integer literals use plain
+decimal digits, with an optional leading minus for signed fields; leading
+zeros, separators, plus signs and hexadecimal forms are rejected so both
+parsers read the same value. This is the M7 data contract; the event engine is
+implemented in a separate M7 task.
 `strategy_data::parse_event_yaml` converts one file to typed `Trigger` and
 `Effect` values; `strategy_data::load_events_from_dir` reads files in filename
 order and returns a key-ordered map, rejecting duplicate event keys. Text
@@ -394,3 +393,19 @@ An absent pair has opinion 0. A v4 save requires at least one explicit pair;
 states without explicit opinions retain their previous save version and bytes.
 The v4 state hash uses `strategy:game-state:v4`, a NUL byte, then canonical
 save bytes. Opinion does not decay automatically.
+
+## Saved games (schema version 5)
+
+The first alliance offer creates `state.diplomacy` with three sorted arrays:
+`alliances` (`{a,b}`), `offers` (`{a,b,until}`), and `cooldowns`
+(`{a,b,until}`). Country IDs `a` and `b` are positive unsigned 32-bit IDs.
+Alliance and cooldown pairs are ordered with `a < b`; offers are directed
+from `a` to `b`. `until` is a Gregorian `[year,month,day]` date. Offers are
+valid before `until`; cooldowns prohibit new offers before `until`.
+Each pair must exist in the saved countries. Duplicate or unsorted records,
+self-pairs, expired timers, simultaneous alliance and offer/cooldown, and
+opposing simultaneous offers are rejected. A state with diplomacy uses
+schema v5 and hash domain `strategy:game-state:v5` followed by NUL and the
+canonical bytes; older versions retain their prior encoding and hash.
+An active alliance between two countries directly at war is invalid and
+rejected on load.

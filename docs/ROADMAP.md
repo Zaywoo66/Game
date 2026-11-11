@@ -29,6 +29,10 @@ After the 5b.2 dense-map rebuild passes CI, M6–M11 may proceed while physical 
 The owner authorized independent small M6–M11 PRs in parallel on 2026-11-11. M7 has begun with the event data contract and linter; event runtime, content and multiplayer acceptance remain open.
 The M7 data loader now maps event YAML to typed simulation triggers/effects; event firing and choices remain open.
 M5b.4 camera, water, borders and terrain have browser screenshot evidence; native 1080p FPS/RAM and owner visual review remain open for M5b acceptance.
+M5b.5 map modes, historical evidence display, English fallback labels and army badges have browser checks; Russian localization, fleet UI, native performance and owner visual acceptance remain open.
+
+M6 alliance slice in progress: validated offers, acceptance/rejection, indefinite alliance, voluntary break penalty/cooldown, AI response and network/save transport. Guarantee, vassalage, marriage, truce proposals and the diplomacy UI remain open.
+The 1440 scenario currently starts with neutral opinions; historically supported positive opening relationships and their values belong to M11 content review. Until then, the alliance AI's favorable branch is covered by a synthetic scenario test.
 
 M13 is the first post-beta milestone; colonization, trade, religion and later eras follow.
 Vertical slice = M2–M7 on the small test region (see DECISIONS D5), then expand to beta map in M11.

@@ -173,6 +173,7 @@ pub enum WarError {
     Unreachable(ProvinceId),
     InvalidRetreat(ProvinceId),
     AlreadyAtWar,
+    AllianceActive,
     InvalidWarGoal(ProvinceId),
     TruceActive,
     NotWarParty,

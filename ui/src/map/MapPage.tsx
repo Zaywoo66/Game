@@ -6,7 +6,8 @@ import { CountryView, GameSnapshot, useGameHost } from '../game/host';
 import { LanLobby } from '../game/LanLobby';
 import { lanStatusText, useLan } from '../game/lan';
 import { ArmyOrder, MilitaryPanel } from '../game/MilitaryPanel';
-import { loadMapAssets, Province, Rgba } from './mapData';
+import { loadMapAssets, MapAssets, Province, Rgba } from './mapData';
+import { MapMode } from './mapPresentation';
 import { BenchmarkSample, createMapViewer, MapTestControls } from './mapViewer';
 
 declare global {
@@ -87,6 +88,9 @@ export function MapPage() {
   const [selected, setSelected] = useState<Province | null>(null);
   const [inspectedCountry, setInspectedCountry] = useState<number | null>(null);
   const [provinceNames, setProvinceNames] = useState<ReadonlyMap<number, Province>>(new Map());
+  const [mapAssets, setMapAssets] = useState<MapAssets | null>(null);
+  const [mapMode, setMapMode] = useState<MapMode>('historical');
+  const modeChosenByUser = useRef(false);
   const [section, setSection] = useState<'country' | 'military'>('country');
   const [inspectedArmy, setInspectedArmy] = useState(0);
   const [order, setOrder] = useState<ArmyOrder | null>(null);
@@ -105,6 +109,9 @@ export function MapPage() {
   );
   const game = hostGame.snapshot;
   const hasGame = Boolean(game);
+  useEffect(() => {
+    if (hasGame && !modeChosenByUser.current) setMapMode('political');
+  }, [hasGame]);
   const militaryEnabled = game?.armies !== undefined;
   const colors = useMemo(
     () => provinceColors(game?.owners, game?.countries),
@@ -122,6 +129,7 @@ export function MapPage() {
       destination: army.to_province_id,
       progress: army.progress,
       color: countries.get(army.country_id) ?? '#ffffff',
+      soldiers: army.soldiers,
     })) ?? [];
   }, [game?.armies, game?.countries]);
 
@@ -145,6 +153,15 @@ export function MapPage() {
     if (hasGame && status === 'ready') viewerRef.current?.setOwnerColors(colors);
   }, [hasGame, status, colors]);
   useEffect(() => {
+    if (status === 'ready') viewerRef.current?.setMapMode(mapMode);
+  }, [status, mapMode]);
+  useEffect(() => {
+    if (status !== 'ready') return;
+    viewerRef.current?.setCountryLabels(game?.countries.map((country) => ({
+      id: country.capital_id, text: country.name, capital: true,
+    })) ?? []);
+  }, [status, game?.countries]);
+  useEffect(() => {
     if (militaryEnabled && status === 'ready') viewerRef.current?.setOccupationColors(occupationColors);
   }, [militaryEnabled, status, occupationColors]);
   useEffect(() => {
@@ -163,8 +180,9 @@ export function MapPage() {
   const occupier = game?.countries.find((country) => country.id === occupierId);
   const provinceName = (id: number) => {
     const province = provinceNames.get(id);
-    return province ? nameOf(province.key) : 'Province ' + id;
+    return province ? mapAssets?.names.get(province.name_key ?? '') ?? 'Province ' + id : 'Province ' + id;
   };
+  const attribution = selected && mapAssets?.polityAttributions.get(selected.id);
 
   useEffect(() => {
     const host = viewport.current;
@@ -192,6 +210,7 @@ export function MapPage() {
         viewer = active;
         viewerRef.current = active;
         setProvinceNames(provinces);
+        setMapAssets(assets);
         setRenderer(active.renderer);
         if (verify) window.strategyMapTest = active.testControls;
         setStatus('ready');
@@ -226,7 +245,7 @@ export function MapPage() {
   }, []);
 
   return (
-    <main className="map-page" data-map-status={status} data-map-renderer={renderer}>
+    <main className="map-page" data-map-status={status} data-map-renderer={renderer} data-map-mode={mapMode}>
       <div className="map-viewport" data-map-viewport ref={viewport} />
       <header className="map-header map-panel">
         <h1>Western Europe</h1>
@@ -240,6 +259,15 @@ export function MapPage() {
             <p>Drag to pan · Scroll to zoom · Right-drag to tilt</p>
             <a href="?smoke=1">WebGL smoke test</a>
             <MapSources />
+            <nav className="map-modes" aria-label="Map mode">
+              {(['political', 'terrain', 'historical'] as const).map((mode) => (
+                <button key={mode} type="button" aria-pressed={mapMode === mode}
+                  onClick={() => { modeChosenByUser.current = true; setMapMode(mode); }}>
+                  {mode === 'political' ? 'Game political' : mode === 'terrain' ? 'Terrain' : 'Historical 1440'}
+                </button>
+              ))}
+            </nav>
+            {mapMode === 'historical' && <p className="map-mode-note">Reference borders (1440), not game ownership.</p>}
             {lan.status && (
               <div className="map-lan">
                 <button type="button" onClick={() => setLobbyOpen(true)}>LAN multiplayer</button>
@@ -269,9 +297,15 @@ export function MapPage() {
         <div aria-live="polite">
           {selected ? (
             <>
-              <h2>{nameOf(selected.key)}</h2>
+              <h2>{provinceName(selected.id)}</h2>
               <p>Province {selected.id} · {nameOf(selected.kind)} · {nameOf(selected.terrain)}</p>
               {game && <p>Owner · {provinceOwner?.name ?? 'Unowned'}</p>}
+              {mapMode === 'historical' && selected.kind === 'land' && (
+                <p data-historical-resolution={attribution?.resolution ?? 'unmatched'}>
+                  1440 source · {attribution?.polity_name ?? 'Unknown attribution'}
+                  {attribution?.resolution === 'coarse_group' && ' · Low precision group'}
+                </p>
+              )}
               {occupier && <p>Occupied by · {occupier.name}</p>}
             </>
           ) : <p>Click a province to inspect it</p>}
