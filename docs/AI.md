@@ -43,8 +43,7 @@ and relative strength. A two-year stalemate allows white peace. Every
 military order includes a score and reason in the per-country decision log.
 In a war with supporters, L1 treats all opposing participants as enemies,
 moves and retreats supporter armies using the same validated commands, and
-leaves peace proposals and acceptance to the original war leaders. The
-guarantee task will add the decision to enter an existing war.
+leaves peace proposals and acceptance to the original war leaders.
 
 The first L2 alliance slice answers pending offers through `Command`s. A
 nonnegative opinion at or above the profile's `alliance_min_opinion` accepts.
@@ -54,6 +53,12 @@ strictly exceed each party's total; the derived country/tick RNG then gives a
 10% acceptance chance. Without that threat, AI rejects. AI proposes legal
 alliances on a staggered 31-tick cadence. The read-only factor query reports
 opinion, profile minimum, common threat and direct war for human tooltips.
+On its 31-tick diplomacy cadence, an AI can guarantee a non-allied country
+when its opinion meets its profile's alliance minimum and both countries
+border a stronger third country. The AI issues only the validated guarantee
+command. Entering a defensive war follows the guarantee automatically; AI
+military orders then use the existing supporter-side rules. AI does not revoke
+guarantees periodically.
 
 M7 event choices are read from the authoritative pending-event state. For each
 AI country the host chooses at most one pending event per tick in event-key
@@ -75,6 +80,12 @@ so the behavior is covered with a synthetic scenario until M11 content work.
 Run the same host tick without a window with
 `cargo run --locked -p strategy-app --bin ai-smoke -- 3653 1440 1441 1442`.
 The arguments are the daily tick count followed by one or more seeds.
+
+For yearly multi-seed measurements, run
+`cargo run --locked -p strategy-app --bin ai-soak -- 100 1440 1441 1442 1443 1444`.
+It prints tab-separated rows with state hashes, ownership share and local
+median/p95/peak tick times. The opening includes the packaged event catalog
+and diplomacy state. Timing varies by host and is excluded from state hashes.
 
 ## Decision layers (utility scoring, not machine learning)
 | Layer | Cadence | Decides |
@@ -107,6 +118,14 @@ Each layer scores candidate actions: `score = sum(weight_i * factor_i)` with fac
 - **L2 (M6)**: diplomacy — alliances, guarantees, marriages, truces, reacts to proposals and to threats.
 - **L3 (M7, M8, M9)**: chooses event options, uses navy and transports, picks technologies and ideas.
 - **L4 (M10)**: strategic coordination, balance of power, alliance calls, long-term goals, tuning, soak testing.
+
+The first M8 naval slice follows an existing attacking war across sea. On its
+three-day military cadence, the AI validates the same commands as a human:
+move an army to an owned port, embark it on a fleet with enough ships, sail
+to a sea cell adjacent to the war goal, and land at the enemy port. It does
+not issue a command when no legal route or capacity exists. Declaring a new
+overseas war, escorts, naval combat, blockade and attrition avoidance remain
+part of the later M8 L3 work.
 
 Every mechanic milestone must ship its AI level in the same milestone (see each milestone's "AI slice"). A mechanic without AI support is not accepted.
 

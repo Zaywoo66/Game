@@ -5,7 +5,6 @@ use strategy_sim::MapIdentity;
 
 use crate::StateDelta;
 
-// Assigned after guarantee v7 and fleet v8; reverify after both branches merge.
 pub const PROTOCOL_VERSION: u16 = 9;
 pub type ResumeToken = [u8; 16];
 

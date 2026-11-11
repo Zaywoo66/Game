@@ -176,6 +176,14 @@ fn command_conversion_preserves_raw_fixed_units_and_validates_speed() {
             country: 1,
             key: "recordkeeping".into(),
         },
+        PlayerCommand::Guarantee {
+            country: 4,
+            protected: 9,
+        },
+        PlayerCommand::RevokeGuarantee {
+            country: 4,
+            protected: 9,
+        },
         PlayerCommand::SetPaused { paused: true },
         PlayerCommand::SetSpeed { speed: 5 },
     ];

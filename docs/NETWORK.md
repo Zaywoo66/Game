@@ -14,11 +14,21 @@ identity fields before accepting a guest.
 - Client->Host: `Hello{version,name,map_version,map_hash,resume}`, `Confirm{resume}`, `Command{seq,command}`, `PauseRequest{seq,paused}`, `Ping{nonce}`, `Pong{nonce}`, `Resync`. Commands include validated alliance and royal-marriage actions and `ChooseEvent{country,key,option}`.
 - Host->Client: `Welcome{player_id}`, `Snapshot{state}` (join/resync), `Delta{tick,changes}`, `CommandRejected{seq,reason}`, `Checksum{tick,hash}`, `Pause{bool}`, `Speed{n}`, `Ping{nonce}`, `Pong{nonce}`.
 - Either human player can pause or resume. Only the host sets speed (D2).
-- Either peer may send a `Ping{nonce}` and receive a matching `Pong{nonce}` to measure round-trip time. Older protocol builds are rejected. Use the same build on both PCs.
+- Either peer may send a `Ping{nonce}` and receive a matching `Pong{nonce}` to measure round-trip time. Older builds are rejected. Use the same build on both PCs.
 - V4 adds coalition participants to the canonical save snapshots; command messages are unchanged.
 - V5 adds royal-marriage commands and v7 character/marriage data to canonical save snapshots.
 - V6 adds event-choice commands and v8 event definitions, pending choices and resolution history to canonical snapshots.
-- V9 adds `UnlockTechnology{country,key}` and v11 research balances, definitions, and permanent modifier sources to canonical snapshots. V7 and v8 are reserved by the preceding guarantee and fleet slices; verify their details after those branches merge.
+- V7 adds guarantee and revoke commands and v9 guarantee data to canonical snapshots. Guarantee and revoke commands carry guarantor and protected country IDs.
+  Host validation enforces controller authority and peace-only creation. A
+  declaration that attacks a protected country adds free guarantors to the
+  defender side or records the broken commitment and opinion penalty. The
+  canonical snapshot and byte delta include guarantees and war supporters;
+  clients cannot choose whether their guaranteed country is defended.
+- V8 adds `MoveFleet`, `EmbarkArmy` and `DisembarkArmy` commands and v10 navy
+  data to canonical snapshots. Fleet positions, routes and cargo use host
+  authority and the same save-byte delta/resync path as land armies.
+- V9 adds `UnlockTechnology{country,key}` and v11 research balances,
+  definitions, and permanent modifier sources to canonical snapshots.
 - See [LAN_ACCEPTANCE.md](LAN_ACCEPTANCE.md) for the two-PC checklist and `--lan-log` mode.
 - Welcome includes a private 128-bit resume token. The guest confirms it
   after parsing its first snapshot. A disconnected, unconfirmed handshake

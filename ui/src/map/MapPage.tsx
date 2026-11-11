@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { CountryPanel, HostControls } from '../game/CountryPanel';
+import { EventPopup } from '../game/EventPopup';
 import { CountryView, GameSnapshot, useGameHost } from '../game/host';
 import { LanLobby } from '../game/LanLobby';
 import { lanStatusText, useLan } from '../game/lan';
@@ -123,7 +124,7 @@ export function MapPage() {
   );
   const armies = useMemo(() => {
     const countries = new Map(game?.countries.map((country) => [country.id, country.color]));
-    return game?.armies?.map((army) => ({
+    return game?.armies?.filter((army) => !army.embarked_on).map((army) => ({
       id: army.id,
       province: army.province_id,
       destination: army.to_province_id,
@@ -281,6 +282,8 @@ export function MapPage() {
       </header>
       {game && <HostControls game={game} pending={hostGame.pending} error={hostGame.commandError}
         canSetSpeed={!guest} send={hostGame.send} />}
+      {game && <EventPopup events={game.pending_events ?? []} localCountryId={game.local_country_id}
+        pending={hostGame.pending} error={hostGame.commandError} send={hostGame.send} />}
       {hostGame.connected && !game && (
         <p className="game-clock map-panel" role={hostGame.connectionError ? 'alert' : 'status'}>
           {hostGame.connectionError || 'Connecting to the game host…'}

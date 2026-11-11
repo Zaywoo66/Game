@@ -90,6 +90,28 @@ pub(super) fn decide(
         return None;
     }
     for (other, _) in state.countries() {
+        if other == country
+            || state.allied(country, other)
+            || state
+                .diplomacy()
+                .is_some_and(|diplomacy| diplomacy.guarantees(country, other))
+            || !state.common_stronger_neighbor(country, other)
+            || state
+                .opinion(country, other)
+                .map_or(0, |opinion| i32::from(opinion.points()))
+                < profile.thresholds.alliance_min_opinion
+        {
+            continue;
+        }
+        let command = Command::Guarantee {
+            country,
+            protected: other,
+        };
+        if state.validate_command(actor, &command).is_ok() {
+            return Some((command, Reason::GuaranteeIssued));
+        }
+    }
+    for (other, _) in state.countries() {
         if other == country || state.allied(country, other) {
             continue;
         }
@@ -288,8 +310,39 @@ mod tests {
             .unwrap()
             .with_war_state(military)
             .unwrap()
-            .with_opinions([(toward, from, Opinion::new(-60).unwrap())])
+            .with_opinions([
+                (toward, from, Opinion::new(-60).unwrap()),
+                (from, toward, Opinion::new(60).unwrap()),
+            ])
             .unwrap();
+        let mut guarantee_state = base.clone();
+        for _ in 0..31 {
+            if (guarantee_state.time().tick().get() + u64::from(from.get())) % 31 == 0 {
+                break;
+            }
+            guarantee_state.tick(|_, _| Vec::new()).unwrap();
+        }
+        let guarantee_key = match guarantee_state.country(from).unwrap().controller() {
+            Controller::Ai(key) => key,
+            _ => unreachable!(),
+        };
+        let guarantee_profile =
+            &guarantee_state.polity().unwrap().ai_profiles[guarantee_key.as_str()];
+        let mut guarantee_ctx = AiContext::new(&guarantee_state, from);
+        let (guarantee_command, guarantee_reason) = decide(
+            &guarantee_state,
+            from,
+            guarantee_profile,
+            &mut guarantee_ctx,
+        )
+        .unwrap();
+        assert!(
+            matches!(&guarantee_command, Command::Guarantee { country, protected } if *country == from && guarantee_state.common_stronger_neighbor(*country, *protected))
+        );
+        assert_eq!(guarantee_reason, Reason::GuaranteeIssued);
+        assert!(guarantee_state
+            .validate_command(CommandActor::Ai(from), &guarantee_command)
+            .is_ok());
         let mut diplomacy = DiplomacyState::default();
         diplomacy.offers.insert(
             (from, toward),

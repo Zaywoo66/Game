@@ -2,8 +2,8 @@ use std::{collections::BTreeSet, time::Instant};
 
 use strategy_data::state_hash;
 use strategy_sim::{
-    Command, CommandActor, Controller, Date, Fixed, GameState, PlayerId, ProvinceKind, StateChange,
-    TimeCommand,
+    Army, Command, CommandActor, Controller, Date, Fixed, GameState, PlayerId, ProvinceKind,
+    StateChange, TimeCommand,
 };
 
 use crate::{load_embedded_scenario, tick_host_with_log, AiDecisionLog};
@@ -18,6 +18,8 @@ pub struct AutoplaySummary {
     pub country_count: usize,
     pub largest_country: usize,
     pub median_tick_ns: u128,
+    pub p95_tick_ns: u128,
+    pub peak_tick_ns: u128,
     pub final_hash: [u8; 32],
 }
 
@@ -45,6 +47,21 @@ pub fn new_autoplay(seed: u64) -> Result<GameState, String> {
     .map_err(|error| format!("invalid autoplay opinions: {error:?}"))?
     .with_war_state(military.clone())
     .map_err(|error| format!("invalid autoplay military: {error:?}"))?;
+    if let Some(diplomacy) = scenario.diplomacy() {
+        game = game
+            .with_diplomacy(diplomacy.clone())
+            .map_err(|error| format!("invalid autoplay diplomacy: {error:?}"))?;
+    }
+    if let Some(events) = scenario.events() {
+        game = game
+            .with_event_state(events.clone())
+            .map_err(|error| format!("invalid autoplay events: {error:?}"))?;
+    }
+    if let Some(navy) = scenario.navy() {
+        game = game
+            .with_navy(navy.clone())
+            .map_err(|error| format!("invalid autoplay navy: {error:?}"))?;
+    }
     let host = CommandActor::Host(PlayerId::new(1));
     for (&country, nation) in &polity.countries {
         game.apply(
@@ -133,6 +150,11 @@ pub fn advance_autoplay(game: &mut GameState, end: Date) -> Result<AutoplaySumma
             .max()
             .unwrap_or(0),
         median_tick_ns: samples.get(samples.len() / 2).copied().unwrap_or(0),
+        p95_tick_ns: samples
+            .get(samples.len().saturating_sub(1) * 95 / 100)
+            .copied()
+            .unwrap_or(0),
+        peak_tick_ns: samples.last().copied().unwrap_or(0),
         final_hash: state_hash(game).map_err(|error| error.to_string())?,
     })
 }
@@ -161,39 +183,125 @@ fn check_invariants(game: &GameState, initial_count: usize) -> Result<(), &'stat
         }
     }
     for army in military.armies.values() {
-        if army.soldiers == 0
-            || army.soldiers > military.rules.max_army_size
-            || army.morale < Fixed::ZERO
-            || army.morale > military.rules.max_morale
-            || !polity.countries.contains_key(&army.country)
-            || game
-                .province_graph()
-                .get(army.province)
-                .is_none_or(|province| province.kind != ProvinceKind::Land)
-        {
+        if !army_valid(game, army) {
             return Err("army state is invalid");
         }
     }
     let mut belligerents = BTreeSet::new();
     for war in military.wars.values() {
-        if !belligerents.insert(war.attacker)
-            || !belligerents.insert(war.defender)
-            || game.owner_of_province(war.goal) != Some(war.defender)
+        if game.owner_of_province(war.goal) != Some(war.defender)
+            || std::iter::once(war.attacker)
+                .chain(std::iter::once(war.defender))
+                .chain(war.attacker_supporters.iter().copied())
+                .chain(war.defender_supporters.iter().copied())
+                .any(|country| !belligerents.insert(country))
         {
             return Err("war participants or goal are invalid");
         }
         for (&province, &occupier) in &war.occupations {
-            let opponent = if occupier == war.attacker {
-                war.defender
-            } else if occupier == war.defender {
-                war.attacker
-            } else {
-                return Err("occupier is not a participant");
-            };
-            if game.owner_of_province(province) != Some(opponent) {
+            let owner = game.owner_of_province(province);
+            if owner.is_none_or(|owner| !war.opposed(occupier, owner)) {
                 return Err("occupation does not match the opposing owner");
             }
         }
     }
     Ok(())
+}
+
+fn army_valid(game: &GameState, army: &Army) -> bool {
+    let Some(military) = game.war_state() else {
+        return false;
+    };
+    army.soldiers > 0
+        && army.soldiers <= military.rules.max_army_size
+        && army.morale >= Fixed::ZERO
+        && game
+            .effective_army_morale_limit(army.country)
+            .is_some_and(|limit| army.morale <= limit)
+        && game
+            .polity()
+            .is_some_and(|polity| polity.countries.contains_key(&army.country))
+        && game
+            .province_graph()
+            .get(army.province)
+            .is_some_and(|province| province.kind == ProvinceKind::Land)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use strategy_sim::{ArmyId, CountryState, Modifier, ModifierKind, ModifierSourceId};
+
+    #[test]
+    fn autoplay_accepts_modified_morale_ceiling_but_rejects_excess() {
+        let opening = new_autoplay(1440).unwrap();
+        let (&country_id, nation) = opening.polity().unwrap().countries.iter().next().unwrap();
+        let army = Army {
+            country: country_id,
+            province: nation.capital,
+            soldiers: 1_000,
+            morale: Fixed::ONE,
+            movement: None,
+        };
+        let country = opening.country(army.country).unwrap();
+        let source = ModifierSourceId::new(999_999);
+        let mut modifiers = country.modifiers().clone();
+        modifiers
+            .insert_source(
+                source,
+                None,
+                vec![Modifier {
+                    source,
+                    key: opening.war_state().unwrap().rules.morale_modifier.clone(),
+                    value: Fixed::from_raw(100),
+                    kind: ModifierKind::Additive,
+                }],
+            )
+            .unwrap();
+        let countries = opening
+            .countries()
+            .map(|(id, state)| {
+                if id == army.country {
+                    (
+                        id,
+                        CountryState::new(
+                            state.controller().clone(),
+                            state.known_technologies().map(str::to_owned).collect(),
+                            false,
+                            modifiers.clone(),
+                        ),
+                    )
+                } else {
+                    (id, state.clone())
+                }
+            })
+            .collect();
+        let mut military = opening.war_state().unwrap().clone();
+        let army_id = ArmyId::new(military.next_army_id);
+        military.next_army_id += 1;
+        military.armies.insert(army_id, army.clone());
+        let game = GameState::new(
+            *opening.time(),
+            opening.seed(),
+            opening.province_graph().clone(),
+            countries,
+            [],
+        )
+        .unwrap()
+        .with_polity(opening.polity().unwrap().clone())
+        .unwrap()
+        .with_war_state(military)
+        .unwrap();
+        let mut at_cap = army.clone();
+        at_cap.morale = game.effective_army_morale_limit(army.country).unwrap();
+        assert_eq!(at_cap.morale, Fixed::from_raw(1_100));
+        assert!(army_valid(&game, &at_cap));
+        let mut over_cap = at_cap;
+        over_cap.morale = game
+            .effective_army_morale_limit(army.country)
+            .unwrap()
+            .checked_add(Fixed::from_raw(1))
+            .unwrap();
+        assert!(!army_valid(&game, &over_cap));
+    }
 }

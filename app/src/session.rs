@@ -15,8 +15,8 @@ use strategy_app::{
 };
 use strategy_net::discover_rooms;
 use strategy_sim::{
-    ArmyId, Command, CommandActor, Controller, CountryId, Date, FiscalPolicy, Fixed, GameState,
-    PlayerId, ProvinceId, Speed, TimeCommand, WarId,
+    ArmyId, Command, CommandActor, Controller, CountryId, Date, FiscalPolicy, Fixed, FleetId,
+    GameState, PlayerId, ProvinceId, Speed, TimeCommand, WarId,
 };
 use tauri::{App, AppHandle, Emitter, Manager, State};
 
@@ -33,6 +33,7 @@ pub(crate) struct Session {
     game: GameState,
     sequence: u64,
     visible_countries: BTreeMap<u32, CountryView>,
+    visible_events: Vec<EventView>,
     visible_owners: BTreeMap<u32, u32>,
     military: MilitaryView,
     ai_log: AiDecisionLog,
@@ -117,6 +118,20 @@ struct CountryView {
 }
 
 #[derive(Clone, PartialEq, Eq, Serialize)]
+struct EventView {
+    country_id: u32,
+    key: String,
+    title_key: String,
+    desc_key: String,
+    options: Vec<EventOptionView>,
+}
+
+#[derive(Clone, PartialEq, Eq, Serialize)]
+struct EventOptionView {
+    text_key: String,
+}
+
+#[derive(Clone, PartialEq, Eq, Serialize)]
 struct OwnerView {
     province_id: u32,
     country_id: Option<u32>,
@@ -131,6 +146,18 @@ struct ArmyView {
     morale: i64,
     to_province_id: Option<u32>,
     progress: i64,
+    embarked_on: Option<u32>,
+}
+
+#[derive(Clone, PartialEq, Eq, Serialize)]
+struct FleetView {
+    id: u32,
+    country_id: u32,
+    sea_province_id: u32,
+    ships: u32,
+    cargo_army_id: Option<u32>,
+    to_sea_province_id: Option<u32>,
+    progress: i64,
 }
 
 #[derive(Clone, PartialEq, Eq, Serialize)]
@@ -144,6 +171,8 @@ struct WarView {
     id: u32,
     attacker_id: u32,
     defender_id: u32,
+    attacker_supporters: Vec<u32>,
+    defender_supporters: Vec<u32>,
     goal_province_id: u32,
     score: i32,
     occupations: Vec<OwnerView>,
@@ -165,9 +194,16 @@ struct FortView {
     level: u8,
 }
 
+#[derive(Clone, PartialEq, Eq, Serialize)]
+struct GuaranteeView {
+    guarantor_id: u32,
+    protected_id: u32,
+}
+
 #[derive(Default)]
 struct MilitaryView {
     armies: BTreeMap<u32, ArmyView>,
+    fleets: BTreeMap<u32, FleetView>,
     wars: BTreeMap<u32, WarView>,
     sieges: Vec<SiegeView>,
 }
@@ -179,10 +215,13 @@ pub(crate) struct Snapshot {
     clock: ClockView,
     local_country_id: Option<u32>,
     countries: Vec<CountryView>,
+    pending_events: Vec<EventView>,
     owners: Vec<OwnerView>,
     max_tax_rate: i64,
     max_monthly_spending: String,
+    guarantees: Vec<GuaranteeView>,
     armies: Vec<ArmyView>,
+    fleets: Vec<FleetView>,
     wars: Vec<WarView>,
     sieges: Vec<SiegeView>,
     forts: Vec<FortView>,
@@ -196,9 +235,13 @@ struct Update {
     generation: u64,
     clock: ClockView,
     countries: Vec<CountryView>,
+    pending_events: Option<Vec<EventView>>,
+    guarantees: Vec<GuaranteeView>,
     owners: Vec<OwnerView>,
     armies: Vec<ArmyView>,
     removed_armies: Vec<u32>,
+    fleets: Vec<FleetView>,
+    removed_fleets: Vec<u32>,
     wars: Vec<WarView>,
     removed_wars: Vec<u32>,
     sieges: Option<Vec<SiegeView>>,
@@ -250,6 +293,21 @@ pub(crate) enum UiCommand {
         army_id: u32,
         destination: u32,
     },
+    MoveFleet {
+        country_id: u32,
+        fleet_id: u32,
+        destination: u32,
+    },
+    EmbarkArmy {
+        country_id: u32,
+        army_id: u32,
+        fleet_id: u32,
+    },
+    DisembarkArmy {
+        country_id: u32,
+        fleet_id: u32,
+        destination: u32,
+    },
     RetreatArmy {
         country_id: u32,
         army_id: u32,
@@ -272,6 +330,19 @@ pub(crate) enum UiCommand {
     UnlockTechnology {
         country_id: u32,
         key: String,
+    },
+    ChooseEvent {
+        country_id: u32,
+        key: String,
+        option: u32,
+    },
+    Guarantee {
+        country_id: u32,
+        protected_id: u32,
+    },
+    RevokeGuarantee {
+        country_id: u32,
+        protected_id: u32,
     },
 }
 
@@ -333,6 +404,33 @@ impl UiCommand {
                 army: ArmyId::new(army_id),
                 destination: ProvinceId::new(destination),
             },
+            Self::MoveFleet {
+                country_id,
+                fleet_id,
+                destination,
+            } => Command::MoveFleet {
+                country: CountryId::new(country_id),
+                fleet: FleetId::new(fleet_id),
+                destination: ProvinceId::new(destination),
+            },
+            Self::EmbarkArmy {
+                country_id,
+                army_id,
+                fleet_id,
+            } => Command::EmbarkArmy {
+                country: CountryId::new(country_id),
+                army: ArmyId::new(army_id),
+                fleet: FleetId::new(fleet_id),
+            },
+            Self::DisembarkArmy {
+                country_id,
+                fleet_id,
+                destination,
+            } => Command::DisembarkArmy {
+                country: CountryId::new(country_id),
+                fleet: FleetId::new(fleet_id),
+                destination: ProvinceId::new(destination),
+            },
             Self::RetreatArmy {
                 country_id,
                 army_id,
@@ -368,6 +466,29 @@ impl UiCommand {
                 country: CountryId::new(country_id),
                 key,
             },
+            Self::ChooseEvent {
+                country_id,
+                key,
+                option,
+            } => Command::ChooseEvent {
+                country: CountryId::new(country_id),
+                key,
+                option,
+            },
+            Self::Guarantee {
+                country_id,
+                protected_id,
+            } => Command::Guarantee {
+                country: CountryId::new(country_id),
+                protected: CountryId::new(protected_id),
+            },
+            Self::RevokeGuarantee {
+                country_id,
+                protected_id,
+            } => Command::RevokeGuarantee {
+                country: CountryId::new(country_id),
+                protected: CountryId::new(protected_id),
+            },
         })
     }
 }
@@ -396,12 +517,14 @@ pub(crate) fn setup(app: &mut App) -> Result<(), Box<dyn std::error::Error>> {
     app.manage(Arc::clone(&lifecycle));
     let game = load_embedded_scenario().map_err(std::io::Error::other)?;
     let visible_countries = country_views(&game);
+    let visible_events = event_views(&game, HOST);
     let visible_owners = owner_views(&game);
     let military = military_view(&game);
     app.manage(Mutex::new(Session {
         game,
         sequence: 0,
         visible_countries,
+        visible_events,
         visible_owners,
         military,
         ai_log: AiDecisionLog::default(),
@@ -510,11 +633,7 @@ pub(crate) fn game_snapshot(state: State<'_, Mutex<Session>>) -> Result<Snapshot
         .game
         .polity()
         .ok_or("The scenario is unavailable.")?;
-    let player = if matches!(session.mode, Mode::Guest(_)) {
-        GUEST
-    } else {
-        HOST
-    };
+    let player = local_player(&session.mode);
     let local_country_id = session.game.countries().find_map(|(id, country)| {
         (country.controller() == &Controller::Human(player)).then_some(id.get())
     });
@@ -525,6 +644,7 @@ pub(crate) fn game_snapshot(state: State<'_, Mutex<Session>>) -> Result<Snapshot
         clock: clock_view(&session.game),
         local_country_id,
         countries: session.visible_countries.values().cloned().collect(),
+        pending_events: event_views(&session.game, player),
         owners: session
             .visible_owners
             .iter()
@@ -535,7 +655,9 @@ pub(crate) fn game_snapshot(state: State<'_, Mutex<Session>>) -> Result<Snapshot
             .collect(),
         max_tax_rate: polity.rules.max_tax_rate.raw(),
         max_monthly_spending: money(polity.rules.max_monthly_spending),
+        guarantees: guarantee_views(&session.game),
         armies: session.military.armies.values().cloned().collect(),
+        fleets: session.military.fleets.values().cloned().collect(),
         wars: session.military.wars.values().cloned().collect(),
         sieges: session.military.sieges.clone(),
         forts: war
@@ -851,6 +973,7 @@ fn reset_game(session: &mut Session, game: &GameState, sequence: u64) {
     session.network_sequence = sequence;
     session.game = game.clone();
     session.visible_countries = country_views(game);
+    session.visible_events = event_views(game, local_player(&session.mode));
     session.visible_owners = owner_views(game);
     session.military = military_view(game);
     session.ai_log = AiDecisionLog::default();
@@ -965,6 +1088,7 @@ fn emit_lan_status(app: &AppHandle, session: &mut Session) -> LanStatus {
 
 fn publish(app: &AppHandle, session: &mut Session) {
     let countries = country_views(&session.game);
+    let events = event_views(&session.game, local_player(&session.mode));
     let owners = owner_views(&session.game);
     let military = military_view(&session.game);
     session.sequence += 1;
@@ -973,6 +1097,8 @@ fn publish(app: &AppHandle, session: &mut Session) {
         generation: session.generation,
         clock: clock_view(&session.game),
         countries: changed_rows(&session.visible_countries, &countries),
+        pending_events: (session.visible_events != events).then(|| events.clone()),
+        guarantees: guarantee_views(&session.game),
         owners: owners
             .iter()
             .filter(|(id, owner)| session.visible_owners.get(id) != Some(*owner))
@@ -991,11 +1117,14 @@ fn publish(app: &AppHandle, session: &mut Session) {
             .collect(),
         armies: changed_rows(&session.military.armies, &military.armies),
         removed_armies: removed_rows(&session.military.armies, &military.armies),
+        fleets: changed_rows(&session.military.fleets, &military.fleets),
+        removed_fleets: removed_rows(&session.military.fleets, &military.fleets),
         wars: changed_rows(&session.military.wars, &military.wars),
         removed_wars: removed_rows(&session.military.wars, &military.wars),
         sieges: (session.military.sieges != military.sieges).then(|| military.sieges.clone()),
     };
     session.visible_countries = countries;
+    session.visible_events = events;
     session.visible_owners = owners;
     session.military = military;
     if let Err(error) = app.emit(UPDATE_EVENT, update) {
@@ -1017,6 +1146,17 @@ fn removed_rows<T>(old: &BTreeMap<u32, T>, new: &BTreeMap<u32, T>) -> Vec<u32> {
         .collect()
 }
 
+fn guarantee_views(game: &GameState) -> Vec<GuaranteeView> {
+    game.diplomacy()
+        .into_iter()
+        .flat_map(|diplomacy| &diplomacy.guarantees)
+        .map(|&(guarantor, protected)| GuaranteeView {
+            guarantor_id: guarantor.get(),
+            protected_id: protected.get(),
+        })
+        .collect()
+}
+
 fn owner_views(game: &GameState) -> BTreeMap<u32, u32> {
     game.polity()
         .into_iter()
@@ -1035,6 +1175,33 @@ fn military_view(game: &GameState) -> MilitaryView {
         return MilitaryView::default();
     };
     MilitaryView {
+        fleets: game
+            .navy()
+            .into_iter()
+            .flat_map(|navy| &navy.fleets)
+            .map(|(&id, fleet)| {
+                let movement = fleet.movement.as_ref();
+                let progress = movement.map_or(0, |movement| {
+                    movement.route.first().map_or(0, |leg| {
+                        i64::from(movement.elapsed_ticks) * 1000 / i64::from(leg.cost)
+                    })
+                });
+                (
+                    id.get(),
+                    FleetView {
+                        id: id.get(),
+                        country_id: fleet.country.get(),
+                        sea_province_id: fleet.sea.get(),
+                        ships: fleet.ships,
+                        cargo_army_id: fleet.cargo.map(ArmyId::get),
+                        to_sea_province_id: movement
+                            .and_then(|m| m.route.first())
+                            .map(|leg| leg.to.get()),
+                        progress,
+                    },
+                )
+            })
+            .collect(),
         armies: state
             .armies
             .iter()
@@ -1052,6 +1219,11 @@ fn military_view(game: &GameState) -> MilitaryView {
                             .and_then(|movement| movement.route.first())
                             .map(|leg| leg.to.get()),
                         progress: movement.map_or(0, |movement| movement.progress().raw()),
+                        embarked_on: game.navy().and_then(|navy| {
+                            navy.fleets.iter().find_map(|(&fleet_id, fleet)| {
+                                (fleet.cargo == Some(id)).then_some(fleet_id.get())
+                            })
+                        }),
                     },
                 )
             })
@@ -1066,6 +1238,16 @@ fn military_view(game: &GameState) -> MilitaryView {
                         id: id.get(),
                         attacker_id: war.attacker.get(),
                         defender_id: war.defender.get(),
+                        attacker_supporters: war
+                            .attacker_supporters
+                            .iter()
+                            .map(|id| id.get())
+                            .collect(),
+                        defender_supporters: war
+                            .defender_supporters
+                            .iter()
+                            .map(|id| id.get())
+                            .collect(),
                         goal_province_id: war.goal.get(),
                         score: war.score,
                         occupations: war
@@ -1096,6 +1278,43 @@ fn military_view(game: &GameState) -> MilitaryView {
             })
             .collect(),
     }
+}
+
+fn local_player(mode: &Mode) -> PlayerId {
+    if matches!(mode, Mode::Guest(_)) {
+        GUEST
+    } else {
+        HOST
+    }
+}
+
+fn event_views(game: &GameState, player: PlayerId) -> Vec<EventView> {
+    let Some(events) = game.events() else {
+        return Vec::new();
+    };
+    events
+        .pending
+        .iter()
+        .filter_map(|((country, key), _)| {
+            let is_local = game.countries().any(|(id, state)| {
+                id == *country && state.controller() == &Controller::Human(player)
+            });
+            let definition = events.definitions.get(key)?;
+            is_local.then(|| EventView {
+                country_id: country.get(),
+                key: key.clone(),
+                title_key: definition.title_key.clone(),
+                desc_key: definition.desc_key.clone(),
+                options: definition
+                    .options
+                    .iter()
+                    .map(|option| EventOptionView {
+                        text_key: option.text_key.clone(),
+                    })
+                    .collect(),
+            })
+        })
+        .collect()
 }
 
 fn country_views(game: &GameState) -> BTreeMap<u32, CountryView> {
@@ -1181,7 +1400,48 @@ fn money(value: Fixed) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::Startup;
+    use super::{event_views, Startup, UiCommand, GUEST, HOST};
+    use std::{
+        collections::{BTreeMap, BTreeSet},
+        num::{NonZeroU32, NonZeroU64},
+    };
+    use strategy_data::parse_event_yaml;
+    use strategy_sim::{
+        Command, Controller, CountryId, CountryState, Date, GameState, MapIdentity, ModifierStore,
+        ProvinceGraph, SimTime, Speed, Trigger,
+    };
+    #[test]
+    fn guarantee_ui_commands_preserve_direction_and_country_ids() {
+        for (json, revoke) in [
+            (
+                r#"{"type":"guarantee","country_id":3,"protected_id":2}"#,
+                false,
+            ),
+            (
+                r#"{"type":"revoke_guarantee","country_id":3,"protected_id":2}"#,
+                true,
+            ),
+        ] {
+            let command = serde_json::from_str::<UiCommand>(json)
+                .unwrap()
+                .into_sim()
+                .unwrap();
+            assert_eq!(
+                command,
+                if revoke {
+                    Command::RevokeGuarantee {
+                        country: CountryId::new(3),
+                        protected: CountryId::new(2),
+                    }
+                } else {
+                    Command::Guarantee {
+                        country: CountryId::new(3),
+                        protected: CountryId::new(2),
+                    }
+                }
+            );
+        }
+    }
 
     #[test]
     fn normal_launch_and_guest_startup_arguments_are_validated() {
@@ -1200,5 +1460,80 @@ mod tests {
         ] {
             assert!(Startup::parse(args.into_iter().map(String::from)).is_err());
         }
+    }
+
+    #[test]
+    fn pending_event_projection_is_local_and_choice_maps_to_host_command() {
+        let mut definition = parse_event_yaml(include_str!(
+            "../../tools/tests/fixtures/good_event/events/harvest.yaml"
+        ))
+        .unwrap();
+        definition.trigger = Trigger::All(Vec::new());
+        definition.mean_time_to_happen = NonZeroU64::new(1);
+        let graph = ProvinceGraph::try_new(
+            MapIdentity {
+                version: NonZeroU32::new(1).unwrap(),
+                sha256: [7; 32],
+            },
+            [],
+        )
+        .unwrap();
+        let countries = [HOST, GUEST]
+            .into_iter()
+            .enumerate()
+            .map(|(index, player)| {
+                (
+                    CountryId::new(index as u32 + 1),
+                    CountryState::new(
+                        Controller::Human(player),
+                        BTreeSet::new(),
+                        false,
+                        ModifierStore::default(),
+                    ),
+                )
+            })
+            .collect();
+        let mut game = GameState::new(
+            SimTime::new(Date::new(1440, 1, 1).unwrap(), Speed::One, false),
+            42,
+            graph,
+            countries,
+            [],
+        )
+        .unwrap()
+        .with_events(BTreeMap::from([(definition.key.clone(), definition)]))
+        .unwrap();
+        game.tick(|_, _| Vec::new()).unwrap();
+        let host_country = game
+            .countries()
+            .find_map(|(id, country)| {
+                (country.controller() == &Controller::Human(HOST)).then_some(id.get())
+            })
+            .unwrap();
+        let guest_country = game
+            .countries()
+            .find_map(|(id, country)| {
+                (country.controller() == &Controller::Human(GUEST)).then_some(id.get())
+            })
+            .unwrap();
+        let host_events = event_views(&game, HOST);
+        let guest_events = event_views(&game, GUEST);
+        assert_eq!(host_events.len(), 1);
+        assert_eq!(guest_events.len(), 1);
+        assert_eq!(host_events[0].country_id, host_country);
+        assert_eq!(guest_events[0].country_id, guest_country);
+        assert_eq!(host_events[0].key, "harvest_festival");
+        assert_eq!(host_events[0].options.len(), 2);
+        let command = UiCommand::ChooseEvent {
+            country_id: host_country,
+            key: host_events[0].key.clone(),
+            option: 1,
+        }
+        .into_sim()
+        .unwrap();
+        assert!(
+            matches!(command, Command::ChooseEvent { country, option: 1, .. }
+            if country.get() == host_country)
+        );
     }
 }

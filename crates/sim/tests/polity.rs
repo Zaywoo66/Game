@@ -618,7 +618,7 @@ fn setup(start: Date, edit: impl FnOnce(&mut PolityState)) -> Result<GameState, 
             ),
         ]),
         ai_profiles: BTreeMap::from([
-            ("balanced".to_owned(), profile),
+            ("balanced".to_owned(), profile.clone()),
             ("prudent".to_owned(), profile),
         ]),
     };

@@ -8,6 +8,7 @@ use strategy_sim::{
 mod diplomacy;
 mod marriage;
 mod military;
+mod naval;
 
 /// Fresh context for one country's decision on one simulation tick.
 pub struct AiContext {
@@ -34,6 +35,7 @@ pub enum Reason {
     RecoverDebt,
     NominateSuccessor,
     Military { action: MilitaryReason, score: i32 },
+    Naval(NavalReason),
     AllianceAccepted,
     AllianceRejected,
     AllianceProposed,
@@ -41,6 +43,7 @@ pub enum Reason {
     MarriageAccepted,
     MarriageRejected,
     MarriageProposed,
+    GuaranteeIssued,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -58,6 +61,15 @@ pub enum MilitaryReason {
     AcceptPeace,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum NavalReason {
+    MarchToPort,
+    SailToPort,
+    EmbarkArmy,
+    SailToGoal,
+    LandArmy,
+}
+
 impl Reason {
     pub fn label(self) -> &'static str {
         match self {
@@ -73,6 +85,7 @@ impl Reason {
             Self::MarriageAccepted => "MarriageAccepted",
             Self::MarriageRejected => "MarriageRejected",
             Self::MarriageProposed => "MarriageProposed",
+            Self::GuaranteeIssued => "GuaranteeIssued",
             Self::Military { action, .. } => match action {
                 MilitaryReason::RaiseArmy => "RaiseArmy",
                 MilitaryReason::CombineArmies => "CombineArmies",
@@ -85,6 +98,13 @@ impl Reason {
                 MilitaryReason::OfferGoal => "OfferGoal",
                 MilitaryReason::OfferWhitePeace => "OfferWhitePeace",
                 MilitaryReason::AcceptPeace => "AcceptPeace",
+            },
+            Self::Naval(action) => match action {
+                NavalReason::MarchToPort => "MarchToPort",
+                NavalReason::SailToPort => "SailToPort",
+                NavalReason::EmbarkArmy => "EmbarkArmy",
+                NavalReason::SailToGoal => "SailToGoal",
+                NavalReason::LandArmy => "LandArmy",
             },
         }
     }
@@ -221,11 +241,18 @@ pub fn decide(
             }
         }
     }
-    if let Some(command) = military::decide(state, country, nation, profile, ctx) {
+    if let Some(command) = naval::decide(state, country, nation)
+        .or_else(|| military::decide(state, country, nation, profile, ctx))
+    {
         commands.push(command);
     }
-    if let Some(command) = diplomacy::decide(state, country, profile, ctx) {
-        commands.push(command);
+    if !commands
+        .iter()
+        .any(|(command, _)| matches!(command, Command::DeclareWar { .. }))
+    {
+        if let Some(command) = diplomacy::decide(state, country, profile, ctx) {
+            commands.push(command);
+        }
     }
     if let Some(command) = marriage::decide(state, country, profile) {
         commands.push(command);
