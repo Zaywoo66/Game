@@ -22,9 +22,10 @@
 | rivers.png | 8-bit mask: 0 background, 255 river |
 | water mask | derived from sea provinces |
 
-M4 writes symmetric movement costs in the map metadata using the region's
-`movement_costs` in `overrides.json`. This changes the metadata hash and map
-version while preserving the four generated rasters.
+The generator writes symmetric movement costs in the map metadata using the
+region's `movement_costs` in `overrides.yaml`. Changing these costs changes
+the metadata hash, so existing saves are rejected even if the schema version
+remains 3. The four rasters are unaffected.
 
 ## Province generation
 The Western Europe crop uses 32 pixels per degree on both axes, with an
