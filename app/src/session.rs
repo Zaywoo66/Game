@@ -16,7 +16,7 @@ use strategy_app::{
 use strategy_net::discover_rooms;
 use strategy_sim::{
     ArmyId, Command, CommandActor, Controller, CountryId, Date, FiscalPolicy, Fixed, GameState,
-    PlayerId, ProvinceId, Speed, TimeCommand, WarId,
+    PlayerId, ProvinceId, Speed, Tick, TimeCommand, WarId, WarState,
 };
 use tauri::{App, AppHandle, Emitter, Manager, State};
 
@@ -173,6 +173,14 @@ struct GuaranteeView {
     protected_id: u32,
 }
 
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+struct TruceView {
+    a_id: u32,
+    b_id: u32,
+    remaining_days: u32,
+    ends_on: Option<String>,
+}
+
 #[derive(Default)]
 struct MilitaryView {
     armies: BTreeMap<u32, ArmyView>,
@@ -191,6 +199,7 @@ pub(crate) struct Snapshot {
     max_tax_rate: i64,
     max_monthly_spending: String,
     guarantees: Vec<GuaranteeView>,
+    truces: Vec<TruceView>,
     armies: Vec<ArmyView>,
     wars: Vec<WarView>,
     sieges: Vec<SiegeView>,
@@ -206,6 +215,7 @@ struct Update {
     clock: ClockView,
     countries: Vec<CountryView>,
     guarantees: Vec<GuaranteeView>,
+    truces: Vec<TruceView>,
     owners: Vec<OwnerView>,
     armies: Vec<ArmyView>,
     removed_armies: Vec<u32>,
@@ -560,6 +570,7 @@ pub(crate) fn game_snapshot(state: State<'_, Mutex<Session>>) -> Result<Snapshot
         max_tax_rate: polity.rules.max_tax_rate.raw(),
         max_monthly_spending: money(polity.rules.max_monthly_spending),
         guarantees: guarantee_views(&session.game),
+        truces: truce_views(&session.game),
         armies: session.military.armies.values().cloned().collect(),
         wars: session.military.wars.values().cloned().collect(),
         sieges: session.military.sieges.clone(),
@@ -999,6 +1010,7 @@ fn publish(app: &AppHandle, session: &mut Session) {
         clock: clock_view(&session.game),
         countries: changed_rows(&session.visible_countries, &countries),
         guarantees: guarantee_views(&session.game),
+        truces: truce_views(&session.game),
         owners: owners
             .iter()
             .filter(|(id, owner)| session.visible_owners.get(id) != Some(*owner))
@@ -1050,6 +1062,48 @@ fn guarantee_views(game: &GameState) -> Vec<GuaranteeView> {
         .map(|&(guarantor, protected)| GuaranteeView {
             guarantor_id: guarantor.get(),
             protected_id: protected.get(),
+        })
+        .collect()
+}
+
+fn truce_views(game: &GameState) -> Vec<TruceView> {
+    game.war_state().map_or_else(Vec::new, |war| {
+        collect_truce_views(war, game.time().tick(), game.time().date())
+    })
+}
+
+fn collect_truce_views(war: &WarState, now: Tick, today: Date) -> Vec<TruceView> {
+    let mut pairs = BTreeMap::<(CountryId, CountryId), u32>::new();
+    let duration = u64::from(war.rules.truce_ticks);
+    let mut record = |a: CountryId, b: CountryId, concluded_at: Tick| {
+        let Some(elapsed) = now.get().checked_sub(concluded_at.get()) else {
+            return;
+        };
+        if elapsed >= duration {
+            return;
+        }
+        let pair = if a < b { (a, b) } else { (b, a) };
+        let remaining = (duration - elapsed) as u32;
+        pairs
+            .entry(pair)
+            .and_modify(|previous| *previous = (*previous).max(remaining))
+            .or_insert(remaining);
+    };
+    for treaty in war.treaties.values() {
+        record(treaty.attacker, treaty.defender, treaty.concluded_at);
+    }
+    for (&(a, b), &concluded_at) in &war.coalition_truces {
+        record(a, b, concluded_at);
+    }
+    pairs
+        .into_iter()
+        .map(|((a, b), remaining_days)| TruceView {
+            a_id: a.get(),
+            b_id: b.get(),
+            remaining_days,
+            ends_on: today
+                .checked_add_days(u64::from(remaining_days))
+                .map(format_date),
         })
         .collect()
 }
@@ -1228,8 +1282,65 @@ fn money(value: Fixed) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::{Startup, UiCommand};
-    use strategy_sim::{Command, CountryId};
+    use super::{collect_truce_views, Startup, TruceView, UiCommand};
+    use strategy_app::load_embedded_scenario;
+    use strategy_sim::{Command, CountryId, Date, PeaceTreaty, Tick, WarId};
+
+    #[test]
+    fn truce_projection_includes_coalition_pairs_and_expires_on_time() {
+        let mut war = load_embedded_scenario()
+            .unwrap()
+            .war_state()
+            .unwrap()
+            .clone();
+        war.rules.truce_ticks = 5;
+        war.treaties.insert(
+            WarId::new(1),
+            PeaceTreaty {
+                attacker: CountryId::new(2),
+                defender: CountryId::new(1),
+                ceded: None,
+                concluded_at: Tick::ZERO,
+            },
+        );
+        war.coalition_truces
+            .insert((CountryId::new(1), CountryId::new(3)), Tick::new(1));
+        let start = Date::new(1440, 1, 1).unwrap();
+        let at =
+            |day| collect_truce_views(&war, Tick::new(day), start.checked_add_days(day).unwrap());
+        assert_eq!(
+            at(3),
+            vec![
+                TruceView {
+                    a_id: 1,
+                    b_id: 2,
+                    remaining_days: 2,
+                    ends_on: Some("1440-01-06".into()),
+                },
+                TruceView {
+                    a_id: 1,
+                    b_id: 3,
+                    remaining_days: 3,
+                    ends_on: Some("1440-01-07".into()),
+                },
+            ]
+        );
+        assert_eq!(at(5).len(), 1);
+        assert_eq!(at(5)[0].remaining_days, 1);
+        assert!(at(6).is_empty());
+        war.treaties.insert(
+            WarId::new(2),
+            PeaceTreaty {
+                attacker: CountryId::new(1),
+                defender: CountryId::new(2),
+                ceded: None,
+                concluded_at: Tick::new(4),
+            },
+        );
+        let rows = collect_truce_views(&war, Tick::new(5), start.checked_add_days(5).unwrap());
+        assert_eq!(rows[0].remaining_days, 4);
+        assert_eq!(rows[0].ends_on.as_deref(), Some("1440-01-10"));
+    }
 
     #[test]
     fn guarantee_ui_commands_preserve_direction_and_country_ids() {

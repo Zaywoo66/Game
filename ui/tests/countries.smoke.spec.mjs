@@ -17,8 +17,8 @@ const other = {
   capital: 'Other Capital', ruler: null, heir: null, regency: false,
 };
 
-async function mockHost(page, provinceId) {
-  await page.addInitScript(({ initialClock, local, other, provinceId }) => {
+async function mockHost(page, provinceId, truces = []) {
+  await page.addInitScript(({ initialClock, local, other, provinceId, truces }) => {
     const listeners = new Set();
     const commands = [];
     const calls = [];
@@ -44,6 +44,7 @@ async function mockHost(page, provinceId) {
             return {
               sequence: 9, clock: initialClock, local_country_id: local.id,
               countries: [local, other], owners: [{ province_id: provinceId, country_id: local.id }],
+              truces, armies: truces.length ? [] : undefined,
               max_tax_rate: 200, max_monthly_spending: '999999999999999999',
             };
           }
@@ -60,8 +61,42 @@ async function mockHost(page, provinceId) {
         },
       },
     };
-  }, { initialClock, local, other, provinceId });
+  }, { initialClock, local, other, provinceId, truces });
 }
+
+test('M6 shows active truce and blocks a war order until expiry', async ({ page }) => {
+  const map = await page.request.get('/map/western_europe/provinces.json');
+  expect(map.ok()).toBe(true);
+  const id = (await map.json()).provinces.find(({ key }) => key === 'london').id;
+  await mockHost(page, id, [{ a_id: 1, b_id: 2, remaining_days: 4, ends_on: '1440-02-05' }]);
+  await page.goto('/?verify=1&verifyHost=1');
+  await expect(page.locator('main[data-map-status="ready"]')).toBeVisible({ timeout: 60_000 });
+  const panel = page.getByRole('region', { name: 'Country and rulers' });
+  await expect(panel.getByRole('region', { name: 'Truces' })).toContainText('Other Realm · 4 days left · ends 1440-02-05');
+
+  await page.evaluate((provinceId) => {
+    window.__strategyMockHost.emit({
+      sequence: 11, clock: { date: '1440-02-01', tick: 31, paused: false, speed: 1 },
+      countries: [], owners: [{ province_id: provinceId, country_id: 2 }],
+      truces: [{ a_id: 1, b_id: 2, remaining_days: 4, ends_on: '1440-02-05' }],
+    });
+  }, id);
+  const point = await page.evaluate((provinceId) => window.strategyMapTest.projectProvince(provinceId), id);
+  await page.mouse.click(point.x, point.y);
+  await page.getByRole('button', { name: 'Military', exact: true }).click();
+  const military = page.getByRole('region', { name: 'Military' });
+  const declaration = military.getByRole('button', { name: /Declare war for/ });
+  await expect(declaration).toBeDisabled();
+  await expect(military.getByRole('status')).toContainText('Truce with Other Realm · 4 days left');
+
+  await page.evaluate(() => {
+    window.__strategyMockHost.emit({
+      sequence: 12, clock: { date: '1440-02-05', tick: 35, paused: false, speed: 1 },
+      countries: [], truces: [],
+    });
+  });
+  await expect(declaration).toBeEnabled();
+});
 
 test('M3 panels apply host deltas and issue commands without optimistic writes', async ({ page }) => {
   await mockHost(page, 1);

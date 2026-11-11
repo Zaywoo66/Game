@@ -189,6 +189,11 @@ export function MilitaryPanel(props: MilitaryProps) {
   const countryName = (id: number) => game.countries.find((country) => country.id === id)?.name ?? 'Country ' + id;
   const owner = game.owners.find((row) => row.province_id === provinceId)?.country_id;
   const enemy = owner === undefined || owner === localId ? undefined : owner;
+  const truce = (game.truces ?? []).find((row) => (
+    localId !== null && enemy !== undefined
+    && ((row.a_id === localId && row.b_id === enemy)
+      || (row.a_id === enemy && row.b_id === localId))
+  ));
   const fort = game.forts?.find((row) => row.province_id === provinceId);
   const sieges = game.sieges?.filter((row) => row.province_id === provinceId) ?? [];
   const existingWar = wars.some((war) => (
@@ -243,12 +248,21 @@ export function MilitaryPanel(props: MilitaryProps) {
         <p key={siege.war_id}>{countryName(siege.country_id)} siege · {siege.progress_days}/{siege.required_days} days</p>
       ))}
       {local && enemy !== undefined && provinceId !== null && provinceIsLand && !existingWar && (
-        <button type="button" disabled={pending}
-          onClick={() => void send({
-            type: 'declare_war', country_id: local.id, defender_id: enemy, goal_province_id: provinceId,
-          })}>
-          Declare war for {provinceName(provinceId)}
-        </button>
+        <>
+          <button type="button" disabled={pending || Boolean(truce)}
+            title={truce ? `Truce until ${truce.ends_on ?? `after ${truce.remaining_days} days`}` : undefined}
+            onClick={() => void send({
+              type: 'declare_war', country_id: local.id, defender_id: enemy, goal_province_id: provinceId,
+            })}>
+            Declare war for {provinceName(provinceId)}
+          </button>
+          {truce && (
+            <p role="status">
+              Truce with {countryName(enemy)} · {truce.remaining_days} days left
+              {truce.ends_on && ` · ends ${truce.ends_on}`}
+            </p>
+          )}
+        </>
       )}
       {wars.length ? wars.map((war) => (
         <ActiveWar key={war.id} war={war} local={localId} pending={pending}

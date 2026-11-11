@@ -59,6 +59,13 @@ export interface WarView {
   offer: { offered_by: number; cede_goal: boolean } | null;
 }
 
+export interface TruceView {
+  a_id: number;
+  b_id: number;
+  remaining_days: number;
+  ends_on: string | null;
+}
+
 export interface SiegeView {
   province_id: number;
   war_id: number;
@@ -82,6 +89,7 @@ export interface GameSnapshot {
   local_country_id: number | null;
   countries: CountryView[];
   guarantees: { guarantor_id: number; protected_id: number }[];
+  truces: TruceView[];
   owners: { province_id: number; country_id: number }[];
   max_tax_rate: number;
   max_monthly_spending: string;
@@ -99,6 +107,7 @@ interface GameUpdate {
   clock: ClockView;
   countries: CountryView[];
   guarantees: { guarantor_id: number; protected_id: number }[];
+  truces: TruceView[];
   armies?: ArmyView[];
   removed_armies?: number[];
   wars?: WarView[];
@@ -162,6 +171,7 @@ function applyUpdate(snapshot: GameSnapshot, update: GameUpdate): GameSnapshot {
     clock: update.clock,
     countries: updateRows(snapshot.countries, update.countries) ?? snapshot.countries,
     guarantees: update.guarantees,
+    truces: update.truces ?? snapshot.truces,
     owners,
     armies: updateRows(snapshot.armies, update.armies, update.removed_armies),
     wars: updateRows(snapshot.wars, update.wars, update.removed_wars),

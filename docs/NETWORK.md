@@ -24,6 +24,9 @@ identity fields before accepting a guest.
   defender side or records the broken commitment and opinion penalty. The
   canonical snapshot and byte delta include guarantees and war supporters;
   clients cannot choose whether their guaranteed country is defended.
+- Post-war truce rows are derived from the existing treaty and coalition-truce
+  records in the canonical snapshot for the Tauri UI. They add no LAN command
+  or protocol version.
 - See [LAN_ACCEPTANCE.md](LAN_ACCEPTANCE.md) for the two-PC checklist and `--lan-log` mode.
 - Welcome includes a private 128-bit resume token. The guest confirms it
   after parsing its first snapshot. A disconnected, unconfirmed handshake
