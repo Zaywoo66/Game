@@ -112,3 +112,14 @@ fn rejects_invalid_units_keys_and_repeat_rules() {
         Err(EventLoadError::Invalid { field, .. }) if field == "options"
     ));
 }
+
+#[test]
+fn rejects_yaml_boolean_words_not_understood_by_the_runtime_parser() {
+    for word in ["yes", "no"] {
+        let yaml = VALID.replace("at_war: true", &format!("at_war: {word}"));
+        assert!(matches!(
+            parse_event_yaml(&yaml),
+            Err(EventLoadError::Invalid { field, .. }) if field == "trigger.not"
+        ));
+    }
+}
