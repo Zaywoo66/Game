@@ -95,6 +95,15 @@ fn rejects_invalid_units_keys_and_repeat_rules() {
         assert!(parse_event_yaml(&yaml).is_err());
     }
 
+    let multiplier_overflow = VALID.replace(
+        "value: 100, kind: multiplicative",
+        &format!("value: {}, kind: multiplicative", i64::MAX),
+    );
+    assert!(matches!(
+        parse_event_yaml(&multiplier_overflow),
+        Err(EventLoadError::Invalid { reason, .. }) if reason.contains("multiplier exceeds")
+    ));
+
     let bad_key = VALID.replace("key: harvest_festival", "key: harvest__festival");
     assert!(matches!(
         parse_event_yaml(&bad_key),
