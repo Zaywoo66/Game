@@ -9,8 +9,8 @@
 - D10 AI difficulty. ASSUMED: no cheats by default. Bonuses require explicit modifiers.
 
 ## Decided
-- D1 Time mode: real-time with pause.
-- D2 Time controls: either player may pause, and only the host sets speed.
+- D1 Time mode: real-time with pause. Each tick advances one day in the proleptic Gregorian calendar.
+- D2 Time controls: either human player may pause or resume. Only the host sets speed.
 - D0 Stack: Rust sim/net, Tauri 2, React/TS UI, three.js map. Fallback if WebView/WebGL fails: Godot.
 - D3 Network: host-authoritative with deltas; lockstep deferred.
 - D6 Graphics: 3D terrain + low-poly instanced units, 2D UI; gameplay is province-graph based.
