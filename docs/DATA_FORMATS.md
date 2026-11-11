@@ -32,6 +32,15 @@ endpoints are valid. Port IDs must exist, be unique within the list, and point
 to a sea province. Fields outside this schema
 are rejected.
 
+Schema v3 also requires an exact land-to-sea port correspondence: every sea
+ID in a land province's `ports` must have a `port` edge in both directions,
+and every `port` edge must connect land to sea with its sea ID listed in the
+land province's `ports`. Sea and lake provinces have empty `ports` lists.
+The stricter correspondence does not apply to legacy v1/v2 maps, preserving
+their save-file map identities. Sea routes use only sea-to-sea `normal` and
+`strait` edges; route cost is the sum of whole daily movement ticks. `port`
+and `river` edges do not extend a sea route.
+
 ### Map hash and saves
 
 For schema v1 and v2, compute `map_hash` from compact UTF-8 JSON of the

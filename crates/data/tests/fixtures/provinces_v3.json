@@ -1,7 +1,7 @@
 {
   "schema_version": 3,
   "map_version": 3,
-  "map_hash": "65618ef5868d23a2e7d1cfcd597d433756f33694b7a121624dfbd2561fb04fc8",
+  "map_hash": "d7db02fdb27d137c9bda9ce251321276d4f78c9ebc62f91e46961b7d57dc3bc5",
   "provinces": [
     {
       "id": 11,
@@ -118,7 +118,6 @@
         }
       ],
       "ports": [
-        7,
         9
       ],
       "development": 3,

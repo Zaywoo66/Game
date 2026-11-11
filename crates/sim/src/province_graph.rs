@@ -1,4 +1,9 @@
-use std::{collections::BTreeMap, fmt, num::NonZeroU32};
+use std::{
+    cmp::Reverse,
+    collections::{BTreeMap, BinaryHeap},
+    fmt,
+    num::NonZeroU32,
+};
 
 use crate::ProvinceId;
 
@@ -227,6 +232,49 @@ impl ProvinceGraph {
     /// Returns sorted edges, or `None` for an unknown province.
     pub fn neighbors(&self, id: ProvinceId) -> Option<&[ProvinceEdge]> {
         self.get(id).map(|province| province.neighbors.as_slice())
+    }
+
+    /// The cheapest sea-only route, with stable province-ID ordering for equal costs.
+    /// Ports and rivers are not navigable sea edges; coast access is handled separately.
+    pub fn sea_route(&self, from: ProvinceId, to: ProvinceId) -> Option<Vec<ProvinceEdge>> {
+        if self.get(from)?.kind != ProvinceKind::Sea || self.get(to)?.kind != ProvinceKind::Sea {
+            return None;
+        }
+        let mut costs = BTreeMap::from([(from, 0_u64)]);
+        let mut previous = BTreeMap::<ProvinceId, (ProvinceId, ProvinceEdge)>::new();
+        let mut frontier = BinaryHeap::from([Reverse((0_u64, from))]);
+
+        while let Some(Reverse((cost, current))) = frontier.pop() {
+            if cost != costs[&current] {
+                continue;
+            }
+            if current == to {
+                let mut route = Vec::new();
+                let mut step = to;
+                while let Some(&(parent, edge)) = previous.get(&step) {
+                    route.push(edge);
+                    step = parent;
+                }
+                route.reverse();
+                return Some(route);
+            }
+            for &edge in self.neighbors(current)? {
+                if !matches!(edge.kind, EdgeKind::Normal | EdgeKind::Strait)
+                    || self.get(edge.to)?.kind != ProvinceKind::Sea
+                {
+                    continue;
+                }
+                let Some(next_cost) = cost.checked_add(u64::from(edge.cost)) else {
+                    continue;
+                };
+                if costs.get(&edge.to).is_none_or(|&known| next_cost < known) {
+                    costs.insert(edge.to, next_cost);
+                    previous.insert(edge.to, (current, edge));
+                    frontier.push(Reverse((next_cost, edge.to)));
+                }
+            }
+        }
+        None
     }
 }
 

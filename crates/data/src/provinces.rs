@@ -33,6 +33,11 @@ pub enum ProvinceLoadError {
         field: &'static str,
         key: String,
     },
+    InvalidPortLink {
+        province: u32,
+        target: u32,
+        reason: &'static str,
+    },
     InvalidMapHash,
     MapHashMismatch {
         declared: MapIdentity,
@@ -72,6 +77,11 @@ impl fmt::Display for ProvinceLoadError {
             } => {
                 write!(f, "province {province} has an invalid {field} key {key:?}")
             }
+            Self::InvalidPortLink {
+                province,
+                target,
+                reason,
+            } => write!(f, "invalid v3 port link {province} -> {target}: {reason}"),
             Self::InvalidMapHash => f.write_str("map_hash must be 64 lowercase hexadecimal digits"),
             Self::MapHashMismatch { declared, computed } => {
                 write!(f, "map declares {declared}, computed {computed}")
@@ -151,10 +161,65 @@ pub fn parse_provinces(bytes: &[u8]) -> Result<ProvinceGraph, ProvinceLoadError>
 
     let graph = ProvinceGraph::try_new(declared, map.provinces.into_iter().map(Province::from))
         .map_err(ProvinceLoadError::Graph)?;
+    if map.schema_version == HIERARCHY_VERSION {
+        validate_v3_port_links(&graph)?;
+    }
     if declared != computed {
         return Err(ProvinceLoadError::MapHashMismatch { declared, computed });
     }
     Ok(graph)
+}
+
+fn validate_v3_port_links(graph: &ProvinceGraph) -> Result<(), ProvinceLoadError> {
+    for province in graph.iter() {
+        if province.kind != ProvinceKind::Land {
+            if let Some(target) = province.ports.first() {
+                return Err(ProvinceLoadError::InvalidPortLink {
+                    province: province.id.get(),
+                    target: target.get(),
+                    reason: "only land provinces may declare ports",
+                });
+            }
+        }
+        for target in &province.ports {
+            if !province
+                .neighbors
+                .iter()
+                .any(|edge| edge.to == *target && edge.kind == EdgeKind::Port)
+            {
+                return Err(ProvinceLoadError::InvalidPortLink {
+                    province: province.id.get(),
+                    target: target.get(),
+                    reason: "listed sea province has no Port edge",
+                });
+            }
+        }
+        for edge in &province.neighbors {
+            if edge.kind != EdgeKind::Port {
+                continue;
+            }
+            let other = graph
+                .get(edge.to)
+                .expect("graph already validates edge targets");
+            let matching_port = match (province.kind, other.kind) {
+                (ProvinceKind::Land, ProvinceKind::Sea) => {
+                    province.ports.binary_search(&other.id).is_ok()
+                }
+                (ProvinceKind::Sea, ProvinceKind::Land) => {
+                    other.ports.binary_search(&province.id).is_ok()
+                }
+                _ => false,
+            };
+            if !matching_port {
+                return Err(ProvinceLoadError::InvalidPortLink {
+                    province: province.id.get(),
+                    target: edge.to.get(),
+                    reason: "Port edge must link land and sea and appear in land ports",
+                });
+            }
+        }
+    }
+    Ok(())
 }
 
 pub(crate) fn decode_hash(text: &str) -> Option<[u8; 32]> {
