@@ -30,8 +30,10 @@ The owner authorized independent small M6–M11 PRs in parallel on 2026-11-11. M
 The M7 data loader maps event YAML to typed simulation triggers/effects. The
 event runtime adds deterministic daily firing, pending choices and AI weighted
 responses. Starter content adds three generic YAML events and an English
-localization catalog with linted references; the 20–40 event target, Russian
-translation, popup UI, and multiplayer acceptance remain open.
+localization catalog with linted references. The popup shows local-player
+pending events from the host snapshot, resolves English keys and submits a
+validated choice command. The 20–40 event target, Russian translation, and
+multiplayer acceptance remain open.
 M5b.4 camera, water, borders and terrain have browser screenshot evidence; native 1080p FPS/RAM and owner visual review remain open for M5b acceptance.
 M5b.5 map modes, historical evidence display, English fallback labels and army badges have browser checks; Russian localization, fleet UI, native performance and owner visual acceptance remain open.
 

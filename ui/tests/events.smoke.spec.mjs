@@ -3,19 +3,13 @@ import { expect, test } from '@playwright/test';
 
 const clock = { date: '1440-01-01', tick: 0, paused: true, speed: 1 };
 const pending = {
-  country_id: 1, key: 'harvest_festival', title_key: 'event.harvest.title',
-  desc_key: 'event.harvest.desc', options: [
-    { text_key: 'event.harvest.celebrate' }, { text_key: 'event.harvest.save' },
+  country_id: 1, key: 'harvest_surplus', title_key: 'event_harvest_surplus_title',
+  desc_key: 'event_harvest_surplus_desc', options: [
+    { text_key: 'event_harvest_surplus_collect' }, { text_key: 'event_harvest_surplus_store' },
   ],
 };
 
 test('M7 localized choice waits for host update and sends the chosen option', async ({ page }) => {
-  await page.route('**/locales/events.en.json', (route) => route.fulfill({ json: {
-    'event.harvest.title': 'Harvest Festival',
-    'event.harvest.desc': 'The harvest has come in.',
-    'event.harvest.celebrate': 'Hold a feast',
-    'event.harvest.save': 'Store the grain',
-  } }));
   await page.addInitScript(({ clock, pending }) => {
     const listeners = new Set();
     const commands = [];
@@ -41,12 +35,12 @@ test('M7 localized choice waits for host update and sends the chosen option', as
     };
   }, { clock, pending });
   await page.goto('/?verify=1&verifyHost=1');
-  const dialog = page.getByRole('dialog', { name: 'Harvest Festival' });
+  const dialog = page.getByRole('dialog', { name: 'A Surplus Harvest' });
   await expect(dialog).toBeVisible({ timeout: 60_000 });
-  await expect(dialog.getByText('The harvest has come in.')).toBeVisible();
-  await dialog.getByRole('button', { name: 'Store the grain' }).click();
+  await expect(dialog.getByText('Farmers report full granaries.', { exact: false })).toBeVisible();
+  await dialog.getByRole('button', { name: 'Store grain for later markets' }).click();
   await expect.poll(() => page.evaluate(() => window.__eventMock.commands)).toEqual([
-    { type: 'choose_event', country_id: 1, key: 'harvest_festival', option: 1 },
+    { type: 'choose_event', country_id: 1, key: 'harvest_surplus', option: 1 },
   ]);
   // The UI keeps the event until the authoritative host state changes.
   await expect(dialog).toBeVisible();
