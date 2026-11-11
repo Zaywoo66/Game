@@ -25,7 +25,7 @@ M4 writes symmetric movement costs in the map metadata using the region's
 version while preserving the four generated rasters.
 
 ## Province generation
-The 768 × 1024 equirectangular M2 raster covers longitudes −13 to 12 and latitudes 36 to 59.25. Seeded Voronoi cells respect coastlines and penalize crossings of rivers and 1440 polity boundaries. `overrides.json` supplies seeds, ports and named straits. The validator checks for unassigned pixels, one-pixel provinces, typed symmetric adjacency, valid centroids and a connected land graph.
+For M5b, follow the [city-seeded Voronoi generation rules](MAP_SCALE.md). Allocate province IDs from reserved ranges for each region and use one global equirectangular coordinate system with fixed pixels per degree and a crop origin for each region.
 
 ## Rendering (`/ui/src/map`, three.js WebGL2)
 - Terrain mesh from heightmap (chunked), custom shaders: terrain blend, water, province borders, owner color via lookup texture (`provinceId -> ownerColor`).

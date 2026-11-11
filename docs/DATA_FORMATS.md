@@ -61,6 +61,17 @@ Run `cargo run --locked -p strategy-data --bin lint-provinces -- data/map/wester
 to validate the generated file. CI tests the validator against fixtures and
 requires the generated map to pass validation.
 
+### Map hierarchy extensions (planned for M5b)
+
+| Field or file | Representation |
+|---|---|
+| `provinces[].name_key` | Localization key for the settlement or province display name. |
+| `provinces[].area` | Stable area key referencing `areas.yaml`. |
+| `data/map/<region>/areas.yaml` | Area records grouping provinces and referencing a region key. |
+| `data/map/<region>/regions.yaml` | Region records grouping areas. |
+
+MAP_SCALE.md defines the hierarchy and reserved ID ranges. Document the implemented schema version and canonical hash format with the map rebuild in task 5b.2.
+
 ## Saved games (schema version 1)
 
 `strategy_data::save_game` encodes an authoritative simulation snapshot in
@@ -115,6 +126,10 @@ Country and character numeric IDs are assigned in sorted key order starting at 1
 | `start.provinces` | Unique land province keys, owned by one country at most. |
 | `start.treasury`, `start.monthly_spending` | Raw Fixed thousandths of a treasury unit. Spending is per game month. |
 | `start.tax_rate` | Raw Fixed fraction of taxable income. `250` means 25%. |
+
+### World-map country extensions (planned for M13)
+
+`stub` is a boolean marking a placeholder country. MAP_SCALE.md defines the content requirements for stub countries. The current strict country loader predates this field.
 
 ## Characters (`data/characters/<key>.json`)
 
