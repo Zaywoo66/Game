@@ -236,6 +236,16 @@ Other country and character metadata keeps the content field representations.
 Country, character and province records are sorted by ID, profiles and trait
 keys by key, and modifier sources by ID.
 
+## LAN AI presets
+
+LAN AI tuning in `data/ai/lan_presets.json` has unsigned 32-bit
+`schema_version: 1` and a `presets` object keyed by `balanced`, `cautious`
+and `aggressive`. Each entry contains `aggression_scale`, unsigned
+16-bit raw Fixed thousandths between 0 and 2000, and
+`war_min_score_adjustment`, signed 32-bit whole score points between
+-1000 and 1000. The host scales aggression, caps it at 1000 weight points,
+and adds the threshold adjustment when creating a LAN room.
+
 ## Military rules
 
 | Rule | Representation and unit |

@@ -1,0 +1,8 @@
+{
+  "schema_version": 1,
+  "presets": {
+    "balanced": { "aggression_scale": 1000, "war_min_score_adjustment": 0 },
+    "cautious": { "aggression_scale": 650, "war_min_score_adjustment": 80 },
+    "aggressive": { "aggression_scale": 1350, "war_min_score_adjustment": -70 }
+  }
+}

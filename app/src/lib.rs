@@ -3,6 +3,7 @@
 mod autoplay;
 mod content;
 mod host;
+pub mod lan;
 
 pub use autoplay::{advance_autoplay, new_autoplay, AutoplaySummary};
 pub use content::load_embedded_scenario;

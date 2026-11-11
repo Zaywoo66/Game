@@ -7,7 +7,13 @@ fn main() {
     let builder = tauri::Builder::default().invoke_handler(tauri::generate_handler![
         session::game_snapshot,
         session::game_command,
-        session::game_ai_log
+        session::game_ai_log,
+        session::lan_status,
+        session::lan_discover,
+        session::lan_start,
+        session::lan_join,
+        session::lan_leave,
+        session::lan_takeover
     ]);
     let builder = if benchmark {
         builder

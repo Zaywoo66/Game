@@ -8,7 +8,7 @@ Status: [ ] todo, [~] in progress, [x] done. Update in the PR that changes it. W
 | M2 | Map | [x] | milestones/M02_map.md |
 | M3 | Countries and rulers | [x] | milestones/M03_countries_rulers.md |
 | M4 | Armies and land war | [x] | milestones/M04_armies_war.md |
-| M5 | LAN multiplayer | [ ] | milestones/M05_multiplayer.md |
+| M5 | LAN multiplayer | [~] | milestones/M05_multiplayer.md |
 | M6 | Diplomacy | [ ] | milestones/M06_diplomacy.md |
 | M7 | Events and RP | [ ] | milestones/M07_events_rp.md |
 | M8 | Naval | [ ] | milestones/M08_naval.md |

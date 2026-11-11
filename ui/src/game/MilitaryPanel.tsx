@@ -16,6 +16,7 @@ interface MilitaryProps {
   provinceName(id: number): string;
   send(command: GameCommand): Promise<void>;
   readAiLog(): Promise<AiLogEntry[]>;
+  canReadAiLog?: boolean;
 }
 
 function ArmyOrders({
@@ -179,7 +180,7 @@ function AiDebug({
 export function MilitaryPanel(props: MilitaryProps) {
   const {
     game, pending, provinceId, provinceIsLand, army, order, selectArmy, chooseOrder, cancelOrder,
-    provinceName, send, readAiLog,
+    provinceName, send, readAiLog, canReadAiLog = true,
   } = props;
   const localId = game.local_country_id;
   const local = game.countries.find((country) => country.id === localId);
@@ -253,7 +254,8 @@ export function MilitaryPanel(props: MilitaryProps) {
         <ActiveWar key={war.id} war={war} local={localId} pending={pending}
           countryName={countryName} provinceName={provinceName} send={send} />
       )) : <p>No active wars</p>}
-      <AiDebug readAiLog={readAiLog} countryName={countryName} />
+      {canReadAiLog ? <AiDebug readAiLog={readAiLog} countryName={countryName} />
+        : <p className="military-debug">Decision log is available on the host</p>}
     </section>
   );
 }

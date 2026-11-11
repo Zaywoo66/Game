@@ -1,12 +1,16 @@
 use std::{
     collections::BTreeMap,
-    sync::Mutex,
+    sync::{Arc, Mutex},
     thread,
     time::{Duration, Instant},
 };
 
 use serde::{Deserialize, Serialize};
-use strategy_app::{load_embedded_scenario, tick_host_with_log, AiDecisionLog};
+use strategy_app::{
+    lan::{ClientPhase, HostConfig, LanClient, LanHost},
+    load_embedded_scenario, tick_host_with_log, AiDecisionLog,
+};
+use strategy_net::discover_rooms;
 use strategy_sim::{
     ArmyId, Command, CommandActor, Controller, CountryId, Date, FiscalPolicy, Fixed, GameState,
     PlayerId, ProvinceId, Speed, TimeCommand, WarId,
@@ -14,7 +18,9 @@ use strategy_sim::{
 use tauri::{App, AppHandle, Emitter, Manager, State};
 
 const HOST: PlayerId = PlayerId::new(1);
+const GUEST: PlayerId = PlayerId::new(2);
 const UPDATE_EVENT: &str = "strategy:update";
+const LAN_EVENT: &str = "strategy:lan";
 
 pub(crate) struct Session {
     game: GameState,
@@ -23,6 +29,43 @@ pub(crate) struct Session {
     visible_owners: BTreeMap<u32, u32>,
     military: MilitaryView,
     ai_log: AiDecisionLog,
+    mode: Mode,
+    generation: u64,
+    operation: u64,
+    network_sequence: u64,
+    client_revision: u64,
+    last_lan_status: Option<LanStatus>,
+}
+
+#[derive(Clone)]
+enum Mode {
+    Solo,
+    Host(Arc<LanHost>),
+    Guest(Arc<LanClient>),
+}
+
+#[derive(Clone, PartialEq, Eq, Serialize)]
+pub(crate) struct LanStatus {
+    mode: &'static str,
+    state: &'static str,
+    room: Option<String>,
+    address: Option<String>,
+    guest_connected: bool,
+    guest_country_id: Option<u32>,
+    can_takeover: bool,
+    temporary_ai: bool,
+    verified_checksums: u64,
+    checksum_mismatches: u64,
+    detail: Option<String>,
+    generation: u64,
+}
+
+#[derive(Serialize)]
+pub(crate) struct RoomView {
+    name: String,
+    address: String,
+    player_count: u8,
+    version: u16,
 }
 
 #[derive(Clone, Serialize)]
@@ -124,6 +167,7 @@ struct MilitaryView {
 #[derive(Serialize)]
 pub(crate) struct Snapshot {
     sequence: u64,
+    generation: u64,
     clock: ClockView,
     local_country_id: Option<u32>,
     countries: Vec<CountryView>,
@@ -141,6 +185,7 @@ pub(crate) struct Snapshot {
 #[derive(Clone, Serialize)]
 struct Update {
     sequence: u64,
+    generation: u64,
     clock: ClockView,
     countries: Vec<CountryView>,
     owners: Vec<OwnerView>,
@@ -312,6 +357,7 @@ impl UiCommand {
 }
 
 pub(crate) fn setup(app: &mut App) -> Result<(), Box<dyn std::error::Error>> {
+    let startup = Startup::parse(std::env::args().skip(1))?;
     let game = load_embedded_scenario().map_err(std::io::Error::other)?;
     let visible_countries = country_views(&game);
     let visible_owners = owner_views(&game);
@@ -323,13 +369,99 @@ pub(crate) fn setup(app: &mut App) -> Result<(), Box<dyn std::error::Error>> {
         visible_owners,
         military,
         ai_log: AiDecisionLog::default(),
+        mode: Mode::Solo,
+        generation: 0,
+        operation: 0,
+        network_sequence: 0,
+        client_revision: 0,
+        last_lan_status: None,
     }));
 
     let handle = app.handle().clone();
     thread::Builder::new()
         .name("strategy-host-clock".into())
         .spawn(move || run_clock(handle))?;
+    if let Some(startup) = startup {
+        let handle = app.handle().clone();
+        tauri::async_runtime::spawn(async move {
+            if let Err(error) = startup.run(&handle).await {
+                eprintln!("LAN startup failed: {error}");
+                handle.exit(1);
+            }
+        });
+    }
     Ok(())
+}
+
+enum Startup {
+    Host { config: HostConfig, autostart: bool },
+    Guest { address: String, name: String },
+}
+
+impl Startup {
+    fn parse(args: impl Iterator<Item = String>) -> Result<Option<Self>, std::io::Error> {
+        let mut args = args.peekable();
+        let invalid = |message| std::io::Error::new(std::io::ErrorKind::InvalidInput, message);
+        let Some(action) = args.next() else {
+            return Ok(None);
+        };
+        let startup = match action.as_str() {
+            "--lan-host-config" => {
+                let path = args
+                    .next()
+                    .ok_or_else(|| invalid("Supply a host config JSON path."))?;
+                let config = serde_json::from_slice(&std::fs::read(path)?)
+                    .map_err(|error| std::io::Error::new(std::io::ErrorKind::InvalidData, error))?;
+                let autostart = args
+                    .peek()
+                    .is_some_and(|argument| argument == "--lan-autostart");
+                if autostart {
+                    args.next();
+                }
+                Self::Host { config, autostart }
+            }
+            "--lan-join" => Self::Guest {
+                address: args
+                    .next()
+                    .ok_or_else(|| invalid("Supply a host IP:port."))?,
+                name: args
+                    .next()
+                    .ok_or_else(|| invalid("Supply a player name."))?,
+            },
+            _ => return Err(invalid("Unknown startup option.")),
+        };
+        if args.next().is_some() {
+            return Err(invalid("Unexpected trailing startup arguments."));
+        }
+        Ok(Some(startup))
+    }
+
+    async fn run(self, app: &AppHandle) -> Result<(), String> {
+        let state = app.state::<Mutex<Session>>();
+        match self {
+            Self::Host { config, autostart } => {
+                let status = lan_start(app.clone(), state, config).await?;
+                eprintln!(
+                    "LAN host ready address={}",
+                    status.address.as_deref().unwrap_or_default()
+                );
+                if autostart {
+                    let state = app.state::<Mutex<Session>>();
+                    let session = state
+                        .lock()
+                        .map_err(|_| "The game session is unavailable.")?;
+                    if let Mode::Host(host) = &session.mode {
+                        host.command(Command::Time(TimeCommand::SetPaused(false)))?;
+                    }
+                }
+            }
+            Self::Guest { address, name } => {
+                lan_join(app.clone(), state, address, name).await?;
+                eprintln!("LAN guest connected.");
+            }
+        }
+        Ok(())
+    }
 }
 
 #[tauri::command]
@@ -341,12 +473,18 @@ pub(crate) fn game_snapshot(state: State<'_, Mutex<Session>>) -> Result<Snapshot
         .game
         .polity()
         .ok_or("The scenario is unavailable.")?;
+    let player = if matches!(session.mode, Mode::Guest(_)) {
+        GUEST
+    } else {
+        HOST
+    };
     let local_country_id = session.game.countries().find_map(|(id, country)| {
-        (country.controller() == &Controller::Human(HOST)).then_some(id.get())
+        (country.controller() == &Controller::Human(player)).then_some(id.get())
     });
     let war = session.game.war_state();
     Ok(Snapshot {
         sequence: session.sequence,
+        generation: session.generation,
         clock: clock_view(&session.game),
         local_country_id,
         countries: session.visible_countries.values().cloned().collect(),
@@ -377,23 +515,149 @@ pub(crate) fn game_snapshot(state: State<'_, Mutex<Session>>) -> Result<Snapshot
 }
 
 #[tauri::command]
-pub(crate) fn game_command(
+pub(crate) async fn game_command(
     app: AppHandle,
     state: State<'_, Mutex<Session>>,
     command: UiCommand,
 ) -> Result<(), String> {
     let command = command.into_sim()?;
+    let client = {
+        let mut session = state
+            .lock()
+            .map_err(|_| "The game session is unavailable.")?;
+        match session.mode.clone() {
+            Mode::Solo => {
+                let delta = session
+                    .game
+                    .apply(CommandActor::Host(HOST), &command)
+                    .map_err(|error| format!("Command rejected ({error:?})."))?;
+                if !delta.changes().is_empty() {
+                    publish(&app, &mut session);
+                }
+                return Ok(());
+            }
+            Mode::Host(host) => return host.command(command),
+            Mode::Guest(client) => client,
+        }
+    };
+    client.command(command).await
+}
+
+#[tauri::command]
+pub(crate) fn lan_status(state: State<'_, Mutex<Session>>) -> Result<LanStatus, String> {
+    let session = state
+        .lock()
+        .map_err(|_| "The game session is unavailable.")?;
+    Ok(status(&session))
+}
+
+#[tauri::command]
+pub(crate) async fn lan_discover() -> Result<Vec<RoomView>, String> {
+    let rooms = discover_rooms(Duration::from_secs(2))
+        .await
+        .map_err(|error| error.to_string())?;
+    Ok(rooms
+        .into_iter()
+        .flat_map(|room| {
+            room.addresses.into_iter().map(move |address| RoomView {
+                name: room.room.clone(),
+                address: address.to_string(),
+                player_count: room.player_count,
+                version: room.version,
+            })
+        })
+        .collect())
+}
+
+#[tauri::command]
+pub(crate) async fn lan_start(
+    app: AppHandle,
+    state: State<'_, Mutex<Session>>,
+    config: HostConfig,
+) -> Result<LanStatus, String> {
+    if config.port == 0 {
+        return Err("Enter a TCP port from 1 to 65535.".into());
+    }
+    let operation = begin_operation(&state)?;
+    let host = Arc::new(LanHost::start(config, load_embedded_scenario()?).await?);
+    let view = host.view();
     let mut session = state
         .lock()
         .map_err(|_| "The game session is unavailable.")?;
-    let delta = session
-        .game
-        .apply(CommandActor::Host(HOST), &command)
-        .map_err(|error| format!("Command rejected ({error:?})."))?;
-    if !delta.changes().is_empty() {
-        publish(&app, &mut session);
+    if session.operation != operation {
+        return Err("Another room action superseded this request.".into());
     }
-    Ok(())
+    session.mode = Mode::Host(host);
+    reset_game(&mut session, &view.game, view.sequence);
+    Ok(emit_lan_status(&app, &mut session))
+}
+
+#[tauri::command]
+pub(crate) async fn lan_join(
+    app: AppHandle,
+    state: State<'_, Mutex<Session>>,
+    address: String,
+    name: String,
+) -> Result<LanStatus, String> {
+    let address = address
+        .trim()
+        .parse()
+        .map_err(|_| "Enter the host's IP address and port, for example 192.168.1.10:47620.")?;
+    let operation = begin_operation(&state)?;
+    let graph = load_embedded_scenario()?.province_graph().clone();
+    let client = Arc::new(LanClient::join(address, name, graph).await?);
+    let view = client.subscribe().borrow().clone();
+    let mut session = state
+        .lock()
+        .map_err(|_| "The game session is unavailable.")?;
+    if session.operation != operation {
+        return Err("Another room action superseded this request.".into());
+    }
+    session.mode = Mode::Guest(client);
+    reset_game(&mut session, &view.game, view.sequence);
+    session.client_revision = view.revision;
+    Ok(emit_lan_status(&app, &mut session))
+}
+
+#[tauri::command]
+pub(crate) fn lan_leave(
+    app: AppHandle,
+    state: State<'_, Mutex<Session>>,
+) -> Result<LanStatus, String> {
+    let game = load_embedded_scenario()?;
+    let mut session = state
+        .lock()
+        .map_err(|_| "The game session is unavailable.")?;
+    session.operation += 1;
+    session.mode = Mode::Solo;
+    reset_game(&mut session, &game, 0);
+    Ok(emit_lan_status(&app, &mut session))
+}
+
+#[tauri::command]
+pub(crate) fn lan_takeover(
+    app: AppHandle,
+    state: State<'_, Mutex<Session>>,
+) -> Result<LanStatus, String> {
+    let mut session = state
+        .lock()
+        .map_err(|_| "The game session is unavailable.")?;
+    let Mode::Host(host) = &session.mode else {
+        return Err("Only the LAN host can assign temporary AI.".into());
+    };
+    host.take_over()?;
+    Ok(emit_lan_status(&app, &mut session))
+}
+
+fn begin_operation(state: &Mutex<Session>) -> Result<u64, String> {
+    let mut session = state
+        .lock()
+        .map_err(|_| "The game session is unavailable.")?;
+    if !matches!(session.mode, Mode::Solo) {
+        return Err("Leave the current room first.".into());
+    }
+    session.operation += 1;
+    Ok(session.operation)
 }
 
 #[tauri::command]
@@ -401,9 +665,13 @@ pub(crate) fn game_ai_log(state: State<'_, Mutex<Session>>) -> Result<Vec<AiLogE
     let session = state
         .lock()
         .map_err(|_| "The game session is unavailable.")?;
-    Ok(session
-        .ai_log
-        .entries()
+    let decisions = match &session.mode {
+        Mode::Solo => session.ai_log.entries().cloned().collect(),
+        Mode::Host(host) => host.ai_log(),
+        Mode::Guest(_) => Vec::new(),
+    };
+    Ok(decisions
+        .iter()
         .map(|decision| AiLogEntry {
             tick: decision.tick.get(),
             country_id: decision.country.get(),
@@ -423,28 +691,156 @@ fn run_clock(app: AppHandle) {
         let Ok(mut session) = state.lock() else {
             return;
         };
+        refresh_network_game(&app, &mut session);
         let time = session.game.time();
         let speed = time.speed();
         let paused = time.is_paused();
         let now = Instant::now();
         let period = Duration::from_millis(1_000 >> (speed.get() - 1));
-        if previous != Some((speed, paused)) {
-            previous = Some((speed, paused));
+        let clock_state = (session.generation, speed, paused);
+        if previous != Some(clock_state) {
+            previous = Some(clock_state);
             deadline = now + period;
         }
-        if paused || now < deadline {
+        if paused || now < deadline || matches!(session.mode, Mode::Guest(_)) {
             continue;
         }
-        let Session { game, ai_log, .. } = &mut *session;
-        match tick_host_with_log(game, ai_log) {
-            Ok(_) => publish(&app, &mut session),
+        let outcome = match session.mode.clone() {
+            Mode::Solo => {
+                let Session { game, ai_log, .. } = &mut *session;
+                tick_host_with_log(game, ai_log)
+                    .map(|_| publish(&app, &mut session))
+                    .map_err(|error| format!("{error:?}"))
+            }
+            Mode::Host(host) => host.tick(),
+            Mode::Guest(_) => unreachable!("guests do not advance the clock"),
+        };
+        match outcome {
+            Ok(()) => {}
             Err(error) => {
-                eprintln!("Host clock stopped: {error:?}");
+                eprintln!("Host clock stopped: {error}");
                 return;
             }
         }
         deadline = now + period;
     }
+}
+
+fn reset_game(session: &mut Session, game: &GameState, sequence: u64) {
+    session.generation += 1;
+    session.network_sequence = sequence;
+    session.game = game.clone();
+    session.visible_countries = country_views(game);
+    session.visible_owners = owner_views(game);
+    session.military = military_view(game);
+    session.ai_log = AiDecisionLog::default();
+}
+
+fn refresh_network_game(app: &AppHandle, session: &mut Session) {
+    match session.mode.clone() {
+        Mode::Solo => return,
+        Mode::Host(host) => {
+            let view = host.view();
+            sync_delta(app, session, &view.game, view.sequence);
+        }
+        Mode::Guest(client) => {
+            let view = client.subscribe().borrow().clone();
+            if view.revision != session.client_revision {
+                session.client_revision = view.revision;
+                reset_game(session, &view.game, view.sequence);
+            } else {
+                sync_delta(app, session, &view.game, view.sequence);
+            }
+        }
+    }
+    emit_lan_status(app, session);
+}
+
+fn sync_delta(app: &AppHandle, session: &mut Session, game: &GameState, sequence: u64) {
+    if sequence != session.network_sequence {
+        session.network_sequence = sequence;
+        session.game = game.clone();
+        publish(app, session);
+    }
+}
+
+fn status(session: &Session) -> LanStatus {
+    let mut status = LanStatus {
+        mode: "solo",
+        state: "idle",
+        room: None,
+        address: None,
+        guest_connected: false,
+        guest_country_id: None,
+        can_takeover: false,
+        temporary_ai: false,
+        verified_checksums: 0,
+        checksum_mismatches: 0,
+        detail: None,
+        generation: session.generation,
+    };
+    match &session.mode {
+        Mode::Solo => {}
+        Mode::Host(host) => {
+            let view = host.view();
+            status.mode = "host";
+            status.state = "hosting";
+            status.room = Some(view.room);
+            status.address = Some(view.address.to_string());
+            status.guest_connected = view.guest_connected;
+            status.guest_country_id = Some(view.guest_country_id);
+            status.can_takeover = view.can_takeover;
+            status.temporary_ai = view.temporary_ai;
+            status.detail = view.detail;
+        }
+        Mode::Guest(client) => {
+            let view = client.subscribe().borrow().clone();
+            status.mode = "guest";
+            status.state = match view.phase {
+                ClientPhase::Connected => "connected",
+                ClientPhase::Reconnecting => "reconnecting",
+                ClientPhase::Resyncing => "resyncing",
+            };
+            status.room = Some(view.room);
+            status.address = Some(view.address.to_string());
+            status.guest_connected = view.phase == ClientPhase::Connected;
+            status.guest_country_id = view.game.polity().and_then(|polity| {
+                polity
+                    .countries
+                    .iter()
+                    .find_map(|(id, country)| (country.tag == view.guest_tag).then_some(id.get()))
+            });
+            status.verified_checksums = view.verified_checksums;
+            status.checksum_mismatches = view.checksum_mismatches;
+            status.detail = view.detail;
+        }
+    }
+    status
+}
+
+fn emit_lan_status(app: &AppHandle, session: &mut Session) -> LanStatus {
+    let next = status(session);
+    if session.last_lan_status.as_ref() != Some(&next) {
+        if next.mode == "guest"
+            && session.last_lan_status.as_ref().is_none_or(|previous| {
+                previous.verified_checksums != next.verified_checksums
+                    || previous.checksum_mismatches != next.checksum_mismatches
+            })
+        {
+            eprintln!(
+                "LAN checksums tick={} sequence={} verified={} mismatches={}",
+                session.game.time().tick().get(),
+                session.network_sequence,
+                next.verified_checksums,
+                next.checksum_mismatches
+            );
+        }
+        session.last_lan_status = Some(next.clone());
+        if let Err(error) = app.emit(LAN_EVENT, next.clone()) {
+            eprintln!("Could not publish LAN status: {error}");
+        }
+    }
+    next
 }
 
 fn publish(app: &AppHandle, session: &mut Session) {
@@ -454,6 +850,7 @@ fn publish(app: &AppHandle, session: &mut Session) {
     session.sequence += 1;
     let update = Update {
         sequence: session.sequence,
+        generation: session.generation,
         clock: clock_view(&session.game),
         countries: changed_rows(&session.visible_countries, &countries),
         owners: owners
@@ -660,4 +1057,28 @@ fn format_date(date: Date) -> String {
 
 fn money(value: Fixed) -> String {
     value.raw().to_string()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Startup;
+
+    #[test]
+    fn normal_launch_and_guest_startup_arguments_are_validated() {
+        assert!(Startup::parse(std::iter::empty()).unwrap().is_none());
+        let args = ["--lan-join", "127.0.0.1:47620", "Guest"];
+        assert!(matches!(
+            Startup::parse(args.map(String::from).into_iter()).unwrap(),
+            Some(Startup::Guest { address, name }) if address == "127.0.0.1:47620" && name == "Guest"
+        ));
+        for args in [
+            vec!["--lan-join"],
+            vec!["--lan-join", "127.0.0.1:47620"],
+            vec!["--lan-join", "127.0.0.1:47620", "Guest", "extra"],
+            vec!["--unknown"],
+            vec!["--lan-host-config"],
+        ] {
+            assert!(Startup::parse(args.into_iter().map(String::from)).is_err());
+        }
+    }
 }
