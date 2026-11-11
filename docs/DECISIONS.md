@@ -2,7 +2,6 @@
 
 ## Open
 - D4 Target OS and WebGL verification. OPEN. Both players use Windows. First PC passed in Tauri. Second PC launch and renderer string are pending.
-- D5 First vertical-slice region. PROPOSED: Western Europe + British Isles, ~100 provinces, 5–8 countries.
 
 - D8 Disconnect policy. ASSUMED: hold the country for a grace period, then the host may enable temporary AI.
 - D9 AI visibility. ASSUMED: AI sees the full state in beta, with no fog of war.
@@ -13,6 +12,7 @@
 - D2 Time controls: either human player may pause or resume. Only the host sets speed.
 - D0 Stack: Rust sim/net, Tauri 2, React/TS UI, three.js map. Fallback if WebView/WebGL fails: Godot.
 - D3 Network: host-authoritative with deltas; lockstep deferred.
+- D5 First vertical-slice region: Western Europe and the British Isles, about 100 provinces and 5–8 countries.
 - D6 Graphics: 3D terrain + low-poly instanced units, 2D UI; gameplay is province-graph based.
 - D7 Scope: beta = start 1440, Europe+Mediterranean+Near East (~300–500 provinces), content to ~1500. Later eras and the rest of the world = separate content releases.
 
