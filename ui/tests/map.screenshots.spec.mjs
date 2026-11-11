@@ -12,6 +12,7 @@ const output = fileURLToPath(new URL('../../docs/screenshots/m5b4/', import.meta
 test('capture four named 1080p camera views', async ({ page }) => {
   await page.goto('/?verify=1');
   await expect(page.locator('main[data-map-status="ready"]')).toBeVisible({ timeout: 60_000 });
+  await page.getByRole('button', { name: 'Game political' }).click();
   await mkdir(output, { recursive: true });
   for (const name of ['whole-region', 'britain', 'iberia', 'province']) {
     await page.evaluate((preset) => window.strategyMapTest.setCameraPreset(preset), name);

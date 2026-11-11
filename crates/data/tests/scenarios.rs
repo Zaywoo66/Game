@@ -5,7 +5,9 @@ use strategy_data::{
     load_game, load_provinces, load_scenario, load_scenario_from_reader, parse_provinces,
     save_game, state_hash, SaveError, ScenarioLoadError,
 };
-use strategy_sim::{Controller, GameState, Opinion, ProvinceGraph, ProvinceKind};
+use strategy_sim::{
+    Controller, DiplomacyError, DiplomacyState, GameState, Opinion, ProvinceGraph, ProvinceKind,
+};
 
 fn load_with_opinions(opinions: Value) -> Result<GameState, ScenarioLoadError> {
     load_scenario_from_reader(graph(), "1440", |logical| {
@@ -447,6 +449,8 @@ fn save_v3_preserves_active_armies_movement_sieges_and_treaties() {
     let province = |key| state.province_graph().by_key(key).unwrap().id;
     let attacker = *country("eng");
     let defender = *country("sco");
+    let castile = *country("cas");
+    let portugal = *country("por");
     let from = province("northumbria");
     let first_leg = province("lowlands");
     let goal = province("highlands");
@@ -542,6 +546,19 @@ fn save_v3_preserves_active_armies_movement_sieges_and_treaties() {
     assert!(matches!(
         load_game(&serde_json::to_vec(&invalid).unwrap(), graph()),
         Err(SaveError::InvalidMilitary(_))
+    ));
+
+    let mut diplomacy = DiplomacyState::default();
+    diplomacy
+        .alliances
+        .insert((castile.min(portugal), castile.max(portugal)));
+    let valid_v5 = state.clone().with_diplomacy(diplomacy).unwrap();
+    let mut forged: Value = serde_json::from_slice(&save_game(&valid_v5).unwrap()).unwrap();
+    forged["state"]["diplomacy"]["alliances"][0]["a"] = json!(attacker.min(defender).get());
+    forged["state"]["diplomacy"]["alliances"][0]["b"] = json!(attacker.max(defender).get());
+    assert!(matches!(
+        load_game(&serde_json::to_vec(&forged).unwrap(), graph()),
+        Err(SaveError::InvalidDiplomacy(DiplomacyError::DirectWar))
     ));
 }
 

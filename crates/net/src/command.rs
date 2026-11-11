@@ -8,7 +8,7 @@ use strategy_sim::{
 
 use crate::LobbyController;
 
-/// Version 1 command representation. Roles and player identity are assigned by the host.
+/// Wire command representation. Roles and player identity are assigned by the host.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum PlayerCommand {
@@ -69,6 +69,22 @@ pub enum PlayerCommand {
     AcceptPeace {
         country: u32,
         war: u32,
+    },
+    OfferAlliance {
+        country: u32,
+        toward: u32,
+    },
+    AcceptAlliance {
+        country: u32,
+        from: u32,
+    },
+    RejectAlliance {
+        country: u32,
+        from: u32,
+    },
+    BreakAlliance {
+        country: u32,
+        other: u32,
     },
 }
 
@@ -197,6 +213,22 @@ impl From<&Command> for PlayerCommand {
                 country: country.get(),
                 war: war.get(),
             },
+            Command::OfferAlliance { country, toward } => Self::OfferAlliance {
+                country: country.get(),
+                toward: toward.get(),
+            },
+            Command::AcceptAlliance { country, from } => Self::AcceptAlliance {
+                country: country.get(),
+                from: from.get(),
+            },
+            Command::RejectAlliance { country, from } => Self::RejectAlliance {
+                country: country.get(),
+                from: from.get(),
+            },
+            Command::BreakAlliance { country, other } => Self::BreakAlliance {
+                country: country.get(),
+                other: other.get(),
+            },
         }
     }
 }
@@ -304,6 +336,22 @@ impl TryFrom<PlayerCommand> for Command {
             PlayerCommand::AcceptPeace { country, war } => Self::AcceptPeace {
                 country: CountryId::new(country),
                 war: WarId::new(war),
+            },
+            PlayerCommand::OfferAlliance { country, toward } => Self::OfferAlliance {
+                country: CountryId::new(country),
+                toward: CountryId::new(toward),
+            },
+            PlayerCommand::AcceptAlliance { country, from } => Self::AcceptAlliance {
+                country: CountryId::new(country),
+                from: CountryId::new(from),
+            },
+            PlayerCommand::RejectAlliance { country, from } => Self::RejectAlliance {
+                country: CountryId::new(country),
+                from: CountryId::new(from),
+            },
+            PlayerCommand::BreakAlliance { country, other } => Self::BreakAlliance {
+                country: CountryId::new(country),
+                other: CountryId::new(other),
             },
         })
     }

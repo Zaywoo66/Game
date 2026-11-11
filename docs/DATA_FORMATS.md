@@ -75,7 +75,7 @@ requires the generated map to pass validation.
 | `provinces[].area` | Stable area key referencing `areas.yaml`. |
 | `data/map/<region>/areas.yaml` | Schema v1, reference year, assignment method and area records with `key`, `name_key`, `name`, `region`, `kind` and a source URL when historically classified. |
 | `data/map/<region>/regions.yaml` | Schema v1 and region records with `key`, `name_key` and `name`. |
-| `data/map/<region>/names.en.json` | Schema v1 and English fallback names keyed by localization key. |
+| `data/map/<region>/names.en.json` | Flat v1 localization key→English fallback name mapping, with no `schema_version` field. |
 
 MAP_SCALE.md defines the hierarchy and reserved ID ranges. The generated Western Europe map uses `map_version: 3`. The loader still verifies schema v1/v2 maps with their original hash rules. Older saves are accepted only when loaded against their own map identity.
 
@@ -388,3 +388,19 @@ An absent pair has opinion 0. A v4 save requires at least one explicit pair;
 states without explicit opinions retain their previous save version and bytes.
 The v4 state hash uses `strategy:game-state:v4`, a NUL byte, then canonical
 save bytes. Opinion does not decay automatically.
+
+## Saved games (schema version 5)
+
+The first alliance offer creates `state.diplomacy` with three sorted arrays:
+`alliances` (`{a,b}`), `offers` (`{a,b,until}`), and `cooldowns`
+(`{a,b,until}`). Country IDs `a` and `b` are positive unsigned 32-bit IDs.
+Alliance and cooldown pairs are ordered with `a < b`; offers are directed
+from `a` to `b`. `until` is a Gregorian `[year,month,day]` date. Offers are
+valid before `until`; cooldowns prohibit new offers before `until`.
+Each pair must exist in the saved countries. Duplicate or unsorted records,
+self-pairs, expired timers, simultaneous alliance and offer/cooldown, and
+opposing simultaneous offers are rejected. A state with diplomacy uses
+schema v5 and hash domain `strategy:game-state:v5` followed by NUL and the
+canonical bytes; older versions retain their prior encoding and hash.
+An active alliance between two countries directly at war is invalid and
+rejected on load.

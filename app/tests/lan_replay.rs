@@ -21,6 +21,122 @@ use tokio::{
 
 const WAIT: Duration = Duration::from_secs(15);
 
+#[tokio::test]
+async fn lan_players_can_reject_accept_and_break_alliance_proposals() {
+    let scenario = load_embedded_scenario().unwrap();
+    let graph = scenario.province_graph().clone();
+    let host_id = CountryId::new(country(&scenario, "por"));
+    let guest_id = CountryId::new(country(&scenario, "sco"));
+    let host = LanHost::start(
+        HostConfig {
+            room: "Alliance commands".into(),
+            host_country_id: host_id.get(),
+            guest_country_id: guest_id.get(),
+            ai_preset: AiPreset::Balanced,
+            grace_minutes: 0,
+            port: 0,
+        },
+        scenario,
+    )
+    .await
+    .unwrap();
+    let guest = LanClient::join(host.address(), "Alliance guest".into(), graph)
+        .await
+        .unwrap();
+    let mut view = guest.subscribe();
+
+    host.command(Command::OfferAlliance {
+        country: host_id,
+        toward: guest_id,
+    })
+    .unwrap();
+    timeout(WAIT, async {
+        loop {
+            if view
+                .borrow()
+                .game
+                .diplomacy()
+                .and_then(|d| d.offer(host_id, guest_id))
+                .is_some()
+            {
+                break;
+            }
+            view.changed().await.unwrap();
+        }
+    })
+    .await
+    .unwrap();
+    guest
+        .command(Command::RejectAlliance {
+            country: guest_id,
+            from: host_id,
+        })
+        .await
+        .unwrap();
+    assert!(host
+        .view()
+        .game
+        .diplomacy()
+        .unwrap()
+        .offer(host_id, guest_id)
+        .is_none());
+    host.command(Command::OfferAlliance {
+        country: host_id,
+        toward: guest_id,
+    })
+    .unwrap();
+    guest
+        .command(Command::AcceptAlliance {
+            country: guest_id,
+            from: host_id,
+        })
+        .await
+        .unwrap();
+    assert!(host.view().game.allied(host_id, guest_id));
+    timeout(WAIT, async {
+        loop {
+            if view.borrow().game.allied(host_id, guest_id) {
+                break;
+            }
+            view.changed().await.unwrap();
+        }
+    })
+    .await
+    .unwrap();
+    guest
+        .command(Command::BreakAlliance {
+            country: guest_id,
+            other: host_id,
+        })
+        .await
+        .unwrap();
+    assert!(!host.view().game.allied(host_id, guest_id));
+    assert_eq!(
+        host.view()
+            .game
+            .opinion(host_id, guest_id)
+            .unwrap()
+            .points(),
+        -25
+    );
+    timeout(WAIT, async {
+        loop {
+            if !view.borrow().game.allied(host_id, guest_id)
+                && view
+                    .borrow()
+                    .game
+                    .opinion(host_id, guest_id)
+                    .is_some_and(|o| o.points() == -25)
+            {
+                break;
+            }
+            view.changed().await.unwrap();
+        }
+    })
+    .await
+    .unwrap();
+}
+
 fn country(game: &GameState, tag: &str) -> u32 {
     let countries = &game.polity().unwrap().countries;
     countries

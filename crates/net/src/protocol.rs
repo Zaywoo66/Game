@@ -5,7 +5,7 @@ use strategy_sim::MapIdentity;
 
 use crate::StateDelta;
 
-pub const PROTOCOL_VERSION: u16 = 2;
+pub const PROTOCOL_VERSION: u16 = 3;
 pub type ResumeToken = [u8; 16];
 
 /// A private token issued by the host when reserving a player's slot.

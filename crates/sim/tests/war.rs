@@ -4,15 +4,319 @@ use std::{
 };
 
 use strategy_sim::{
-    AiProfileKey, AiThresholds, AiWeights, ArmyId, Command, CommandActor, CommandError, Controller,
-    CountryId, CountryPolity, CountryState, Date, EconomyState, EdgeKind, FiscalAiProfile, Fixed,
-    GameState, MapIdentity, ModKey, ModifierStore, PlayerId, PolityRules, PolityState, Province,
-    ProvinceEdge, ProvinceGraph, ProvinceId, ProvinceKind, SimTime, Speed, StateChange,
-    SuccessionState, TickReport, WarError, WarId, WarRules, WarState,
+    AiProfileKey, AiThresholds, AiWeights, Army, ArmyId, Command, CommandActor, CommandError,
+    Controller, CountryId, CountryPolity, CountryState, Date, DiplomacyError, EconomyState,
+    EdgeKind, FiscalAiProfile, Fixed, GameState, MapIdentity, ModKey, ModifierStore, Opinion,
+    PlayerId, PolityRules, PolityState, Province, ProvinceEdge, ProvinceGraph, ProvinceId,
+    ProvinceKind, SimTime, Speed, StateChange, SuccessionState, TickReport, WarError, WarId,
+    WarRules, WarState,
 };
+
+#[test]
+fn alliance_offer_accept_break_and_calendar_cooldown() {
+    let mut state = setup(|_| {});
+    let offer = Command::OfferAlliance {
+        country: A,
+        toward: B,
+    };
+    assert_eq!(
+        state.validate_command(GUEST, &offer),
+        Err(CommandError::NotCountryController(A))
+    );
+    apply(&mut state, HOST, offer.clone());
+    assert_eq!(
+        state.validate_command(HOST, &offer),
+        Err(CommandError::Diplomacy(DiplomacyError::OfferAlreadyPending))
+    );
+    apply(
+        &mut state,
+        GUEST,
+        Command::AcceptAlliance {
+            country: B,
+            from: A,
+        },
+    );
+    assert!(state.allied(A, B));
+    assert_eq!(
+        state.validate_command(HOST, &offer),
+        Err(CommandError::Diplomacy(DiplomacyError::AlreadyAllied))
+    );
+    apply(
+        &mut state,
+        HOST,
+        Command::BreakAlliance {
+            country: A,
+            other: B,
+        },
+    );
+    assert!(!state.allied(A, B));
+    assert_eq!(state.opinion(A, B).unwrap().points(), -25);
+    assert_eq!(state.opinion(B, A).unwrap().points(), -25);
+    assert_eq!(
+        state.validate_command(HOST, &offer),
+        Err(CommandError::Diplomacy(DiplomacyError::Cooldown(
+            Date::new(1440, 3, 1).unwrap()
+        )))
+    );
+    for _ in 0..60 {
+        day(&mut state);
+    }
+    assert!(state.validate_command(HOST, &offer).is_ok());
+    apply(&mut state, HOST, offer);
+    apply(
+        &mut state,
+        GUEST,
+        Command::AcceptAlliance {
+            country: B,
+            from: A,
+        },
+    );
+    assert!(state.allied(A, B));
+    assert_eq!(state.opinion(B, A).unwrap().points(), -25);
+}
+
+#[test]
+fn alliance_rejection_and_expiry_are_deterministic() {
+    let mut state = setup(|_| {})
+        .with_opinions([(A, B, Opinion::new(100).unwrap())])
+        .unwrap();
+    apply(
+        &mut state,
+        HOST,
+        Command::OfferAlliance {
+            country: A,
+            toward: B,
+        },
+    );
+    apply(
+        &mut state,
+        GUEST,
+        Command::RejectAlliance {
+            country: B,
+            from: A,
+        },
+    );
+    assert!(state.diplomacy().unwrap().offers.is_empty());
+    apply(
+        &mut state,
+        HOST,
+        Command::OfferAlliance {
+            country: A,
+            toward: B,
+        },
+    );
+    for _ in 0..30 {
+        day(&mut state);
+    }
+    assert!(state.diplomacy().unwrap().offers.is_empty());
+    assert_eq!(
+        state.validate_command(
+            GUEST,
+            &Command::AcceptAlliance {
+                country: B,
+                from: A
+            }
+        ),
+        Err(CommandError::Diplomacy(DiplomacyError::NoOffer))
+    );
+}
+
+#[test]
+fn common_threat_requires_borders_to_both_and_strictly_more_soldiers() {
+    let base = setup(|_| {});
+    let mut countries: BTreeMap<_, _> = base
+        .countries()
+        .map(|(id, state)| (id, state.clone()))
+        .collect();
+    countries.insert(C, base.country(A).unwrap().clone());
+    let mut polity = base.polity().unwrap().clone();
+    polity
+        .countries
+        .get_mut(&A)
+        .unwrap()
+        .provinces
+        .remove(&province(3));
+    let mut third = polity.countries[&A].clone();
+    third.tag = "third".to_owned();
+    third.name = "Third".to_owned();
+    third.capital = province(3);
+    third.provinces = BTreeSet::from([province(3)]);
+    polity.countries.insert(C, third);
+    let mut military = base.war_state().unwrap().clone();
+    military.armies.insert(
+        ArmyId::new(1),
+        Army {
+            country: C,
+            province: province(3),
+            soldiers: 200,
+            morale: Fixed::ONE,
+            movement: None,
+        },
+    );
+    military.armies.insert(
+        ArmyId::new(2),
+        Army {
+            country: A,
+            province: province(1),
+            soldiers: 100,
+            morale: Fixed::ONE,
+            movement: None,
+        },
+    );
+    military.armies.insert(
+        ArmyId::new(3),
+        Army {
+            country: B,
+            province: province(4),
+            soldiers: 100,
+            morale: Fixed::ONE,
+            movement: None,
+        },
+    );
+    military.next_army_id = 4;
+    let mut tied_military = military.clone();
+    tied_military
+        .armies
+        .get_mut(&ArmyId::new(2))
+        .unwrap()
+        .soldiers = 200;
+    let tied = GameState::new(
+        *base.time(),
+        base.seed(),
+        base.province_graph().clone(),
+        countries.clone(),
+        [],
+    )
+    .unwrap()
+    .with_polity(polity.clone())
+    .unwrap()
+    .with_war_state(tied_military)
+    .unwrap();
+    assert!(!tied.common_stronger_neighbor(A, B));
+    let state = GameState::new(
+        *base.time(),
+        base.seed(),
+        base.province_graph().clone(),
+        countries,
+        [],
+    )
+    .unwrap()
+    .with_polity(polity)
+    .unwrap()
+    .with_war_state(military)
+    .unwrap();
+    assert!(state.common_stronger_neighbor(A, B));
+    assert!(!state.common_stronger_neighbor(A, C));
+}
+
+#[test]
+fn direct_wartime_enemies_cannot_form_an_alliance() {
+    let mut state = setup(|_| {});
+    apply(
+        &mut state,
+        HOST,
+        Command::DeclareWar {
+            country: A,
+            defender: B,
+            goal: province(5),
+        },
+    );
+    assert_eq!(
+        state.validate_command(
+            HOST,
+            &Command::OfferAlliance {
+                country: A,
+                toward: B
+            }
+        ),
+        Err(CommandError::Diplomacy(DiplomacyError::DirectWar))
+    );
+}
+
+#[test]
+fn postwar_truce_does_not_block_a_new_alliance() {
+    let mut state = setup(|_| {});
+    apply(
+        &mut state,
+        HOST,
+        Command::DeclareWar {
+            country: A,
+            defender: B,
+            goal: province(5),
+        },
+    );
+    apply(
+        &mut state,
+        HOST,
+        Command::OfferPeace {
+            country: A,
+            war: WAR,
+            cede_goal: false,
+        },
+    );
+    apply(
+        &mut state,
+        GUEST,
+        Command::AcceptPeace {
+            country: B,
+            war: WAR,
+        },
+    );
+    assert!(state
+        .validate_command(
+            HOST,
+            &Command::OfferAlliance {
+                country: A,
+                toward: B
+            }
+        )
+        .is_ok());
+}
+
+#[test]
+fn declaring_war_requires_breaking_the_alliance_first() {
+    let mut state = setup(|_| {});
+    apply(
+        &mut state,
+        HOST,
+        Command::OfferAlliance {
+            country: A,
+            toward: B,
+        },
+    );
+    apply(
+        &mut state,
+        GUEST,
+        Command::AcceptAlliance {
+            country: B,
+            from: A,
+        },
+    );
+    let war = Command::DeclareWar {
+        country: A,
+        defender: B,
+        goal: province(5),
+    };
+    let unchanged = state.clone();
+    assert_eq!(
+        state.apply(HOST, &war),
+        Err(CommandError::Diplomacy(DiplomacyError::MustBreakAlliance))
+    );
+    assert_eq!(state, unchanged);
+    apply(
+        &mut state,
+        HOST,
+        Command::BreakAlliance {
+            country: A,
+            other: B,
+        },
+    );
+    assert!(state.validate_command(HOST, &war).is_ok());
+}
 
 const A: CountryId = CountryId::new(1);
 const B: CountryId = CountryId::new(2);
+const C: CountryId = CountryId::new(3);
 const HOST: CommandActor = CommandActor::Host(PlayerId::new(1));
 const GUEST: CommandActor = CommandActor::Guest(PlayerId::new(2));
 const FIRST_ARMY: ArmyId = ArmyId::new(1);

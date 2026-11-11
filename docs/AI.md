@@ -42,6 +42,15 @@ morale. It offers or accepts cession according to occupation, war score
 and relative strength. A two-year stalemate allows white peace. Every
 military order includes a score and reason in the per-country decision log.
 
+The first L2 alliance slice answers pending offers through `Command`s. A
+nonnegative opinion at or above the profile's `alliance_min_opinion` accepts.
+With negative opinion, both countries must border the same third country
+through a normal or river edge, and that country's total active soldiers must
+strictly exceed each party's total; the derived country/tick RNG then gives a
+10% acceptance chance. Without that threat, AI rejects. AI proposes legal
+alliances on a staggered 31-tick cadence. The read-only factor query reports
+opinion, profile minimum, common threat and direct war for human tooltips.
+
 Run the same host tick without a window with
 `cargo run --locked -p strategy-app --bin ai-smoke -- 3653 1440 1441 1442`.
 The arguments are the daily tick count followed by one or more seeds.

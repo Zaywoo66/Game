@@ -4,11 +4,11 @@ use serde::{Deserialize, Deserializer, Serialize};
 use serde_json::value::RawValue;
 use sha2::{Digest, Sha256};
 use strategy_sim::{
-    AiProfileKey, Controller, CountryId, CountryState, Date, Effect, Fixed, GameState, InvalidDate,
-    InvalidSpeed, MapIdentity, MapIdentityMismatch, ModKey, Modifier, ModifierInsertError,
-    ModifierKind, ModifierSourceId, ModifierStore, Opinion, OpinionError, OpinionStateError,
-    PlayerId, PolityError, ProvinceGraph, ScheduleError, ScheduledEffect, SeededRng, SimTime,
-    Speed, Tick, TimeError, TriggerView, WarError,
+    AiProfileKey, Controller, CountryId, CountryState, Date, DiplomacyError, DiplomacyState,
+    Effect, Fixed, GameState, InvalidDate, InvalidSpeed, MapIdentity, MapIdentityMismatch, ModKey,
+    Modifier, ModifierInsertError, ModifierKind, ModifierSourceId, ModifierStore, Opinion,
+    OpinionError, OpinionStateError, PlayerId, PolityError, ProvinceGraph, ScheduleError,
+    ScheduledEffect, SeededRng, SimTime, Speed, Tick, TimeError, TriggerView, WarError,
 };
 
 use crate::provinces::decode_hash;
@@ -23,10 +23,12 @@ const LEGACY_VERSION: u32 = 1;
 const POLITY_VERSION: u32 = 2;
 const MILITARY_VERSION: u32 = 3;
 const OPINION_VERSION: u32 = 4;
+const ALLIANCE_VERSION: u32 = 5;
 const STATE_HASH_DOMAIN_V1: &[u8] = b"strategy:game-state:v1\0";
 const STATE_HASH_DOMAIN_V2: &[u8] = b"strategy:game-state:v2\0";
 const STATE_HASH_DOMAIN_V3: &[u8] = b"strategy:game-state:v3\0";
 const STATE_HASH_DOMAIN_V4: &[u8] = b"strategy:game-state:v4\0";
+const STATE_HASH_DOMAIN_V5: &[u8] = b"strategy:game-state:v5\0";
 
 #[derive(Debug)]
 pub enum SaveError {
@@ -35,10 +37,12 @@ pub enum SaveError {
     VersionPolityMismatch(u32),
     VersionMilitaryMismatch(u32),
     VersionOpinionMismatch(u32),
+    VersionDiplomacyMismatch(u32),
     InvalidPolity(PolityError),
     InvalidMilitary(WarError),
     InvalidOpinion(OpinionError),
     InvalidOpinionState(OpinionStateError),
+    InvalidDiplomacy(DiplomacyError),
     InvalidMapHash,
     MapMismatch(MapIdentityMismatch),
     UnorderedRecords(&'static str),
@@ -68,8 +72,12 @@ impl fmt::Display for SaveError {
             Self::VersionOpinionMismatch(version) => {
                 write!(f, "save version {version} has the wrong opinion payload")
             }
+            Self::VersionDiplomacyMismatch(version) => {
+                write!(f, "save version {version} has the wrong diplomacy payload")
+            }
             Self::InvalidOpinion(error) => write!(f, "invalid saved opinion: {error:?}"),
             Self::InvalidOpinionState(error) => write!(f, "invalid saved opinion state: {error:?}"),
+            Self::InvalidDiplomacy(error) => write!(f, "invalid saved diplomacy state: {error:?}"),
             Self::InvalidMapHash => f.write_str("map_hash must be 64 lowercase hexadecimal digits"),
             Self::MapMismatch(error) => error.fmt(f),
             Self::UnorderedRecords(records) => write!(f, "{records} must be unique and sorted"),
@@ -130,7 +138,7 @@ pub fn load_game(bytes: &[u8], graph: ProvinceGraph) -> Result<GameState, SaveEr
     let save: SaveFile<&RawValue> = serde_json::from_slice(bytes).map_err(SaveError::Json)?;
     if !matches!(
         save.schema_version,
-        LEGACY_VERSION | POLITY_VERSION | MILITARY_VERSION | OPINION_VERSION
+        LEGACY_VERSION | POLITY_VERSION | MILITARY_VERSION | OPINION_VERSION | ALLIANCE_VERSION
     ) {
         return Err(SaveError::UnsupportedSchemaVersion(save.schema_version));
     }
@@ -156,8 +164,13 @@ pub fn load_game(bytes: &[u8], graph: ProvinceGraph) -> Result<GameState, SaveEr
     {
         return Err(SaveError::VersionMilitaryMismatch(save.schema_version));
     }
-    if state.opinions.is_empty() == (save.schema_version == OPINION_VERSION) {
+    if (save.schema_version == OPINION_VERSION && state.opinions.is_empty())
+        || (save.schema_version < OPINION_VERSION && !state.opinions.is_empty())
+    {
         return Err(SaveError::VersionOpinionMismatch(save.schema_version));
+    }
+    if state.diplomacy.is_some() != (save.schema_version == ALLIANCE_VERSION) {
+        return Err(SaveError::VersionDiplomacyMismatch(save.schema_version));
     }
     state.restore(graph)
 }
@@ -166,6 +179,7 @@ pub fn load_game(bytes: &[u8], graph: ProvinceGraph) -> Result<GameState, SaveEr
 pub fn state_hash(state: &GameState) -> Result<[u8; 32], SaveError> {
     let mut hash = Sha256::new();
     hash.update(match schema_version(state) {
+        ALLIANCE_VERSION => STATE_HASH_DOMAIN_V5,
         OPINION_VERSION => STATE_HASH_DOMAIN_V4,
         MILITARY_VERSION => STATE_HASH_DOMAIN_V3,
         POLITY_VERSION => STATE_HASH_DOMAIN_V2,
@@ -176,7 +190,9 @@ pub fn state_hash(state: &GameState) -> Result<[u8; 32], SaveError> {
 }
 
 fn schema_version(state: &GameState) -> u32 {
-    if state.opinions().next().is_some() {
+    if state.diplomacy().is_some() {
+        ALLIANCE_VERSION
+    } else if state.opinions().next().is_some() {
         OPINION_VERSION
     } else if state.war_state().is_some() {
         MILITARY_VERSION
@@ -209,6 +225,8 @@ struct StateFile {
     scheduled: Vec<ScheduledFile>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     opinions: Vec<OpinionFile>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    diplomacy: Option<DiplomacyFile>,
     #[serde(
         default,
         skip_serializing_if = "Option::is_none",
@@ -254,6 +272,7 @@ impl From<&GameState> for StateFile {
                     points: i32::from(opinion.points()),
                 })
                 .collect(),
+            diplomacy: state.diplomacy().map(DiplomacyFile::from),
             polity: state.polity().map(PolityFile::from),
             military: state.war_state().map(WarStateFile::from),
         }
@@ -315,10 +334,17 @@ impl StateFile {
         let state = state
             .with_opinions(opinions)
             .map_err(SaveError::InvalidOpinionState)?;
-        if let Some(military) = self.military {
+        let state = if let Some(military) = self.military {
             state
                 .with_war_state(military.restore()?)
                 .map_err(SaveError::InvalidMilitary)
+        } else {
+            Ok(state)
+        }?;
+        if let Some(diplomacy) = self.diplomacy {
+            state
+                .with_diplomacy(diplomacy.restore()?)
+                .map_err(SaveError::InvalidDiplomacy)
         } else {
             Ok(state)
         }
@@ -331,6 +357,98 @@ struct OpinionFile {
     from: u32,
     toward: u32,
     points: i32,
+}
+
+#[derive(Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct DiplomacyFile {
+    alliances: Vec<PairFile>,
+    offers: Vec<DatedPairFile>,
+    cooldowns: Vec<DatedPairFile>,
+}
+
+#[derive(Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct PairFile {
+    a: u32,
+    b: u32,
+}
+
+#[derive(Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct DatedPairFile {
+    a: u32,
+    b: u32,
+    until: (u32, u8, u8),
+}
+
+impl From<&DiplomacyState> for DiplomacyFile {
+    fn from(state: &DiplomacyState) -> Self {
+        Self {
+            alliances: state
+                .alliances
+                .iter()
+                .map(|&(a, b)| PairFile {
+                    a: a.get(),
+                    b: b.get(),
+                })
+                .collect(),
+            offers: state
+                .offers
+                .iter()
+                .map(|(&(a, b), &until)| DatedPairFile {
+                    a: a.get(),
+                    b: b.get(),
+                    until: until.components(),
+                })
+                .collect(),
+            cooldowns: state
+                .cooldowns
+                .iter()
+                .map(|(&(a, b), &until)| DatedPairFile {
+                    a: a.get(),
+                    b: b.get(),
+                    until: until.components(),
+                })
+                .collect(),
+        }
+    }
+}
+
+impl DiplomacyFile {
+    fn restore(self) -> Result<DiplomacyState, SaveError> {
+        require_sorted(&self.alliances, "alliances", |item| (item.a, item.b))?;
+        require_sorted(&self.offers, "alliance offers", |item| (item.a, item.b))?;
+        require_sorted(&self.cooldowns, "alliance cooldowns", |item| {
+            (item.a, item.b)
+        })?;
+        let alliances = self
+            .alliances
+            .into_iter()
+            .map(|item| (CountryId::new(item.a), CountryId::new(item.b)))
+            .collect();
+        let mut offers = std::collections::BTreeMap::new();
+        let mut cooldowns = std::collections::BTreeMap::new();
+        for item in self.offers {
+            let (year, month, day) = item.until;
+            offers.insert(
+                (CountryId::new(item.a), CountryId::new(item.b)),
+                Date::new(year, month, day).map_err(SaveError::InvalidDate)?,
+            );
+        }
+        for item in self.cooldowns {
+            let (year, month, day) = item.until;
+            cooldowns.insert(
+                (CountryId::new(item.a), CountryId::new(item.b)),
+                Date::new(year, month, day).map_err(SaveError::InvalidDate)?,
+            );
+        }
+        Ok(DiplomacyState {
+            alliances,
+            offers,
+            cooldowns,
+        })
+    }
 }
 
 #[derive(Serialize, Deserialize)]
