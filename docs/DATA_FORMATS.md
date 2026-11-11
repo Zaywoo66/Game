@@ -79,6 +79,29 @@ requires the generated map to pass validation.
 
 MAP_SCALE.md defines the hierarchy and reserved ID ranges. The generated Western Europe map uses `map_version: 3`. The loader still verifies schema v1/v2 maps with their original hash rules. Older saves are accepted only when loaded against their own map identity.
 
+### 1440 polity overlap evidence (`polities_1440.json`)
+
+This generated sidecar records the largest rasterized Cliopatria v0.1.3 polygon
+overlap for every land province. It is evidence for content review, not a
+scenario owner table. An unmatched cell stays unknown; Holy Roman Empire minor
+states and Kalmar Union labels are coarse groups. Equal pixel overlaps break
+by polity name in lexical order.
+
+| Field | Representation and unit |
+|---|---|
+| `schema_version` | Integer sidecar schema version, currently 1; unitless. |
+| `map_version` | Positive integer map version matching `provinces.json`; unitless. |
+| `map_hash` | Lowercase SHA-256 hex string matching `provinces.json`. |
+| `reference_year` | Integer Gregorian calendar year, currently 1440. |
+| `source` | `name`, `release`, `url`, `license`, repo-relative `file`, and lowercase SHA-256 `sha256` of the clipped GeoJSON with Git-canonical LF line endings. |
+| `method` | Literal raster overlap selection and tie break. |
+| `assignments[].province_id` | Positive integer province ID from the map; unitless. |
+| `assignments[].province_key` | Stable province key from the map. |
+| `assignments[].polity_name` | Exact source polygon name, or `null` when no polygon overlaps. |
+| `assignments[].resolution` | `polygon`, `coarse_group`, or `unmatched`; a precision label, not ownership. |
+| `assignments[].overlap_pixels` | Nonnegative integer raster pixels of the selected polity within the province; zero when unmatched. |
+| `assignments[].province_pixels` | Positive integer raster pixels in the province. |
+
 ## Saved games (schema version 1)
 
 `strategy_data::save_game` encodes an authoritative simulation snapshot in
@@ -211,6 +234,7 @@ options:
 | `countries`, `characters` | Unique country tags and character keys to load. |
 | `unowned_provinces` | Optional list of unique land province keys with no starting owner. When supplied, owned and unowned keys must cover every land province exactly once. |
 | `human_slots` | Country tag to unique player slot number, 1 or 2. Other countries use their AI profile. |
+| `opinions` | Optional directed records `{from, toward, points}`. `from` and `toward` are distinct country tags in `countries`; `points` is a signed integer in whole opinion points from -100 through 100. Pairs must be unique. Missing pairs have opinion 0. |
 | `rules.adulthood_years` | Positive unsigned 16-bit whole calendar years. |
 | `rules.base_taxable_development_per_province` | Unsigned 32-bit whole development points added per province for economy. |
 | `rules.tax_per_development` | Raw Fixed thousandths of a treasury unit per taxable development point per month, before the tax rate. |
@@ -352,3 +376,15 @@ saves automatically.
 
 Armies and wars are sorted by ID, forts and sieges by province, and
 treaties by war ID. An active movement route must match the loaded graph.
+
+## Saved games (schema version 4)
+
+An explicitly configured diplomatic opinion adds `state.opinions`, a canonical
+array of `{from, toward, points}` records sorted by numeric `from` and `toward`
+country ID. IDs are positive unsigned 32-bit country identifiers; `points` is
+signed whole opinion points from -100 through 100. The two countries must be
+distinct and present in the state. Duplicate or unsorted pairs are rejected.
+An absent pair has opinion 0. A v4 save requires at least one explicit pair;
+states without explicit opinions retain their previous save version and bytes.
+The v4 state hash uses `strategy:game-state:v4`, a NUL byte, then canonical
+save bytes. Opinion does not decay automatically.

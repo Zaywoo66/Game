@@ -1,0 +1,8 @@
+key: bad__event
+title: event_bad_title
+desc: event_bad_desc
+trigger: {at_war: false}
+options:
+  - text: event_bad_choice
+    ai_weight: 1
+    effects: []

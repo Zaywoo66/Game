@@ -6,14 +6,51 @@ use std::{
 use strategy_sim::{
     AiCommandRejection, AiProfileKey, Command, CommandActor, CommandError, Controller, CountryId,
     CountryState, Date, EdgeKind, Effect, EffectError, Fixed, GameState, MapIdentity, ModKey,
-    Modifier, ModifierInsertError, ModifierKind, ModifierSourceId, ModifierStore, PlayerId,
-    PreparedModifier, Province, ProvinceEdge, ProvinceGraph, ProvinceId, ProvinceKind,
-    ScheduleError, ScheduledEffect, ScheduledEffectFailure, SimTime, Speed, StateChange, Tick,
-    TimeCommand, TimeError, Trigger,
+    Modifier, ModifierInsertError, ModifierKind, ModifierSourceId, ModifierStore, Opinion,
+    OpinionStateError, PlayerId, PreparedModifier, Province, ProvinceEdge, ProvinceGraph,
+    ProvinceId, ProvinceKind, ScheduleError, ScheduledEffect, ScheduledEffectFailure, SimTime,
+    Speed, StateChange, Tick, TimeCommand, TimeError, Trigger,
 };
 
 const HOST: CommandActor = CommandActor::Host(PlayerId::new(1));
 const GUEST: CommandActor = CommandActor::Guest(PlayerId::new(2));
+
+#[test]
+fn directional_opinions_are_neutral_by_default_and_do_not_decay() {
+    let a = CountryId::new(2);
+    let b = CountryId::new(7);
+    let unknown = CountryId::new(9);
+    let mut state = game(false, [(a, empty_country(ai())), (b, empty_country(ai()))]);
+    assert_eq!(state.opinion(a, b), Some(Opinion::NEUTRAL));
+    assert_eq!(state.opinion(a, a), None);
+    assert_eq!(state.opinion(a, unknown), None);
+    let favorable = Opinion::new(45).unwrap();
+    state = state.with_opinions([(a, b, favorable)]).unwrap();
+    assert_eq!(state.opinion(a, b), Some(favorable));
+    assert_eq!(state.opinion(b, a), Some(Opinion::NEUTRAL));
+    assert_eq!(
+        state.opinions().collect::<Vec<_>>(),
+        vec![(a, b, favorable)]
+    );
+    state.tick(|_, _| Vec::new()).unwrap();
+    assert_eq!(state.opinion(a, b), Some(favorable));
+
+    assert_eq!(
+        game(false, [(a, empty_country(ai())), (b, empty_country(ai()))])
+            .with_opinions([(a, a, favorable)]),
+        Err(OpinionStateError::SameCountry(a))
+    );
+    assert_eq!(
+        game(false, [(a, empty_country(ai())), (b, empty_country(ai()))])
+            .with_opinions([(a, unknown, favorable)]),
+        Err(OpinionStateError::UnknownCountry(unknown))
+    );
+    assert_eq!(
+        game(false, [(a, empty_country(ai())), (b, empty_country(ai()))])
+            .with_opinions([(a, b, favorable), (a, b, favorable)]),
+        Err(OpinionStateError::Duplicate { from: a, toward: b })
+    );
+}
 
 #[test]
 fn only_host_can_change_country_controller() {

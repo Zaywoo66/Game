@@ -6,9 +6,9 @@ use sha2::{Digest, Sha256};
 use strategy_sim::{
     AiProfileKey, Controller, CountryId, CountryState, Date, Effect, Fixed, GameState, InvalidDate,
     InvalidSpeed, MapIdentity, MapIdentityMismatch, ModKey, Modifier, ModifierInsertError,
-    ModifierKind, ModifierSourceId, ModifierStore, PlayerId, PolityError, ProvinceGraph,
-    ScheduleError, ScheduledEffect, SeededRng, SimTime, Speed, Tick, TimeError, TriggerView,
-    WarError,
+    ModifierKind, ModifierSourceId, ModifierStore, Opinion, OpinionError, OpinionStateError,
+    PlayerId, PolityError, ProvinceGraph, ScheduleError, ScheduledEffect, SeededRng, SimTime,
+    Speed, Tick, TimeError, TriggerView, WarError,
 };
 
 use crate::provinces::decode_hash;
@@ -22,9 +22,11 @@ use polity::PolityFile;
 const LEGACY_VERSION: u32 = 1;
 const POLITY_VERSION: u32 = 2;
 const MILITARY_VERSION: u32 = 3;
+const OPINION_VERSION: u32 = 4;
 const STATE_HASH_DOMAIN_V1: &[u8] = b"strategy:game-state:v1\0";
 const STATE_HASH_DOMAIN_V2: &[u8] = b"strategy:game-state:v2\0";
 const STATE_HASH_DOMAIN_V3: &[u8] = b"strategy:game-state:v3\0";
+const STATE_HASH_DOMAIN_V4: &[u8] = b"strategy:game-state:v4\0";
 
 #[derive(Debug)]
 pub enum SaveError {
@@ -32,8 +34,11 @@ pub enum SaveError {
     UnsupportedSchemaVersion(u32),
     VersionPolityMismatch(u32),
     VersionMilitaryMismatch(u32),
+    VersionOpinionMismatch(u32),
     InvalidPolity(PolityError),
     InvalidMilitary(WarError),
+    InvalidOpinion(OpinionError),
+    InvalidOpinionState(OpinionStateError),
     InvalidMapHash,
     MapMismatch(MapIdentityMismatch),
     UnorderedRecords(&'static str),
@@ -60,6 +65,11 @@ impl fmt::Display for SaveError {
                 write!(f, "save version {version} has the wrong military payload")
             }
             Self::InvalidMilitary(error) => write!(f, "invalid saved military state: {error:?}"),
+            Self::VersionOpinionMismatch(version) => {
+                write!(f, "save version {version} has the wrong opinion payload")
+            }
+            Self::InvalidOpinion(error) => write!(f, "invalid saved opinion: {error:?}"),
+            Self::InvalidOpinionState(error) => write!(f, "invalid saved opinion state: {error:?}"),
             Self::InvalidMapHash => f.write_str("map_hash must be 64 lowercase hexadecimal digits"),
             Self::MapMismatch(error) => error.fmt(f),
             Self::UnorderedRecords(records) => write!(f, "{records} must be unique and sorted"),
@@ -120,7 +130,7 @@ pub fn load_game(bytes: &[u8], graph: ProvinceGraph) -> Result<GameState, SaveEr
     let save: SaveFile<&RawValue> = serde_json::from_slice(bytes).map_err(SaveError::Json)?;
     if !matches!(
         save.schema_version,
-        LEGACY_VERSION | POLITY_VERSION | MILITARY_VERSION
+        LEGACY_VERSION | POLITY_VERSION | MILITARY_VERSION | OPINION_VERSION
     ) {
         return Err(SaveError::UnsupportedSchemaVersion(save.schema_version));
     }
@@ -135,11 +145,19 @@ pub fn load_game(bytes: &[u8], graph: ProvinceGraph) -> Result<GameState, SaveEr
         .map_err(SaveError::MapMismatch)?;
 
     let state: StateFile = serde_json::from_str(save.state.get()).map_err(SaveError::Json)?;
-    if state.polity.is_some() != (save.schema_version >= POLITY_VERSION) {
+    if (save.schema_version == LEGACY_VERSION && state.polity.is_some())
+        || (matches!(save.schema_version, POLITY_VERSION | MILITARY_VERSION)
+            && state.polity.is_none())
+    {
         return Err(SaveError::VersionPolityMismatch(save.schema_version));
     }
-    if state.military.is_some() != (save.schema_version == MILITARY_VERSION) {
+    if (save.schema_version < MILITARY_VERSION && state.military.is_some())
+        || (save.schema_version == MILITARY_VERSION && state.military.is_none())
+    {
         return Err(SaveError::VersionMilitaryMismatch(save.schema_version));
+    }
+    if state.opinions.is_empty() == (save.schema_version == OPINION_VERSION) {
+        return Err(SaveError::VersionOpinionMismatch(save.schema_version));
     }
     state.restore(graph)
 }
@@ -148,6 +166,7 @@ pub fn load_game(bytes: &[u8], graph: ProvinceGraph) -> Result<GameState, SaveEr
 pub fn state_hash(state: &GameState) -> Result<[u8; 32], SaveError> {
     let mut hash = Sha256::new();
     hash.update(match schema_version(state) {
+        OPINION_VERSION => STATE_HASH_DOMAIN_V4,
         MILITARY_VERSION => STATE_HASH_DOMAIN_V3,
         POLITY_VERSION => STATE_HASH_DOMAIN_V2,
         _ => STATE_HASH_DOMAIN_V1,
@@ -157,7 +176,9 @@ pub fn state_hash(state: &GameState) -> Result<[u8; 32], SaveError> {
 }
 
 fn schema_version(state: &GameState) -> u32 {
-    if state.war_state().is_some() {
+    if state.opinions().next().is_some() {
+        OPINION_VERSION
+    } else if state.war_state().is_some() {
         MILITARY_VERSION
     } else if state.polity().is_some() {
         POLITY_VERSION
@@ -186,6 +207,8 @@ struct StateFile {
     rng_state: u64,
     countries: Vec<CountryFile>,
     scheduled: Vec<ScheduledFile>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    opinions: Vec<OpinionFile>,
     #[serde(
         default,
         skip_serializing_if = "Option::is_none",
@@ -223,6 +246,14 @@ impl From<&GameState> for StateFile {
                     modifier: ModifierFile::from(&grant.modifier),
                 })
                 .collect(),
+            opinions: state
+                .opinions()
+                .map(|(from, toward, opinion)| OpinionFile {
+                    from: from.get(),
+                    toward: toward.get(),
+                    points: i32::from(opinion.points()),
+                })
+                .collect(),
             polity: state.polity().map(PolityFile::from),
             military: state.war_state().map(WarStateFile::from),
         }
@@ -240,6 +271,9 @@ impl StateFile {
         require_sorted(&self.countries, "countries", |country| country.id)?;
         require_sorted(&self.scheduled, "scheduled grants", |grant| {
             (grant.due, grant.country, grant.source)
+        })?;
+        require_sorted(&self.opinions, "opinions", |opinion| {
+            (opinion.from, opinion.toward)
         })?;
         let countries = self
             .countries
@@ -267,6 +301,20 @@ impl StateFile {
         } else {
             base
         };
+        let opinions = self
+            .opinions
+            .into_iter()
+            .map(|entry| {
+                Ok((
+                    CountryId::new(entry.from),
+                    CountryId::new(entry.toward),
+                    Opinion::new(entry.points).map_err(SaveError::InvalidOpinion)?,
+                ))
+            })
+            .collect::<Result<Vec<_>, SaveError>>()?;
+        let state = state
+            .with_opinions(opinions)
+            .map_err(SaveError::InvalidOpinionState)?;
         if let Some(military) = self.military {
             state
                 .with_war_state(military.restore()?)
@@ -275,6 +323,14 @@ impl StateFile {
             Ok(state)
         }
     }
+}
+
+#[derive(Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct OpinionFile {
+    from: u32,
+    toward: u32,
+    points: i32,
 }
 
 #[derive(Serialize, Deserialize)]
