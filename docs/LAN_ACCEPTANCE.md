@@ -78,8 +78,23 @@ or issue a stop. The available application and Windows logs contain no
 record that identifies a crash, window closure or external termination. The
 cause is undetermined.
 
+The updated native app was launched as two Tauri processes with distinct
+WebView2 user-data folders. Both joined the same loopback room and recorded
+RTT samples. Closing each main window returned process exit code 0 and wrote
+`event=session_summary reason=app_exit` plus `event=app_exit exit_code=0` to
+both logs. This 15-second shutdown check confirms the current build flushes
+the report on normal window close. It does not identify why the earlier
+18-minute run ended or replace the one-hour two-PC acceptance.
+
 The headless seed-1440 simulation advanced from 1440-01-01 to 1790-01-01
 (127,836 daily ticks) in 12.3 seconds on the available PC and exited zero.
 It ended with six countries and one territorial treaty. This run checks
-simulation invariants. The dedicated accelerated TCP test checks replication
-separately.
+simulation invariants. The accelerated protocol v2 TCP run on one Windows PC advanced the same
+127,836 days in 354.5 seconds. The guest verified all 4,261 checksums
+with zero mismatches and zero recovery snapshots. Exact save bytes
+matched the host and an independent simulation at every checkpoint and
+at the final tick. To repeat it:
+
+```powershell
+cargo test --locked -p strategy-app --test lan_replay lan_guest_matches_host_from_1440_through_1790 -- --ignored --exact --nocapture
+```
