@@ -1,0 +1,13 @@
+key: court_auditors
+title: event_court_auditors_title
+desc: event_court_auditors_desc
+trigger: {not: {at_war: true}}
+mean_time_to_happen: 900
+options:
+  - text: event_court_auditors_appoint
+    ai_weight: 4
+    effects:
+      - add_modifier: {key: tax_income, value: 100, kind: multiplicative, duration_days: 365}
+  - text: event_court_auditors_decline
+    ai_weight: 1
+    effects: []

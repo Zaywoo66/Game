@@ -255,8 +255,8 @@ implemented in a separate M7 task.
 `strategy_data::parse_event_yaml` converts one file to typed `Trigger` and
 `Effect` values; `strategy_data::load_events_from_dir` reads files in filename
 order and returns a key-ordered map, rejecting duplicate event keys. Text
-fields remain localization-key references; checking their presence in an event
-locale catalog belongs to the M7 content task. The Rust loader uses pinned
+fields remain localization-key references; the data linter checks their presence
+in `data/locales/events.en.json`. The Rust loader uses pinned
 `yaml_serde` 0.10.7.
 The authoritative game copies these validated definitions into its state. On
 each game day it evaluates definitions in event-key order and countries in
@@ -266,6 +266,14 @@ duplicates. One-shot events never fire again after resolution; repeatable
 events wait `cooldown_days` from the resolution tick. The option index is
 zero-based. Each effect receives a unique monotonically increasing modifier
 source ID so timed modifiers can expire independently.
+
+The event locale catalog is a flat JSON mapping from ASCII snake_case keys to
+nonempty English display strings. Every `title`, `desc`, and option `text` key
+used by a valid event must be present. Duplicate keys, empty strings, and
+missing references fail data lint. Vite serves the English catalog at
+`/locales/events.en.json` in development and includes it in production UI
+builds. The popup UI consumes this route in a separate M7 task; other
+languages remain open.
 
 | Field | Representation and unit |
 |---|---|
@@ -301,6 +309,11 @@ options:
     ai_weight: 1
     effects: []
 ```
+
+The 1440 starter pack currently has three generic events in `data/events/`:
+`court_auditors`, `harvest_surplus`, and `frontier_patrol`. They use only the
+current `at_war` trigger and existing `tax_income`, `army_combat`, and
+`army_morale` modifier keys. This content is not a historical claim.
 
 ## Scenarios (`data/scenarios/<year>.json`)
 

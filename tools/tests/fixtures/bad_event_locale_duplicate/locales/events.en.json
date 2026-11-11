@@ -1,0 +1,6 @@
+{
+  "event_notice_title": "Notice",
+  "event_notice_title": "Duplicate notice",
+  "event_notice_desc": "A message arrives.",
+  "event_notice_ack": "Acknowledge"
+}

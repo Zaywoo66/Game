@@ -53,6 +53,17 @@ class DataLintTest(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result)
         self.assertEqual(result.stderr, "")
 
+    def test_rejects_missing_or_empty_event_localization(self):
+        result = run_lint("bad_event_locale")
+        self.assertEqual(result.returncode, 1, result)
+        self.assertIn("missing English event localization key event_notice_desc", result.stderr)
+        self.assertIn("event_notice_ack: expected nonempty English text", result.stderr)
+
+    def test_rejects_duplicate_event_localization_key(self):
+        result = run_lint("bad_event_locale_duplicate")
+        self.assertEqual(result.returncode, 1, result)
+        self.assertIn("duplicate event localization key event_notice_title", result.stderr)
+
     def test_rejects_unknown_trigger_effect_missing_weight_and_fractional_mtth(self):
         result = run_lint("bad_event")
         self.assertEqual(result.returncode, 1, result)
