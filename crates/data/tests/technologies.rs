@@ -102,4 +102,8 @@ fn loader_accepts_empty_branch_but_rejects_malformed_yaml() {
         load_technologies_from_dir(&fixture_dir("tech_invalid")),
         Err(TechnologyLoadError::InFile { .. })
     ));
+    assert!(matches!(
+        load_technologies_from_dir(&fixture_dir("tech_json")),
+        Err(TechnologyLoadError::UnsupportedFormat { path }) if path.ends_with("military.json")
+    ));
 }

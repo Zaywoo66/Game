@@ -41,6 +41,9 @@ pub enum TechnologyLoadError {
         path: PathBuf,
         source: std::io::Error,
     },
+    UnsupportedFormat {
+        path: PathBuf,
+    },
     InFile {
         path: PathBuf,
         source: Box<Self>,
@@ -71,6 +74,9 @@ impl fmt::Display for TechnologyLoadError {
             Self::Invalid { field, reason } => write!(f, "{field}: {reason}"),
             Self::Effect(error) => write!(f, "{error}"),
             Self::Io { path, source } => write!(f, "{}: {source}", path.display()),
+            Self::UnsupportedFormat { path } => {
+                write!(f, "{}: technologies must use YAML", path.display())
+            }
             Self::InFile { path, source } => write!(f, "{}: {source}", path.display()),
             Self::DuplicateBranch {
                 branch,
@@ -213,12 +219,14 @@ pub fn load_technologies_from_dir(
     let mut branches = BTreeMap::<String, PathBuf>::new();
     let mut loaded = BTreeMap::<String, (PathBuf, TechnologyDefinition)>::new();
     for path in paths {
-        if !path.is_file()
-            || !matches!(
-                path.extension().and_then(|ext| ext.to_str()),
-                Some("yaml" | "yml")
-            )
-        {
+        if !path.is_file() {
+            continue;
+        }
+        let extension = path.extension().and_then(|ext| ext.to_str()).unwrap_or("");
+        if extension.eq_ignore_ascii_case("json") {
+            return Err(TechnologyLoadError::UnsupportedFormat { path });
+        }
+        if !extension.eq_ignore_ascii_case("yaml") && !extension.eq_ignore_ascii_case("yml") {
             continue;
         }
         let branch = path
