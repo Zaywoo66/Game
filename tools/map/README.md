@@ -67,7 +67,8 @@ generates adjacency. At least three river pixels and 20% river coverage on
 a shared land boundary give a river edge. Dover Strait and the North Channel remain open water with maritime access
 deferred to M8. Each selected port attaches to the sea province with the
 longest shared coastline. Region `movement_costs` set
-positive whole movement ticks and remain symmetric. Map schema v3 hashes
+positive whole movement ticks and remain symmetric. Normal land edges take
+three game days and river edges take five at base movement speed. Map schema v3 hashes
 the projection and canonical province records, including their hierarchy keys.
 
 Starting ownership uses the highest pixel overlap by Cliopatria polity name

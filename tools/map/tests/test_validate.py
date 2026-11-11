@@ -152,6 +152,17 @@ class MapValidationTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "invalid edge cost"):
             validate_directory(self.directory)
 
+    def test_adjacent_land_marches_take_three_to_ten_days(self):
+        entries = {entry["id"]: entry for entry in self.metadata["provinces"]}
+        traversable = [
+            edge for entry in entries.values() if entry["kind"] == "land"
+            for edge in entry["neighbors"] if entries[edge["id"]]["kind"] == "land"
+        ]
+        self.assertTrue(traversable)
+        self.assertTrue(all(3 <= edge["cost"] <= 10 for edge in traversable))
+        self.assertEqual({edge["cost"] for edge in traversable if edge["edge"] == "normal"}, {3})
+        self.assertEqual({edge["cost"] for edge in traversable if edge["edge"] == "river"}, {5})
+
     def test_reverse_edge_cost_must_match(self):
         _, edge = self.first_edge()
         edge["cost"] += 1

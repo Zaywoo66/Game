@@ -32,4 +32,4 @@ Why: M2-M5 acceptance was technical only. Later systems (diplomacy, naval, AI) a
 - Existing tests and AI smoke test still pass.
 
 ## Suggested task split (one PR each)
-5b.1 docs patch; 5b.2 map rebuild + ownership; 5b.3 movement calibration + measurements; 5b.4 camera/water/borders/terrain; 5b.5 labels, map modes, unit markers; 5b.6 UI layout, UI_STYLE.md, localization of displayed keys.
+5b.1 docs patch; 5b.2 map rebuild + ownership; 5b.3 movement calibration + tick, snapshot and delta measurements; 5b.4 camera/water/borders/terrain + native 1080p FPS/RAM after the visual changes; 5b.5 labels, map modes, unit markers; 5b.6 UI layout, UI_STYLE.md, localization of displayed keys.
