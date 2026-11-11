@@ -6,8 +6,8 @@ use strategy_data::{load_game, parse_provinces, save_game, state_hash, SaveError
 use strategy_sim::{
     AiProfileKey, Command, CommandActor, Controller, CountryId, CountryState, Date, Effect, Fixed,
     GameState, ModKey, Modifier, ModifierInsertError, ModifierKind, ModifierSourceId,
-    ModifierStore, PlayerId, ProvinceGraph, ScheduleError, ScheduledEffect, SeededRng, SimTime,
-    Speed, Tick, TimeCommand, TriggerView,
+    ModifierStore, Opinion, PlayerId, ProvinceGraph, ScheduleError, ScheduledEffect, SeededRng,
+    SimTime, Speed, Tick, TimeCommand, TriggerView,
 };
 
 const MAP: &[u8] = include_bytes!("fixtures/provinces.json");
@@ -17,6 +17,44 @@ const HOST: CommandActor = CommandActor::Host(PlayerId::new(1));
 const GUEST: CommandActor = CommandActor::Guest(PlayerId::new(2));
 const SEED: u64 = 123_456;
 const CURRENT_RNG: u64 = 0xb305_d1f6_8b05_1e4c;
+
+#[test]
+fn directional_opinions_round_trip_in_version_four_and_reject_invalid_records() {
+    let state = setup()
+        .with_opinions([
+            (COUNTRY, GUEST_COUNTRY, Opinion::new(-35).unwrap()),
+            (GUEST_COUNTRY, COUNTRY, Opinion::new(60).unwrap()),
+        ])
+        .unwrap();
+    let encoded = save_game(&state).unwrap();
+    let mut document: Value = serde_json::from_slice(&encoded).unwrap();
+    assert_eq!(document["schema_version"], 4);
+    let loaded = load_game(&encoded, parse_provinces(MAP).unwrap()).unwrap();
+    assert_eq!(loaded, state);
+    assert_eq!(save_game(&loaded).unwrap(), encoded);
+    assert_eq!(state_hash(&loaded).unwrap(), state_hash(&state).unwrap());
+
+    document["state"]["opinions"][0]["points"] = json!(101);
+    assert!(matches!(
+        load_game(
+            &serde_json::to_vec(&document).unwrap(),
+            parse_provinces(MAP).unwrap()
+        ),
+        Err(SaveError::InvalidOpinion(_))
+    ));
+    document["state"]["opinions"][0]["points"] = json!(-35);
+    document["state"]["opinions"]
+        .as_array_mut()
+        .unwrap()
+        .reverse();
+    assert!(matches!(
+        load_game(
+            &serde_json::to_vec(&document).unwrap(),
+            parse_provinces(MAP).unwrap()
+        ),
+        Err(SaveError::UnorderedRecords("opinions"))
+    ));
+}
 
 fn setup() -> GameState {
     let permanent = ModifierSourceId::new(3);
@@ -225,10 +263,10 @@ fn map_version_and_hash_are_checked_before_decoding_state() {
 fn malformed_records_are_rejected() {
     let graph = || parse_provinces(MAP).unwrap();
     let mut save = saved();
-    save["schema_version"] = json!(4);
+    save["schema_version"] = json!(5);
     assert!(matches!(
         from_value(&save, graph()),
-        Err(SaveError::UnsupportedSchemaVersion(4))
+        Err(SaveError::UnsupportedSchemaVersion(5))
     ));
 
     let mut save = saved();

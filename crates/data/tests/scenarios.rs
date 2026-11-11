@@ -5,7 +5,54 @@ use strategy_data::{
     load_game, load_provinces, load_scenario, load_scenario_from_reader, parse_provinces,
     save_game, state_hash, SaveError, ScenarioLoadError,
 };
-use strategy_sim::{Controller, GameState, ProvinceGraph, ProvinceKind};
+use strategy_sim::{Controller, GameState, Opinion, ProvinceGraph, ProvinceKind};
+
+fn load_with_opinions(opinions: Value) -> Result<GameState, ScenarioLoadError> {
+    load_scenario_from_reader(graph(), "1440", |logical| {
+        let bytes = legacy_read(logical)?;
+        if logical != "scenarios/1440.json" {
+            return Ok(bytes);
+        }
+        let mut scenario: Value = serde_json::from_slice(&bytes).unwrap();
+        scenario["opinions"] = opinions.clone();
+        Ok(serde_json::to_vec(&scenario).unwrap())
+    })
+}
+
+#[test]
+fn scenario_opinions_resolve_country_keys_and_validate_bounds() {
+    let entry = json!({"from":"cas","toward":"por","points":35});
+    let state = load_with_opinions(json!([entry.clone()])).unwrap();
+    let countries = &state.polity().unwrap().countries;
+    let castile = countries
+        .iter()
+        .find(|(_, country)| country.tag == "cas")
+        .unwrap()
+        .0;
+    let portugal = countries
+        .iter()
+        .find(|(_, country)| country.tag == "por")
+        .unwrap()
+        .0;
+    assert_eq!(
+        state.opinion(*castile, *portugal),
+        Some(Opinion::new(35).unwrap())
+    );
+    assert_eq!(state.opinion(*portugal, *castile), Some(Opinion::NEUTRAL));
+    let bytes = save_game(&state).unwrap();
+    assert_eq!(load_game(&bytes, graph()).unwrap(), state);
+
+    for bad in [
+        json!([{"from":"cas","toward":"por","points":101}]),
+        json!([{"from":"cas","toward":"missing","points":35}]),
+        json!([entry.clone(), entry]),
+        json!([{"from":"cas","toward":"cas","points":35}]),
+        json!([{"from":"cas","toward":"por","points":0.5}]),
+        json!([{"from":"cas","toward":"por","points":"35"}]),
+    ] {
+        assert!(load_with_opinions(bad).is_err());
+    }
+}
 
 fn data_root() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data")

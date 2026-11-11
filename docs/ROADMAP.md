@@ -10,7 +10,7 @@ Status: [ ] todo, [~] in progress, [x] done. Update in the PR that changes it. W
 | M4 | Armies and land war | [x] | milestones/M04_armies_war.md |
 | M5 | LAN multiplayer | [~] | milestones/M05_multiplayer.md |
 | M5b | Map density and visual/UI pass | [~] | milestones/M05b_visual_pass.md |
-| M6 | Diplomacy | [ ] | milestones/M06_diplomacy.md |
+| M6 | Diplomacy | [~] | milestones/M06_diplomacy.md |
 | M7 | Events and RP | [ ] | milestones/M07_events_rp.md |
 | M8 | Naval | [ ] | milestones/M08_naval.md |
 | M9 | Technology and ideas | [ ] | milestones/M09_tech_ideas.md |

@@ -168,6 +168,7 @@ Every option requires an integer `ai_weight`, optionally conditioned by a trigge
 | `countries`, `characters` | Unique country tags and character keys to load. |
 | `unowned_provinces` | Optional list of unique land province keys with no starting owner. When supplied, owned and unowned keys must cover every land province exactly once. |
 | `human_slots` | Country tag to unique player slot number, 1 or 2. Other countries use their AI profile. |
+| `opinions` | Optional directed records `{from, toward, points}`. `from` and `toward` are distinct country tags in `countries`; `points` is a signed integer in whole opinion points from -100 through 100. Pairs must be unique. Missing pairs have opinion 0. |
 | `rules.adulthood_years` | Positive unsigned 16-bit whole calendar years. |
 | `rules.base_taxable_development_per_province` | Unsigned 32-bit whole development points added per province for economy. |
 | `rules.tax_per_development` | Raw Fixed thousandths of a treasury unit per taxable development point per month, before the tax rate. |
@@ -309,3 +310,15 @@ saves automatically.
 
 Armies and wars are sorted by ID, forts and sieges by province, and
 treaties by war ID. An active movement route must match the loaded graph.
+
+## Saved games (schema version 4)
+
+An explicitly configured diplomatic opinion adds `state.opinions`, a canonical
+array of `{from, toward, points}` records sorted by numeric `from` and `toward`
+country ID. IDs are positive unsigned 32-bit country identifiers; `points` is
+signed whole opinion points from -100 through 100. The two countries must be
+distinct and present in the state. Duplicate or unsorted pairs are rejected.
+An absent pair has opinion 0. A v4 save requires at least one explicit pair;
+states without explicit opinions retain their previous save version and bytes.
+The v4 state hash uses `strategy:game-state:v4`, a NUL byte, then canonical
+save bytes. Opinion does not decay automatically.
