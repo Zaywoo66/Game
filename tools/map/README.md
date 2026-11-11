@@ -14,6 +14,8 @@ cargo run --locked -p strategy-data --bin lint-provinces -- data/map/western_eur
 The input and output directories are `tools/map/inputs/western_europe/` and
 `data/map/western_europe/`. The build validates staged files before replacing
 the outputs. Change the input or override files and rebuild to update the map.
+Use `--update-scenario` to also refresh 1440 ownership and the existing forts
+and capitals in `data/scenarios/1440.json` and `data/countries/`.
 
 ## Source snapshots
 
@@ -26,6 +28,11 @@ directory by default. The map build itself requires no network access.
   Lake Geneva and river centerlines are clipped to the view and simplified.
   [Dataset](https://www.naturalearthdata.com/downloads/50m-physical-vectors/)
   · [Release](https://github.com/nvkelso/natural-earth-vector/tree/v5.1.2)
+  · [Terms](https://www.naturalearthdata.com/about/terms-of-use/)
+- Natural Earth 1:10m Populated Places, release v5.1.2. Tom Patterson,
+  Nathaniel Vaughn Kelso and contributors. Public domain. The vendored slice
+  contains settlement names, ranking, population, and point coordinates.
+  [Dataset](https://www.naturalearthdata.com/downloads/10m-cultural-vectors/10m-populated-places/)
   · [Terms](https://www.naturalearthdata.com/about/terms-of-use/)
 - Cliopatria v0.1.3, Ed Chalstrey, James Bennett and the Seshat Global History
   Databank. CC BY 4.0. Polity geometries active in 1440 were selected, clipped
@@ -43,23 +50,39 @@ directory by default. The map build itself requires no network access.
 
 ## Raster and topology
 
-The 768 by 1024 equirectangular slice covers longitudes -13 to 12 and
-latitudes 36 to 59.25. Pixel centers determine sampling. The map has 42 land
-provinces, six sea provinces and one lake province.
+The 800 by 744 equirectangular slice covers longitudes -13 to 12 and
+latitudes 36 to 59.25. It uses 32 pixels per degree with a northwest
+crop origin of [5344, 984] in the global grid. The map has 362 land
+provinces, 66 sea zones and one lake province.
 
-`overrides.json` supplies named seeds, two named strait crossings and the
-land provinces that get a port. Land cells use raster Voronoi distances
-restricted by the coastline, with crossing penalties for rivers and 1440
-polity boundaries. Small land fragments without a seed are assigned intact
-to the nearest seed. Sea and lake labels use nearest seeds inside their masks.
+Ranked settlement seeds snap within five land pixels and keep a minimum
+spacing of three pixels. Land cells use raster Voronoi distances restricted
+by coastline, with crossing penalties for rivers and 1440 polity boundaries.
+Land fragments without a seed attach intact to their nearest land seed.
+Water zones use sparse open-water grid seeds; lakes have their own mask.
 
-Cardinal pixel contact generates adjacency. Region `movement_costs` set
-positive whole movement ticks for each edge type. The generator writes both
-directions with the same cost and hashes `id`, `edge`, and `cost` as part of
-the map schema v2. This metadata update leaves the original raster bytes intact. At least three river pixels and
-20% river coverage on a shared land boundary give a river edge. Dover Strait
-and the North Channel are explicit, checked crossings. Each selected port
-attaches to the sea province with the longest shared coastline.
+`overrides.yaml` supplies the 12 existing port locations, reassigned to
+coastal settlement cells. Cardinal pixel contact
+generates adjacency. At least three river pixels and 20% river coverage on
+a shared land boundary give a river edge. Dover Strait and the North Channel remain open water with maritime access
+deferred to M8. Each selected port attaches to the sea province with the
+longest shared coastline. Region `movement_costs` set
+positive whole movement ticks and remain symmetric. Map schema v3 hashes
+the projection and canonical province records, including their hierarchy keys.
+
+Starting ownership uses the highest pixel overlap by Cliopatria polity name
+and applies sourced exceptions in `overrides.yaml`. Provinces outside the six
+scenario countries remain explicitly unowned. `administrative_areas.json`
+maps selected settlement cells to sourced historical areas. Unclassified
+areas mark gaps in coverage. Area boundaries follow gameplay cells.
+`areas.yaml` and `regions.yaml` describe the generated hierarchy and
+`names.en.json` provides English display names.
+
+The dense ownership raises the levy estimates of neighboring countries toward
+the same cap. `data/ai/profiles/balanced.json` therefore uses a war threshold
+of 0 rather than 250. The 10-year military autoplay and 10,000-tick LAN replay
+both still require an AI-negotiated treaty; revisit this balance with the
+movement and performance measurements in 5b.3.
 
 Province pixels encode RGB24 IDs as `(R << 16) | (G << 8) | B`. The 16-bit
 grayscale relief uses `sample - 32768` meters. The 8-bit grayscale terrain

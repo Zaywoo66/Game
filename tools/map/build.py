@@ -14,10 +14,11 @@ from scipy.sparse import csr_matrix
 from scipy.sparse.csgraph import dijkstra
 
 from map_common import (
-    BOUNDS, EDGE_ORDER, ELEVATION_BIAS, HEIGHT, INPUTS, OUTPUT, REGION, SCHEMA_VERSION, TERRAINS,
-    WIDTH, json_bytes, map_hash, read_json,
+    BOUNDS, EDGE_ORDER, ELEVATION_BIAS, HEIGHT, INPUTS, OUTPUT, PROJECTION, REGION, SCHEMA_VERSION, TERRAINS,
+    WIDTH, json_bytes, map_hash, read_json, read_yaml, yaml_bytes,
 )
 from validate import validate_directory
+from historical_areas import classify_seeds, slug, update_ownership
 from topology import paired_slices, raster_contacts, regular_edge, snap_point, strait_pairs
 
 SHAPE = (HEIGHT, WIDTH)
@@ -55,21 +56,65 @@ def raster_elevation():
     return np.rint(samples).astype(np.int16)
 
 
+def water_centers(sea, columns, rows, minimum_coverage_percent):
+    for row in range(rows):
+        top, bottom = HEIGHT * row // rows, HEIGHT * (row + 1) // rows
+        for column in range(columns):
+            left, right = WIDTH * column // columns, WIDTH * (column + 1) // columns
+            cell = sea[top:bottom, left:right]
+            if 100 * np.count_nonzero(cell) < minimum_coverage_percent * cell.size:
+                continue
+            pixels = np.argwhere(cell) + (top, left)
+            center = ((top + bottom - 1) / 2, (left + right - 1) / 2)
+            distance = ((pixels - center) ** 2).sum(axis=1)
+            yield tuple(map(int, pixels[distance.argmin()]))
+
+
 def seeds_from_config(config, masks):
-    seeds = {}
-    seen = set()
-    for kind in ("land", "sea", "lake"):
-        for key, position in config[kind].items():
-            if key in seen:
-                raise ValueError(f"duplicate province key {key}")
-            seen.add(key)
-            seed = snap_point(position, masks[kind])
-            seeds[len(seeds) + 1] = (key, kind, seed)
-    if len({info[2] for info in seeds.values()}) != len(seeds):
-        raise ValueError("multiple seeds occupy the same raster pixel")
-    if not 30 <= len(seeds) <= 50:
-        raise ValueError(f"M2 map must have 30 to 50 province seeds, found {len(seeds)}")
-    return seeds
+    seeds, names, skipped = {}, {}, []
+    required = set(config["required_cities"]) | set(config["port_provinces"])
+    place_keys = config["place_keys"]
+    places = features("populated_places")
+    places.sort(key=lambda place: (
+        place_keys.get(place["properties"]["name"], slug(place["properties"]["name"])) not in required,
+        place["properties"]["rank"], -place["properties"]["population"],
+        place["properties"]["name"], place["geometry"]["coordinates"],
+    ))
+    occupied = set()
+    for place in places:
+        name = place["properties"]["name"]
+        key = place_keys.get(name, slug(name))
+        try:
+            y, x = snap_point(place["geometry"]["coordinates"], masks["land"], radius=5)
+        except ValueError:
+            skipped.append(name)
+            continue
+        near = any(
+            (y - dy, x - dx) in occupied
+            for dy in range(-2, 3) for dx in range(-2, 3) if dx * dx + dy * dy < 9
+        )
+        if near:
+            skipped.append(name)
+            continue
+        if key in names:
+            raise ValueError(f"duplicate province key {key}")
+        occupied.add((y, x))
+        seeds[len(seeds) + 1] = (key, "land", (y, x))
+        names[key] = name
+    if required - names.keys():
+        raise ValueError(f"required land seeds are missing: {sorted(required - names.keys())}")
+
+    sea_config = config["sea_grid"]
+    for index, point in enumerate(water_centers(masks["sea"], **sea_config), start=1):
+        key = f"sea_zone_{index:02}"
+        seeds[len(seeds) + 1] = (key, "sea", point)
+        names[key] = f"Sea Zone {index}"
+    for key, position in config["lake"].items():
+        seeds[len(seeds) + 1] = (key, "lake", snap_point(position, masks["lake"]))
+        names[key] = key.replace("_", " ").title()
+    if not 400 <= len(seeds) <= 600:
+        raise ValueError(f"M5b map must have 400 to 600 province seeds, found {len(seeds)}")
+    return seeds, names, skipped
 
 
 def nearest_pixels(seeds):
@@ -138,7 +183,7 @@ def land_cells(land, rivers, polities, seeds):
     return labels, count
 
 
-def province_records(ids, terrain, rivers, masks, seeds, config):
+def province_records(ids, terrain, rivers, masks, seeds, config, assignments):
     keys = {key: province for province, (key, _, _) in seeds.items()}
     kinds = {province: kind for province, (_, kind, _) in seeds.items()}
     contacts, river_contacts = raster_contacts(ids, rivers)
@@ -188,21 +233,24 @@ def province_records(ids, terrain, rivers, masks, seeds, config):
             ],
             "ports": sorted(ports[province]),
             "development": 0,
+            "name_key": f"province_{key}",
+            "area": assignments[key],
         })
     return provinces
 
 
 def generate(output):
-    config = read_json(INPUTS / "overrides.json")
+    config = read_yaml(INPUTS / "overrides.yaml")
     physical_land = mask("land")
     lake = mask("lakes") & physical_land
     masks = {"land": physical_land & ~lake, "sea": ~physical_land, "lake": lake}
     rivers = mask("rivers", all_touched=True) & masks["land"]
+    historical_features = features("historical_1440")
     history = rasterize(
-        ((feature["geometry"], i) for i, feature in enumerate(features("historical_1440"), start=1)),
+        ((feature["geometry"], i) for i, feature in enumerate(historical_features, start=1)),
         out_shape=SHAPE, transform=TRANSFORM, dtype=np.uint16,
     )
-    seeds = seeds_from_config(config, masks)
+    seeds, names, skipped = seeds_from_config(config, masks)
     land_seeds = {province: info for province, info in seeds.items() if info[1] == "land"}
     ids, detached = land_cells(masks["land"], rivers, history, land_seeds)
     for kind in ("sea", "lake"):
@@ -216,11 +264,13 @@ def generate(output):
     terrain[masks["land"] & (elevation >= 350)] = 2
     terrain[masks["land"] & (elevation >= 1400)] = 3
     terrain[masks["lake"]] = 4
-    provinces = province_records(ids, terrain, rivers, masks, seeds, config)
+    assignments, areas, regions, ownership = classify_seeds(seeds, ids, history, historical_features, config)
+    provinces = province_records(ids, terrain, rivers, masks, seeds, config, assignments)
     metadata = {
         "schema_version": SCHEMA_VERSION,
         "map_version": config["map_version"],
-        "map_hash": map_hash(provinces),
+        "map_hash": map_hash(provinces, projection=PROJECTION),
+        "projection": PROJECTION,
         "provinces": provinces,
     }
     rgb = np.stack((ids >> 16, ids >> 8, ids), axis=-1).astype(np.uint8)
@@ -232,21 +282,31 @@ def generate(output):
     Image.fromarray(terrain).save(output / "terrain.png", compress_level=9)
     Image.fromarray(rivers.astype(np.uint8) * 255).save(output / "rivers.png", compress_level=9)
     (output / "provinces.json").write_bytes(json_bytes(metadata, pretty=True))
-    return Counter(entry["kind"] for entry in provinces), detached, metadata["map_hash"]
+    (output / "areas.yaml").write_bytes(yaml_bytes(areas))
+    (output / "regions.yaml").write_bytes(yaml_bytes(regions))
+    labels = {f"province_{key}": value for key, value in names.items()}
+    labels.update({entry["name_key"]: entry["name"] for entry in areas["areas"]})
+    labels.update({entry["name_key"]: entry["name"] for entry in regions["regions"]})
+    (output / "names.en.json").write_bytes(json_bytes(labels, pretty=True))
+    return Counter(entry["kind"] for entry in provinces), detached, metadata["map_hash"], ownership, skipped
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--region", choices=(REGION,), required=True)
+    parser.add_argument("--update-scenario", action="store_true", help="Rebuild 1440 land ownership from the historical input")
     args = parser.parse_args()
     OUTPUT.parent.mkdir(parents=True, exist_ok=True)
     with TemporaryDirectory(prefix=f".{args.region}-", dir=OUTPUT.parent) as temporary:
         stage = Path(temporary)
-        kinds, islands, digest = generate(stage)
+        kinds, islands, digest, ownership, skipped = generate(stage)
         validate_directory(stage)
         OUTPUT.mkdir(parents=True, exist_ok=True)
         for path in sorted(stage.iterdir()):
             path.replace(OUTPUT / path.name)
+    if args.update_scenario:
+        update_ownership(ownership)
+    print(f"Skipped settlement seeds: {', '.join(skipped)}")
     print(f"{args.region}: {sum(kinds.values())} provinces {dict(kinds)}, {WIDTH}x{HEIGHT}, SHA-256 {digest}")
     print(f"{islands} unseeded land fragments attached to their nearest land seed")
 

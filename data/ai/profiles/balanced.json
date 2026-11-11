@@ -11,7 +11,7 @@
     "loyalty": 600
   },
   "thresholds": {
-    "war_min_score": 250,
+    "war_min_score": 0,
     "peace_accept_score": 75,
     "alliance_min_opinion": 30
   },

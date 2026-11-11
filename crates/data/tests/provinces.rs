@@ -84,10 +84,10 @@ fn reordered_and_reformatted_json_has_the_same_golden_hash() {
 #[test]
 fn rejects_invalid_schema_fields_and_versions() {
     let mut map = fixture();
-    map["schema_version"] = json!(3);
+    map["schema_version"] = json!(4);
     assert!(matches!(
         parse(&map),
-        Err(ProvinceLoadError::UnsupportedSchemaVersion(3))
+        Err(ProvinceLoadError::UnsupportedSchemaVersion(4))
     ));
     map = fixture();
     map.as_object_mut().unwrap().remove("schema_version");
@@ -280,5 +280,126 @@ fn reverse_costs_match_and_cost_changes_are_hashed() {
     assert!(matches!(
         parse(&map),
         Err(ProvinceLoadError::MapHashMismatch { .. })
+    ));
+}
+
+const V3_FIXTURE: &[u8] = include_bytes!("fixtures/provinces_v3.json");
+const V3_GOLDEN_HASH: &str = "65618ef5868d23a2e7d1cfcd597d433756f33694b7a121624dfbd2561fb04fc8";
+
+fn v3_fixture() -> Value {
+    serde_json::from_slice(V3_FIXTURE).unwrap()
+}
+
+#[test]
+fn hierarchy_map_preserves_weighted_edges_and_canonical_v3_hash() {
+    let graph = parse_provinces(V3_FIXTURE).unwrap();
+    assert_eq!(
+        graph.identity().to_string(),
+        format!("map version 3, SHA-256 {V3_GOLDEN_HASH}")
+    );
+    assert_eq!(
+        graph.neighbors(ProvinceId::new(1)),
+        parse_provinces(V2_FIXTURE)
+            .unwrap()
+            .neighbors(ProvinceId::new(1))
+    );
+
+    let mut map = v3_fixture();
+    let entries = map["provinces"].as_array_mut().unwrap();
+    entries.reverse();
+    for entry in entries {
+        entry["neighbors"].as_array_mut().unwrap().reverse();
+        entry["ports"].as_array_mut().unwrap().reverse();
+    }
+    assert_eq!(parse(&map).unwrap(), graph);
+}
+
+#[test]
+fn projection_and_hierarchy_are_included_in_the_v3_hash() {
+    let mut map = v3_fixture();
+    map["projection"]["origin"][0] = json!(-31);
+    assert!(matches!(
+        parse(&map),
+        Err(ProvinceLoadError::MapHashMismatch { .. })
+    ));
+    map = v3_fixture();
+    map["projection"]["pixels_per_degree"] = json!(41);
+    assert!(matches!(
+        parse(&map),
+        Err(ProvinceLoadError::MapHashMismatch { .. })
+    ));
+    for field in ["name_key", "area"] {
+        map = v3_fixture();
+        province(&mut map, 1)[field] = json!("another_key");
+        assert!(matches!(
+            parse(&map),
+            Err(ProvinceLoadError::MapHashMismatch { .. })
+        ));
+    }
+}
+
+#[test]
+fn projection_and_hierarchy_fields_are_required_for_v3_and_forbidden_on_older_versions() {
+    let mut map = v3_fixture();
+    map.as_object_mut().unwrap().remove("projection");
+    assert!(matches!(
+        parse(&map),
+        Err(ProvinceLoadError::ProjectionVersionMismatch(3))
+    ));
+    for field in ["name_key", "area"] {
+        let mut map = v3_fixture();
+        province(&mut map, 1).as_object_mut().unwrap().remove(field);
+        assert!(matches!(
+            parse(&map),
+            Err(ProvinceLoadError::ProvinceMetadataVersionMismatch {
+                version: 3,
+                province: 1
+            })
+        ));
+    }
+    for (version, source) in [(1, FIXTURE), (2, V2_FIXTURE)] {
+        let mut map: Value = serde_json::from_slice(source).unwrap();
+        map["projection"] = v3_fixture()["projection"].clone();
+        assert!(matches!(
+            parse(&map),
+            Err(ProvinceLoadError::ProjectionVersionMismatch(value)) if value == version
+        ));
+        map.as_object_mut().unwrap().remove("projection");
+        province(&mut map, 1)["name_key"] = json!("test_land");
+        assert!(matches!(
+            parse(&map),
+            Err(ProvinceLoadError::ProvinceMetadataVersionMismatch { version: value, province: 1 }) if value == version
+        ));
+    }
+}
+
+#[test]
+fn hierarchy_rejects_bad_projection_metadata_and_missing_edge_cost() {
+    let mut map = v3_fixture();
+    map["projection"]["pixels_per_degree"] = json!(0);
+    assert!(matches!(parse(&map), Err(ProvinceLoadError::Json(_))));
+    map = v3_fixture();
+    map["projection"]["origin"] = json!([0, 2147483648_i64]);
+    assert!(matches!(parse(&map), Err(ProvinceLoadError::Json(_))));
+    map = v3_fixture();
+    map["projection"] = Value::Null;
+    assert!(matches!(parse(&map), Err(ProvinceLoadError::Json(_))));
+    for (field, invalid) in [("name_key", "bad.Key"), ("area", "too__many")] {
+        map = v3_fixture();
+        province(&mut map, 1)[field] = json!(invalid);
+        assert!(matches!(
+            parse(&map),
+            Err(ProvinceLoadError::InvalidProvinceMetadataKey { province: 1, field: actual, .. })
+            if actual == field
+        ));
+    }
+    map = v3_fixture();
+    province(&mut map, 1)["neighbors"][0]
+        .as_object_mut()
+        .unwrap()
+        .remove("cost");
+    assert!(matches!(
+        parse(&map),
+        Err(ProvinceLoadError::EdgeCostVersionMismatch { version: 3, .. })
     ));
 }

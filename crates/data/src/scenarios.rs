@@ -9,11 +9,12 @@ use serde::{de, Deserialize, Deserializer};
 use strategy_sim::{
     AiProfileKey, AiThresholds, AiWeights, CharacterId, CharacterState, CharacterStats, Controller,
     CountryId, CountryPolity, CountryState, Date, EconomyState, FiscalPolicy, Fixed, GameState,
-    ModifierSourceId, ModifierStore, PlayerId, PolityState, ProvinceGraph, ProvinceKind, SimTime,
-    Speed, SuccessionState, WarState,
+    ModifierSourceId, ModifierStore, PlayerId, PolityState, ProvinceGraph, ProvinceId,
+    ProvinceKind, SimTime, Speed, SuccessionState, WarState,
 };
 
 use crate::{
+    deserialize_present, is_content_key,
     polity_format::{ProfileFile, RulesFile, StatsFile, ThresholdsFile, WeightsFile},
     saves::ModifierFile,
     war_format::WarRulesFile,
@@ -76,6 +77,8 @@ struct ScenarioFile {
     #[serde(deserialize_with = "unique_map")]
     traits: BTreeMap<String, Vec<ModifierFile>>,
     military: Option<MilitaryFile>,
+    #[serde(default, deserialize_with = "deserialize_present")]
+    unowned_provinces: Option<Vec<String>>,
 }
 
 #[derive(Deserialize)]
@@ -355,6 +358,10 @@ pub fn load_scenario_from_reader(
         );
     }
 
+    if let Some(unowned) = &scenario.unowned_provinces {
+        validate_land_partition(&graph, &claimed, unowned)?;
+    }
+
     let military = scenario
         .military
         .map(|file| file.resolve(&graph))
@@ -383,6 +390,42 @@ pub fn load_scenario_from_reader(
     } else {
         Ok(state)
     }
+}
+
+fn validate_land_partition(
+    graph: &ProvinceGraph,
+    claimed: &BTreeSet<ProvinceId>,
+    unowned: &[String],
+) -> Result<()> {
+    let mut declared_unowned = BTreeSet::new();
+    for key in unowned {
+        let province = graph
+            .by_key(key)
+            .ok_or_else(|| invalid(format!("unowned_provinces: unknown province {key}")))?;
+        if province.kind != ProvinceKind::Land {
+            return Err(invalid(format!("unowned province {key} is not land")));
+        }
+        if claimed.contains(&province.id) {
+            return Err(invalid(format!(
+                "province {key} is both owned and declared unowned"
+            )));
+        }
+        if !declared_unowned.insert(province.id) {
+            return Err(invalid(format!("duplicate unowned province {key}")));
+        }
+    }
+    for province in graph
+        .iter()
+        .filter(|province| province.kind == ProvinceKind::Land)
+    {
+        if !claimed.contains(&province.id) && !declared_unowned.contains(&province.id) {
+            return Err(invalid(format!(
+                "land province {} is neither owned nor declared unowned",
+                province.key
+            )));
+        }
+    }
+    Ok(())
 }
 
 fn read_file<T: de::DeserializeOwned>(
@@ -425,14 +468,7 @@ fn check_name(name: &str, path: &str) -> Result<()> {
 }
 
 fn check_key(key: &str, field: &str) -> Result<()> {
-    if !key.starts_with(|ch: char| ch.is_ascii_lowercase())
-        || !key.split('_').all(|part| {
-            !part.is_empty()
-                && part
-                    .bytes()
-                    .all(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit())
-        })
-    {
+    if !is_content_key(key) {
         return Err(invalid(format!("invalid {field} key {key:?}")));
     }
     Ok(())

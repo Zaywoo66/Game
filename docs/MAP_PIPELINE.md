@@ -1,20 +1,22 @@
 # MAP_PIPELINE
 
 ## Source data (public domain / open licenses; log each in ASSETS.md)
-- Natural Earth 5.1.2 provides land, lakes and rivers. NOAA ETOPO1 provides elevation and bathymetry.
+- Natural Earth 5.1.2 provides 1:50m land, lakes and rivers, plus 1:10m populated places for city seeds. NOAA ETOPO1 provides elevation and bathymetry.
 - M2 uses the 1440 layer from Seshat Cliopatria 0.1.3 (CC BY 4.0). This replaces the previously proposed historical-basemaps input because Cliopatria has explicit data licensing within the asset policy.
 
 ## Tools
 - Python (`rasterio`, `shapely`, `scipy`, `numpy`, `Pillow`) in `/tools/map`. QGIS for manual inspection/edits.
 - Install the pinned dependencies with `python -m pip install -r tools/map/requirements.txt`.
-- Generate the test map offline from the checked-in source subsets with `python tools/map/build.py --region western_europe`. `tools/map/fetch_inputs.py` reproduces the clipped source inputs. Edit inputs or overrides to change generated PNGs.
+- Generate the city-seeded slice offline from the checked-in source subsets with `python tools/map/build.py --region western_europe`. `tools/map/fetch_inputs.py` reproduces the clipped source inputs. Run the same build with `--update-scenario` to refresh 1440 ownership and forts.
 - Validate the map with `python tools/map/validate.py --region western_europe` and validate its schema and hash with the Rust `lint-provinces` CLI. CI also runs the browser picking and owner lookup tests.
 
 ## Outputs (`/data/map/<region>/`)
 | File | Meaning |
 |------|---------|
 | provinces.png | RGB24 ID, `(red << 16) | (green << 8) | blue`, with nearest sampling and no antialiasing |
-| provinces.json | see DATA_FORMATS.md; neighbors computed by script |
+| provinces.json | Schema v3 graph, projection and area keys. See DATA_FORMATS.md. |
+| areas.yaml, regions.yaml | Area and region tables with historical provenance where available. |
+| names.en.json | English fallback names for provinces, areas and regions. |
 | heightmap.png | 16-bit grayscale elevation in metres, decoded as sample minus 32768 |
 | terrain.png | 8-bit terrain index: 0 sea, 1 plains, 2 hills, 3 mountains, 4 lake |
 | rivers.png | 8-bit mask: 0 background, 255 river |
@@ -25,7 +27,21 @@ M4 writes symmetric movement costs in the map metadata using the region's
 version while preserving the four generated rasters.
 
 ## Province generation
-For M5b, follow the [city-seeded Voronoi generation rules](MAP_SCALE.md). Allocate province IDs from reserved ranges for each region and use one global equirectangular coordinate system with fixed pixels per degree and a crop origin for each region.
+The Western Europe crop uses 32 pixels per degree on both axes, with an
+800 × 744 raster and global origin offset `[5344, 984]`. Province IDs
+use the reserved European range. Settlement seeds and water seeds are
+processed independently of starting ownership.
+
+For the 1440 scenario, assign the largest historical polygon overlap,
+apply the sourced overrides and explicitly mark land outside the six
+playable countries as unowned. Historical area records refer to cited
+jurisdictions. Cell footprints approximate membership and do not trace
+historical administrative boundaries. Where local evidence is missing,
+an unclassified area preserves the gap.
+
+Island settlements remain provinces. Ports retain contact with the sea.
+The dense slice adds no over-water land connections. Sea access is
+scheduled for M8.
 
 ## Rendering (`/ui/src/map`, three.js WebGL2)
 - Terrain mesh from heightmap (chunked), custom shaders: terrain blend, water, province borders, owner color via lookup texture (`provinceId -> ownerColor`).

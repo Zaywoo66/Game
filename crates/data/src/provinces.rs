@@ -1,14 +1,17 @@
 use std::{fmt, fs, num::NonZeroU32, path::Path};
 
-use serde::{Deserialize, Deserializer, Serialize};
+use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use strategy_sim::{
     EdgeKind, MapIdentity, Province, ProvinceEdge, ProvinceGraph, ProvinceGraphError, ProvinceId,
     ProvinceKind,
 };
 
+use crate::{deserialize_present, is_content_key};
+
 const LEGACY_VERSION: u32 = 1;
 const WEIGHTED_VERSION: u32 = 2;
+const HIERARCHY_VERSION: u32 = 3;
 
 #[derive(Debug)]
 pub enum ProvinceLoadError {
@@ -19,6 +22,16 @@ pub enum ProvinceLoadError {
         version: u32,
         province: u32,
         target: u32,
+    },
+    ProjectionVersionMismatch(u32),
+    ProvinceMetadataVersionMismatch {
+        version: u32,
+        province: u32,
+    },
+    InvalidProvinceMetadataKey {
+        province: u32,
+        field: &'static str,
+        key: String,
     },
     InvalidMapHash,
     MapHashMismatch {
@@ -42,6 +55,22 @@ impl fmt::Display for ProvinceLoadError {
                 target,
             } => {
                 write!(f, "province schema v{version} has the wrong cost field for edge {province} -> {target}")
+            }
+            Self::ProjectionVersionMismatch(version) => {
+                write!(
+                    f,
+                    "province schema v{version} has the wrong projection field"
+                )
+            }
+            Self::ProvinceMetadataVersionMismatch { version, province } => {
+                write!(f, "province schema v{version} has the wrong name_key or area field for province {province}")
+            }
+            Self::InvalidProvinceMetadataKey {
+                province,
+                field,
+                key,
+            } => {
+                write!(f, "province {province} has an invalid {field} key {key:?}")
             }
             Self::InvalidMapHash => f.write_str("map_hash must be 64 lowercase hexadecimal digits"),
             Self::MapHashMismatch { declared, computed } => {
@@ -72,8 +101,17 @@ pub fn load_provinces(path: impl AsRef<Path>) -> Result<ProvinceGraph, ProvinceL
 /// Validates the file structure, cross-references and canonical hash.
 pub fn parse_provinces(bytes: &[u8]) -> Result<ProvinceGraph, ProvinceLoadError> {
     let mut map: MapFile = serde_json::from_slice(bytes).map_err(ProvinceLoadError::Json)?;
-    if !matches!(map.schema_version, LEGACY_VERSION | WEIGHTED_VERSION) {
+    if !matches!(
+        map.schema_version,
+        LEGACY_VERSION | WEIGHTED_VERSION | HIERARCHY_VERSION
+    ) {
         return Err(ProvinceLoadError::UnsupportedSchemaVersion(
+            map.schema_version,
+        ));
+    }
+
+    if map.projection.is_some() != (map.schema_version == HIERARCHY_VERSION) {
+        return Err(ProvinceLoadError::ProjectionVersionMismatch(
             map.schema_version,
         ));
     }
@@ -85,8 +123,9 @@ pub fn parse_provinces(bytes: &[u8]) -> Result<ProvinceGraph, ProvinceLoadError>
 
     map.provinces.sort_unstable_by_key(|province| province.id);
     for province in &mut map.provinces {
+        province.validate_metadata(map.schema_version)?;
         for edge in &province.neighbors {
-            if edge.cost.is_some() != (map.schema_version == WEIGHTED_VERSION) {
+            if edge.cost.is_some() != (map.schema_version >= WEIGHTED_VERSION) {
                 return Err(ProvinceLoadError::EdgeCostVersionMismatch {
                     version: map.schema_version,
                     province: province.id,
@@ -97,7 +136,14 @@ pub fn parse_provinces(bytes: &[u8]) -> Result<ProvinceGraph, ProvinceLoadError>
         province.neighbors.sort_unstable();
         province.ports.sort_unstable();
     }
-    let canonical = serde_json::to_vec(&map.provinces).map_err(ProvinceLoadError::Json)?;
+    let canonical = match &map.projection {
+        Some(projection) => serde_json::to_vec(&CanonicalHierarchy {
+            projection,
+            provinces: &map.provinces,
+        }),
+        None => serde_json::to_vec(&map.provinces),
+    }
+    .map_err(ProvinceLoadError::Json)?;
     let computed = MapIdentity {
         version: map.map_version,
         sha256: Sha256::digest(canonical).into(),
@@ -132,7 +178,22 @@ struct MapFile {
     schema_version: u32,
     map_version: NonZeroU32,
     map_hash: String,
+    #[serde(default, deserialize_with = "deserialize_present")]
+    projection: Option<ProjectionFile>,
     provinces: Vec<ProvinceFile>,
+}
+
+#[derive(Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+struct ProjectionFile {
+    pixels_per_degree: NonZeroU32,
+    origin: [i32; 2],
+}
+
+#[derive(Serialize)]
+struct CanonicalHierarchy<'a> {
+    projection: &'a ProjectionFile,
+    provinces: &'a [ProvinceFile],
 }
 
 // Field declaration order is part of the canonical province JSON encoding.
@@ -148,6 +209,45 @@ struct ProvinceFile {
     neighbors: Vec<EdgeFile>,
     ports: Vec<u32>,
     development: u32,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "deserialize_present"
+    )]
+    name_key: Option<String>,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "deserialize_present"
+    )]
+    area: Option<String>,
+}
+
+impl ProvinceFile {
+    fn validate_metadata(&self, version: u32) -> Result<(), ProvinceLoadError> {
+        let fields = match (version, &self.name_key, &self.area) {
+            (HIERARCHY_VERSION, Some(name_key), Some(area)) => {
+                [("name_key", name_key), ("area", area)]
+            }
+            (LEGACY_VERSION | WEIGHTED_VERSION, None, None) => return Ok(()),
+            _ => {
+                return Err(ProvinceLoadError::ProvinceMetadataVersionMismatch {
+                    version,
+                    province: self.id,
+                })
+            }
+        };
+        for (field, key) in fields {
+            if !is_content_key(key) {
+                return Err(ProvinceLoadError::InvalidProvinceMetadataKey {
+                    province: self.id,
+                    field,
+                    key: key.clone(),
+                });
+            }
+        }
+        Ok(())
+    }
 }
 
 impl From<ProvinceFile> for Province {
@@ -190,15 +290,9 @@ struct EdgeFile {
     #[serde(
         default,
         skip_serializing_if = "Option::is_none",
-        deserialize_with = "present_cost"
+        deserialize_with = "deserialize_present"
     )]
     cost: Option<NonZeroU32>,
-}
-
-fn present_cost<'de, D: Deserializer<'de>>(
-    deserializer: D,
-) -> Result<Option<NonZeroU32>, D::Error> {
-    NonZeroU32::deserialize(deserializer).map(Some)
 }
 
 #[derive(Deserialize, Serialize)]
