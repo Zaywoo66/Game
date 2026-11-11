@@ -1,5 +1,6 @@
 # M12 Beta release
 Docs: GIT_WORKFLOW.md, DECISIONS.md
+Prerequisites: M5 physical two-PC LAN acceptance and M5b visual/UI acceptance are complete. M6–M11 may be developed while those checks remain open.
 
 ## Tasks
 - Balance pass, memory/perf optimization against budgets
