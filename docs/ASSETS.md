@@ -15,3 +15,4 @@
 | Path | Source | Author | License | Notes |
 |------|--------|--------|---------|-------|
 | `app/icons/icon.png` | Original geometric placeholder | Project team | Own work | 32×32 PNG generated for the M0 Tauri window |
+| `app/icons/icon.ico` | Converted from `app/icons/icon.png` | Project team | Own work | Windows icon resource for Tauri |
