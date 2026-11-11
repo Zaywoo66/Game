@@ -257,13 +257,13 @@ mod tests {
                     .is_some_and(|limit| limit > game.war_state().unwrap().rules.max_morale)
             })
             .unwrap();
-        assert!(army_valid(&game, army));
+        assert!(army_valid(game, army));
         let mut over_cap = army.clone();
         over_cap.morale = game
             .effective_army_morale_limit(army.country)
             .unwrap()
             .checked_add(Fixed::from_raw(1))
             .unwrap();
-        assert!(!army_valid(&game, &over_cap));
+        assert!(!army_valid(game, &over_cap));
     }
 }
