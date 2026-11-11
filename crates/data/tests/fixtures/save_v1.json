@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "map_version": 4,
+  "map_hash": "ef610c0ac68bf9e1c0c84fb75f5a03a69dc761f1efad9790e41aa7e5414f347a",
+  "state": {
+    "start_date": [
+      1440,
+      1,
+      1
+    ],
+    "tick": 0,
+    "speed": 3,
+    "paused": false,
+    "seed": 42,
+    "rng_state": 99,
+    "countries": [
+      {
+        "id": 1,
+        "controller": {
+          "human": 1
+        },
+        "known_technologies": [],
+        "at_war": false,
+        "sources": []
+      }
+    ],
+    "scheduled": [
+      {
+        "due": 1,
+        "country": 1,
+        "source": 1,
+        "expires_at": 2,
+        "modifier": {
+          "key": "test_stat",
+          "value": 1000,
+          "kind": "additive"
+        }
+      }
+    ]
+  }
+}

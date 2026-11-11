@@ -156,6 +156,13 @@ impl ModifierStore {
         expired
     }
 
+    /// Iterates active bundles by source ID, preserving modifier order within each bundle.
+    pub fn sources(&self) -> impl Iterator<Item = (ModifierSourceId, Option<u64>, &[Modifier])> {
+        self.sources
+            .iter()
+            .map(|(&id, source)| (id, source.expires_at, source.modifiers.as_slice()))
+    }
+
     /// Evaluates the requested key across currently active bundles.
     pub fn effective_value(&self, base: Fixed, key: &ModKey) -> Option<Fixed> {
         let modifiers = self

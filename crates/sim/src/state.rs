@@ -177,6 +177,14 @@ impl CountryState {
         &self.controller
     }
 
+    pub fn known_technologies(&self) -> impl Iterator<Item = &str> {
+        self.known_technologies.iter().map(String::as_str)
+    }
+
+    pub const fn modifiers(&self) -> &ModifierStore {
+        &self.modifiers
+    }
+
     pub fn effective_value(&self, base: Fixed, key: &ModKey) -> Option<Fixed> {
         self.modifiers.effective_value(base, key)
     }
@@ -263,6 +271,33 @@ impl GameState {
             province_graph,
             countries,
             scheduled,
+        })
+    }
+
+    /// Restores authoritative state after its save header and map identity are checked.
+    pub fn restore(
+        time: SimTime,
+        seed: u64,
+        rng: SeededRng,
+        province_graph: ProvinceGraph,
+        countries: BTreeMap<CountryId, CountryState>,
+        schedule: impl IntoIterator<Item = ScheduledEffect>,
+    ) -> Result<Self, ScheduleError> {
+        let mut state = Self::new(time, seed, province_graph, countries, schedule)?;
+        state.rng = rng;
+        Ok(state)
+    }
+
+    pub const fn rng_state(&self) -> u64 {
+        self.rng.state()
+    }
+
+    /// Iterates pending grants by due tick, then by country and source ID.
+    pub fn pending_effects(&self) -> impl Iterator<Item = (Tick, CountryId, &PreparedModifier)> {
+        self.scheduled.iter().flat_map(|(&due, grants)| {
+            grants
+                .iter()
+                .map(move |(&(country, _), grant)| (due, country, grant))
         })
     }
 
