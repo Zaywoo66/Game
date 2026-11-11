@@ -1,0 +1,8 @@
+{
+  "modifiers": [
+    {"key": "test_stat", "value": 1000, "kind": "additive"},
+    {"key": "test_stat", "value": -9223372036854775808, "kind": "additive"},
+    {"key": "test_stat", "value": 9223372036854775807, "kind": "additive"}
+  ],
+  "unrelated": {"value": 0.1, "count": 2, "id": 9}
+}

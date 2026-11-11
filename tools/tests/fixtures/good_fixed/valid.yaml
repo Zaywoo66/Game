@@ -1,0 +1,6 @@
+effects:
+  - add_modifier:
+      key: test_stat
+      value: 100
+      kind: multiplicative
+      duration_days: 90

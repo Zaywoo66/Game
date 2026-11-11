@@ -103,6 +103,9 @@ For a flat bonus of +1, write `value: 1000, kind: additive`. For a
 strings such as `0.1` and `"10%"` are invalid modifier values, including in
 ordinary `modifiers` lists.
 
+Install the pinned lint dependencies with `python -m pip install -r tools/requirements.txt`,
+then run `python tools/lint_data.py` to check JSON and YAML data.
+
 ```yaml
 trigger: { all: [ { country_has_tech: mil_3 }, { not: { at_war: true } } ] }
 effects: [ { add_modifier: { key: army_morale, value: 100, kind: multiplicative, duration_days: 3650 } } ]
