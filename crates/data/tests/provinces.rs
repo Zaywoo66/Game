@@ -284,7 +284,7 @@ fn reverse_costs_match_and_cost_changes_are_hashed() {
 }
 
 const V3_FIXTURE: &[u8] = include_bytes!("fixtures/provinces_v3.json");
-const V3_GOLDEN_HASH: &str = "65618ef5868d23a2e7d1cfcd597d433756f33694b7a121624dfbd2561fb04fc8";
+const V3_GOLDEN_HASH: &str = "d7db02fdb27d137c9bda9ce251321276d4f78c9ebc62f91e46961b7d57dc3bc5";
 
 fn v3_fixture() -> Value {
     serde_json::from_slice(V3_FIXTURE).unwrap()
@@ -312,6 +312,63 @@ fn hierarchy_map_preserves_weighted_edges_and_canonical_v3_hash() {
         entry["ports"].as_array_mut().unwrap().reverse();
     }
     assert_eq!(parse(&map).unwrap(), graph);
+}
+
+#[test]
+fn v3_ports_require_exact_symmetric_land_sea_port_edges() {
+    let mut listed_without_edge = v3_fixture();
+    province(&mut listed_without_edge, 1)["ports"] = json!([7, 9]);
+    assert!(matches!(
+        parse(&listed_without_edge),
+        Err(ProvinceLoadError::InvalidPortLink {
+            province: 1,
+            target: 7,
+            ..
+        })
+    ));
+
+    let mut edge_without_listing = v3_fixture();
+    province(&mut edge_without_listing, 1)["ports"] = json!([]);
+    assert!(matches!(
+        parse(&edge_without_listing),
+        Err(ProvinceLoadError::InvalidPortLink {
+            province: 1,
+            target: 9,
+            ..
+        })
+    ));
+
+    let mut asymmetric_edge = v3_fixture();
+    province(&mut asymmetric_edge, 9)["neighbors"] = json!([]);
+    assert!(matches!(
+        parse(&asymmetric_edge),
+        Err(ProvinceLoadError::Graph(_))
+    ));
+
+    let mut non_land_ports = v3_fixture();
+    province(&mut non_land_ports, 7)["ports"] = json!([9]);
+    assert!(matches!(
+        parse(&non_land_ports),
+        Err(ProvinceLoadError::InvalidPortLink {
+            province: 7,
+            target: 9,
+            ..
+        })
+    ));
+
+    let mut sea_to_sea_port = v3_fixture();
+    province(&mut sea_to_sea_port, 7)["neighbors"] =
+        json!([{ "id": 9, "edge": "port", "cost": 1 }, { "id": 1, "edge": "strait", "cost": 5 }]);
+    province(&mut sea_to_sea_port, 9)["neighbors"] =
+        json!([{ "id": 7, "edge": "port", "cost": 1 }, { "id": 1, "edge": "port", "cost": 2 }]);
+    assert!(matches!(
+        parse(&sea_to_sea_port),
+        Err(ProvinceLoadError::InvalidPortLink { .. })
+    ));
+
+    // Historical map schemas retain their original port-list semantics.
+    assert!(parse_provinces(FIXTURE).is_ok());
+    assert!(parse_provinces(V2_FIXTURE).is_ok());
 }
 
 #[test]
