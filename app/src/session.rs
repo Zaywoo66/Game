@@ -1,6 +1,9 @@
 use std::{
     collections::BTreeMap,
-    sync::{Arc, Mutex},
+    sync::{
+        atomic::{AtomicBool, AtomicI32, Ordering},
+        Arc, Mutex,
+    },
     thread,
     time::{Duration, Instant},
 };
@@ -39,8 +42,7 @@ pub(crate) struct Session {
     network_sequence: u64,
     client_revision: u64,
     last_lan_status: Option<LanStatus>,
-    lan_log: Option<LanLog>,
-    exit_code: i32,
+    lifecycle: Arc<Lifecycle>,
 }
 
 #[derive(Clone)]
@@ -377,6 +379,13 @@ pub(crate) fn setup(app: &mut App) -> Result<(), Box<dyn std::error::Error>> {
         None
     };
     let startup = Startup::parse(args)?;
+    let lifecycle = Arc::new(Lifecycle {
+        stopping: AtomicBool::new(false),
+        exit_code: AtomicI32::new(0),
+        logging: lan_log.is_some(),
+        log: Mutex::new(lan_log),
+    });
+    app.manage(Arc::clone(&lifecycle));
     let game = load_embedded_scenario().map_err(std::io::Error::other)?;
     let visible_countries = country_views(&game);
     let visible_owners = owner_views(&game);
@@ -394,8 +403,7 @@ pub(crate) fn setup(app: &mut App) -> Result<(), Box<dyn std::error::Error>> {
         network_sequence: 0,
         client_revision: 0,
         last_lan_status: None,
-        lan_log,
-        exit_code: 0,
+        lifecycle,
     }));
 
     let handle = app.handle().clone();
@@ -610,7 +618,7 @@ pub(crate) async fn lan_start(
     }
     session.mode = Mode::Host(host);
     reset_game(&mut session, &view.game, view.sequence);
-    start_lan_log(&mut session, "host");
+    start_lan_log(&session, "host");
     Ok(emit_lan_status(&app, &mut session))
 }
 
@@ -638,7 +646,7 @@ pub(crate) async fn lan_join(
     session.mode = Mode::Guest(client);
     reset_game(&mut session, &view.game, view.sequence);
     session.client_revision = view.revision;
-    start_lan_log(&mut session, "guest");
+    start_lan_log(&session, "guest");
     Ok(emit_lan_status(&app, &mut session))
 }
 
@@ -652,7 +660,7 @@ pub(crate) fn lan_leave(
         .lock()
         .map_err(|_| "The game session is unavailable.")?;
     session.operation += 1;
-    finish_lan_log(&mut session, "room_leave");
+    finish_lan_log(&session, "room_leave");
     session.mode = Mode::Solo;
     reset_game(&mut session, &game, 0);
     Ok(emit_lan_status(&app, &mut session))
@@ -708,10 +716,14 @@ pub(crate) fn game_ai_log(state: State<'_, Mutex<Session>>) -> Result<Vec<AiLogE
 
 fn run_clock(app: AppHandle) {
     let state = app.state::<Mutex<Session>>();
+    let lifecycle = app.state::<Arc<Lifecycle>>();
     let mut previous = None;
     let mut deadline = Instant::now();
-    loop {
+    while !lifecycle.stopping.load(Ordering::Relaxed) {
         thread::sleep(Duration::from_millis(16));
+        if lifecycle.stopping.load(Ordering::Relaxed) {
+            break;
+        }
         let Ok(mut session) = state.lock() else {
             return;
         };
@@ -720,16 +732,10 @@ fn run_clock(app: AppHandle) {
         let speed = time.speed();
         let paused = time.is_paused();
         let now = Instant::now();
-        if session
-            .lan_log
-            .as_ref()
-            .is_some_and(|log| log.sample_due(now))
-        {
-            let tick = session.game.time().tick().get();
+        if lifecycle.logging && !matches!(session.mode, Mode::Solo) {
+            let tick = time.tick().get();
             let metrics = network_metrics(&session.mode);
-            if let Some(log) = &mut session.lan_log {
-                log.sample(now, tick, metrics);
-            }
+            lifecycle.with_log(|log| log.observe(now, tick, metrics));
         }
         let period = Duration::from_millis(1_000 >> (speed.get() - 1));
         let clock_state = (session.generation, speed, paused);
@@ -754,7 +760,7 @@ fn run_clock(app: AppHandle) {
             Ok(()) => {}
             Err(error) => {
                 eprintln!("Host clock stopped: {error}");
-                finish_lan_log(&mut session, "host_clock_error");
+                finish_lan_log(&session, "host_clock_error");
                 return;
             }
         }
@@ -770,47 +776,64 @@ fn network_metrics(mode: &Mode) -> LanMetrics {
     }
 }
 
-fn start_lan_log(session: &mut Session, role: &'static str) {
-    let tick = session.game.time().tick().get();
-    if let Some(log) = &mut session.lan_log {
-        log.start(role, tick);
+struct Lifecycle {
+    stopping: AtomicBool,
+    exit_code: AtomicI32,
+    logging: bool,
+    log: Mutex<Option<LanLog>>,
+}
+
+impl Lifecycle {
+    fn with_log(&self, action: impl FnOnce(&mut LanLog)) {
+        if let Ok(mut log) = self.log.lock() {
+            if let Some(log) = log.as_mut() {
+                action(log);
+            }
+        }
     }
 }
 
-fn finish_lan_log(session: &mut Session, reason: &str) {
-    if session.lan_log.is_some() {
+fn start_lan_log(session: &Session, role: &'static str) {
+    let tick = session.game.time().tick().get();
+    session.lifecycle.with_log(|log| log.start(role, tick));
+}
+
+fn finish_lan_log(session: &Session, reason: &str) {
+    if session.lifecycle.logging {
         let tick = session.game.time().tick().get();
         let metrics = network_metrics(&session.mode);
-        if let Some(log) = &mut session.lan_log {
-            log.finish(reason, tick, metrics);
-        }
+        session.lifecycle.with_log(|log| {
+            log.observe(Instant::now(), tick, metrics);
+            log.finish(reason);
+        });
     }
 }
 
 pub(crate) fn on_app_event(app: &AppHandle, event: tauri::RunEvent) {
-    if !matches!(
-        event,
-        tauri::RunEvent::ExitRequested { .. } | tauri::RunEvent::Exit
-    ) {
-        return;
-    }
-    let Some(state) = app.try_state::<Mutex<Session>>() else {
+    let Some(lifecycle) = app.try_state::<Arc<Lifecycle>>() else {
         return;
     };
-    let Ok(mut session) = state.lock() else {
-        return;
-    };
+    // The window thread must not acquire the game mutex: the clock can be
+    // emitting a WebView update while the last window is closing.
     match event {
-        tauri::RunEvent::ExitRequested {
-            code: Some(code), ..
-        } => session.exit_code = code,
-        tauri::RunEvent::Exit => {
-            finish_lan_log(&mut session, "app_exit");
-            let code = session.exit_code;
-            if let Some(log) = &mut session.lan_log {
-                log.exit(code);
+        tauri::RunEvent::WindowEvent {
+            label,
+            event: tauri::WindowEvent::CloseRequested { .. },
+            ..
+        } if label == "main" => {
+            lifecycle.stopping.store(true, Ordering::Relaxed);
+            app.exit(0);
+        }
+        tauri::RunEvent::ExitRequested { code, .. } => {
+            lifecycle.stopping.store(true, Ordering::Relaxed);
+            if let Some(code) = code {
+                lifecycle.exit_code.store(code, Ordering::Relaxed);
             }
         }
+        tauri::RunEvent::Exit => lifecycle.with_log(|log| {
+            log.finish("app_exit");
+            log.exit(lifecycle.exit_code.load(Ordering::Relaxed));
+        }),
         _ => {}
     }
 }
