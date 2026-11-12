@@ -25,6 +25,14 @@ test('capture historical and terrain modes at named views', async ({ page }) => 
     await page.screenshot({ path: join(output, `${name}.png`), animations: 'disabled' });
   }
   const metadata = await (await page.request.get('/map/western_europe/provinces.json')).json();
+  const focusProvince = metadata.provinces.find((province) => province.kind === 'land');
+  expect(focusProvince).toBeTruthy();
+  const focusPoint = await page.evaluate((id) => window.strategyMapTest.projectProvince(id), focusProvince.id);
+  expect(focusPoint).toBeTruthy();
+  await page.mouse.move(focusPoint.x, focusPoint.y);
+  await expect(page.getByRole('tooltip')).toBeVisible();
+  await page.mouse.click(focusPoint.x, focusPoint.y);
+  await page.screenshot({ path: join(output, 'province-hover-selected.png'), animations: 'disabled' });
   const london = metadata.provinces.find((province) => province.key === 'london');
   const neighbor = london.neighbors.map(({ id }) => metadata.provinces.find((province) => province.id === id))
     .find((province) => province?.kind === 'land');

@@ -13,6 +13,7 @@ Why: M2-M5 acceptance was technical only. Later systems (diplomacy, naval, AI) a
 - Camera: map fills the viewport; clamp pan/zoom/tilt; no visible void or skewed edges; map center not hidden by panels.
 - Water: replace the repeating stripe pattern with depth-based color and subtle animation; no visible tiling at default zoom.
 - Borders: thin province borders, thicker country borders, area borders by zoom; no jagged artifacts at default zoom.
+- Hover: lift the hovered province and show its localized name after a short delay; selection uses a distinct outline and subtle pulse.
 - Terrain: hillshade from heightmap, distinct terrain colors, visible rivers.
 - Labels: country names at low zoom, city/province names at high zoom, capital markers.
 - Map modes: political and terrain.
@@ -32,4 +33,4 @@ Why: M2-M5 acceptance was technical only. Later systems (diplomacy, naval, AI) a
 - Existing tests and AI smoke test still pass.
 
 ## Suggested task split (one PR each)
-5b.1 docs patch; 5b.2 map rebuild + ownership; 5b.3 movement calibration + tick, snapshot and delta measurements; 5b.4 camera/water/borders/terrain + native 1080p FPS/RAM after the visual changes; 5b.5 labels, map modes, unit markers; 5b.6 UI layout, UI_STYLE.md, localization of displayed keys.
+5b.1 docs patch; 5b.2 map rebuild + ownership; 5b.3 movement calibration + tick, snapshot and delta measurements; 5b.4 camera/water/borders/terrain + native 1080p FPS/RAM after the visual changes; 5b.5 labels, map modes, unit markers, hover/selection feedback; 5b.6 UI layout, UI_STYLE.md, localization of displayed keys.

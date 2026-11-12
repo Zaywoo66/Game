@@ -53,6 +53,7 @@ uniform sampler2D heightRaster;
 uniform vec2 rasterSize;
 uniform vec2 lookupSize;
 uniform float selectedId;
+uniform float hoveredId;
 uniform float seconds;
 uniform bool hasOccupations;
 uniform int mapMode;
@@ -151,9 +152,13 @@ void main() {
   float borderOpacity = border.x * (0.15 + 0.17 * detail) + border.y * 0.16 + country * 0.62;
   if (water > 0.5) borderOpacity *= 0.07;
   color = mix(color, water > 0.5 ? vec3(0.070, 0.153, 0.178) : vec3(0.066, 0.085, 0.057), clamp(borderOpacity, 0.0, 0.78));
-  if (selectedId > 0.0 && abs(id - selectedId) < 0.5) {
-    color = mix(color, vec3(0.84, 0.62, 0.27), 0.18 + border.x * 0.60);
-  }
+  float selected = selectedId > 0.0 ? 1.0 - step(0.5, abs(id - selectedId)) : 0.0;
+  float hovered = hoveredId > 0.0 ? 1.0 - step(0.5, abs(id - hoveredId)) : 0.0;
+  float pulse = 0.5 + 0.5 * sin(seconds * 3.2);
+  color = mix(color, vec3(0.91, 0.72, 0.39), selected * (0.08 + pulse * 0.04));
+  color = mix(color, vec3(0.99, 0.85, 0.58), selected * border.x * 0.78);
+  color = mix(color, vec3(0.91, 0.88, 0.75), hovered * border.x * 0.72);
+  color = mix(color, vec3(0.94, 0.83, 0.60), hovered * 0.07);
 
   float edgeDistance = min(min(mapUv.x, 1.0 - mapUv.x), min(mapUv.y, 1.0 - mapUv.y));
   float edgeFade = 1.0 - smoothstep(0.0, 0.045, edgeDistance);

@@ -38,6 +38,20 @@ test('projected provinces pick their canonical IDs and representative clicks sel
   }
 });
 
+test('province hover shows a delayed name tooltip and selection remains available', async ({ page }) => {
+  const provinces = await loadProvinces(page);
+  const province = provinces.find(({ kind }) => kind === 'land');
+  expect(province).toBeTruthy();
+  const names = await (await page.request.get('/map/western_europe/names.en.json')).json();
+  const point = await page.evaluate((id) => window.strategyMapTest.projectProvince(id), province.id);
+  expect(point).toBeTruthy();
+  await page.mouse.move(point.x, point.y);
+  const tooltip = page.getByRole('tooltip');
+  await expect(tooltip).toHaveText(names[province.name_key], { timeout: 2_000 });
+  await page.mouse.click(point.x, point.y);
+  await expect(page.locator('[data-map-selected]')).toHaveAttribute('data-map-selected', String(province.id));
+});
+
 test('fleet markers show ship counts, movement paths, and select the fleet panel', async ({ page }) => {
   const seaIds = (await loadProvinces(page)).filter((province) => province.kind === 'sea').slice(0, 2).map((province) => province.id);
   expect(seaIds).toHaveLength(2);

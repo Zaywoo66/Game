@@ -93,6 +93,7 @@ export function MapPage() {
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
   const [error, setError] = useState('');
   const [selected, setSelected] = useState<Province | null>(null);
+  const [hoveredProvince, setHoveredProvince] = useState<{ id: number; x: number; y: number } | null>(null);
   const [inspectedCountry, setInspectedCountry] = useState<number | null>(null);
   const [provinceNames, setProvinceNames] = useState<ReadonlyMap<number, Province>>(new Map());
   const [mapAssets, setMapAssets] = useState<MapAssets | null>(null);
@@ -158,6 +159,18 @@ export function MapPage() {
   const shownArmy = game?.armies?.find((army) => army.id === inspectedArmy);
   const mayTarget = Boolean(order && shownArmy && shownArmy.country_id === game?.local_country_id);
   const onProvinceClick = useRef<(province: Province | null) => void>(() => undefined);
+  const hoverTimer = useRef<number | undefined>(undefined);
+  const onProvinceHover = useRef<(id: number, x: number, y: number) => void>(() => undefined);
+  useEffect(() => {
+    onProvinceHover.current = (id, x, y) => {
+      window.clearTimeout(hoverTimer.current);
+      if (id === 0) {
+        setHoveredProvince(null);
+        return;
+      }
+      hoverTimer.current = window.setTimeout(() => setHoveredProvince({ id, x, y }), 300);
+    };
+  }, []);
   useEffect(() => {
     onProvinceClick.current = (province) => {
       setSelected(province);
@@ -228,6 +241,7 @@ export function MapPage() {
           host,
           assets,
           (id) => onProvinceClick.current(provinces.get(id) ?? null),
+          (id, x, y) => onProvinceHover.current(id, x, y),
           (id) => {
             setSection('military');
             setInspectedArmy(id);
@@ -271,6 +285,7 @@ export function MapPage() {
       abort.abort();
       window.clearTimeout(warmupTimer);
       window.clearTimeout(measurementTimer);
+      window.clearTimeout(hoverTimer.current);
       if (viewer && window.strategyMapTest === viewer.testControls) delete window.strategyMapTest;
       if (viewerRef.current === viewer) viewerRef.current = undefined;
       viewer?.dispose();
@@ -320,6 +335,15 @@ export function MapPage() {
         canSetSpeed={!guest} send={hostGame.send} />}
       {game && <EventPopup events={game.pending_events ?? []} localCountryId={game.local_country_id}
         pending={hostGame.pending} error={hostGame.commandError} send={hostGame.send} />}
+      {hoveredProvince && !benchmark && (() => {
+        const province = provinceNames.get(hoveredProvince.id);
+        const name = province ? mapAssets?.names.get(province.name_key ?? '') ?? `Province ${hoveredProvince.id}` : '';
+        return name ? <div className="map-hover-tooltip" role="tooltip"
+          style={{ left: Math.min(hoveredProvince.x + 14, window.innerWidth - 250),
+            top: Math.min(hoveredProvince.y + 14, window.innerHeight - 56) }}>
+          {name}
+        </div> : null;
+      })()}
       {hostGame.connected && !game && (
         <p className="game-clock map-panel" role={hostGame.connectionError ? 'alert' : 'status'}>
           {hostGame.connectionError || 'Connecting to the game host…'}

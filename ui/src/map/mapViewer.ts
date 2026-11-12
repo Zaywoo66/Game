@@ -87,6 +87,7 @@ export function createMapViewer(
   viewport: HTMLElement,
   assets: MapAssets,
   onSelect: (id: number) => void,
+  onHover: (id: number, clientX: number, clientY: number) => void,
   onArmySelect: (id: number) => void,
   onFleetSelect: (id: number) => void,
   manualFrames = false,
@@ -168,6 +169,7 @@ export function createMapViewer(
     rasterSize: { value: new THREE.Vector2(width, height) },
     lookupSize: { value: new THREE.Vector2(lookupWidth, lookupHeight) },
     selectedId: { value: 0 },
+    hoveredId: { value: 0 },
     hasOccupations: { value: false },
     mapMode: { value: 0 },
     seconds: { value: 0 },
@@ -427,6 +429,30 @@ export function createMapViewer(
   const fleetLayer = createFleetLayer(scene, viewport, provinceAnchor, camera, onFleetSelect);
   let targeting = false;
   let press: { x: number; y: number; id: number } | null = null;
+  let hoverFrame = 0;
+  let hoverX = 0;
+  let hoverY = 0;
+  let previousHover = -1;
+  function pointerMove(event: PointerEvent) {
+    hoverX = event.clientX;
+    hoverY = event.clientY;
+    if (hoverFrame || press) return;
+    hoverFrame = requestAnimationFrame(() => {
+      hoverFrame = 0;
+      const id = pickAt(hoverX, hoverY);
+      if (id === previousHover) return;
+      previousHover = id;
+      uniforms.hoveredId.value = id;
+      onHover(id, hoverX, hoverY);
+    });
+  }
+  function pointerLeave() {
+    if (hoverFrame) cancelAnimationFrame(hoverFrame);
+    hoverFrame = 0;
+    previousHover = 0;
+    uniforms.hoveredId.value = 0;
+    onHover(0, 0, 0);
+  }
   function pointerDown(event: PointerEvent) {
     if (event.button === 0 && event.isPrimary) {
       renderer.domElement.focus({ preventScroll: true });
@@ -455,6 +481,8 @@ export function createMapViewer(
   renderer.domElement.addEventListener('pointerdown', pointerDown);
   renderer.domElement.addEventListener('pointerup', pointerUp);
   renderer.domElement.addEventListener('pointercancel', cancelPointer);
+  renderer.domElement.addEventListener('pointermove', pointerMove);
+  renderer.domElement.addEventListener('pointerleave', pointerLeave);
 
   let sample: number[] = [];
   let recording = false;
@@ -588,11 +616,14 @@ export function createMapViewer(
     },
     dispose() {
       cancelAnimationFrame(frame);
+      if (hoverFrame) cancelAnimationFrame(hoverFrame);
       observer.disconnect();
       controls.dispose();
       renderer.domElement.removeEventListener('pointerdown', pointerDown);
       renderer.domElement.removeEventListener('pointerup', pointerUp);
       renderer.domElement.removeEventListener('pointercancel', cancelPointer);
+      renderer.domElement.removeEventListener('pointermove', pointerMove);
+      renderer.domElement.removeEventListener('pointerleave', pointerLeave);
       renderer.domElement.remove();
       labelLayer.remove();
       armyLayer.dispose();

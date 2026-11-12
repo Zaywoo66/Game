@@ -28,6 +28,7 @@ p { font-size: 14px; color: #a8b6cf; }
 .map-viewport canvas:active { cursor: grabbing; }
 .map-viewport canvas:focus-visible { outline: 2px solid #e1c48c; outline-offset: -3px; }
 .map-label-layer { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+.map-hover-tooltip { position: fixed; z-index: 12; max-width: 220px; padding: 6px 9px; border: 1px solid #8c9d91; border-radius: 4px; background: #142329f2; color: #f5ebd5; font: 13px/1.25 system-ui, sans-serif; box-shadow: 0 3px 10px #07141b99; pointer-events: none; }
 .map-label { position: absolute; transform: translate(-50%, -50%); color: #fff5d6; font: 600 13px/1.2 system-ui, sans-serif; white-space: nowrap; text-shadow: 0 1px 3px #07141b, 0 0 5px #07141b; }
 .map-label[data-kind='country'] { font-size: 17px; letter-spacing: .04em; }
 .map-label--capital { color: #f9d98f; }
