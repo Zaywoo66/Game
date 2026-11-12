@@ -269,6 +269,50 @@ fn broken_double_defense_costs_one_opinion_penalty_and_retains_bond() {
 }
 
 #[test]
+fn overlord_busy_in_another_war_breaks_defense_without_ending_vassalage() {
+    let mut state = setup_guarantee_four(|_| {});
+    let c_actor = CommandActor::Host(PlayerId::new(3));
+    apply(
+        &mut state,
+        c_actor,
+        Command::OfferVassalage {
+            country: C,
+            toward: B,
+        },
+    );
+    apply(
+        &mut state,
+        GUEST,
+        Command::AcceptVassalage {
+            country: B,
+            from: C,
+        },
+    );
+    apply(
+        &mut state,
+        c_actor,
+        Command::DeclareWar {
+            country: C,
+            defender: D,
+            goal: province(8),
+        },
+    );
+    apply(
+        &mut state,
+        HOST,
+        Command::DeclareWar {
+            country: A,
+            defender: B,
+            goal: province(5),
+        },
+    );
+    let defensive = state.war_state().unwrap().war_for(B).unwrap().1;
+    assert!(!defensive.defender_supporters.contains(&C));
+    assert_eq!(state.diplomacy().unwrap().overlord_of(B), Some(C));
+    assert_eq!(state.opinion(B, C).unwrap().points(), -25);
+}
+
+#[test]
 fn peaceful_release_and_independence_war_keep_or_end_the_bond_by_peace_terms() {
     let mut released = setup(|_| {});
     form_vassal(&mut released);
