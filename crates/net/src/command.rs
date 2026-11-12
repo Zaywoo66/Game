@@ -3,7 +3,7 @@ use std::fmt;
 use serde::{Deserialize, Serialize};
 use strategy_sim::{
     AiProfileKey, ArmyId, CharacterId, Command, Controller, CountryId, FiscalPolicy, Fixed,
-    PlayerId, ProvinceId, Speed, TimeCommand, WarId,
+    FleetId, PlayerId, ProvinceId, Speed, TimeCommand, WarId,
 };
 
 use crate::LobbyController;
@@ -49,6 +49,21 @@ pub enum PlayerCommand {
     MoveArmy {
         country: u32,
         army: u32,
+        destination: u32,
+    },
+    MoveFleet {
+        country: u32,
+        fleet: u32,
+        destination: u32,
+    },
+    EmbarkArmy {
+        country: u32,
+        army: u32,
+        fleet: u32,
+    },
+    DisembarkArmy {
+        country: u32,
+        fleet: u32,
         destination: u32,
     },
     RetreatArmy {
@@ -211,6 +226,33 @@ impl From<&Command> for PlayerCommand {
             } => Self::MoveArmy {
                 country: country.get(),
                 army: army.get(),
+                destination: destination.get(),
+            },
+            Command::MoveFleet {
+                country,
+                fleet,
+                destination,
+            } => Self::MoveFleet {
+                country: country.get(),
+                fleet: fleet.get(),
+                destination: destination.get(),
+            },
+            Command::EmbarkArmy {
+                country,
+                army,
+                fleet,
+            } => Self::EmbarkArmy {
+                country: country.get(),
+                army: army.get(),
+                fleet: fleet.get(),
+            },
+            Command::DisembarkArmy {
+                country,
+                fleet,
+                destination,
+            } => Self::DisembarkArmy {
+                country: country.get(),
+                fleet: fleet.get(),
                 destination: destination.get(),
             },
             Command::RetreatArmy {
@@ -385,6 +427,33 @@ impl TryFrom<PlayerCommand> for Command {
             } => Self::MoveArmy {
                 country: CountryId::new(country),
                 army: ArmyId::new(army),
+                destination: ProvinceId::new(destination),
+            },
+            PlayerCommand::MoveFleet {
+                country,
+                fleet,
+                destination,
+            } => Self::MoveFleet {
+                country: CountryId::new(country),
+                fleet: FleetId::new(fleet),
+                destination: ProvinceId::new(destination),
+            },
+            PlayerCommand::EmbarkArmy {
+                country,
+                army,
+                fleet,
+            } => Self::EmbarkArmy {
+                country: CountryId::new(country),
+                army: ArmyId::new(army),
+                fleet: FleetId::new(fleet),
+            },
+            PlayerCommand::DisembarkArmy {
+                country,
+                fleet,
+                destination,
+            } => Self::DisembarkArmy {
+                country: CountryId::new(country),
+                fleet: FleetId::new(fleet),
                 destination: ProvinceId::new(destination),
             },
             PlayerCommand::RetreatArmy {
