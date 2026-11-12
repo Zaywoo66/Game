@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 80" role="img" aria-labelledby="title">
+  <title id="title">Duchy of Brittany ermine banner</title>
+  <rect width="120" height="80" fill="#f8f5ec"/>
+  <defs>
+    <g id="ermine" fill="#171b20">
+      <circle cx="-5" cy="-7" r="2.2"/>
+      <circle cx="0" cy="-9" r="2.2"/>
+      <circle cx="5" cy="-7" r="2.2"/>
+      <path d="M-3-4Q0-5 3-4L2 5 5 11 2 10 0 14-2 10-5 11-2 5Z"/>
+    </g>
+  </defs>
+  <use href="#ermine" x="12" y="19"/>
+  <use href="#ermine" x="36" y="19"/>
+  <use href="#ermine" x="60" y="19"/>
+  <use href="#ermine" x="84" y="19"/>
+  <use href="#ermine" x="108" y="19"/>
+  <use href="#ermine" x="24" y="46"/>
+  <use href="#ermine" x="48" y="46"/>
+  <use href="#ermine" x="72" y="46"/>
+  <use href="#ermine" x="96" y="46"/>
+  <use href="#ermine" x="12" y="73"/>
+  <use href="#ermine" x="36" y="73"/>
+  <use href="#ermine" x="60" y="73"/>
+  <use href="#ermine" x="84" y="73"/>
+  <use href="#ermine" x="108" y="73"/>
+</svg>

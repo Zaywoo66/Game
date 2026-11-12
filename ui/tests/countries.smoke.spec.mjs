@@ -17,7 +17,7 @@ const other = {
   capital: 'Other Capital', ruler: null, heir: null, regency: false,
 };
 
-async function mockHost(page, provinceId) {
+async function mockHost(page, provinceId, localCountry = local) {
   await page.addInitScript(({ initialClock, local, other, provinceId }) => {
     const listeners = new Set();
     const commands = [];
@@ -60,8 +60,17 @@ async function mockHost(page, provinceId) {
         },
       },
     };
-  }, { initialClock, local, other, provinceId });
+  }, { initialClock, local: localCountry, other, provinceId });
 }
+
+test('M11 Brittany displays its period-grounded ermine flag', async ({ page }) => {
+  await mockHost(page, 1, { ...local, tag: 'bre', name: 'Duchy of Brittany' });
+  await page.goto('/?verify=1&verifyHost=1');
+  const flag = page.getByRole('region', { name: 'Country and rulers' }).locator('img.country-flag');
+  await expect(flag).toBeVisible({ timeout: 60_000 });
+  await expect(flag).toHaveAttribute('src', /bre(?:-[\w-]+)?\.svg/);
+  await expect.poll(() => flag.evaluate((image) => image.naturalWidth)).toBeGreaterThan(0);
+});
 
 test('M3 panels apply host deltas and issue commands without optimistic writes', async ({ page }) => {
   await mockHost(page, 1);

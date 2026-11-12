@@ -15,7 +15,7 @@ Status: [ ] todo, [~] in progress, [x] done. Update in the PR that changes it. W
 | M8 | Naval | [~] | milestones/M08_naval.md |
 | M9 | Technology and ideas | [~] | milestones/M09_tech_ideas.md |
 | M10 | AI strategic layer, balance, tuning (L4) | [~] | milestones/M10_ai.md |
-| M11 | Beta content (1440) | [ ] | milestones/M11_content.md |
+| M11 | Beta content (1440) | [~] | milestones/M11_content.md |
 | M12 | Beta release | [ ] | milestones/M12_release.md |
 | M13 | World map (post-beta) | [ ] | milestones/M13_world.md |
 
