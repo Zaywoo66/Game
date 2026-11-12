@@ -1,0 +1,21 @@
+schema_version: 1
+governments:
+  monarchy:
+    - reforms:
+        - key: royal_council
+          ai_weight: 600
+          effects:
+            - {key: tax_income, value: 100, kind: multiplicative}
+        - key: noble_privileges
+          ai_weight: 350
+          effects:
+            - {key: army_morale, value: 100, kind: multiplicative}
+    - reforms:
+        - key: standing_administration
+          ai_weight: 500
+          effects:
+            - {key: tax_income, value: 150, kind: multiplicative}
+        - key: professional_offices
+          ai_weight: 450
+          effects:
+            - {key: army_combat, value: 100, kind: multiplicative}

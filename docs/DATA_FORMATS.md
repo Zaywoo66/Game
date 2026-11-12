@@ -161,6 +161,7 @@ Country and character numeric IDs are assigned in sorted key order starting at 1
 | `color` | Three unsigned 8-bit RGB channel values in the order red, green, blue. |
 | `capital` | Province key referring to one of this country's land provinces. |
 | `ai_profile` | Profile key. |
+| `government` | Government key matching an entry in `data/reforms/governments.yaml`; unitless. |
 | `start.ruler`, `start.heir` | Character keys. The heir may be omitted or null. |
 | `start.provinces` | Unique land province keys, owned by one country at most. |
 | `start.treasury`, `start.monthly_spending` | Raw Fixed thousandths of a treasury unit. Spending is per game month. |
@@ -412,6 +413,29 @@ fleet's sea cell.
 Validate content and cross-references with
 `cargo run --locked -p strategy-data --bin lint-scenario -- data/scenarios/1440.json data/map/western_europe/provinces.json`.
 
+## Government reforms (`data/reforms/governments.yaml`)
+
+The YAML catalog has `schema_version: 1` and a `governments` mapping. Each
+government maps to an ordered list of tiers; each tier contains `reforms`.
+Countries select at most one reform per tier, permanently, for 150 whole
+research points from the shared stockpile. Effects are permanent modifier
+effects. `ai_weight` is a whole preference integer from 0 through 1000.
+
+| Field | Representation and unit |
+|---|---|
+| `schema_version` | Integer exactly `1`; unitless. |
+| government key | ASCII snake_case key referenced by a country's `government`; unitless. |
+| tier list position | One-based stage number; unitless. |
+| `reforms[].key` | Globally unique ASCII snake_case key; unitless. |
+| `reforms[].ai_weight` | Integer from 0 through 1000; unitless preference weight. |
+| `reforms[].effects[].key` | Modifier key; unitless. |
+| `reforms[].effects[].value` | Signed 64-bit raw Fixed thousandths (100 means 0.100). |
+| `reforms[].effects[].kind` | `additive` or `multiplicative`; unitless. |
+
+The AI profile's `reform_priority` (0–1000) competes monthly with idea and
+technology priorities for the same one-purchase slot. Within a tier, AI picks
+highest `ai_weight`, then ascending key. Effects cannot have `duration_days`.
+
 ## Trigger and effect syntax
 
 A trigger is a single-key mapping. The country that owns the trigger is its subject.
@@ -466,6 +490,8 @@ Add new leaves here first, then implement.
 | `preferred_monthly_spending` | Raw Fixed treasury amount per month within scenario spending limits. |
 | `tech_branch_weights` | Optional object from loaded technology branch key to whole preference points 0 through 1000. Unknown branches and out-of-range weights are rejected when the catalog is attached. Missing branch weights score zero. |
 | `idea_priority` | Optional whole preference points 0 through 1000. Missing value scores zero. Compared monthly with technology branch weights for affordable, unlocked purchases; equal scores break by ascending content key. |
+| `reform_priority` | Optional whole preference points 0 through 1000. Missing value scores zero. Compared monthly with idea and technology priorities for affordable reforms; reform variants use `ai_weight` then ascending key. |
+| `reform_priority` | Optional whole preference points 0 through 1000. Missing value scores zero. Compared monthly with idea and technology priorities for affordable reforms; reform variants use `ai_weight` then ascending key. |
 
 ## Saved games (schema version 2)
 
@@ -703,3 +729,14 @@ purchase an idea only once. V13 retains technology, vassalage, and all earlier
 state payloads. Its hash domain is `strategy:game-state:v13` followed by NUL
 and canonical save bytes. V1–v12 remain readable without idea state. LAN
 protocol v11 transports the v13 state and the validated `UnlockIdea` command.
+
+## Saved games (schema version 14)
+
+V14 adds each country's `government` key to saved polity data and `state.reforms`
+with sorted reform definitions, selected sources sorted by
+`(country_id, reform_key)`, and a positive next modifier-source ID. The source
+records and permanent modifiers must agree, and a country cannot select two
+reforms in one tier. V14 retains all earlier payloads; its hash domain is
+`strategy:game-state:v14` followed by NUL and canonical save bytes. V1–v13
+remain readable without government or reform data. LAN protocol v12 transports
+the v14 state and the validated `UnlockReform` command.

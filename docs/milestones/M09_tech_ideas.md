@@ -5,8 +5,10 @@ Progress: technology YAML v1 contract, prerequisite-DAG data linter, typed
 Rust loader, research-point/unlock slice, and data-positioned technology UI
 are implemented. National ideas have tag-keyed YAML catalogs, linter coverage,
 one-time purchases, permanent modifier sources, save v13/LAN v11 transport,
-profile-weighted AI selection, and a host-command UI panel. Reforms and
-needs-aware AI weights remain open. The research slice grants 10 points at each new calendar month, caps unspent points at
+profile-weighted AI selection, and a host-command UI panel. Government reforms
+now have a data catalog, one-per-tier purchases, permanent modifier sources,
+save v14/LAN v12 transport, profile-weighted AI selection, and a host-command
+UI panel. Needs-aware AI weights remain open. The research slice grants 10 points at each new calendar month, caps unspent points at
 1000, and spends the stated cost through an authorized `UnlockTechnology`
 command. Technology modifiers are permanent and retain their source IDs.
 The national-idea slice adds country-tagged YAML catalogs, one-time 100-point

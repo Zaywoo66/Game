@@ -39,8 +39,11 @@ units, and the cross-branch prerequisite DAG. Research adds monthly points,
 permanent modifiers, profile-weighted AI choices and a data-positioned tree UI.
 National ideas have tag-keyed catalogs, one-time purchases, permanent modifier
 sources, save v13/LAN v11 transport, profile-weighted AI choices and a host-
-command UI panel. Reforms, needs-aware AI weights, historical idea catalogs
-for the remaining 1440 countries, and M9 acceptance remain open.
+command UI panel. Government reforms now have a data catalog, 150-point
+one-per-tier purchases, permanent modifier sources, save v14/LAN v12 transport,
+profile-weighted AI choices and a host-command UI panel. Needs-aware AI weights,
+historical catalogs for the remaining 1440 countries, and M9 acceptance remain
+open.
 M5b.4 camera, water, borders and terrain have browser screenshot evidence; native 1080p FPS/RAM and owner visual review remain open for M5b acceptance.
 M5b.5 map modes, historical evidence display, English fallback labels and army badges have browser checks; Russian localization, fleet UI, native performance and owner visual acceptance remain open.
 

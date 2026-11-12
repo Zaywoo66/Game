@@ -186,6 +186,11 @@ class DataLintTest(unittest.TestCase):
         self.assertEqual(result.returncode, 1, result)
         self.assertIn("idea unlock references unknown technology absent_technology", result.stderr)
 
+    def test_rejects_fractional_reform_modifier_value(self):
+        result = run_lint("bad_reform")
+        self.assertEqual(result.returncode, 1, result)
+        self.assertIn("$.governments.monarchy[0].reforms[0].effects[0].value: expected an integer", result.stderr)
+
 
 def run_lint(fixture):
     test_dir = Path(__file__).resolve().parent

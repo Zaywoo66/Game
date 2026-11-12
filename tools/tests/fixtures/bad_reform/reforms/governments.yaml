@@ -1,0 +1,8 @@
+schema_version: 1
+governments:
+  monarchy:
+    - reforms:
+        - key: test_reform
+          ai_weight: 10
+          effects:
+            - {key: tax_income, value: 0.1, kind: additive}

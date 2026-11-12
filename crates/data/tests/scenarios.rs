@@ -64,6 +64,12 @@ fn scenario_opinions_resolve_country_keys_and_validate_bounds() {
 fn pre_marriage_save_without_sex_loads_as_unknown() {
     let mut saved: Value = serde_json::from_slice(&save_game(&m3_state()).unwrap()).unwrap();
     saved["schema_version"] = json!(2);
+    for country in saved["state"]["polity"]["countries"]
+        .as_array_mut()
+        .unwrap()
+    {
+        country.as_object_mut().unwrap().remove("government");
+    }
     for character in saved["state"]["polity"]["characters"]
         .as_array_mut()
         .unwrap()
@@ -75,6 +81,7 @@ fn pre_marriage_save_without_sex_loads_as_unknown() {
         .as_array_mut()
         .unwrap()
     {
+        profile.as_object_mut().unwrap().remove("reform_priority");
         profile["thresholds"]
             .as_object_mut()
             .unwrap()
@@ -163,7 +170,7 @@ fn royal_marriage_save_preserves_spouse_and_effective_opinion() {
         .unwrap();
     let pending = save_game(&state).unwrap();
     let pending_json: Value = serde_json::from_slice(&pending).unwrap();
-    assert_eq!(pending_json["schema_version"], json!(7));
+    assert_eq!(pending_json["schema_version"], json!(14));
     let mut wrong_version = pending_json.clone();
     wrong_version["schema_version"] = json!(5);
     assert!(matches!(
@@ -235,7 +242,7 @@ fn royal_marriage_save_preserves_spouse_and_effective_opinion() {
         .unwrap();
     let bytes = save_game(&state).unwrap();
     let document: Value = serde_json::from_slice(&bytes).unwrap();
-    assert_eq!(document["schema_version"], json!(9));
+    assert_eq!(document["schema_version"], json!(14));
     assert!(document["state"]["events"].is_object());
     assert_eq!(
         document["state"]["diplomacy"]["guarantees"][0]["a"],
@@ -253,6 +260,7 @@ fn royal_marriage_save_preserves_spouse_and_effective_opinion() {
         Err(SaveError::VersionGuaranteeMismatch(8))
     ));
     let mut missing_guarantee = document;
+    missing_guarantee["schema_version"] = json!(9);
     missing_guarantee["state"]["diplomacy"]["guarantees"] = json!([]);
     assert!(matches!(
         load_game(&serde_json::to_vec(&missing_guarantee).unwrap(), graph()),
@@ -377,7 +385,7 @@ fn vassal_save_v12_preserves_bonds_and_rejects_old_or_unsorted_payloads() {
     let state = base.with_diplomacy(diplomacy).unwrap();
     let bytes = save_game(&state).unwrap();
     let document: Value = serde_json::from_slice(&bytes).unwrap();
-    assert_eq!(document["schema_version"], json!(12));
+    assert_eq!(document["schema_version"], json!(14));
     let restored = load_game(&bytes, graph()).unwrap();
     assert_eq!(restored, state);
     assert_eq!(save_game(&restored).unwrap(), bytes);
@@ -660,7 +668,7 @@ fn current_save_round_trips_country_economy_characters_profiles_and_rules() {
         .all(|country| country.economy.last_month.is_some()));
     let bytes = save_game(&state).unwrap();
     let fields: Value = serde_json::from_slice(&bytes).unwrap();
-    assert_eq!(fields["schema_version"], 7);
+    assert_eq!(fields["schema_version"], 14);
     assert!(fields["state"]["polity"].is_object());
 
     let restored = load_game(&bytes, graph()).unwrap();
@@ -728,7 +736,7 @@ fn current_save_round_trips_military_rules_and_forts() {
     let state = original();
     let bytes = save_game(&state).unwrap();
     let json: Value = serde_json::from_slice(&bytes).unwrap();
-    assert_eq!(json["schema_version"], 7);
+    assert_eq!(json["schema_version"], 14);
     assert_eq!(
         json["state"]["military"]["forts"].as_array().unwrap().len(),
         7
@@ -898,7 +906,7 @@ fn save_v3_preserves_active_armies_movement_sieges_and_treaties() {
         .unwrap();
     let coalition_bytes = save_game(&coalition_state).unwrap();
     let coalition_json: Value = serde_json::from_slice(&coalition_bytes).unwrap();
-    assert_eq!(coalition_json["schema_version"], json!(7));
+    assert_eq!(coalition_json["schema_version"], json!(14));
     assert_eq!(
         coalition_json["state"]["military"]["wars"][0]["attacker_supporters"],
         json!([castile.get()])
@@ -1143,7 +1151,7 @@ fn navy_save_v10_round_trips_embarked_army_and_route_and_rejects_bad_records() {
         .unwrap();
     let bytes = save_game(&state).unwrap();
     let document: Value = serde_json::from_slice(&bytes).unwrap();
-    assert_eq!(document["schema_version"], json!(12));
+    assert_eq!(document["schema_version"], json!(14));
     assert_eq!(
         document["state"]["navy"]["fleets"][0]["cargo"],
         json!(army_id.get())
@@ -1162,10 +1170,25 @@ fn navy_save_v10_round_trips_embarked_army_and_route_and_rejects_bad_records() {
         .unwrap()
         .remove("technology");
     missing["state"].as_object_mut().unwrap().remove("navy");
-    assert!(matches!(
-        load_game(&serde_json::to_vec(&missing).unwrap(), graph.clone()),
-        Err(SaveError::VersionNavyMismatch(10))
-    ));
+    missing["state"].as_object_mut().unwrap().remove("ideas");
+    missing["state"].as_object_mut().unwrap().remove("reforms");
+    for country in missing["state"]["polity"]["countries"]
+        .as_array_mut()
+        .unwrap()
+    {
+        country.as_object_mut().unwrap().remove("government");
+    }
+    for profile in missing["state"]["polity"]["ai_profiles"]
+        .as_array_mut()
+        .unwrap()
+    {
+        profile.as_object_mut().unwrap().remove("reform_priority");
+    }
+    let missing_result = load_game(&serde_json::to_vec(&missing).unwrap(), graph.clone());
+    assert!(
+        matches!(&missing_result, Err(SaveError::VersionNavyMismatch(10))),
+        "{missing_result:?}"
+    );
     let mut duplicate = document.clone();
     let fleets = duplicate["state"]["navy"]["fleets"].as_array_mut().unwrap();
     fleets.push(fleets[0].clone());

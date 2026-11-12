@@ -20,5 +20,6 @@
   "preferred_tax_rate": 230,
   "preferred_monthly_spending": 6000,
   "tech_branch_weights": {"administration": 600, "military": 500},
-  "idea_priority": 550
+  "idea_priority": 550,
+  "reform_priority": 525
 }

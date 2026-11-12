@@ -70,11 +70,14 @@ pub struct FiscalAiProfile {
     pub tech_branch_weights: BTreeMap<String, u16>,
     /// Whole preference points for an affordable national idea (0..=1000).
     pub idea_priority: u16,
+    /// Whole preference points for an affordable government reform (0..=1000).
+    pub reform_priority: u16,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct CountryPolity {
     pub tag: String,
+    pub government: String,
     pub name: String,
     pub color: [u8; 3],
     pub capital: ProvinceId,

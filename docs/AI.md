@@ -123,6 +123,10 @@ shared research stockpile. The profile's `idea_priority` is compared with
 `tech_branch_weights`; equal scores use the ascending idea or technology key.
 The AI submits `UnlockIdea` through the same validation as a human and never
 buys an idea for another country.
+Government reforms compete for the same monthly purchase slot using
+`reform_priority`. A reform is available only for the country's government and
+an unchosen tier; the AI chooses the highest `ai_weight` variant, then the
+ascending reform key. These are priorities, not needs-aware strategic weights.
 
 Each layer scores candidate actions: `score = sum(weight_i * factor_i)` with factors computed from state (strength ratio, distance, opinion, war score, treasury, threats). Highest score above a threshold wins; ties broken by `CountryId`/stable order then RNG.
 

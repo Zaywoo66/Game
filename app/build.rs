@@ -24,6 +24,21 @@ fn embed_game_data() -> std::io::Result<()> {
             }
         }
     }
+    let reforms = root.join("reforms");
+    println!("cargo:rerun-if-changed={}", reforms.display());
+    if reforms.is_dir() {
+        for entry in fs::read_dir(reforms)? {
+            let entry = entry?;
+            if entry.file_type()?.is_file()
+                && entry
+                    .path()
+                    .extension()
+                    .is_some_and(|ext| ext == "yaml" || ext == "yml")
+            {
+                paths.push(format!("reforms/{}", entry.file_name().to_string_lossy()));
+            }
+        }
+    }
     let techs = root.join("techs");
     println!("cargo:rerun-if-changed={}", techs.display());
     if techs.is_dir() {

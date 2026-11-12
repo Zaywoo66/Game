@@ -652,6 +652,7 @@ fn setup(start: Date, edit: impl FnOnce(&mut PolityState)) -> Result<GameState, 
         preferred_monthly_spending: raw(1_000),
         tech_branch_weights: BTreeMap::new(),
         idea_priority: 0,
+        reform_priority: 0,
     };
     let mut polity = PolityState {
         rules: PolityRules {
@@ -705,6 +706,7 @@ fn character(country: CountryId, dynasty: &str, birth: Date) -> CharacterState {
 fn country(tag: &str, capital: ProvinceId, ruler: CharacterId) -> CountryPolity {
     CountryPolity {
         tag: tag.to_owned(),
+        government: "monarchy".into(),
         name: tag.to_owned(),
         color: [0, 0, 0],
         capital,

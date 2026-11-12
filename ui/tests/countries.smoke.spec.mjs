@@ -12,6 +12,7 @@ const local = {
   monthly_spending: '7000', bankrupt: false, regency: true, ruler,
   heir: { ...ruler, id: 10, name: 'Matilda', age: 4 },
   research_points: 150, known_technologies: [], known_ideas: [],
+  government: 'monarchy', known_reforms: [], chosen_reform_tiers: [],
 };
 const other = {
   ...local, id: 2, tag: 'oth', name: 'Other Realm', color: '#2fc953',
@@ -19,9 +20,9 @@ const other = {
 };
 
 async function mockHost(page, provinceId, {
-  truces = [], localCountry = local, blockadedPorts = [], ideas = [],
+  truces = [], localCountry = local, blockadedPorts = [], ideas = [], reforms = [],
 } = {}) {
-  await page.addInitScript(({ initialClock, local, other, provinceId, truces, blockadedPorts, ideas }) => {
+  await page.addInitScript(({ initialClock, local, other, provinceId, truces, blockadedPorts, ideas, reforms }) => {
     const listeners = new Set();
     const commands = [];
     const calls = [];
@@ -48,6 +49,7 @@ async function mockHost(page, provinceId, {
               sequence: 9, clock: initialClock, local_country_id: local.id,
               countries: [local, other], owners: [{ province_id: provinceId, country_id: local.id }],
               ideas,
+              reforms,
               truces, armies: truces.length ? [] : undefined,
               max_tax_rate: 200, max_monthly_spending: '999999999999999999',
               blockaded_ports: blockadedPorts,
@@ -66,8 +68,34 @@ async function mockHost(page, provinceId, {
         },
       },
     };
-  }, { initialClock, local: localCountry, other, provinceId, truces, blockadedPorts, ideas });
+  }, { initialClock, local: localCountry, other, provinceId, truces, blockadedPorts, ideas, reforms });
 }
+
+test('M9 purchases one government reform per tier through the host', async ({ page }) => {
+  const map = await page.request.get('/map/western_europe/provinces.json');
+  expect(map.ok()).toBe(true);
+  const id = (await map.json()).provinces.find(({ key }) => key === 'london').id;
+  await mockHost(page, id, { reforms: [{
+    key: 'royal_council', government: 'monarchy', tier: 1, ai_weight: 10,
+    effects: [{ key: 'tax_income', value: '100', kind: 'multiplicative' }],
+  }] });
+  await page.goto('/?verify=1&map=western_europe&verifyHost=1');
+  await page.getByRole('button', { name: 'Reforms', exact: true }).click();
+  const panel = page.getByRole('region', { name: 'Government reforms' });
+  const adopt = panel.getByRole('button', { name: 'Adopt · 150' });
+  await expect(adopt).toBeEnabled();
+  await adopt.click();
+  await expect.poll(() => page.evaluate(() => window.__strategyMockHost.commands)).toEqual([{
+    type: 'unlock_reform', country_id: 1, key: 'royal_council',
+  }]);
+  await expect(adopt).toHaveText('Adopt · 150');
+  await page.evaluate(({ local, clock }) => {
+    window.__strategyMockHost.emit({ sequence: 11, clock, countries: [{
+      ...local, research_points: 0, known_reforms: ['royal_council'], chosen_reform_tiers: [1],
+    }] });
+  }, { local, clock: { ...initialClock, tick: 31, date: '1440-02-01' } });
+  await expect(panel.getByRole('button', { name: 'Selected' })).toBeDisabled();
+});
 
 test('M9 purchases a national idea through the host and waits for its update', async ({ page }) => {
   const map = await page.request.get('/map/western_europe/provinces.json');

@@ -40,6 +40,9 @@ export interface CountryView {
   research_points: number | null;
   known_technologies: string[];
   known_ideas: string[];
+  government: string;
+  known_reforms: string[];
+  chosen_reform_tiers: number[];
 }
 
 export interface TechnologyView {
@@ -57,6 +60,14 @@ export interface IdeaView {
   country: string;
   name_key: string;
   available_countries: number[];
+  effects: { key: string; value: string; kind: 'additive' | 'multiplicative' }[];
+}
+
+export interface ReformView {
+  key: string;
+  government: string;
+  tier: number;
+  ai_weight: number;
   effects: { key: string; value: string; kind: 'additive' | 'multiplicative' }[];
 }
 
@@ -133,6 +144,7 @@ export interface GameSnapshot {
   countries: CountryView[];
   technologies?: TechnologyView[];
   ideas?: IdeaView[];
+  reforms?: ReformView[];
   pending_events?: EventView[];
   guarantees: { guarantor_id: number; protected_id: number }[];
   truces: TruceView[];
@@ -192,7 +204,7 @@ export type GameCommand =
   | { type: 'offer_vassalage'; country_id: number; toward_id: number }
   | { type: 'accept_vassalage' | 'reject_vassalage'; country_id: number; from_id: number }
   | { type: 'release_vassal'; country_id: number; subject_id: number }
-  | { type: 'unlock_technology' | 'unlock_idea'; country_id: number; key: string };
+  | { type: 'unlock_technology' | 'unlock_idea' | 'unlock_reform'; country_id: number; key: string };
 
 interface TauriBridge {
   core: { invoke<T>(name: string, args?: Record<string, unknown>): Promise<T> };
@@ -229,6 +241,9 @@ function normalizeSnapshot(snapshot: GameSnapshot): GameSnapshot {
       research_points: country.research_points ?? null,
       known_technologies: country.known_technologies ?? [],
       known_ideas: country.known_ideas ?? [],
+      government: country.government ?? '',
+      known_reforms: country.known_reforms ?? [],
+      chosen_reform_tiers: country.chosen_reform_tiers ?? [],
     })),
     guarantees: snapshot.guarantees ?? [],
     truces: snapshot.truces ?? [],
@@ -259,6 +274,9 @@ function applyUpdate(snapshot: GameSnapshot, update: GameUpdate): GameSnapshot {
       research_points: country.research_points ?? null,
       known_technologies: country.known_technologies ?? [],
       known_ideas: country.known_ideas ?? [],
+      government: country.government ?? '',
+      known_reforms: country.known_reforms ?? [],
+      chosen_reform_tiers: country.chosen_reform_tiers ?? [],
     })) ?? snapshot.countries,
     pending_events: update.pending_events ?? snapshot.pending_events,
     guarantees: update.guarantees ?? snapshot.guarantees,

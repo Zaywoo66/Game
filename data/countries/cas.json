@@ -47,5 +47,6 @@
     "treasury": 120000,
     "tax_rate": 250,
     "monthly_spending": 11000
-  }
+  },
+  "government": "monarchy"
 }

@@ -8,8 +8,8 @@ use strategy_sim::{
     DiplomacyState, Effect, EventError, Fixed, GameState, IdeaError, InvalidDate, InvalidSpeed,
     MapIdentity, MapIdentityMismatch, ModKey, Modifier, ModifierInsertError, ModifierKind,
     ModifierSourceId, ModifierStore, NavyError, Opinion, OpinionError, OpinionStateError, PlayerId,
-    PolityError, ProvinceGraph, ScheduleError, ScheduledEffect, SeededRng, SimTime, Speed,
-    TechnologyError, Tick, TimeError, TriggerView, WarError, WarState,
+    PolityError, ProvinceGraph, ReformError, ScheduleError, ScheduledEffect, SeededRng, SimTime,
+    Speed, TechnologyError, Tick, TimeError, TriggerView, WarError, WarState,
 };
 
 use crate::provinces::decode_hash;
@@ -19,6 +19,7 @@ mod ideas;
 mod military;
 mod navy;
 mod polity;
+mod reforms;
 mod technology;
 
 use events::EventStateFile;
@@ -26,6 +27,7 @@ use ideas::IdeaStateFile;
 use military::WarStateFile;
 use navy::NavyStateFile;
 use polity::PolityFile;
+use reforms::ReformStateFile;
 use technology::TechnologyStateFile;
 
 const LEGACY_VERSION: u32 = 1;
@@ -41,6 +43,7 @@ const NAVY_VERSION: u32 = 10;
 const TECHNOLOGY_VERSION: u32 = 11;
 const VASSAL_VERSION: u32 = 12;
 const IDEA_VERSION: u32 = 13;
+const REFORM_VERSION: u32 = 14;
 const STATE_HASH_DOMAIN_V1: &[u8] = b"strategy:game-state:v1\0";
 const STATE_HASH_DOMAIN_V2: &[u8] = b"strategy:game-state:v2\0";
 const STATE_HASH_DOMAIN_V3: &[u8] = b"strategy:game-state:v3\0";
@@ -54,6 +57,7 @@ const STATE_HASH_DOMAIN_V10: &[u8] = b"strategy:game-state:v10\0";
 const STATE_HASH_DOMAIN_V11: &[u8] = b"strategy:game-state:v11\0";
 const STATE_HASH_DOMAIN_V12: &[u8] = b"strategy:game-state:v12\0";
 const STATE_HASH_DOMAIN_V13: &[u8] = b"strategy:game-state:v13\0";
+const STATE_HASH_DOMAIN_V14: &[u8] = b"strategy:game-state:v14\0";
 
 #[derive(Debug)]
 pub enum SaveError {
@@ -71,6 +75,7 @@ pub enum SaveError {
     VersionTechnologyMismatch(u32),
     VersionVassalMismatch(u32),
     VersionIdeaMismatch(u32),
+    VersionReformMismatch(u32),
     InvalidPolity(PolityError),
     InvalidMilitary(WarError),
     InvalidOpinion(OpinionError),
@@ -80,6 +85,7 @@ pub enum SaveError {
     InvalidNavy(NavyError),
     InvalidTechnology(TechnologyError),
     InvalidIdea(IdeaError),
+    InvalidReform(ReformError),
     InvalidMapHash,
     MapMismatch(MapIdentityMismatch),
     UnorderedRecords(&'static str),
@@ -130,6 +136,7 @@ impl fmt::Display for SaveError {
             Self::VersionTechnologyMismatch(version) => write!(f, "save version {version} has the wrong technology payload"),
             Self::VersionVassalMismatch(version) => write!(f, "save version {version} has the wrong vassalage payload"),
             Self::VersionIdeaMismatch(version) => write!(f, "save version {version} has the wrong idea payload"),
+            Self::VersionReformMismatch(version) => write!(f, "save version {version} has the wrong government reform payload"),
             Self::InvalidOpinion(error) => write!(f, "invalid saved opinion: {error:?}"),
             Self::InvalidOpinionState(error) => write!(f, "invalid saved opinion state: {error:?}"),
             Self::InvalidDiplomacy(error) => write!(f, "invalid saved diplomacy state: {error:?}"),
@@ -137,6 +144,7 @@ impl fmt::Display for SaveError {
             Self::InvalidNavy(error) => write!(f, "invalid saved navy state: {error:?}"),
             Self::InvalidTechnology(error) => write!(f, "invalid saved technology state: {error:?}"),
             Self::InvalidIdea(error) => write!(f, "invalid saved idea state: {error:?}"),
+            Self::InvalidReform(error) => write!(f, "invalid saved reform state: {error:?}"),
             Self::InvalidMapHash => f.write_str("map_hash must be 64 lowercase hexadecimal digits"),
             Self::MapMismatch(error) => error.fmt(f),
             Self::UnorderedRecords(records) => write!(f, "{records} must be unique and sorted"),
@@ -210,6 +218,7 @@ pub fn load_game(bytes: &[u8], graph: ProvinceGraph) -> Result<GameState, SaveEr
             | TECHNOLOGY_VERSION
             | VASSAL_VERSION
             | IDEA_VERSION
+            | REFORM_VERSION
     ) {
         return Err(SaveError::UnsupportedSchemaVersion(save.schema_version));
     }
@@ -313,6 +322,21 @@ pub fn load_game(bytes: &[u8], graph: ProvinceGraph) -> Result<GameState, SaveEr
     {
         return Err(SaveError::VersionIdeaMismatch(save.schema_version));
     }
+    let has_government = restored.polity().is_some_and(|polity| {
+        polity
+            .countries
+            .values()
+            .any(|country| !country.government.is_empty())
+            || polity
+                .ai_profiles
+                .values()
+                .any(|profile| profile.reform_priority != 0)
+    });
+    if (save.schema_version < REFORM_VERSION && has_government)
+        || (save.schema_version == REFORM_VERSION && !has_government)
+    {
+        return Err(SaveError::VersionReformMismatch(save.schema_version));
+    }
     Ok(restored)
 }
 
@@ -321,6 +345,7 @@ pub fn state_hash(state: &GameState) -> Result<[u8; 32], SaveError> {
     let mut hash = Sha256::new();
     hash.update(match schema_version(state) {
         IDEA_VERSION => STATE_HASH_DOMAIN_V13,
+        REFORM_VERSION => STATE_HASH_DOMAIN_V14,
         VASSAL_VERSION => STATE_HASH_DOMAIN_V12,
         TECHNOLOGY_VERSION => STATE_HASH_DOMAIN_V11,
         NAVY_VERSION => STATE_HASH_DOMAIN_V10,
@@ -339,7 +364,20 @@ pub fn state_hash(state: &GameState) -> Result<[u8; 32], SaveError> {
 }
 
 fn schema_version(state: &GameState) -> u32 {
-    if state.ideas().is_some() {
+    if state.reforms().is_some()
+        || state.polity().is_some_and(|polity| {
+            polity
+                .countries
+                .values()
+                .any(|country| !country.government.is_empty())
+                || polity
+                    .ai_profiles
+                    .values()
+                    .any(|profile| profile.reform_priority != 0)
+        })
+    {
+        REFORM_VERSION
+    } else if state.ideas().is_some() {
         IDEA_VERSION
     } else if has_vassal_data(state) {
         VASSAL_VERSION
@@ -448,6 +486,8 @@ struct StateFile {
     technology: Option<TechnologyStateFile>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     ideas: Option<IdeaStateFile>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    reforms: Option<ReformStateFile>,
 }
 
 impl From<&GameState> for StateFile {
@@ -488,6 +528,7 @@ impl From<&GameState> for StateFile {
             events: state.events().map(EventStateFile::from),
             technology: state.technologies().map(TechnologyStateFile::from),
             ideas: state.ideas().map(IdeaStateFile::from),
+            reforms: state.reforms().map(ReformStateFile::from),
         }
     }
 }
@@ -582,10 +623,17 @@ impl StateFile {
         } else {
             Ok(state)
         }?;
-        if let Some(ideas) = self.ideas {
+        let state = if let Some(ideas) = self.ideas {
             state
                 .with_idea_state(ideas.restore()?)
                 .map_err(SaveError::InvalidIdea)
+        } else {
+            Ok(state)
+        }?;
+        if let Some(reforms) = self.reforms {
+            state
+                .with_reform_state(reforms.restore()?)
+                .map_err(SaveError::InvalidReform)
         } else {
             Ok(state)
         }

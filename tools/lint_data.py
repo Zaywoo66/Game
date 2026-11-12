@@ -10,6 +10,7 @@ import yaml
 from event_schema import KEY, noncanonical_scalar_tokens, validate_event
 from tech_schema import validate_prerequisites, validate_tech_branch
 from idea_schema import technology_references, validate_ideas
+from reform_schema import validate_reforms
 
 
 RAW_FIXED = (-(1 << 63), (1 << 63) - 1, "expected a raw Fixed integer in the signed 64-bit range")
@@ -88,6 +89,8 @@ def main():
     idea_keys = {}
     idea_tech_refs = []
     ai_profiles = []
+    reform_catalogs = []
+    country_governments = []
     for path in sorted(root.rglob("*")):
         suffix = path.suffix.lower()
         if suffix not in DATA_SUFFIXES or not path.is_file():
@@ -213,6 +216,12 @@ def main():
         if relative_path.parts[:2] == ("ai", "profiles"):
             ai_profiles.append((relative_path, document))
 
+        if relative_path == Path("reforms/governments.yaml"):
+            reform_catalogs.append((relative_path, document))
+        if relative_path.parts[0] == "countries" and suffix == ".json":
+            if isinstance(document, dict) and "government" in document:
+                country_governments.append((relative_path, document.get("government")))
+
     errors.extend(f"techs: {error}" for error in validate_prerequisites(tech_graph))
     for source, key in idea_tech_refs:
         if key not in tech_keys:
@@ -233,6 +242,19 @@ def main():
         idea_priority = profile.get("idea_priority", 0)
         if type(idea_priority) is not int or not 0 <= idea_priority <= 1000:
             errors.append(f"{profile_path}: idea_priority must be a whole score 0..1000")
+        reform_priority = profile.get("reform_priority", 0)
+        if type(reform_priority) is not int or not 0 <= reform_priority <= 1000:
+            errors.append(f"{profile_path}: reform_priority must be a whole score 0..1000")
+    known_governments = set()
+    for path, document in reform_catalogs:
+        reform_errors, _, governments = validate_reforms(document)
+        errors.extend(f"{path}: {error}" for error in reform_errors)
+        known_governments.update(governments)
+    if country_governments and not reform_catalogs:
+        errors.append("reforms/governments.yaml: required when countries declare governments")
+    for path, government in country_governments:
+        if not isinstance(government, str) or government not in known_governments:
+            errors.append(f"{path}: unknown government {government!r}")
     if event_references and event_locale is None:
         errors.append(f"{EVENT_LOCALE}: required for event localization keys")
     elif isinstance(event_locale, dict):

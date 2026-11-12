@@ -199,6 +199,7 @@ impl MilitaryFile {
 struct CountryFile {
     schema_version: u32,
     tag: String,
+    government: String,
     name: String,
     color: [u8; 3],
     capital: String,
@@ -256,6 +257,8 @@ struct ProfileContentFile {
     tech_branch_weights: BTreeMap<String, u16>,
     #[serde(default)]
     idea_priority: u16,
+    #[serde(default)]
+    reform_priority: u16,
 }
 
 /// Loads a scenario file in `data/scenarios/` with its referenced content.
@@ -298,6 +301,14 @@ pub fn load_scenario(graph: ProvinceGraph, scenario_path: impl AsRef<Path>) -> R
         state = state
             .with_ideas(definitions)
             .map_err(|error| invalid(format!("invalid idea catalog: {error:?}")))?;
+    }
+    let reform_path = root.join("reforms/governments.yaml");
+    if reform_path.is_file() {
+        let definitions =
+            crate::load_reforms(&reform_path).map_err(|error| invalid(error.to_string()))?;
+        state = state
+            .with_reforms(definitions)
+            .map_err(|error| invalid(format!("invalid reform catalog: {error:?}")))?;
     }
     Ok(state)
 }
@@ -437,6 +448,7 @@ pub fn load_scenario_from_reader(
         check_version(&path, file.schema_version)?;
         require_file_key(&path, &file.tag, tag)?;
         check_name(&file.name, &path)?;
+        check_key(&file.government, "government")?;
         check_key(&file.ai_profile, "AI profile")?;
         if !profiles.contains_key(&file.ai_profile) {
             let profile_path = format!("ai/profiles/{}.json", file.ai_profile);
@@ -451,6 +463,7 @@ pub fn load_scenario_from_reader(
                 preferred_monthly_spending: profile.preferred_monthly_spending,
                 tech_branch_weights: profile.tech_branch_weights,
                 idea_priority: profile.idea_priority,
+                reform_priority: profile.reform_priority,
             }
             .restore();
             profiles.insert(key, profile);
@@ -505,6 +518,7 @@ pub fn load_scenario_from_reader(
             id,
             CountryPolity {
                 tag: file.tag,
+                government: file.government,
                 name: file.name,
                 color: file.color,
                 capital,

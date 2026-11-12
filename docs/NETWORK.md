@@ -41,6 +41,10 @@ identity fields before accepting a guest.
   purchases, and permanent modifier sources in canonical snapshots. Host
   validation enforces country, unlock trigger, one-time purchase, and the
   shared research-point balance; clients never apply an idea locally.
+- V12 carries `UnlockReform{country,key}` and save schema v14 reform catalogs,
+  selected tiers, permanent modifier sources, and shared source counters.
+  Clients receive authoritative research-point and reform updates; clients
+  never apply a reform locally.
 - See [LAN_ACCEPTANCE.md](LAN_ACCEPTANCE.md) for the two-PC checklist and `--lan-log` mode.
 - Welcome includes a private 128-bit resume token. The guest confirms it
   after parsing its first snapshot. A disconnected, unconfirmed handshake

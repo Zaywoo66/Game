@@ -11,6 +11,7 @@ mod navy;
 mod opinion;
 mod polity;
 mod province_graph;
+mod reforms;
 mod rng;
 mod state;
 mod technology;
@@ -41,6 +42,7 @@ pub use province_graph::{
     EdgeKind, MapIdentity, MapIdentityMismatch, Province, ProvinceEdge, ProvinceGraph,
     ProvinceGraphError, ProvinceKind,
 };
+pub use reforms::{ReformDefinition, ReformError, ReformState, REFORM_COST};
 pub use rng::{derive_ai_rng, SeededRng};
 pub use state::{
     AiCommandRejection, AiProfileKey, Command, CommandActor, CommandError, Controller,

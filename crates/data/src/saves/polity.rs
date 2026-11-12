@@ -78,6 +78,8 @@ impl PolityFile {
 struct CountryFile {
     id: u32,
     tag: String,
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    government: String,
     name: String,
     color: [u8; 3],
     capital: u32,
@@ -92,6 +94,7 @@ impl CountryFile {
         Self {
             id: id.get(),
             tag: country.tag.clone(),
+            government: country.government.clone(),
             name: country.name.clone(),
             color: country.color,
             capital: country.capital.get(),
@@ -111,6 +114,7 @@ impl CountryFile {
             CountryId::new(self.id),
             CountryPolity {
                 tag: self.tag,
+                government: self.government,
                 name: self.name,
                 color: self.color,
                 capital: ProvinceId::new(self.capital),

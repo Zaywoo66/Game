@@ -3,7 +3,7 @@ use std::{collections::BTreeMap, str};
 
 use strategy_data::{
     load_scenario_from_reader, parse_event_yaml, parse_ideas_yaml, parse_provinces,
-    parse_technology_branch_yaml, TechnologyDefinition,
+    parse_reforms_yaml, parse_technology_branch_yaml, TechnologyDefinition,
 };
 use strategy_sim::GameState;
 
@@ -84,6 +84,16 @@ pub fn load_embedded_scenario() -> Result<GameState, String> {
         state = state
             .with_ideas(ideas)
             .map_err(|error| format!("invalid idea catalog: {error:?}"))?;
+    }
+    if let Some((path, source)) = CONTENT
+        .iter()
+        .find(|(path, _)| *path == "reforms/governments.yaml")
+    {
+        let yaml = str::from_utf8(source).map_err(|error| format!("{path}: {error}"))?;
+        let reforms = parse_reforms_yaml(yaml).map_err(|error| format!("{path}: {error}"))?;
+        state = state
+            .with_reforms(reforms)
+            .map_err(|error| format!("invalid reform catalog: {error:?}"))?;
     }
     let mut events = BTreeMap::new();
     for &(path, source) in CONTENT

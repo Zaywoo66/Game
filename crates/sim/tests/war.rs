@@ -1498,6 +1498,7 @@ fn setup_internal(
     };
     let polity_country = |name: &str, capital, provinces: &[u32]| CountryPolity {
         tag: name.to_owned(),
+        government: "monarchy".into(),
         name: name.to_owned(),
         color: [0, 0, 0],
         capital: province(capital),
@@ -1551,6 +1552,7 @@ fn setup_internal(
                 preferred_monthly_spending: Fixed::ZERO,
                 tech_branch_weights: BTreeMap::new(),
                 idea_priority: 0,
+                reform_priority: 0,
             },
         )]),
     };

@@ -87,6 +87,7 @@ fn setup_with_enemy(ships: u32, enemy_at_port: bool) -> GameState {
     };
     let nation = |tag: &str, capital: u32, provinces: &[u32]| CountryPolity {
         tag: tag.into(),
+        government: "monarchy".into(),
         name: tag.into(),
         color: [0, 0, 0],
         capital: ProvinceId::new(capital),
@@ -122,6 +123,7 @@ fn setup_with_enemy(ships: u32, enemy_at_port: bool) -> GameState {
                 preferred_monthly_spending: Fixed::ZERO,
                 tech_branch_weights: BTreeMap::new(),
                 idea_priority: 0,
+                reform_priority: 0,
             },
         )]),
     };

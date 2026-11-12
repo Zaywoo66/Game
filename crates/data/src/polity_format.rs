@@ -95,6 +95,8 @@ pub(super) struct ProfileFile {
     pub tech_branch_weights: BTreeMap<String, u16>,
     #[serde(default, skip_serializing_if = "is_zero")]
     pub idea_priority: u16,
+    #[serde(default, skip_serializing_if = "is_zero")]
+    pub reform_priority: u16,
 }
 
 fn is_zero(value: &u16) -> bool {
@@ -111,6 +113,7 @@ impl ProfileFile {
             preferred_monthly_spending: profile.preferred_monthly_spending.raw(),
             tech_branch_weights: profile.tech_branch_weights.clone(),
             idea_priority: profile.idea_priority,
+            reform_priority: profile.reform_priority,
         }
     }
 
@@ -124,6 +127,7 @@ impl ProfileFile {
                 preferred_monthly_spending: Fixed::from_raw(self.preferred_monthly_spending),
                 tech_branch_weights: self.tech_branch_weights,
                 idea_priority: self.idea_priority,
+                reform_priority: self.reform_priority,
             },
         )
     }

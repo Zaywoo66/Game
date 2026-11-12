@@ -14,9 +14,9 @@ use crate::{
     FiscalError, FiscalPolicy, Fixed, IdeaDefinition, IdeaError, IdeaState, MapIdentity,
     MarriageError, ModKey, Modifier, ModifierInsertError, ModifierSourceId, ModifierStore, Opinion,
     OpinionStateError, PlayerId, PolityError, PolityState, PolityTickFailure, PreparedModifier,
-    ProvinceGraph, ProvinceId, SeededRng, Sex, SimTime, Speed, SuccessionState,
-    TechnologyDefinition, TechnologyError, TechnologyState, Tick, TimeActor, TimeCommand,
-    TimeError, Trigger, TriggerView, IDEA_COST,
+    ProvinceGraph, ProvinceId, ReformDefinition, ReformError, ReformState, SeededRng, Sex, SimTime,
+    Speed, SuccessionState, TechnologyDefinition, TechnologyError, TechnologyState, Tick,
+    TimeActor, TimeCommand, TimeError, Trigger, TriggerView, IDEA_COST, REFORM_COST,
 };
 
 /// Reference to a scenario's data-driven AI profile.
@@ -161,6 +161,10 @@ pub enum Command {
         country: CountryId,
         key: String,
     },
+    UnlockReform {
+        country: CountryId,
+        key: String,
+    },
     OfferRoyalMarriage {
         country: CountryId,
         character: CharacterId,
@@ -220,6 +224,7 @@ pub enum CommandError {
     Event(EventError),
     Technology(TechnologyError),
     Idea(IdeaError),
+    Reform(ReformError),
     Marriage(MarriageError),
     InvalidHeir {
         country: CountryId,
@@ -259,6 +264,12 @@ pub enum StateChange {
     IdeaUnlocked {
         country: CountryId,
         key: String,
+        source: ModifierSourceId,
+    },
+    ReformUnlocked {
+        country: CountryId,
+        key: String,
+        tier: u16,
         source: ModifierSourceId,
     },
     FiscalPolicyChanged {
@@ -515,6 +526,7 @@ pub struct GameState {
     events: Option<EventState>,
     technology: Option<TechnologyState>,
     ideas: Option<IdeaState>,
+    reforms: Option<ReformState>,
     polity: Option<PolityState>,
     war_state: Option<WarState>,
     navy: Option<NavyState>,
@@ -543,6 +555,7 @@ enum PreparedCommand<'a> {
     Marriage(MarriageAction),
     UnlockTechnology(CountryId, &'a str, ModifierSourceId, Vec<Modifier>),
     UnlockIdea(CountryId, &'a str, ModifierSourceId, Vec<Modifier>),
+    UnlockReform(CountryId, &'a str, u16, ModifierSourceId, Vec<Modifier>),
 }
 
 enum DiplomacyAction {
@@ -633,6 +646,7 @@ impl GameState {
             events: None,
             technology: None,
             ideas: None,
+            reforms: None,
             polity: None,
             war_state: None,
             navy: None,
@@ -856,7 +870,18 @@ impl GameState {
         let highest_source = self.highest_modifier_source();
         let next = highest_source
             .checked_add(1)
-            .ok_or(EventError::ModifierSourceExhausted)?;
+            .ok_or(EventError::ModifierSourceExhausted)?
+            .max(
+                self.technology
+                    .as_ref()
+                    .map_or(1, |state| state.next_source_id),
+            )
+            .max(self.ideas.as_ref().map_or(1, |state| state.next_source_id))
+            .max(
+                self.reforms
+                    .as_ref()
+                    .map_or(1, |state| state.next_source_id),
+            );
         self.events = Some(EventState::new(definitions, next)?);
         Ok(self)
     }
@@ -895,6 +920,12 @@ impl GameState {
                 self.events
                     .as_ref()
                     .map_or(1, |events| events.next_source_id),
+            )
+            .max(self.ideas.as_ref().map_or(1, |state| state.next_source_id))
+            .max(
+                self.reforms
+                    .as_ref()
+                    .map_or(1, |state| state.next_source_id),
             );
         let technology = TechnologyState::new(definitions, self.countries.keys().copied(), next)?;
         if let Some(polity) = &self.polity {
@@ -1064,6 +1095,11 @@ impl GameState {
                 self.events
                     .as_ref()
                     .map_or(1, |events| events.next_source_id),
+            )
+            .max(
+                self.reforms
+                    .as_ref()
+                    .map_or(1, |state| state.next_source_id),
             );
         self.ideas = Some(IdeaState {
             definitions,
@@ -1126,6 +1162,142 @@ impl GameState {
             return Err(IdeaError::InvalidSavedState);
         }
         self.ideas = Some(ideas);
+        Ok(self)
+    }
+
+    /// Installs the validated government reform catalog.
+    pub fn with_reforms(
+        mut self,
+        definitions: BTreeMap<String, ReformDefinition>,
+    ) -> Result<Self, ReformError> {
+        if self.reforms.is_some() {
+            return Err(ReformError::AlreadyConfigured);
+        }
+        if definitions.is_empty() {
+            return Err(ReformError::EmptyCatalog);
+        }
+        let Some(polity) = &self.polity else {
+            return Err(ReformError::InvalidDefinition("polity is required".into()));
+        };
+        let governments: BTreeSet<_> = polity
+            .countries
+            .values()
+            .map(|country| country.government.as_str())
+            .collect();
+        for (key, definition) in &definitions {
+            if key != &definition.key
+                || !is_content_key(key)
+                || !is_content_key(&definition.government)
+                || !governments.contains(definition.government.as_str())
+                || definition.tier == 0
+                || definition.ai_weight > 1000
+                || definition.effects.is_empty()
+                || definition.effects.iter().any(|effect| {
+                    let Effect::AddModifier {
+                        key, duration_days, ..
+                    } = effect;
+                    !is_content_key(key.as_str())
+                        || duration_days.is_some()
+                        || effect.prepare(ModifierSourceId::new(1), 0).is_err()
+                })
+            {
+                return Err(ReformError::InvalidDefinition(key.clone()));
+            }
+        }
+        if polity
+            .ai_profiles
+            .values()
+            .any(|profile| profile.reform_priority > 1000)
+        {
+            return Err(ReformError::InvalidDefinition(
+                "AI reform_priority must be 0..=1000".into(),
+            ));
+        }
+        let next_source_id = self
+            .highest_modifier_source()
+            .checked_add(1)
+            .ok_or(ReformError::ModifierSourceExhausted)?
+            .max(
+                self.technology
+                    .as_ref()
+                    .map_or(1, |state| state.next_source_id),
+            )
+            .max(self.ideas.as_ref().map_or(1, |state| state.next_source_id))
+            .max(self.events.as_ref().map_or(1, |state| state.next_source_id))
+            .max(
+                self.reforms
+                    .as_ref()
+                    .map_or(1, |state| state.next_source_id),
+            );
+        self.reforms = Some(ReformState {
+            definitions,
+            choices: BTreeMap::new(),
+            sources: BTreeMap::new(),
+            next_source_id,
+        });
+        Ok(self)
+    }
+
+    pub fn reforms(&self) -> Option<&ReformState> {
+        self.reforms.as_ref()
+    }
+
+    /// Restores selected reforms and validates their permanent modifier sources.
+    pub fn with_reform_state(mut self, mut reforms: ReformState) -> Result<Self, ReformError> {
+        self = self.with_reforms(reforms.definitions.clone())?;
+        let mut source_ids = BTreeSet::new();
+        for ((country, key), source) in &reforms.sources {
+            let Some(definition) = reforms.definitions.get(key) else {
+                return Err(ReformError::InvalidSavedState);
+            };
+            let Some(polity) = self
+                .polity
+                .as_ref()
+                .and_then(|polity| polity.countries.get(country))
+            else {
+                return Err(ReformError::InvalidSavedState);
+            };
+            if definition.government != polity.government
+                || source.get() == 0
+                || source.get() >= reforms.next_source_id
+                || !source_ids.insert(*source)
+                || reforms
+                    .choices
+                    .insert((*country, definition.tier), key.clone())
+                    .is_some()
+            {
+                return Err(ReformError::InvalidSavedState);
+            }
+            let expected = definition
+                .effects
+                .iter()
+                .map(|effect| {
+                    effect
+                        .prepare(*source, self.time.tick().get())
+                        .ok()
+                        .map(|g| g.modifier)
+                })
+                .collect::<Option<Vec<_>>>();
+            if expected.as_deref()
+                != self.countries[country]
+                    .modifiers
+                    .sources()
+                    .find(|(id, _, _)| id == source)
+                    .and_then(|(_, expiry, modifiers)| expiry.is_none().then_some(modifiers))
+            {
+                return Err(ReformError::InvalidSavedState);
+            }
+        }
+        if reforms.next_source_id
+            < self
+                .reforms
+                .as_ref()
+                .expect("installed catalog")
+                .next_source_id
+        {
+            return Err(ReformError::InvalidSavedState);
+        }
+        self.reforms = Some(reforms);
         Ok(self)
     }
 
@@ -1731,6 +1903,16 @@ impl GameState {
                     .as_mut()
                     .expect("validated event state")
                     .resolve(country, key, self.time.tick(), used);
+                let next_source_id = self.events.as_ref().expect("event state").next_source_id;
+                if let Some(technology) = &mut self.technology {
+                    technology.next_source_id = technology.next_source_id.max(next_source_id);
+                }
+                if let Some(ideas) = &mut self.ideas {
+                    ideas.next_source_id = ideas.next_source_id.max(next_source_id);
+                }
+                if let Some(reforms) = &mut self.reforms {
+                    reforms.next_source_id = reforms.next_source_id.max(next_source_id);
+                }
                 delta.changes.push(StateChange::EventResolved {
                     country,
                     key: key.into(),
@@ -1805,6 +1987,9 @@ impl GameState {
                 if let Some(ideas) = &mut self.ideas {
                     ideas.next_source_id = ideas.next_source_id.max(technology.next_source_id);
                 }
+                if let Some(reforms) = &mut self.reforms {
+                    reforms.next_source_id = reforms.next_source_id.max(technology.next_source_id);
+                }
                 let base = self.countries.get_mut(&country).expect("validated country");
                 base.known_technologies.insert(key.into());
                 base.modifiers
@@ -1843,6 +2028,9 @@ impl GameState {
                 if let Some(events) = &mut self.events {
                     events.next_source_id = events.next_source_id.max(ideas.next_source_id);
                 }
+                if let Some(reforms) = &mut self.reforms {
+                    reforms.next_source_id = reforms.next_source_id.max(ideas.next_source_id);
+                }
                 let base = self.countries.get_mut(&country).expect("validated country");
                 base.modifiers
                     .insert_source(source, None, modifiers.clone())
@@ -1863,6 +2051,48 @@ impl GameState {
                 delta.changes.push(StateChange::IdeaUnlocked {
                     country,
                     key: key.into(),
+                    source,
+                });
+            }
+            PreparedCommand::UnlockReform(country, key, tier, source, modifiers) => {
+                let reforms = self.reforms.as_mut().expect("validated reform catalog");
+                reforms.choices.insert((country, tier), key.into());
+                reforms.sources.insert((country, key.into()), source);
+                reforms.next_source_id = source.get().checked_add(1).expect("validated source");
+                let technology = self.technology.as_mut().expect("shared research points");
+                let points = technology
+                    .points
+                    .get_mut(&country)
+                    .expect("validated country");
+                *points -= REFORM_COST;
+                technology.next_source_id = technology.next_source_id.max(reforms.next_source_id);
+                if let Some(ideas) = &mut self.ideas {
+                    ideas.next_source_id = ideas.next_source_id.max(reforms.next_source_id);
+                }
+                if let Some(events) = &mut self.events {
+                    events.next_source_id = events.next_source_id.max(reforms.next_source_id);
+                }
+                let base = self.countries.get_mut(&country).expect("validated country");
+                base.modifiers
+                    .insert_source(source, None, modifiers.clone())
+                    .expect("validated reform modifier source");
+                delta.changes.push(StateChange::ResearchPointsChanged {
+                    country,
+                    points: *points,
+                });
+                for modifier in modifiers {
+                    delta.changes.push(StateChange::ModifierSourceActivated {
+                        country,
+                        grant: PreparedModifier {
+                            modifier,
+                            expires_at: None,
+                        },
+                    });
+                }
+                delta.changes.push(StateChange::ReformUnlocked {
+                    country,
+                    key: key.into(),
+                    tier,
                     source,
                 });
             }
@@ -2054,6 +2284,11 @@ impl GameState {
                         self.events
                             .as_ref()
                             .map_or(1, |events| events.next_source_id),
+                    )
+                    .max(
+                        self.reforms
+                            .as_ref()
+                            .map_or(1, |reforms| reforms.next_source_id),
                     );
                 next.checked_add(1).ok_or(CommandError::Technology(
                     TechnologyError::ModifierSourceExhausted,
@@ -2122,6 +2357,11 @@ impl GameState {
                         self.events
                             .as_ref()
                             .map_or(1, |events| events.next_source_id),
+                    )
+                    .max(
+                        self.reforms
+                            .as_ref()
+                            .map_or(1, |reforms| reforms.next_source_id),
                     );
                 next.checked_add(1)
                     .ok_or(CommandError::Idea(IdeaError::ModifierSourceExhausted))?;
@@ -2140,6 +2380,75 @@ impl GameState {
                     .collect::<Result<Vec<_>, _>>()?;
                 Ok(PreparedCommand::UnlockIdea(
                     *country, key, source, modifiers,
+                ))
+            }
+            Command::UnlockReform { country, key } => {
+                self.authorized_country(actor, *country)?;
+                let reforms = self
+                    .reforms
+                    .as_ref()
+                    .ok_or_else(|| CommandError::Reform(ReformError::UnknownReform(key.clone())))?;
+                let definition = reforms
+                    .definitions
+                    .get(key)
+                    .ok_or_else(|| CommandError::Reform(ReformError::UnknownReform(key.clone())))?;
+                let polity = self
+                    .polity
+                    .as_ref()
+                    .and_then(|polity| polity.countries.get(country))
+                    .ok_or(CommandError::PolityUnavailable)?;
+                if polity.government != definition.government {
+                    return Err(CommandError::Reform(ReformError::WrongGovernment(
+                        key.clone(),
+                    )));
+                }
+                if reforms.sources.contains_key(&(*country, key.clone())) {
+                    return Err(CommandError::Reform(ReformError::AlreadyKnown(key.clone())));
+                }
+                if reforms.choices.contains_key(&(*country, definition.tier)) {
+                    return Err(CommandError::Reform(ReformError::TierAlreadyChosen(
+                        definition.tier,
+                    )));
+                }
+                let available = self.research_points(*country).unwrap_or(0);
+                if available < REFORM_COST {
+                    return Err(CommandError::Reform(ReformError::InsufficientPoints {
+                        available,
+                    }));
+                }
+                let next = self
+                    .highest_modifier_source()
+                    .checked_add(1)
+                    .ok_or(CommandError::Reform(ReformError::ModifierSourceExhausted))?
+                    .max(reforms.next_source_id)
+                    .max(
+                        self.technology
+                            .as_ref()
+                            .map_or(1, |state| state.next_source_id),
+                    )
+                    .max(self.ideas.as_ref().map_or(1, |state| state.next_source_id))
+                    .max(self.events.as_ref().map_or(1, |state| state.next_source_id));
+                next.checked_add(1)
+                    .ok_or(CommandError::Reform(ReformError::ModifierSourceExhausted))?;
+                let source = ModifierSourceId::new(next);
+                let modifiers = definition
+                    .effects
+                    .iter()
+                    .map(|effect| {
+                        effect
+                            .prepare(source, self.time.tick().get())
+                            .map(|grant| grant.modifier)
+                            .map_err(|_| {
+                                CommandError::Reform(ReformError::InvalidDefinition(key.clone()))
+                            })
+                    })
+                    .collect::<Result<Vec<_>, _>>()?;
+                Ok(PreparedCommand::UnlockReform(
+                    *country,
+                    key,
+                    definition.tier,
+                    source,
+                    modifiers,
                 ))
             }
             Command::OfferRoyalMarriage {

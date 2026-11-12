@@ -346,6 +346,7 @@ mod tests {
         .unwrap();
         let nation = |tag: &str, capital, provinces: &[u32]| CountryPolity {
             tag: tag.into(),
+            government: "monarchy".into(),
             name: tag.into(),
             color: [0, 0, 0],
             capital: ProvinceId::new(capital),
@@ -373,6 +374,7 @@ mod tests {
                 "test_profile".into(),
                 FiscalAiProfile {
                     idea_priority: 0,
+                    reform_priority: 0,
                     weights: AiWeights::default(),
                     thresholds: AiThresholds::default(),
                     preferred_tax_rate: Fixed::ZERO,

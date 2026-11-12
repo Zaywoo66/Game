@@ -122,6 +122,9 @@ struct CountryView {
     research_points: Option<u32>,
     known_technologies: Vec<String>,
     known_ideas: Vec<String>,
+    government: String,
+    known_reforms: Vec<String>,
+    chosen_reform_tiers: Vec<u16>,
 }
 
 #[derive(Serialize)]
@@ -156,6 +159,15 @@ struct IdeaView {
     country: String,
     name_key: String,
     available_countries: Vec<u32>,
+    effects: Vec<IdeaEffectView>,
+}
+
+#[derive(Serialize)]
+struct ReformView {
+    key: String,
+    government: String,
+    tier: u16,
+    ai_weight: u16,
     effects: Vec<IdeaEffectView>,
 }
 
@@ -281,6 +293,7 @@ pub(crate) struct Snapshot {
     countries: Vec<CountryView>,
     technologies: Vec<TechnologyView>,
     ideas: Vec<IdeaView>,
+    reforms: Vec<ReformView>,
     pending_events: Vec<EventView>,
     owners: Vec<OwnerView>,
     max_tax_rate: i64,
@@ -409,6 +422,10 @@ pub(crate) enum UiCommand {
         key: String,
     },
     UnlockIdea {
+        country_id: u32,
+        key: String,
+    },
+    UnlockReform {
         country_id: u32,
         key: String,
     },
@@ -567,6 +584,10 @@ impl UiCommand {
                 key,
             },
             Self::UnlockIdea { country_id, key } => Command::UnlockIdea {
+                country: CountryId::new(country_id),
+                key,
+            },
+            Self::UnlockReform { country_id, key } => Command::UnlockReform {
                 country: CountryId::new(country_id),
                 key,
             },
@@ -778,6 +799,7 @@ pub(crate) fn game_snapshot(state: State<'_, Mutex<Session>>) -> Result<Snapshot
         countries: session.visible_countries.values().cloned().collect(),
         technologies: technology_views(&session.game)?,
         ideas: idea_views(&session.game),
+        reforms: reform_views(&session.game),
         pending_events: event_views(&session.game, player),
         owners: session
             .visible_owners
@@ -1613,6 +1635,20 @@ fn country_views(game: &GameState) -> BTreeMap<u32, CountryView> {
                         .filter(|&(country_id, _)| *country_id == id)
                         .map(|(_, key)| key.clone())
                         .collect(),
+                    government: country.government.clone(),
+                    known_reforms: game
+                        .reforms()
+                        .into_iter()
+                        .flat_map(|reforms| reforms.sources.keys())
+                        .filter(|&(country_id, _)| *country_id == id)
+                        .map(|(_, key)| key.clone())
+                        .collect(),
+                    chosen_reform_tiers: game
+                        .reforms()
+                        .into_iter()
+                        .flat_map(|reforms| reforms.choices.keys())
+                        .filter_map(|&(country_id, tier)| (country_id == id).then_some(tier))
+                        .collect(),
                 },
             )
         })
@@ -1682,6 +1718,38 @@ fn idea_views(game: &GameState) -> Vec<IdeaView> {
                 .collect(),
             effects: definition
                 .modifiers
+                .iter()
+                .map(|effect| match effect {
+                    Effect::AddModifier {
+                        key, value, kind, ..
+                    } => IdeaEffectView {
+                        key: key.as_str().to_owned(),
+                        value: value.raw().to_string(),
+                        kind: match kind {
+                            ModifierKind::Additive => "additive",
+                            ModifierKind::Multiplicative => "multiplicative",
+                        },
+                    },
+                })
+                .collect(),
+        })
+        .collect()
+}
+
+fn reform_views(game: &GameState) -> Vec<ReformView> {
+    let Some(reforms) = game.reforms() else {
+        return Vec::new();
+    };
+    reforms
+        .definitions
+        .values()
+        .map(|definition| ReformView {
+            key: definition.key.clone(),
+            government: definition.government.clone(),
+            tier: definition.tier,
+            ai_weight: definition.ai_weight,
+            effects: definition
+                .effects
                 .iter()
                 .map(|effect| match effect {
                     Effect::AddModifier {

@@ -31,6 +31,7 @@ impl AiContext {
 pub enum Reason {
     Technology,
     NationalIdea,
+    GovernmentReform,
     ProfileBudget,
     AvoidDebt,
     RecoverDebt,
@@ -79,6 +80,7 @@ impl Reason {
         match self {
             Self::Technology => "Technology",
             Self::NationalIdea => "NationalIdea",
+            Self::GovernmentReform => "GovernmentReform",
             Self::ProfileBudget => "ProfileBudget",
             Self::AvoidDebt => "AvoidDebt",
             Self::RecoverDebt => "RecoverDebt",
@@ -228,33 +230,67 @@ pub fn decide(
                             .is_ok()
                     })
             });
-            let choose_idea = idea.is_some_and(|idea| {
-                tech.is_none_or(|(weight, key)| {
-                    profile.idea_priority > weight
-                        || (profile.idea_priority == weight && idea.key.as_str() < key)
+            let mut reforms: Vec<_> = state
+                .reforms()
+                .into_iter()
+                .flat_map(|reforms| reforms.definitions.values())
+                .filter(|reform| {
+                    state
+                        .validate_command(
+                            actor,
+                            &Command::UnlockReform {
+                                country,
+                                key: reform.key.clone(),
+                            },
+                        )
+                        .is_ok()
                 })
+                .collect();
+            reforms.sort_by(|left, right| {
+                right
+                    .ai_weight
+                    .cmp(&left.ai_weight)
+                    .then(left.key.cmp(&right.key))
             });
-            let decision = if choose_idea {
-                idea.map(|idea| {
-                    (
-                        Command::UnlockIdea {
-                            country,
-                            key: idea.key.clone(),
-                        },
-                        Reason::NationalIdea,
-                    )
-                })
-            } else {
-                choices.first().map(|definition| {
-                    (
-                        Command::UnlockTechnology {
-                            country,
-                            key: definition.key.clone(),
-                        },
-                        Reason::Technology,
-                    )
-                })
-            };
+            let mut decisions: Vec<(u16, &str, Command, Reason)> = Vec::new();
+            if let Some((weight, key)) = tech {
+                decisions.push((
+                    weight,
+                    key,
+                    Command::UnlockTechnology {
+                        country,
+                        key: key.into(),
+                    },
+                    Reason::Technology,
+                ));
+            }
+            if let Some(idea) = idea {
+                decisions.push((
+                    profile.idea_priority,
+                    idea.key.as_str(),
+                    Command::UnlockIdea {
+                        country,
+                        key: idea.key.clone(),
+                    },
+                    Reason::NationalIdea,
+                ));
+            }
+            if let Some(reform) = reforms.first() {
+                decisions.push((
+                    profile.reform_priority,
+                    reform.key.as_str(),
+                    Command::UnlockReform {
+                        country,
+                        key: reform.key.clone(),
+                    },
+                    Reason::GovernmentReform,
+                ));
+            }
+            decisions.sort_by(|left, right| right.0.cmp(&left.0).then(left.1.cmp(right.1)));
+            let decision = decisions
+                .into_iter()
+                .next()
+                .map(|(_, _, command, reason)| (command, reason));
             if let Some((command, reason)) = decision {
                 if state.validate_command(actor, &command).is_ok() {
                     commands.push((command, reason));
