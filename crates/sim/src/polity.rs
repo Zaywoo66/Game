@@ -2,14 +2,13 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use crate::{
     province_graph::is_content_key, AiProfileKey, CharacterId, Controller, CountryId, CountryState,
-    Date, Fixed, ModKey, ModifierSourceId, ModifierStore, ProvinceGraph, ProvinceId, ProvinceKind,
-    StateChange,
+    Date, Fixed, ModKey, ModifierSourceId, ProvinceGraph, ProvinceId, ProvinceKind, StateChange,
 };
 
 mod economy;
 mod succession;
 
-use economy::{monthly_economy, monthly_tax_income};
+use economy::{monthly_economy, monthly_tax_income, Tribute};
 pub use economy::{EconomyState, FiscalError, FiscalPolicy, MonthlyBudget};
 pub use succession::{CharacterState, CharacterStats, Sex, SuccessionState};
 
@@ -367,8 +366,10 @@ impl PolityState {
                 base_countries[&country].modifiers(),
                 ruler_traits,
                 state.economy.policy,
-                paid.get(&country).copied().unwrap_or(Fixed::ZERO),
-                received.get(&country).copied().unwrap_or(Fixed::ZERO),
+                Tribute {
+                    paid: paid.get(&country).copied().unwrap_or(Fixed::ZERO),
+                    received: received.get(&country).copied().unwrap_or(Fixed::ZERO),
+                },
             ) {
                 Ok(economy) => {
                     computed.insert(country, economy);
@@ -396,14 +397,14 @@ impl PolityState {
     pub(crate) fn forecast(
         &self,
         country: CountryId,
-        state: &CountryPolity,
         date: Date,
         graph: &ProvinceGraph,
-        modifiers: &ModifierStore,
         policy: FiscalPolicy,
         base_countries: &BTreeMap<CountryId, CountryState>,
         vassals: &BTreeMap<CountryId, CountryId>,
     ) -> Result<EconomyState, FiscalError> {
+        let state = &self.countries[&country];
+        let modifiers = base_countries[&country].modifiers();
         let ruler_traits = self
             .projected_succession(country, state, date)
             .ruler
@@ -444,8 +445,7 @@ impl PolityState {
             modifiers,
             ruler_traits,
             policy,
-            paid,
-            received,
+            Tribute { paid, received },
         )
     }
 }

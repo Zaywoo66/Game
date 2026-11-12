@@ -60,6 +60,13 @@ command. Entering a defensive war follows the guarantee automatically; AI
 military orders then use the existing supporter-side rules. AI does not revoke
 guarantees periodically.
 
+Vassalage AI answers a pending offer on its next tick through the validated
+accept or reject command. Its read-only factor list contains effective opinion
+in whole points, the profile's `vassal_min_opinion`, and both countries' total
+active soldiers. It accepts only when opinion reaches the profile threshold
+and the would-be overlord has strictly more soldiers. The 1440 profiles use
+20 opinion points. This first slice does not proactively offer vassalage.
+
 M7 event choices are read from the authoritative pending-event state. For each
 AI country the host chooses at most one pending event per tick in event-key
 order. The AI adds the one conditional weight when its trigger is true, clamps

@@ -279,6 +279,12 @@ fn legacy_read(logical: &str) -> io::Result<Vec<u8>> {
         file.as_object_mut().unwrap().remove("unowned_provinces");
         file.as_object_mut().unwrap().remove("navy");
         file["military"]["forts"] = legacy["forts"].clone();
+    } else if logical.starts_with("ai/profiles/") {
+        // This fixture exercises pre-vassal save schemas against the old map.
+        file["thresholds"]
+            .as_object_mut()
+            .unwrap()
+            .remove("vassal_min_opinion");
     } else if let Some(tag) = logical
         .strip_prefix("countries/")
         .and_then(|path| path.strip_suffix(".json"))
@@ -340,6 +346,48 @@ fn guarantee_save_round_trip_preserves_direction_order_and_hash() {
     assert!(matches!(
         load_game(&serde_json::to_vec(&invalid).unwrap(), graph()),
         Err(SaveError::InvalidDiplomacy(DiplomacyError::InvalidState))
+    ));
+}
+
+#[test]
+fn vassal_save_v12_preserves_bonds_and_rejects_old_or_unsorted_payloads() {
+    let base = original();
+    let id = |tag: &str| {
+        *base
+            .polity()
+            .unwrap()
+            .countries
+            .iter()
+            .find(|(_, country)| country.tag == tag)
+            .unwrap()
+            .0
+    };
+    let mut diplomacy = DiplomacyState::default();
+    diplomacy.vassals.insert(id("eng"), id("fra"));
+    diplomacy.vassals.insert(id("por"), id("cas"));
+    let state = base.with_diplomacy(diplomacy).unwrap();
+    let bytes = save_game(&state).unwrap();
+    let document: Value = serde_json::from_slice(&bytes).unwrap();
+    assert_eq!(document["schema_version"], json!(12));
+    let restored = load_game(&bytes, graph()).unwrap();
+    assert_eq!(restored, state);
+    assert_eq!(save_game(&restored).unwrap(), bytes);
+    assert_eq!(state_hash(&restored).unwrap(), state_hash(&state).unwrap());
+
+    let mut older = document.clone();
+    older["schema_version"] = json!(7);
+    assert!(matches!(
+        load_game(&serde_json::to_vec(&older).unwrap(), graph()),
+        Err(SaveError::VersionVassalMismatch(7))
+    ));
+    let mut unordered = document;
+    unordered["state"]["diplomacy"]["vassals"]
+        .as_array_mut()
+        .unwrap()
+        .reverse();
+    assert!(matches!(
+        load_game(&serde_json::to_vec(&unordered).unwrap(), graph()),
+        Err(SaveError::UnorderedRecords("vassals"))
     ));
 }
 
@@ -1027,7 +1075,7 @@ fn navy_save_v10_round_trips_embarked_army_and_route_and_rejects_bad_records() {
         .unwrap();
     let bytes = save_game(&state).unwrap();
     let document: Value = serde_json::from_slice(&bytes).unwrap();
-    assert_eq!(document["schema_version"], json!(11));
+    assert_eq!(document["schema_version"], json!(12));
     assert_eq!(
         document["state"]["navy"]["fleets"][0]["cargo"],
         json!(army_id.get())

@@ -1552,6 +1552,53 @@ mod tests {
     }
 
     #[test]
+    fn vassal_ui_commands_preserve_direction_and_country_ids() {
+        let cases = [
+            (
+                r#"{"type":"offer_vassalage","country_id":3,"toward_id":2}"#,
+                Command::OfferVassalage {
+                    country: CountryId::new(3),
+                    toward: CountryId::new(2),
+                },
+            ),
+            (
+                r#"{"type":"accept_vassalage","country_id":2,"from_id":3}"#,
+                Command::AcceptVassalage {
+                    country: CountryId::new(2),
+                    from: CountryId::new(3),
+                },
+            ),
+            (
+                r#"{"type":"reject_vassalage","country_id":2,"from_id":3}"#,
+                Command::RejectVassalage {
+                    country: CountryId::new(2),
+                    from: CountryId::new(3),
+                },
+            ),
+            (
+                r#"{"type":"release_vassal","country_id":3,"subject_id":2}"#,
+                Command::ReleaseVassal {
+                    country: CountryId::new(3),
+                    subject: CountryId::new(2),
+                },
+            ),
+            (
+                r#"{"type":"declare_independence","country_id":2}"#,
+                Command::DeclareIndependence {
+                    country: CountryId::new(2),
+                },
+            ),
+        ];
+        for (json, expected) in cases {
+            let actual = serde_json::from_str::<UiCommand>(json)
+                .unwrap()
+                .into_sim()
+                .unwrap();
+            assert_eq!(actual, expected);
+        }
+    }
+
+    #[test]
     fn normal_launch_and_guest_startup_arguments_are_validated() {
         assert!(Startup::parse(std::iter::empty()).unwrap().is_none());
         let args = ["--lan-join", "127.0.0.1:47620", "Guest"];

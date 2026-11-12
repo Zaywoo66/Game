@@ -37,6 +37,7 @@ const EVENT_VERSION: u32 = 8;
 const GUARANTEE_VERSION: u32 = 9;
 const NAVY_VERSION: u32 = 10;
 const TECHNOLOGY_VERSION: u32 = 11;
+const VASSAL_VERSION: u32 = 12;
 const STATE_HASH_DOMAIN_V1: &[u8] = b"strategy:game-state:v1\0";
 const STATE_HASH_DOMAIN_V2: &[u8] = b"strategy:game-state:v2\0";
 const STATE_HASH_DOMAIN_V3: &[u8] = b"strategy:game-state:v3\0";
@@ -48,6 +49,7 @@ const STATE_HASH_DOMAIN_V8: &[u8] = b"strategy:game-state:v8\0";
 const STATE_HASH_DOMAIN_V9: &[u8] = b"strategy:game-state:v9\0";
 const STATE_HASH_DOMAIN_V10: &[u8] = b"strategy:game-state:v10\0";
 const STATE_HASH_DOMAIN_V11: &[u8] = b"strategy:game-state:v11\0";
+const STATE_HASH_DOMAIN_V12: &[u8] = b"strategy:game-state:v12\0";
 
 #[derive(Debug)]
 pub enum SaveError {
@@ -63,6 +65,7 @@ pub enum SaveError {
     VersionGuaranteeMismatch(u32),
     VersionNavyMismatch(u32),
     VersionTechnologyMismatch(u32),
+    VersionVassalMismatch(u32),
     InvalidPolity(PolityError),
     InvalidMilitary(WarError),
     InvalidOpinion(OpinionError),
@@ -119,6 +122,7 @@ impl fmt::Display for SaveError {
                 write!(f, "save version {version} has the wrong navy payload")
             }
             Self::VersionTechnologyMismatch(version) => write!(f, "save version {version} has the wrong technology payload"),
+            Self::VersionVassalMismatch(version) => write!(f, "save version {version} has the wrong vassalage payload"),
             Self::InvalidOpinion(error) => write!(f, "invalid saved opinion: {error:?}"),
             Self::InvalidOpinionState(error) => write!(f, "invalid saved opinion state: {error:?}"),
             Self::InvalidDiplomacy(error) => write!(f, "invalid saved diplomacy state: {error:?}"),
@@ -196,6 +200,7 @@ pub fn load_game(bytes: &[u8], graph: ProvinceGraph) -> Result<GameState, SaveEr
             | GUARANTEE_VERSION
             | NAVY_VERSION
             | TECHNOLOGY_VERSION
+            | VASSAL_VERSION
     ) {
         return Err(SaveError::UnsupportedSchemaVersion(save.schema_version));
     }
@@ -242,6 +247,17 @@ pub fn load_game(bytes: &[u8], graph: ProvinceGraph) -> Result<GameState, SaveEr
         return Err(SaveError::VersionCoalitionMismatch(save.schema_version));
     }
     let restored = state.restore(graph)?;
+    if restored.war_state().is_some_and(|military| {
+        military.wars.values().any(|war| {
+            war.independence
+                && restored
+                    .diplomacy()
+                    .and_then(|d| d.overlord_of(war.attacker))
+                    != Some(war.defender)
+        })
+    }) {
+        return Err(SaveError::InvalidDiplomacy(DiplomacyError::InvalidState));
+    }
     let has_marriage_data = restored.polity().is_some_and(|polity| {
         polity.characters.values().any(|character| {
             character.sex != strategy_sim::Sex::Unknown || character.spouse.is_some()
@@ -278,6 +294,11 @@ pub fn load_game(bytes: &[u8], graph: ProvinceGraph) -> Result<GameState, SaveEr
     {
         return Err(SaveError::VersionTechnologyMismatch(save.schema_version));
     }
+    if (save.schema_version < VASSAL_VERSION && has_vassal_data(&restored))
+        || (save.schema_version == VASSAL_VERSION && !has_vassal_data(&restored))
+    {
+        return Err(SaveError::VersionVassalMismatch(save.schema_version));
+    }
     Ok(restored)
 }
 
@@ -285,6 +306,7 @@ pub fn load_game(bytes: &[u8], graph: ProvinceGraph) -> Result<GameState, SaveEr
 pub fn state_hash(state: &GameState) -> Result<[u8; 32], SaveError> {
     let mut hash = Sha256::new();
     hash.update(match schema_version(state) {
+        VASSAL_VERSION => STATE_HASH_DOMAIN_V12,
         TECHNOLOGY_VERSION => STATE_HASH_DOMAIN_V11,
         NAVY_VERSION => STATE_HASH_DOMAIN_V10,
         GUARANTEE_VERSION => STATE_HASH_DOMAIN_V9,
@@ -302,7 +324,9 @@ pub fn state_hash(state: &GameState) -> Result<[u8; 32], SaveError> {
 }
 
 fn schema_version(state: &GameState) -> u32 {
-    if state.technologies().is_some() {
+    if has_vassal_data(state) {
+        VASSAL_VERSION
+    } else if state.technologies().is_some() {
         TECHNOLOGY_VERSION
     } else if state.navy().is_some() {
         NAVY_VERSION
@@ -338,6 +362,25 @@ fn schema_version(state: &GameState) -> u32 {
     } else {
         LEGACY_VERSION
     }
+}
+
+fn has_vassal_data(state: &GameState) -> bool {
+    state.diplomacy().is_some_and(|diplomacy| {
+        !diplomacy.vassals.is_empty() || !diplomacy.vassal_offers.is_empty()
+    }) || state
+        .war_state()
+        .is_some_and(|military| military.wars.values().any(|war| war.independence))
+        || state.polity().is_some_and(|polity| {
+            polity
+                .ai_profiles
+                .values()
+                .any(|profile| profile.thresholds.vassal_min_opinion != 0)
+                || polity.countries.values().any(|country| {
+                    country.economy.last_month.is_some_and(|budget| {
+                        budget.tribute_paid != Fixed::ZERO || budget.tribute_received != Fixed::ZERO
+                    })
+                })
+        })
 }
 
 #[derive(Serialize, Deserialize)]

@@ -33,6 +33,12 @@ pub enum FiscalError {
     ArithmeticOverflow,
 }
 
+#[derive(Clone, Copy, Default)]
+pub(super) struct Tribute {
+    pub paid: Fixed,
+    pub received: Fixed,
+}
+
 impl PolityRules {
     pub(crate) fn check_policy(&self, policy: FiscalPolicy) -> Result<(), FiscalError> {
         if policy.tax_rate < Fixed::ZERO
@@ -71,8 +77,7 @@ pub(super) fn monthly_economy(
     country_modifiers: &ModifierStore,
     ruler_traits: Option<&ModifierStore>,
     policy: FiscalPolicy,
-    tribute_paid: Fixed,
-    tribute_received: Fixed,
+    tribute: Tribute,
 ) -> Result<EconomyState, FiscalError> {
     let income = monthly_tax_income(
         rules,
@@ -83,10 +88,10 @@ pub(super) fn monthly_economy(
         policy,
     )?;
     let net_income = income
-        .checked_sub(tribute_paid)
-        .and_then(|value| value.checked_add(tribute_received))
+        .checked_sub(tribute.paid)
+        .and_then(|value| value.checked_add(tribute.received))
         .ok_or(FiscalError::ArithmeticOverflow)?;
-    if tribute_paid < Fixed::ZERO || tribute_received < Fixed::ZERO || net_income < Fixed::ZERO {
+    if tribute.paid < Fixed::ZERO || tribute.received < Fixed::ZERO || net_income < Fixed::ZERO {
         return Err(FiscalError::ArithmeticOverflow);
     }
     let funds = i128::from(country.economy.treasury.raw()) + i128::from(net_income.raw());
@@ -100,8 +105,8 @@ pub(super) fn monthly_economy(
         policy,
         last_month: Some(MonthlyBudget {
             income,
-            tribute_paid,
-            tribute_received,
+            tribute_paid: tribute.paid,
+            tribute_received: tribute.received,
             expenses: fixed_from_wide(paid)?,
         }),
         bankrupt,

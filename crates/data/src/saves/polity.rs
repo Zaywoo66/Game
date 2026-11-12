@@ -185,11 +185,15 @@ struct PolicyFile {
 #[serde(deny_unknown_fields)]
 struct BudgetFile {
     income: i64,
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "is_zero_i64")]
     tribute_paid: i64,
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "is_zero_i64")]
     tribute_received: i64,
     expenses: i64,
+}
+
+fn is_zero_i64(value: &i64) -> bool {
+    *value == 0
 }
 
 #[derive(Serialize, Deserialize)]

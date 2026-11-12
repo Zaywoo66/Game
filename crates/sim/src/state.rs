@@ -1168,18 +1168,14 @@ impl GameState {
         country: CountryId,
         policy: FiscalPolicy,
     ) -> Result<EconomyState, CommandError> {
-        let base = self
-            .country(country)
+        self.country(country)
             .ok_or(CommandError::UnknownCountry(country))?;
         let polity = self.polity().ok_or(CommandError::PolityUnavailable)?;
-        let state = &polity.countries[&country];
         polity
             .forecast(
                 country,
-                state,
                 self.time.date(),
                 &self.province_graph,
-                base.modifiers(),
                 policy,
                 &self.countries,
                 &self
