@@ -35,6 +35,18 @@ export interface CountryView {
   regency: boolean;
   ruler: CharacterView | null;
   heir: CharacterView | null;
+  research_points: number | null;
+  known_technologies: string[];
+}
+
+export interface TechnologyView {
+  key: string;
+  branch: string;
+  cost: number;
+  requires: string[];
+  pos_x: number;
+  pos_y: number;
+  effects: { key: string; value: string; kind: 'additive' | 'multiplicative'; source_key: string }[];
 }
 
 export interface ArmyView {
@@ -100,6 +112,7 @@ export interface GameSnapshot {
   clock: ClockView;
   local_country_id: number | null;
   countries: CountryView[];
+  technologies?: TechnologyView[];
   pending_events?: EventView[];
   guarantees: { guarantor_id: number; protected_id: number }[];
   owners: { province_id: number; country_id: number }[];

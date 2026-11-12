@@ -120,7 +120,18 @@ class DataLintTest(unittest.TestCase):
         result = run_lint("good_tech")
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stderr, "")
-        self.assertIn("Checked 2 JSON and YAML data files", result.stdout)
+        self.assertIn("Checked 3 JSON and YAML data files", result.stdout)
+
+    def test_rejects_missing_and_empty_technology_localization(self):
+        result = run_lint("bad_tech_locale_missing")
+        self.assertEqual(result.returncode, 1, result)
+        self.assertIn("missing English technology localization key modifier.tax_income", result.stderr)
+        self.assertIn("tech.recordkeeping: expected nonempty English text", result.stderr)
+
+    def test_rejects_duplicate_technology_localization_key(self):
+        result = run_lint("bad_tech_locale")
+        self.assertEqual(result.returncode, 1, result)
+        self.assertIn("duplicate technology localization key tech.recordkeeping", result.stderr)
 
     def test_rejects_missing_duplicate_and_cyclic_technology_keys(self):
         result = run_lint("bad_tech_graph")

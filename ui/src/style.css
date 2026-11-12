@@ -135,6 +135,27 @@ p { font-size: 14px; color: #a8b6cf; }
 .military-debug ul { max-height: 170px; overflow: auto; margin: 4px 0; padding-left: 17px; }
 .military-debug li + li { margin-top: 5px; }
 
+.map-inspector--technology { width: min(720px, calc(100% - 36px)); }
+.technology-panel { margin-top: 11px; padding-top: 8px; border-top: 1px solid #78918d55; }
+.technology-panel h3 { margin: 4px 0; font-size: 16px; color: #f5ebd5; }
+.technology-panel > p { margin: 4px 0 10px; color: #c5d2ca; font-size: 13px; }
+.technology-scroll { overflow: auto; max-height: min(550px, 60vh); padding: 6px; }
+.technology-canvas { position: relative; min-width: 100%; }
+.technology-links { position: absolute; inset: 0; pointer-events: none; }
+.technology-links line { stroke: #e1c48c; stroke-width: 2; stroke-opacity: .75; }
+.technology-node {
+  position: absolute; box-sizing: border-box; display: flex; flex-direction: column;
+  width: 168px; height: 166px; padding: 8px; border: 1px solid #78918d;
+  border-radius: 5px; background: #233b3f; overflow: hidden;
+}
+.technology-node[data-tech-status='known'] { border-color: #78ad83; background: #294438; }
+.technology-node[data-tech-status='ready'] { border-color: #e1c48c; }
+.technology-node small { color: #e1c48c; }
+.technology-node h4 { margin: 3px 0; font-size: 14px; }
+.technology-node p { margin: 2px 0; font-size: 11px; color: #c5d2ca; }
+.technology-node button { margin-top: auto; }
+.technology-node .technology-reason { color: #f0b28a; }
+
 .map-lan { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
 .map-lan span { color: #c5d2ca; font-size: 13px; }
 .map-lan button { pointer-events: auto; }

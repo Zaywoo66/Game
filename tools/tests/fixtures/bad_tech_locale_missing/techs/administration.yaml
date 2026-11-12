@@ -1,0 +1,9 @@
+schema_version: 1
+branch: administration
+technologies:
+  - key: recordkeeping
+    cost: 100
+    requires: []
+    pos: {x: 0, y: 0}
+    effects:
+      - add_modifier: {key: tax_income, value: 100, kind: multiplicative}
