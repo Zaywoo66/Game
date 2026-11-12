@@ -119,6 +119,16 @@ fn vassal_offers_expire_and_bonds_reject_chains_and_external_treaties() {
     assert_eq!(state.diplomacy().unwrap().overlord_of(B), Some(A));
     assert_eq!(
         state.validate_command(
+            HOST,
+            &Command::OfferVassalage {
+                country: A,
+                toward: B
+            }
+        ),
+        Err(CommandError::Diplomacy(DiplomacyError::AlreadyVassal))
+    );
+    assert_eq!(
+        state.validate_command(
             GUEST,
             &Command::OfferAlliance {
                 country: B,

@@ -2063,9 +2063,11 @@ impl GameState {
                 if self.country_at_war(country) || self.country_at_war(other) {
                     return Err(CommandError::Diplomacy(DiplomacyError::AtWar));
                 }
+                if diplomacy.is_some_and(|d| d.overlord_of(other).is_some()) {
+                    return Err(CommandError::Diplomacy(DiplomacyError::AlreadyVassal));
+                }
                 if diplomacy.is_some_and(|d| {
                     d.vassals.contains_key(&country)
-                        || d.vassals.contains_key(&other)
                         || d.vassals.values().any(|&overlord| overlord == other)
                 }) {
                     return Err(CommandError::Diplomacy(DiplomacyError::VassalChain));
@@ -2090,9 +2092,11 @@ impl GameState {
                     if self.country_at_war(country) || self.country_at_war(other) {
                         return Err(CommandError::Diplomacy(DiplomacyError::AtWar));
                     }
+                    if diplomacy.is_some_and(|d| d.overlord_of(country).is_some()) {
+                        return Err(CommandError::Diplomacy(DiplomacyError::AlreadyVassal));
+                    }
                     if diplomacy.is_some_and(|d| {
-                        d.vassals.contains_key(&country)
-                            || d.vassals.contains_key(&other)
+                        d.vassals.contains_key(&other)
                             || d.vassals.values().any(|&overlord| overlord == country)
                     }) {
                         return Err(CommandError::Diplomacy(DiplomacyError::VassalChain));
