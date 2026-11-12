@@ -12,6 +12,8 @@ export interface CharacterView {
   name: string;
   dynasty: string;
   age: number;
+  sex?: 'male' | 'female' | 'unknown';
+  spouse_id?: number | null;
   adm: number;
   dip: number;
   mil: number;
@@ -149,6 +151,9 @@ export interface GameSnapshot {
   guarantees: { guarantor_id: number; protected_id: number }[];
   alliances?: { a_id: number; b_id: number }[];
   alliance_offers?: { from_id: number; toward_id: number; expires_at: string }[];
+  marriage_offers?: { from_country_id: number; toward_country_id: number; from_character_id: number;
+    toward_character_id: number; expires_at: string }[];
+  marriage_adulthood_years?: number;
   opinions?: { from_id: number; toward_id: number; points: number; effective_points: number }[];
   truces: TruceView[];
   blockaded_ports?: number[];
@@ -175,6 +180,9 @@ interface GameUpdate {
   guarantees: { guarantor_id: number; protected_id: number }[];
   alliances?: { a_id: number; b_id: number }[];
   alliance_offers?: { from_id: number; toward_id: number; expires_at: string }[];
+  marriage_offers?: { from_country_id: number; toward_country_id: number; from_character_id: number;
+    toward_character_id: number; expires_at: string }[];
+  marriage_adulthood_years?: number;
   opinions?: { from_id: number; toward_id: number; points: number; effective_points: number }[];
   truces: TruceView[];
   blockaded_ports?: number[];
@@ -208,6 +216,9 @@ export type GameCommand =
   | { type: 'offer_alliance'; country_id: number; toward_id: number }
   | { type: 'accept_alliance' | 'reject_alliance'; country_id: number; from_id: number }
   | { type: 'break_alliance'; country_id: number; other_id: number }
+  | { type: 'offer_royal_marriage'; country_id: number; character_id: number; toward_id: number; partner_id: number }
+  | { type: 'accept_royal_marriage' | 'reject_royal_marriage'; country_id: number; from_id: number;
+    character_id: number; partner_id: number }
   | { type: 'choose_event'; country_id: number; key: string; option: number }
   | { type: 'guarantee' | 'revoke_guarantee'; country_id: number; protected_id: number }
   | { type: 'offer_vassalage'; country_id: number; toward_id: number }
@@ -257,6 +268,8 @@ function normalizeSnapshot(snapshot: GameSnapshot): GameSnapshot {
     guarantees: snapshot.guarantees ?? [],
     alliances: snapshot.alliances ?? [],
     alliance_offers: snapshot.alliance_offers ?? [],
+    marriage_offers: snapshot.marriage_offers ?? [],
+    marriage_adulthood_years: snapshot.marriage_adulthood_years ?? 18,
     opinions: snapshot.opinions ?? [],
     truces: snapshot.truces ?? [],
     vassals: snapshot.vassals ?? [],
@@ -294,6 +307,8 @@ function applyUpdate(snapshot: GameSnapshot, update: GameUpdate): GameSnapshot {
     guarantees: update.guarantees ?? snapshot.guarantees,
     alliances: update.alliances ?? snapshot.alliances ?? [],
     alliance_offers: update.alliance_offers ?? snapshot.alliance_offers ?? [],
+    marriage_offers: update.marriage_offers ?? snapshot.marriage_offers ?? [],
+    marriage_adulthood_years: update.marriage_adulthood_years ?? snapshot.marriage_adulthood_years ?? 18,
     opinions: update.opinions ?? snapshot.opinions ?? [],
     truces: update.truces ?? snapshot.truces,
     blockaded_ports: update.blockaded_ports ?? snapshot.blockaded_ports,

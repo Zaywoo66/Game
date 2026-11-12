@@ -93,6 +93,8 @@ struct CharacterView {
     name: String,
     dynasty: String,
     age: u32,
+    sex: &'static str,
+    spouse_id: Option<u32>,
     adm: u8,
     dip: u8,
     mil: u8,
@@ -269,6 +271,15 @@ struct AllianceOfferView {
 }
 
 #[derive(Clone, PartialEq, Eq, Serialize)]
+struct MarriageOfferView {
+    from_country_id: u32,
+    toward_country_id: u32,
+    from_character_id: u32,
+    toward_character_id: u32,
+    expires_at: String,
+}
+
+#[derive(Clone, PartialEq, Eq, Serialize)]
 struct OpinionView {
     from_id: u32,
     toward_id: u32,
@@ -322,6 +333,8 @@ pub(crate) struct Snapshot {
     guarantees: Vec<GuaranteeView>,
     alliances: Vec<AllianceView>,
     alliance_offers: Vec<AllianceOfferView>,
+    marriage_offers: Vec<MarriageOfferView>,
+    marriage_adulthood_years: u16,
     opinions: Vec<OpinionView>,
     truces: Vec<TruceView>,
     blockaded_ports: Vec<u32>,
@@ -346,6 +359,8 @@ struct Update {
     guarantees: Vec<GuaranteeView>,
     alliances: Vec<AllianceView>,
     alliance_offers: Vec<AllianceOfferView>,
+    marriage_offers: Vec<MarriageOfferView>,
+    marriage_adulthood_years: u16,
     opinions: Vec<OpinionView>,
     truces: Vec<TruceView>,
     blockaded_ports: Vec<u32>,
@@ -459,6 +474,24 @@ pub(crate) enum UiCommand {
     BreakAlliance {
         country_id: u32,
         other_id: u32,
+    },
+    OfferRoyalMarriage {
+        country_id: u32,
+        character_id: u32,
+        toward_id: u32,
+        partner_id: u32,
+    },
+    AcceptRoyalMarriage {
+        country_id: u32,
+        from_id: u32,
+        character_id: u32,
+        partner_id: u32,
+    },
+    RejectRoyalMarriage {
+        country_id: u32,
+        from_id: u32,
+        character_id: u32,
+        partner_id: u32,
     },
     UnlockTechnology {
         country_id: u32,
@@ -649,6 +682,39 @@ impl UiCommand {
             } => Command::BreakAlliance {
                 country: CountryId::new(country_id),
                 other: CountryId::new(other_id),
+            },
+            Self::OfferRoyalMarriage {
+                country_id,
+                character_id,
+                toward_id,
+                partner_id,
+            } => Command::OfferRoyalMarriage {
+                country: CountryId::new(country_id),
+                character: strategy_sim::CharacterId::new(character_id),
+                toward: CountryId::new(toward_id),
+                partner: strategy_sim::CharacterId::new(partner_id),
+            },
+            Self::AcceptRoyalMarriage {
+                country_id,
+                from_id,
+                character_id,
+                partner_id,
+            } => Command::AcceptRoyalMarriage {
+                country: CountryId::new(country_id),
+                from: CountryId::new(from_id),
+                character: strategy_sim::CharacterId::new(character_id),
+                partner: strategy_sim::CharacterId::new(partner_id),
+            },
+            Self::RejectRoyalMarriage {
+                country_id,
+                from_id,
+                character_id,
+                partner_id,
+            } => Command::RejectRoyalMarriage {
+                country: CountryId::new(country_id),
+                from: CountryId::new(from_id),
+                character: strategy_sim::CharacterId::new(character_id),
+                partner: strategy_sim::CharacterId::new(partner_id),
             },
             Self::UnlockTechnology { country_id, key } => Command::UnlockTechnology {
                 country: CountryId::new(country_id),
@@ -885,6 +951,8 @@ pub(crate) fn game_snapshot(state: State<'_, Mutex<Session>>) -> Result<Snapshot
         guarantees: guarantee_views(&session.game),
         alliances: alliance_views(&session.game),
         alliance_offers: alliance_offer_views(&session.game),
+        marriage_offers: marriage_offer_views(&session.game),
+        marriage_adulthood_years: polity.rules.adulthood_years,
         opinions: opinion_views(&session.game),
         truces: truce_views(&session.game),
         blockaded_ports: session
@@ -1340,6 +1408,11 @@ fn publish(app: &AppHandle, session: &mut Session) {
         guarantees: guarantee_views(&session.game),
         alliances: alliance_views(&session.game),
         alliance_offers: alliance_offer_views(&session.game),
+        marriage_offers: marriage_offer_views(&session.game),
+        marriage_adulthood_years: session
+            .game
+            .polity()
+            .map_or(18, |p| p.rules.adulthood_years),
         opinions: opinion_views(&session.game),
         truces: truce_views(&session.game),
         blockaded_ports: session
@@ -1427,6 +1500,22 @@ fn alliance_offer_views(game: &GameState) -> Vec<AllianceOfferView> {
             from_id: from.get(),
             toward_id: toward.get(),
             expires_at: format_date(expires),
+        })
+        .collect()
+}
+
+fn marriage_offer_views(game: &GameState) -> Vec<MarriageOfferView> {
+    game.diplomacy()
+        .into_iter()
+        .flat_map(|diplomacy| &diplomacy.marriage_offers)
+        .filter_map(|(&(from, toward), &expires)| {
+            Some(MarriageOfferView {
+                from_country_id: game.character(from)?.country.get(),
+                toward_country_id: game.character(toward)?.country.get(),
+                from_character_id: from.get(),
+                toward_character_id: toward.get(),
+                expires_at: format_date(expires),
+            })
         })
         .collect()
 }
@@ -1686,6 +1775,12 @@ fn country_views(game: &GameState) -> BTreeMap<u32, CountryView> {
                     name: character.name.clone(),
                     dynasty: character.dynasty.clone(),
                     age: character.age_years(game.time().date())?,
+                    sex: match character.sex {
+                        strategy_sim::Sex::Male => "male",
+                        strategy_sim::Sex::Female => "female",
+                        strategy_sim::Sex::Unknown => "unknown",
+                    },
+                    spouse_id: character.spouse.map(|spouse| spouse.get()),
                     adm: character.stats.adm,
                     dip: character.stats.dip,
                     mil: character.stats.mil,
@@ -2051,6 +2146,48 @@ mod tests {
                 Command::BreakAlliance {
                     country: CountryId::new(3),
                     other: CountryId::new(2),
+                },
+            ),
+        ];
+        for (json, expected) in cases {
+            assert_eq!(
+                serde_json::from_str::<UiCommand>(json)
+                    .unwrap()
+                    .into_sim()
+                    .unwrap(),
+                expected
+            );
+        }
+    }
+
+    #[test]
+    fn royal_marriage_ui_commands_preserve_country_and_character_ids() {
+        let cases = [
+            (
+                r#"{"type":"offer_royal_marriage","country_id":3,"character_id":31,"toward_id":2,"partner_id":22}"#,
+                Command::OfferRoyalMarriage {
+                    country: CountryId::new(3),
+                    character: strategy_sim::CharacterId::new(31),
+                    toward: CountryId::new(2),
+                    partner: strategy_sim::CharacterId::new(22),
+                },
+            ),
+            (
+                r#"{"type":"accept_royal_marriage","country_id":2,"from_id":3,"character_id":22,"partner_id":31}"#,
+                Command::AcceptRoyalMarriage {
+                    country: CountryId::new(2),
+                    from: CountryId::new(3),
+                    character: strategy_sim::CharacterId::new(22),
+                    partner: strategy_sim::CharacterId::new(31),
+                },
+            ),
+            (
+                r#"{"type":"reject_royal_marriage","country_id":2,"from_id":3,"character_id":22,"partner_id":31}"#,
+                Command::RejectRoyalMarriage {
+                    country: CountryId::new(2),
+                    from: CountryId::new(3),
+                    character: strategy_sim::CharacterId::new(22),
+                    partner: strategy_sim::CharacterId::new(31),
                 },
             ),
         ];

@@ -24,6 +24,8 @@ export function DiplomacyPanel({ game, pending, send }: DiplomacyPanelProps) {
 
   const incoming = (game.alliance_offers ?? []).filter((offer) => offer.toward_id === local);
   const outgoing = (game.alliance_offers ?? []).filter((offer) => offer.from_id === local);
+  const marriageOffers = game.marriage_offers ?? [];
+  const incomingMarriages = marriageOffers.filter((offer) => offer.toward_country_id === local);
   const ownCountry = nameOf(game, local);
   const wars = game.wars ?? [];
   const atWarWith = (other: number) => wars.some((war) => {
@@ -35,6 +37,33 @@ export function DiplomacyPanel({ game, pending, send }: DiplomacyPanelProps) {
   const opinionToward = (other: number) => (game.opinions ?? []).find(
     (opinion) => opinion.from_id === local && opinion.toward_id === other,
   )?.effective_points ?? 0;
+  const character = (id: number) => game.countries.flatMap((country) => [country.ruler, country.heir])
+    .find((person) => person?.id === id) ?? null;
+  const characterName = (id: number) => character(id)?.name ?? `Character ${id}`;
+  const characterCountry = (id: number) => game.countries.find(
+    (country) => country.ruler?.id === id || country.heir?.id === id,
+  );
+  const marriagePair = (targetId: number) => {
+    const ours = game.countries.find((country) => country.id === local);
+    const theirs = game.countries.find((country) => country.id === targetId);
+    const candidates = (country: typeof ours) => country ? [country.ruler, country.heir]
+      .filter((person) => person !== null && person !== undefined) : [];
+    for (const proposer of candidates(ours)) {
+      for (const partner of candidates(theirs)) {
+        const legal = proposer && partner
+          && proposer.sex && partner.sex
+          && proposer.sex !== 'unknown' && partner.sex !== 'unknown'
+          && proposer.sex !== partner.sex
+          && proposer.age >= (game.marriage_adulthood_years ?? 18)
+          && partner.age >= (game.marriage_adulthood_years ?? 18)
+          && proposer.death === null && partner.death === null
+          && (proposer.spouse_id === null || proposer.spouse_id === undefined)
+          && (partner.spouse_id === null || partner.spouse_id === undefined);
+        if (legal) return { proposer, partner };
+      }
+    }
+    return null;
+  };
 
   return <section className="diplomacy-panel" aria-label="Diplomacy">
     <h2>Diplomacy</h2>
@@ -60,6 +89,22 @@ export function DiplomacyPanel({ game, pending, send }: DiplomacyPanelProps) {
       </li>)}</ul>
     </section>}
 
+    {incomingMarriages.length > 0 && <section aria-label="Incoming royal-marriage proposals">
+      <h3>Incoming royal-marriage proposals</h3>
+      <ul>{incomingMarriages.map((offer) => <li key={`${offer.from_character_id}:${offer.toward_character_id}`}>
+        <span>{characterName(offer.from_character_id)} of {nameOf(game, offer.from_country_id)} proposes to
+          {' '}{characterName(offer.toward_character_id)} · expires {offer.expires_at}</span>
+        <button type="button" disabled={pending} onClick={() => void send({
+          type: 'accept_royal_marriage', country_id: local, from_id: offer.from_country_id,
+          character_id: offer.toward_character_id, partner_id: offer.from_character_id,
+        })}>Accept</button>
+        <button type="button" disabled={pending} onClick={() => void send({
+          type: 'reject_royal_marriage', country_id: local, from_id: offer.from_country_id,
+          character_id: offer.toward_character_id, partner_id: offer.from_character_id,
+        })}>Reject</button>
+      </li>)}</ul>
+    </section>}
+
     <h3>Countries</h3>
     <div className="diplomacy-country-list">
       {game.countries.filter((country) => country.id !== local).map((country) => {
@@ -78,12 +123,22 @@ export function DiplomacyPanel({ game, pending, send }: DiplomacyPanelProps) {
         const vassalOffer = game.vassal_offers.find(
           (row) => row.overlord_id === local && row.subject_id === country.id,
         );
+        const pair = marriagePair(country.id);
+        const marriagePending = marriageOffers.some((offer) => pairMatches(
+          offer.from_country_id, offer.toward_country_id, local, country.id,
+        ));
+        const marriagePartner = [game.countries.find((row) => row.id === local)?.ruler,
+          game.countries.find((row) => row.id === local)?.heir]
+          .filter((person) => person?.spouse_id !== null && person?.spouse_id !== undefined)
+          .map((person) => characterCountry(person!.spouse_id!))
+          .find((other) => other?.id === country.id);
         const relation = [
           allied && 'Ally',
           guaranteed && 'Guaranteed by you',
           protects && 'Guarantees you',
           overlord === country.id && 'Your overlord',
           subject && 'Your subject',
+          marriagePartner && 'Royal marriage',
           atWarWith(country.id) && 'At war',
         ].filter(Boolean).join(' · ') || 'No active treaty';
         const pendingWithCountry = Boolean(offer);
@@ -123,6 +178,13 @@ export function DiplomacyPanel({ game, pending, send }: DiplomacyPanelProps) {
               </button>
             )}
             {vassalOffer && <span>Vassalage offer pending · expires {vassalOffer.expires_at}</span>}
+            <button type="button" disabled={pending || !pair || marriagePending}
+              title={marriagePending ? 'A royal-marriage proposal is already pending' : !pair
+                ? 'Requires a living, unmarried adult ruler or heir of the opposite sex' : undefined}
+              onClick={() => pair && void send({
+                type: 'offer_royal_marriage', country_id: local, character_id: pair.proposer.id,
+                toward_id: country.id, partner_id: pair.partner.id,
+              })}>{marriagePending ? 'Marriage proposal pending' : 'Offer royal marriage'}</button>
           </div>
         </article>;
       })}

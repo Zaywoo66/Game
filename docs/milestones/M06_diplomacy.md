@@ -34,8 +34,10 @@ is part of the approved M6 rule. The country-list diplomacy window projects
 effective opinions, active alliances, alliance proposals with expiry, and
 guarantee/vassalage controls. It sends alliance offers, responses, and breaks
 through host-validated commands; the UI changes only on an authoritative
-snapshot or update. Browser coverage checks this command/update path. Two-PC
-LAN acceptance and the remaining marriage proposal UI are still open.
+snapshot or update. The panel also shows legal ruler/heir marriage offers,
+pending marriage proposals, and host-driven accept/reject actions using the
+scenario's adulthood rule. Browser coverage checks both treaty command paths.
+Full two-player UI acceptance remains open.
 
 ## Defensive guarantee slice
 

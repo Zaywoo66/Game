@@ -4,7 +4,7 @@ import { expect, test } from '@playwright/test';
 const initialClock = { date: '1440-01-31', tick: 30, paused: false, speed: 1 };
 const ruler = {
   id: 9, name: 'Elinor', dynasty: 'House of the Oak', age: 29, adm: 7, dip: 8, mil: 5,
-  traits: ['calm_ruler'], death: null,
+  sex: 'male', spouse_id: null, traits: ['calm_ruler'], death: null,
 };
 const local = {
   id: 1, tag: 'tst', name: 'Test Realm', color: '#f70bab', capital_id: 1, capital: 'Capital City',
@@ -21,10 +21,10 @@ const other = {
 
 async function mockHost(page, provinceId, {
   truces = [], localCountry = local, blockadedPorts = [], ideas = [], reforms = [],
-  alliances = [], allianceOffers = [], opinions = [],
+  otherCountry = other, alliances = [], allianceOffers = [], marriageOffers = [], opinions = [],
 } = {}) {
   await page.addInitScript(({ initialClock, local, other, provinceId, truces, blockadedPorts, ideas, reforms,
-    alliances, allianceOffers, opinions }) => {
+    alliances, allianceOffers, marriageOffers, opinions }) => {
     const listeners = new Set();
     const commands = [];
     const calls = [];
@@ -54,6 +54,8 @@ async function mockHost(page, provinceId, {
               reforms,
               alliances,
               alliance_offers: allianceOffers,
+              marriage_offers: marriageOffers,
+              marriage_adulthood_years: 16,
               opinions,
               truces, armies: truces.length ? [] : undefined,
               max_tax_rate: 200, max_monthly_spending: '999999999999999999',
@@ -73,8 +75,8 @@ async function mockHost(page, provinceId, {
         },
       },
     };
-  }, { initialClock, local: localCountry, other, provinceId, truces, blockadedPorts, ideas, reforms,
-    alliances, allianceOffers, opinions });
+  }, { initialClock, local: localCountry, other: otherCountry, provinceId, truces, blockadedPorts, ideas, reforms,
+    alliances, allianceOffers, marriageOffers, opinions });
 }
 
 test('M6 diplomacy window accepts a LAN proposal and sends a new alliance offer through the host', async ({ page }) => {
@@ -112,6 +114,29 @@ test('M6 diplomacy window accepts a LAN proposal and sends a new alliance offer 
   await expect.poll(() => page.evaluate(() => window.__strategyMockHost.commands[2])).toEqual({
     type: 'offer_alliance', country_id: 1, toward_id: 2,
   });
+});
+
+test('M6 diplomacy window responds to an eligible royal-marriage proposal', async ({ page }) => {
+  const map = await page.request.get('/map/western_europe/provinces.json');
+  expect(map.ok()).toBe(true);
+  const id = (await map.json()).provinces.find(({ key }) => key === 'london').id;
+  const localMarriage = { ...local, ruler: { ...ruler, sex: 'male' } };
+  const otherMarriage = { ...other, ruler: { ...ruler, id: 20, name: 'Isabella', sex: 'female' } };
+  await mockHost(page, id, {
+    localCountry: localMarriage,
+    otherCountry: otherMarriage,
+    marriageOffers: [{ from_country_id: 2, toward_country_id: 1, from_character_id: 20,
+      toward_character_id: 9, expires_at: '1440-03-01' }],
+  });
+  await page.goto('/?verify=1&map=western_europe&verifyHost=1');
+  await page.getByRole('button', { name: 'Diplomacy', exact: true }).click();
+  const panel = page.getByRole('region', { name: 'Diplomacy' });
+  const proposals = panel.getByRole('region', { name: 'Incoming royal-marriage proposals' });
+  await expect(proposals).toContainText('Isabella of Other Realm proposes to Elinor');
+  await proposals.getByRole('button', { name: 'Accept', exact: true }).click();
+  await expect.poll(() => page.evaluate(() => window.__strategyMockHost.commands)).toEqual([{
+    type: 'accept_royal_marriage', country_id: 1, from_id: 2, character_id: 9, partner_id: 20,
+  }]);
 });
 
 test('M9 purchases one government reform per tier through the host', async ({ page }) => {
