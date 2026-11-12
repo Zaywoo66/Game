@@ -38,6 +38,23 @@ test('projected provinces pick their canonical IDs and representative clicks sel
   }
 });
 
+test('fleet markers show ship counts, movement paths, and select the fleet panel', async ({ page }) => {
+  const seaIds = (await loadProvinces(page)).filter((province) => province.kind === 'sea').slice(0, 2).map((province) => province.id);
+  expect(seaIds).toHaveLength(2);
+  await page.evaluate(([province, destination]) => {
+    window.strategyMapTest.setFleets([{
+      id: 77, province, destination, progress: 350, color: '#526f9b', ships: 4,
+    }]);
+    window.strategyMapTest.renderFrame();
+  }, seaIds);
+  const fleet = page.getByRole('button', { name: 'Fleet 77, 4 ships' });
+  await expect(fleet).toBeVisible();
+  await fleet.click();
+  await expect(page.locator('main')).toHaveAttribute('data-map-selected-fleet', '77');
+  await expect(fleet).toHaveAttribute('data-selected', 'true');
+  await expect(page.locator('.map-fleet-path')).not.toBeHidden();
+});
+
 test('country labels stay clear of map controls and panels', async ({ page }) => {
   await page.evaluate(() => window.strategyMapTest.setCameraPreset('whole-region'));
   const overlaps = await page.evaluate(() => {

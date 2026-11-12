@@ -11,6 +11,7 @@ interface MilitaryProps {
   army: ArmyView | undefined;
   order: ArmyOrder | null;
   selectArmy(id: number): void;
+  selectedFleetId?: number;
   chooseOrder(order: ArmyOrder): void;
   cancelOrder(): void;
   provinceName(id: number): string;
@@ -182,6 +183,7 @@ export function MilitaryPanel(props: MilitaryProps) {
     game, pending, provinceId, provinceIsLand, army, order, selectArmy, chooseOrder, cancelOrder,
     provinceName, send, readAiLog, canReadAiLog = true,
   } = props;
+  const selectedFleetId = props.selectedFleetId ?? 0;
   const localId = game.local_country_id;
   const local = game.countries.find((country) => country.id === localId);
   const armies = game.armies ?? [];
@@ -246,7 +248,7 @@ export function MilitaryPanel(props: MilitaryProps) {
       )}
       <h3>Fleets</h3>
       {fleets.length ? fleets.map((fleet: FleetView) => (
-        <section key={fleet.id} aria-label={`Fleet ${fleet.id}`}>
+        <section key={fleet.id} aria-label={`Fleet ${fleet.id}`} data-selected={fleet.id === selectedFleetId}>
           <h4>{countryName(fleet.country_id)} · Fleet {fleet.id}</h4>
           <p>{fleet.ships} ships · Capacity {(fleet.ships * 1000).toLocaleString()} soldiers</p>
           <p>{provinceName(fleet.sea_province_id)}</p>

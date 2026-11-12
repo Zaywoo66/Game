@@ -43,7 +43,7 @@ profile-weighted AI choices and a host-command UI panel. Needs-aware AI weights,
 historical catalogs for the remaining 1440 countries, and M9 acceptance remain
 open.
 M5b.4 camera, water, borders and terrain have browser screenshot evidence; native 1080p FPS/RAM and owner visual review remain open for M5b acceptance.
-M5b.5 map modes, historical evidence display, English fallback labels and army badges have browser checks; Russian localization, fleet UI, native performance and owner visual acceptance remain open.
+M5b.5 map modes, historical evidence display, English fallback labels, army badges, and clickable fleet badges with ship counts and route preview are implemented; Russian localization, native performance and owner visual acceptance remain open.
 
 M6 alliance and royal-marriage slices implemented: validated 30-day offers, acceptance/rejection, spouse links and death cleanup, +20 temporary effective opinion, deterministic AI factors, and network/save transport. The guarantee slice adds unilateral indefinite guarantees, automatic defensive joining, broken-promise penalties and AI offers. Automatic post-war truces are visible in the country and military panels. The vassalage slice adds 30-day offers, 10% monthly tribute, automatic defense, independence wars, AI answers and typed LAN/UI commands. The country-list diplomacy panel projects opinions and alliances, sends alliance proposals and responses through host-validated commands, and supports eligible ruler/heir marriage proposals. Full two-player UI acceptance and M6 acceptance remain open.
 The royal-marriage slice uses named adult characters and synthetic tests; the 1440 content currently has no female character or modeled existing spouse links. Historical marriage content is an M11 gap.

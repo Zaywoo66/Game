@@ -14,6 +14,7 @@ import { TechnologyPanel } from '../game/TechnologyPanel';
 import { loadMapAssets, MapAssets, Province, Rgba } from './mapData';
 import { MapMode } from './mapPresentation';
 import { BenchmarkSample, createMapViewer, MapTestControls } from './mapViewer';
+import { FleetMarker } from './fleetLayer';
 
 declare global {
   interface Window {
@@ -99,6 +100,7 @@ export function MapPage() {
   const modeChosenByUser = useRef(false);
   const [section, setSection] = useState<'country' | 'diplomacy' | 'military' | 'technology' | 'ideas' | 'reforms'>('country');
   const [inspectedArmy, setInspectedArmy] = useState(0);
+  const [inspectedFleet, setInspectedFleet] = useState(0);
   const [order, setOrder] = useState<ArmyOrder | null>(null);
   const [renderer, setRenderer] = useState('');
   const [benchmarkResult, setBenchmarkResult] = useState('Loading the map…');
@@ -141,6 +143,17 @@ export function MapPage() {
       soldiers: army.soldiers,
     })) ?? [];
   }, [game?.armies, game?.countries]);
+  const fleets: FleetMarker[] = useMemo(() => {
+    const countries = new Map(game?.countries.map((country) => [country.id, country.color]));
+    return game?.fleets?.map((fleet) => ({
+      id: fleet.id,
+      province: fleet.sea_province_id,
+      destination: fleet.to_sea_province_id,
+      progress: fleet.progress,
+      color: countries.get(fleet.country_id) ?? '#ffffff',
+      ships: fleet.ships,
+    })) ?? [];
+  }, [game?.fleets, game?.countries]);
 
   const shownArmy = game?.armies?.find((army) => army.id === inspectedArmy);
   const mayTarget = Boolean(order && shownArmy && shownArmy.country_id === game?.local_country_id);
@@ -177,8 +190,14 @@ export function MapPage() {
     if (militaryEnabled && status === 'ready') viewerRef.current?.setArmies(armies);
   }, [militaryEnabled, status, armies]);
   useEffect(() => {
+    if (militaryEnabled && status === 'ready') viewerRef.current?.setFleets(fleets);
+  }, [militaryEnabled, status, fleets]);
+  useEffect(() => {
     if (militaryEnabled && status === 'ready') viewerRef.current?.setArmySelection(shownArmy?.id ?? 0, mayTarget);
   }, [militaryEnabled, status, shownArmy?.id, mayTarget]);
+  useEffect(() => {
+    if (militaryEnabled && status === 'ready') viewerRef.current?.setFleetSelection(inspectedFleet);
+  }, [militaryEnabled, status, inspectedFleet]);
 
   const ownerId = selected && game?.owners.find((owner) => owner.province_id === selected.id)?.country_id;
   const shownCountryId = inspectedCountry ?? (selected ? ownerId : game?.local_country_id ?? game?.countries[0]?.id);
@@ -212,6 +231,11 @@ export function MapPage() {
           (id) => {
             setSection('military');
             setInspectedArmy(id);
+            setOrder(null);
+          },
+          (id) => {
+            setSection('military');
+            setInspectedFleet(id);
             setOrder(null);
           },
           manualFrames,
@@ -254,7 +278,8 @@ export function MapPage() {
   }, []);
 
   return (
-    <main className="map-page" data-map-status={status} data-map-renderer={renderer} data-map-mode={mapMode}>
+    <main className="map-page" data-map-status={status} data-map-renderer={renderer} data-map-mode={mapMode}
+      data-map-selected-fleet={inspectedFleet}>
       <div className="map-viewport" data-map-viewport ref={viewport} />
       <header className="map-header map-panel">
         <h1>{mapRegion === 'europe' ? 'Europe' : 'Western Europe'}</h1>
@@ -355,6 +380,7 @@ export function MapPage() {
           <MilitaryPanel game={game} pending={hostGame.pending} provinceId={selected?.id ?? null}
             provinceIsLand={selected?.kind === 'land'} army={shownArmy} order={order}
             selectArmy={(id) => { setInspectedArmy(id); setOrder(null); }}
+            selectedFleetId={inspectedFleet}
             chooseOrder={setOrder} cancelOrder={() => setOrder(null)} provinceName={provinceName}
             send={hostGame.send} readAiLog={hostGame.readAiLog} canReadAiLog={!guest} />
         )}

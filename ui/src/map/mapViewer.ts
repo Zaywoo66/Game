@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { ArmyMarker, createArmyLayer } from './armyLayer';
+import { createFleetLayer, FleetMarker } from './fleetLayer';
 import { decodeProvinceId, MapAssets, pickProvinceId, Raster, Rgba, updateOwnerLookup } from './mapData';
 import { historicalPresentation, MapMode } from './mapPresentation';
 import { mapFragmentShader, mapVertexShader, oceanFragmentShader, oceanVertexShader } from './mapShaders';
@@ -38,6 +39,8 @@ export interface MapTestControls {
   focusProvince(id: number): void;
   setArmies(armies: readonly ArmyMarker[]): void;
   setArmySelection(id: number, targeting: boolean): void;
+  setFleets(fleets: readonly FleetMarker[]): void;
+  setFleetSelection(id: number): void;
 }
 
 interface MapViewer {
@@ -46,6 +49,8 @@ interface MapViewer {
   setOccupationColors(colors: ReadonlyMap<number, Rgba>): void;
   setArmies(armies: readonly ArmyMarker[]): void;
   setArmySelection(id: number, targeting: boolean): void;
+  setFleets(fleets: readonly FleetMarker[]): void;
+  setFleetSelection(id: number): void;
   setMapMode(mode: MapMode): void;
   setCountryLabels(labels: readonly { id: number; text: string; capital: boolean }[]): void;
   startBenchmark(): void;
@@ -82,6 +87,7 @@ export function createMapViewer(
   assets: MapAssets,
   onSelect: (id: number) => void,
   onArmySelect: (id: number) => void,
+  onFleetSelect: (id: number) => void,
   manualFrames = false,
 ): MapViewer {
   const { width, height, data } = assets.raster;
@@ -417,6 +423,7 @@ export function createMapViewer(
   }
 
   const armyLayer = createArmyLayer(scene, viewport, provinceAnchor, camera);
+  const fleetLayer = createFleetLayer(viewport, provinceAnchor, camera, onFleetSelect);
   let targeting = false;
   let press: { x: number; y: number; id: number } | null = null;
   function pointerDown(event: PointerEvent) {
@@ -481,6 +488,7 @@ export function createMapViewer(
     controls.target.z = boundedZ;
     uniforms.seconds.value = manualFrames ? 0 : (now - start) / 1_000;
     armyLayer.update(now);
+    fleetLayer.update(now);
     renderer.render(scene, camera);
     renderLabels(now);
 
@@ -536,10 +544,12 @@ export function createMapViewer(
       updateLookup(occupationBytes, occupationTexture, colors);
     },
     setArmies: armyLayer.setMarkers,
+    setFleets: fleetLayer.setMarkers,
     setArmySelection(id, orderTargeting) {
       armyLayer.select(id);
       targeting = orderTargeting;
     },
+    setFleetSelection(id) { fleetLayer.select(id); },
     setMapMode,
     setCountryLabels(labels) { countryLabels = labels; lastLabelRender = -Infinity; renderLabels(performance.now()); },
     startBenchmark,
@@ -567,7 +577,9 @@ export function createMapViewer(
       readMapMode: () => mapMode,
       focusProvince,
       setArmies: armyLayer.setMarkers,
+      setFleets: fleetLayer.setMarkers,
       setArmySelection(id, orderTargeting) { armyLayer.select(id); targeting = orderTargeting; },
+      setFleetSelection(id) { fleetLayer.select(id); },
     },
     dispose() {
       cancelAnimationFrame(frame);
@@ -579,6 +591,7 @@ export function createMapViewer(
       renderer.domElement.remove();
       labelLayer.remove();
       armyLayer.dispose();
+      fleetLayer.dispose();
       chunks.forEach(({ geometry }) => geometry.dispose());
       oceanGeometry.dispose();
       oceanMaterial.dispose();

@@ -1,11 +1,28 @@
-html, body, #root { margin: 0; width: 100%; height: 100%; font-family: system-ui, sans-serif; background: #101728; color: #f2f4fa; }
+:root {
+  --ui-color-ocean: #15232c;
+  --ui-color-panel: #142329eb;
+  --ui-color-panel-solid: #142329;
+  --ui-color-panel-raised: #182e35;
+  --ui-color-border: #78918d80;
+  --ui-color-text: #f5ebd5;
+  --ui-color-muted: #c5d2ca;
+  --ui-color-accent: #e1c48c;
+  --ui-space-1: 4px;
+  --ui-space-2: 8px;
+  --ui-space-3: 12px;
+  --ui-space-4: 16px;
+  --ui-panel-radius: 5px;
+  --ui-font-body: system-ui, sans-serif;
+  --ui-font-heading: Georgia, serif;
+}
+html, body, #root { margin: 0; width: 100%; height: 100%; font-family: var(--ui-font-body); background: #101728; color: #f2f4fa; }
 main { display: flex; flex-direction: column; height: 100%; box-sizing: border-box; padding: 20px; gap: 10px; }
 h1, p { margin: 0; }
 p { font-size: 14px; color: #a8b6cf; }
 .viewport { flex: 1; min-height: 200px; overflow: hidden; }
 .viewport canvas { display: block; }
 
-.map-page { position: relative; display: block; padding: 0; overflow: hidden; background: #15232c; }
+.map-page { position: relative; display: block; padding: 0; overflow: hidden; background: var(--ui-color-ocean); }
 .map-viewport { position: absolute; inset: 0; }
 .map-viewport canvas { display: block; width: 100%; height: 100%; cursor: grab; touch-action: none; }
 .map-viewport canvas:active { cursor: grabbing; }
@@ -18,6 +35,14 @@ p { font-size: 14px; color: #a8b6cf; }
 .map-army-badge { position: absolute; z-index: 2; transform: translate(-50%, -135%); padding: 3px 6px; border: 1px solid #c7b88d; border-radius: 5px; background: #142329ed; color: #fdf2d8; white-space: nowrap; font: 700 12px/1 system-ui, sans-serif; text-shadow: 0 1px #000; box-shadow: 0 2px 5px #0008; }
 .map-army-badge[data-selected='true'] { border-color: #ffdf80; background: #564723; }
 .map-army-path { position: absolute; height: 0; border-top: 2px dashed #ffd778; opacity: .85; transform-origin: left center; }
+.map-army-path::after { content: ''; position: absolute; right: -1px; top: -5px; border-left: 7px solid #ffd778; border-top: 4px solid transparent; border-bottom: 4px solid transparent; }
+.map-fleet-overlay { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
+.map-fleet-badge { position: absolute; z-index: 3; transform: translate(-50%, -50%); padding: 4px 7px; border: 2px solid var(--fleet-color); border-radius: 999px; background: #14313beF; color: #fdf2d8; white-space: nowrap; font: 700 12px/1 system-ui, sans-serif; text-shadow: 0 1px #000; box-shadow: 0 2px 6px #0009; pointer-events: auto; cursor: pointer; }
+.map-fleet-badge[data-selected='true'] { outline: 2px solid #ffe2a0; outline-offset: 2px; background: #564723; }
+.map-fleet-badge:focus-visible { outline: 2px solid #fff2bd; outline-offset: 3px; }
+.map-fleet-path { position: absolute; z-index: 2; height: 0; border-top: 2px dashed #8ee2e0; opacity: .9; transform-origin: left center; pointer-events: none; }
+.map-fleet-path::after { content: ''; position: absolute; right: -1px; top: -5px; border-left: 7px solid #8ee2e0; border-top: 4px solid transparent; border-bottom: 4px solid transparent; }
+.military-panel [data-selected='true'] { border-color: #e1c48c; background: #20363a; }
 
 .map-panel {
   position: absolute;
@@ -25,10 +50,10 @@ p { font-size: 14px; color: #a8b6cf; }
   box-sizing: border-box;
   max-width: calc(100% - 36px);
   padding: 13px 16px;
-  border: 1px solid #78918d66;
-  border-radius: 5px;
-  background: #142329eb;
-  color: #f5ebd5;
+  border: 1px solid var(--ui-color-border);
+  border-radius: var(--ui-panel-radius);
+  background: var(--ui-color-panel);
+  color: var(--ui-color-text);
   box-shadow: 0 4px 16px #07141b55;
   pointer-events: none;
 }

@@ -45,4 +45,20 @@ test('capture historical and terrain modes at named views', async ({ page }) => 
   await expect(page.locator('[data-map-viewport]')).toHaveAttribute('data-map-army-instances', '1', { timeout: 30_000 });
   await page.evaluate(() => window.strategyMapTest.renderFrame());
   await page.screenshot({ path: join(output, 'army-marker-demo.png'), animations: 'disabled' });
+  const seaZones = metadata.provinces.filter((province) => province.kind === 'sea')
+    .sort((left, right) => {
+      const distance = (province) => (province.centroid[0] - london.centroid[0]) ** 2
+        + (province.centroid[1] - london.centroid[1]) ** 2;
+      return distance(left) - distance(right);
+    });
+  expect(seaZones.length).toBeGreaterThanOrEqual(2);
+  await page.evaluate(({ sea, destination }) => {
+    const map = window.strategyMapTest;
+    map.setFleets([{ id: 9, province: sea, destination, progress: 350, color: '#527f9c', ships: 4 }]);
+    map.setFleetSelection(9);
+    map.renderFrame();
+  }, { sea: seaZones[0].id, destination: seaZones[1].id });
+  await expect(page.locator('.map-fleet-badge[data-fleet-id="9"]')).toBeVisible();
+  await expect(page.locator('.map-fleet-path')).toBeVisible();
+  await page.screenshot({ path: join(output, 'fleet-marker-demo.png'), animations: 'disabled' });
 });
