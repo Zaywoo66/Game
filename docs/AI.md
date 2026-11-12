@@ -44,6 +44,9 @@ military order includes a score and reason in the per-country decision log.
 In a war with supporters, L1 treats all opposing participants as enemies,
 moves and retreats supporter armies using the same validated commands, and
 leaves peace proposals and acceptance to the original war leaders.
+Automatic post-war truces block AI war declarations through the same
+`DeclareWar` validation used for human players; AI does not propose a separate
+peacetime truce.
 
 The first L2 alliance slice answers pending offers through `Command`s. A
 nonnegative opinion at or above the profile's `alliance_min_opinion` accepts.

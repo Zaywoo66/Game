@@ -135,6 +135,9 @@ interface CountryPanelProps {
 }
 
 export function CountryPanel({ game, country, pending, onSelect, send }: CountryPanelProps) {
+  const truces = (game.truces ?? []).filter((row) => (
+    country !== undefined && (row.a_id === country.id || row.b_id === country.id)
+  ));
   return (
     <section className="country-panel" aria-label="Country and rulers">
       <label className="country-picker">
@@ -151,6 +154,23 @@ export function CountryPanel({ game, country, pending, onSelect, send }: Country
             {country.name}
           </h2>
           <p>Capital · {country.capital}</p>
+          {truces.length > 0 && (
+            <section aria-label="Truces">
+              <h3>Truces</h3>
+              <ul>
+                {truces.map((truce) => {
+                  const otherId = truce.a_id === country.id ? truce.b_id : truce.a_id;
+                  const other = game.countries.find((row) => row.id === otherId);
+                  return (
+                    <li key={truce.a_id + ':' + truce.b_id}>
+                      {other?.name ?? `Country ${otherId}`} · {truce.remaining_days} days left
+                      {truce.ends_on && ` · ends ${truce.ends_on}`}
+                    </li>
+                  );
+                })}
+              </ul>
+            </section>
+          )}
           <dl className="country-economy">
             <div><dt>Treasury</dt><dd>{fixedText(country.treasury)}</dd></div>
             <div><dt>Tax rate</dt><dd>{percent(country.tax_rate)}%</dd></div>
