@@ -2,8 +2,7 @@
 import { readFileSync } from 'node:fs';
 import { defineConfig } from 'vite';
 
-const region = 'western_europe';
-const prefix = `map/${region}/`;
+const regions = ['western_europe', 'europe'];
 const files = new Map([
   ['provinces.json', 'application/json'],
   ['provinces.png', 'image/png'],
@@ -14,7 +13,7 @@ const files = new Map([
   ['polities_1440.json', 'application/json'],
 ]);
 
-function readMapAsset(file) {
+function readMapAsset(region, file) {
   return readFileSync(new URL(`../data/map/${region}/${file}`, import.meta.url));
 }
 
@@ -22,14 +21,14 @@ function mapAssets() {
   return {
     name: 'strategy-map-assets',
     configureServer(server) {
-      const route = `${server.config.base}${prefix}`;
       server.middlewares.use((request, response, next) => {
         const pathname = request.url?.split('?')[0] ?? '';
-        const file = pathname.startsWith(route) ? pathname.slice(route.length) : '';
+        const region = regions.find((item) => pathname.startsWith(`${server.config.base}map/${item}/`));
+        const file = region ? pathname.slice(`${server.config.base}map/${region}/`.length) : '';
         const type = files.get(file);
         if (!type || (request.method !== 'GET' && request.method !== 'HEAD')) return next();
         try {
-          const data = readMapAsset(file);
+          const data = readMapAsset(region, file);
           response.setHeader('Content-Type', type);
           response.setHeader('Content-Length', data.length);
           response.end(request.method === 'HEAD' ? undefined : data);
@@ -39,8 +38,8 @@ function mapAssets() {
       });
     },
     generateBundle() {
-      for (const file of files.keys()) {
-        this.emitFile({ type: 'asset', fileName: prefix + file, source: readMapAsset(file) });
+      for (const region of regions) for (const file of files.keys()) {
+        this.emitFile({ type: 'asset', fileName: `map/${region}/${file}`, source: readMapAsset(region, file) });
       }
     },
   };

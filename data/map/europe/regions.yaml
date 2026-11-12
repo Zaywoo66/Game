@@ -1,0 +1,35 @@
+schema_version: 1
+regions:
+- key: alpine_europe
+  name_key: region_alpine_europe
+  name: Alpine Europe
+- key: british_and_irish_isles
+  name_key: region_british_and_irish_isles
+  name: British and Irish Isles
+- key: eastern_atlantic
+  name_key: region_eastern_atlantic
+  name: Eastern Atlantic
+- key: iberia
+  name_key: region_iberia
+  name: Iberia
+- key: north_africa
+  name_key: region_north_africa
+  name: North Africa
+- key: north_sea
+  name_key: region_north_sea
+  name: North Sea
+- key: northern_continental_europe
+  name_key: region_northern_continental_europe
+  name: Northern Continental Europe
+- key: scandinavia
+  name_key: region_scandinavia
+  name: Scandinavia
+- key: western_continental_europe
+  name_key: region_western_continental_europe
+  name: Western Continental Europe
+- key: western_mediterranean
+  name_key: region_western_mediterranean
+  name: Western Mediterranean
+- key: europe_extension
+  name_key: region_europe_extension
+  name: Europe extension
