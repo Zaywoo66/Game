@@ -28,6 +28,7 @@ export interface MapTestControls {
   readOwnerColor(id: number): Rgba;
   readHistoricalColor(id: number): Rgba;
   readArmyPosition(id: number): [number, number, number] | null;
+  readFleetPosition(id: number): [number, number, number] | null;
   setOwnerColor(id: number, rgba: Rgba): OwnerUpdate;
   startBenchmark(): void;
   readBenchmark(): BenchmarkSample;
@@ -423,7 +424,7 @@ export function createMapViewer(
   }
 
   const armyLayer = createArmyLayer(scene, viewport, provinceAnchor, camera);
-  const fleetLayer = createFleetLayer(viewport, provinceAnchor, camera, onFleetSelect);
+  const fleetLayer = createFleetLayer(scene, viewport, provinceAnchor, camera, onFleetSelect);
   let targeting = false;
   let press: { x: number; y: number; id: number } | null = null;
   function pointerDown(event: PointerEvent) {
@@ -560,6 +561,10 @@ export function createMapViewer(
       readArmyPosition(id) {
         armyLayer.update(performance.now());
         return armyLayer.readPosition(id);
+      },
+      readFleetPosition(id) {
+        fleetLayer.update(performance.now());
+        return fleetLayer.readPosition(id);
       },
       setOwnerColor, startBenchmark, readBenchmark,
       setCameraPreset,

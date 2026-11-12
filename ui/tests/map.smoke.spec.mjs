@@ -49,6 +49,10 @@ test('fleet markers show ship counts, movement paths, and select the fleet panel
   }, seaIds);
   const fleet = page.getByRole('button', { name: 'Fleet 77, 4 ships' });
   await expect(fleet).toBeVisible();
+  await expect(page.locator('[data-map-viewport]')).toHaveAttribute('data-map-fleet-mesh-instances', '1');
+  const fleetPosition = await page.evaluate(() => window.strategyMapTest.readFleetPosition(77));
+  expect(fleetPosition).toHaveLength(3);
+  console.info('Fleet model position:', fleetPosition);
   await fleet.click();
   await expect(page.locator('main')).toHaveAttribute('data-map-selected-fleet', '77');
   await expect(fleet).toHaveAttribute('data-selected', 'true');
