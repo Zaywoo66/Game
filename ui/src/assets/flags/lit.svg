@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 3 2" role="img" aria-label="Flag of the Grand Duchy of Lithuania">
+  <rect width="3" height="2" fill="#982f39"/>
+  <g fill="#f5e9d2" stroke="#f5e9d2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M.76 1.24c-.12-.04-.2-.15-.19-.27l.09-.2.28-.09.15-.2.43.02.18.16.25.03.13.17-.07.13-.27-.04-.1.16-.3.04-.16-.05-.15.17-.1-.02.08-.2-.1-.02-.12.21-.1-.02.06-.21-.1-.01-.18.22-.1-.02.08-.23-.1-.03-.1.16-.1-.02.06-.18-.08-.1z" stroke="none"/>
+    <path d="M.92 1.16l-.03.28m.23-.25l.05.28m.23-.28l-.03.28m.22-.33l.1.3" fill="none" stroke-width=".055"/>
+    <path d="M1.23.72l.14-.15.17.05.08.14-.12.1-.2-.01z" stroke="none"/>
+    <circle cx="1.43" cy=".53" r=".09" stroke="none"/>
+    <path d="M1.49.51l.13-.22.04.02-.06.24" fill="none" stroke-width=".035"/>
+    <path d="M1.54.73l.15.04-.03.2-.16-.04z" fill="#3974a8" stroke="none"/>
+    <path d="M1.57.78v.13m-.05-.07h.1" fill="none" stroke="#f5e9d2" stroke-width=".018"/>
+  </g>
+</svg>

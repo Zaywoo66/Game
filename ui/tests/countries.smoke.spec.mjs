@@ -239,6 +239,17 @@ test('M11 Brittany displays its period-grounded ermine flag', async ({ page }) =
   await expect.poll(() => flag.evaluate((image) => image.naturalWidth)).toBeGreaterThan(0);
 });
 
+test('M11 Lithuania displays its original period-grounded rider flag', async ({ page }) => {
+  await mockHost(page, 1, {
+    localCountry: { ...local, tag: 'lit', name: 'Grand Duchy of Lithuania' },
+  });
+  await page.goto('/?verify=1&map=western_europe&verifyHost=1');
+  const flag = page.getByRole('region', { name: 'Country and rulers' }).locator('img.country-flag');
+  await expect(flag).toBeVisible({ timeout: 60_000 });
+  await expect(flag).toHaveAttribute('src', /lit(?:-[\w-]+)?\.svg/);
+  await expect.poll(() => flag.evaluate((image) => image.naturalWidth)).toBeGreaterThan(0);
+});
+
 test('M3 panels apply host deltas and issue commands without optimistic writes', async ({ page }) => {
   await mockHost(page, 1);
   await page.goto('/?verify=1&map=western_europe&verifyHost=1');

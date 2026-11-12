@@ -284,15 +284,16 @@ fn legacy_read(logical: &str) -> io::Result<Vec<u8>> {
     let legacy: Value =
         serde_json::from_str(include_str!("fixtures/western_europe_v2_ownership.json")).unwrap();
     if logical == "scenarios/1440.json" {
-        // The fixed v2 map fixture predates the Brittany and Milan content batches.
+        // The fixed v2 map fixture predates the Brittany, Milan and Lithuania content batches.
         file["countries"]
             .as_array_mut()
             .unwrap()
-            .retain(|tag| tag != "bre" && tag != "mil");
-        file["characters"]
-            .as_array_mut()
-            .unwrap()
-            .retain(|key| key != "john_v_brittany" && key != "filippo_maria_visconti");
+            .retain(|tag| tag != "bre" && tag != "lit" && tag != "mil");
+        file["characters"].as_array_mut().unwrap().retain(|key| {
+            key != "casimir_jagiellon"
+                && key != "john_v_brittany"
+                && key != "filippo_maria_visconti"
+        });
         file.as_object_mut().unwrap().remove("unowned_provinces");
         file.as_object_mut().unwrap().remove("navy");
         file["military"]["forts"] = legacy["forts"].clone();
@@ -1019,8 +1020,8 @@ fn city_map_scenario_loads_with_explicit_land_partition_and_round_trips() {
         .collect();
     assert_eq!(declared, neutral);
     assert_eq!(map.identity().version.get(), 4);
-    assert_eq!(state.polity().unwrap().countries.len(), 8);
-    assert_eq!(state.polity().unwrap().characters.len(), 15);
+    assert_eq!(state.polity().unwrap().countries.len(), 9);
+    assert_eq!(state.polity().unwrap().characters.len(), 16);
     let polity = state.polity().unwrap();
     let milan = polity
         .countries
@@ -1039,6 +1040,27 @@ fn city_map_scenario_loads_with_explicit_land_partition_and_round_trips() {
     );
     let ruler = milan.succession.ruler.unwrap();
     assert_eq!(polity.characters[&ruler].name, "Filippo Maria Visconti");
+    let (&lithuania_id, lithuania) = polity
+        .countries
+        .iter()
+        .find(|(_, country)| country.tag == "lit")
+        .unwrap();
+    assert_eq!(map.get(lithuania.capital).unwrap().key, "vilnius");
+    assert_eq!(lithuania.provinces.len(), 33);
+    assert_eq!(state.is_in_regency(lithuania_id), Some(true));
+    let lithuania_ruler = lithuania.succession.ruler.unwrap();
+    assert_eq!(
+        polity.characters[&lithuania_ruler].name,
+        "Casimir Jagiellon"
+    );
+    let lithuanian_idea = state
+        .ideas()
+        .unwrap()
+        .definitions
+        .get("lithuanian_horsemen")
+        .unwrap();
+    assert_eq!(lithuanian_idea.country, "lit");
+    assert_eq!(lithuanian_idea.name_key, "lithuanian_horsemen");
     let brittany = state
         .polity()
         .unwrap()

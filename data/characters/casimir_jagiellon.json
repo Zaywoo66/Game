@@ -1,0 +1,19 @@
+{
+  "schema_version": 2,
+  "key": "casimir_jagiellon",
+  "country": "lit",
+  "name": "Casimir Jagiellon",
+  "dynasty": "jagiellon",
+  "sex": "male",
+  "birth": [
+    1427,
+    11,
+    29
+  ],
+  "stats": {
+    "adm": 3,
+    "dip": 3,
+    "mil": 3
+  },
+  "traits": []
+}
