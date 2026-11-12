@@ -691,3 +691,15 @@ points and omitted when zero. V12 is selected when any of these vassalage
 fields is active or nonzero. V1–v11 saves without them remain readable and
 keep their original canonical bytes. LAN protocol v10 transports the v12
 snapshot and the validated vassalage commands.
+
+## Saved games (schema version 13)
+
+V13 adds `state.ideas` with catalog definitions sorted by idea key, purchased
+idea sources sorted by `(country_id, idea_key)`, and a positive next modifier
+source ID. Each definition stores its country tag, localization key, unlock
+trigger, and permanent modifiers in raw Fixed thousandths. The source list
+must reference a definition owned by that country's tag, and each country may
+purchase an idea only once. V13 retains technology, vassalage, and all earlier
+state payloads. Its hash domain is `strategy:game-state:v13` followed by NUL
+and canonical save bytes. V1–v12 remain readable without idea state. LAN
+protocol v11 transports the v13 state and the validated `UnlockIdea` command.

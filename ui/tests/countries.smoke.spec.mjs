@@ -11,6 +11,7 @@ const local = {
   treasury: '9007199254740993001', income: '12250', expenses: '7100', tax_rate: 100,
   monthly_spending: '7000', bankrupt: false, regency: true, ruler,
   heir: { ...ruler, id: 10, name: 'Matilda', age: 4 },
+  research_points: 150, known_technologies: [], known_ideas: [],
 };
 const other = {
   ...local, id: 2, tag: 'oth', name: 'Other Realm', color: '#2fc953',
@@ -18,9 +19,9 @@ const other = {
 };
 
 async function mockHost(page, provinceId, {
-  truces = [], localCountry = local, blockadedPorts = [],
+  truces = [], localCountry = local, blockadedPorts = [], ideas = [],
 } = {}) {
-  await page.addInitScript(({ initialClock, local, other, provinceId, truces, blockadedPorts }) => {
+  await page.addInitScript(({ initialClock, local, other, provinceId, truces, blockadedPorts, ideas }) => {
     const listeners = new Set();
     const commands = [];
     const calls = [];
@@ -46,6 +47,7 @@ async function mockHost(page, provinceId, {
             return {
               sequence: 9, clock: initialClock, local_country_id: local.id,
               countries: [local, other], owners: [{ province_id: provinceId, country_id: local.id }],
+              ideas,
               truces, armies: truces.length ? [] : undefined,
               max_tax_rate: 200, max_monthly_spending: '999999999999999999',
               blockaded_ports: blockadedPorts,
@@ -64,8 +66,35 @@ async function mockHost(page, provinceId, {
         },
       },
     };
-  }, { initialClock, local: localCountry, other, provinceId, truces, blockadedPorts });
+  }, { initialClock, local: localCountry, other, provinceId, truces, blockadedPorts, ideas });
 }
+
+test('M9 purchases a national idea through the host and waits for its update', async ({ page }) => {
+  const map = await page.request.get('/map/western_europe/provinces.json');
+  expect(map.ok()).toBe(true);
+  const id = (await map.json()).provinces.find(({ key }) => key === 'london').id;
+  await mockHost(page, id, { ideas: [{
+    key: 'english_longbow', country: 'tst', name_key: 'english_longbow',
+    available_countries: [1],
+    effects: [{ key: 'army_morale', value: '100', kind: 'multiplicative' }],
+  }] });
+  await page.goto('/?verify=1&map=western_europe&verifyHost=1');
+  await page.getByRole('button', { name: 'Ideas', exact: true }).click();
+  const panel = page.getByRole('region', { name: 'National ideas' });
+  const buy = panel.getByRole('button', { name: 'Unlock · 100' });
+  await expect(buy).toBeEnabled();
+  await buy.click();
+  await expect.poll(() => page.evaluate(() => window.__strategyMockHost.commands)).toEqual([{
+    type: 'unlock_idea', country_id: 1, key: 'english_longbow',
+  }]);
+  await expect(buy).toHaveText('Unlock · 100');
+  await page.evaluate(({ local, clock }) => {
+    window.__strategyMockHost.emit({ sequence: 11, clock, countries: [{
+      ...local, research_points: 50, known_ideas: ['english_longbow'],
+    }] });
+  }, { local, clock: { ...initialClock, tick: 31, date: '1440-02-01' } });
+  await expect(panel.getByRole('button', { name: 'Unlocked' })).toBeDisabled();
+});
 
 test('M6 shows active truce and blocks a war order until expiry', async ({ page }) => {
   const map = await page.request.get('/map/western_europe/provinces.json');

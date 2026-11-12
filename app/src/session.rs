@@ -121,6 +121,7 @@ struct CountryView {
     heir: Option<CharacterView>,
     research_points: Option<u32>,
     known_technologies: Vec<String>,
+    known_ideas: Vec<String>,
 }
 
 #[derive(Serialize)]
@@ -140,6 +141,22 @@ struct TechnologyView {
     pos_x: i32,
     pos_y: i32,
     effects: Vec<TechnologyEffectView>,
+}
+
+#[derive(Serialize)]
+struct IdeaEffectView {
+    key: String,
+    value: String,
+    kind: &'static str,
+}
+
+#[derive(Serialize)]
+struct IdeaView {
+    key: String,
+    country: String,
+    name_key: String,
+    available_countries: Vec<u32>,
+    effects: Vec<IdeaEffectView>,
 }
 
 #[derive(Clone, PartialEq, Eq, Serialize)]
@@ -263,6 +280,7 @@ pub(crate) struct Snapshot {
     local_country_id: Option<u32>,
     countries: Vec<CountryView>,
     technologies: Vec<TechnologyView>,
+    ideas: Vec<IdeaView>,
     pending_events: Vec<EventView>,
     owners: Vec<OwnerView>,
     max_tax_rate: i64,
@@ -387,6 +405,10 @@ pub(crate) enum UiCommand {
         war_id: u32,
     },
     UnlockTechnology {
+        country_id: u32,
+        key: String,
+    },
+    UnlockIdea {
         country_id: u32,
         key: String,
     },
@@ -541,6 +563,10 @@ impl UiCommand {
                 war: WarId::new(war_id),
             },
             Self::UnlockTechnology { country_id, key } => Command::UnlockTechnology {
+                country: CountryId::new(country_id),
+                key,
+            },
+            Self::UnlockIdea { country_id, key } => Command::UnlockIdea {
                 country: CountryId::new(country_id),
                 key,
             },
@@ -751,6 +777,7 @@ pub(crate) fn game_snapshot(state: State<'_, Mutex<Session>>) -> Result<Snapshot
         local_country_id,
         countries: session.visible_countries.values().cloned().collect(),
         technologies: technology_views(&session.game)?,
+        ideas: idea_views(&session.game),
         pending_events: event_views(&session.game, player),
         owners: session
             .visible_owners
@@ -1579,6 +1606,13 @@ fn country_views(game: &GameState) -> BTreeMap<u32, CountryView> {
                         .country(id)
                         .map(|state| state.known_technologies().map(str::to_owned).collect())
                         .unwrap_or_default(),
+                    known_ideas: game
+                        .ideas()
+                        .into_iter()
+                        .flat_map(|ideas| ideas.sources.keys())
+                        .filter(|&(country_id, _)| *country_id == id)
+                        .map(|(_, key)| key.clone())
+                        .collect(),
                 },
             )
         })
@@ -1623,6 +1657,45 @@ fn technology_views(game: &GameState) -> Result<Vec<TechnologyView>, String> {
                 pos_y: layout.position.y,
                 effects,
             })
+        })
+        .collect()
+}
+
+fn idea_views(game: &GameState) -> Vec<IdeaView> {
+    let Some(ideas) = game.ideas() else {
+        return Vec::new();
+    };
+    ideas
+        .definitions
+        .values()
+        .map(|definition| IdeaView {
+            key: definition.key.clone(),
+            country: definition.country.clone(),
+            name_key: definition.name_key.clone(),
+            available_countries: game
+                .countries()
+                .filter_map(|(id, _)| {
+                    game.country(id)
+                        .is_some_and(|country| definition.unlock.evaluate(country))
+                        .then_some(id.get())
+                })
+                .collect(),
+            effects: definition
+                .modifiers
+                .iter()
+                .map(|effect| match effect {
+                    Effect::AddModifier {
+                        key, value, kind, ..
+                    } => IdeaEffectView {
+                        key: key.as_str().to_owned(),
+                        value: value.raw().to_string(),
+                        kind: match kind {
+                            ModifierKind::Additive => "additive",
+                            ModifierKind::Multiplicative => "multiplicative",
+                        },
+                    },
+                })
+                .collect(),
         })
         .collect()
 }

@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { CountryPanel, HostControls } from '../game/CountryPanel';
 import { EventPopup } from '../game/EventPopup';
+import { IdeaPanel } from '../game/IdeaPanel';
 import { CountryView, GameSnapshot, useGameHost } from '../game/host';
 import { LanLobby } from '../game/LanLobby';
 import { lanStatusText, useLan } from '../game/lan';
@@ -94,7 +95,7 @@ export function MapPage() {
   const [mapAssets, setMapAssets] = useState<MapAssets | null>(null);
   const [mapMode, setMapMode] = useState<MapMode>('historical');
   const modeChosenByUser = useRef(false);
-  const [section, setSection] = useState<'country' | 'military' | 'technology'>('country');
+  const [section, setSection] = useState<'country' | 'military' | 'technology' | 'ideas'>('country');
   const [inspectedArmy, setInspectedArmy] = useState(0);
   const [order, setOrder] = useState<ArmyOrder | null>(null);
   const [renderer, setRenderer] = useState('');
@@ -117,6 +118,7 @@ export function MapPage() {
   }, [hasGame]);
   const militaryEnabled = game?.armies !== undefined;
   const technologyEnabled = Boolean(game?.technologies?.length);
+  const ideasEnabled = Boolean(game?.ideas?.length);
   const colors = useMemo(
     () => provinceColors(game?.owners, game?.countries),
     [game?.owners, game?.countries],
@@ -301,7 +303,7 @@ export function MapPage() {
         </p>
       )}
       <aside className={'map-inspector map-panel' + (game ? ' map-inspector--host' : '')
-        + (section === 'technology' ? ' map-inspector--technology' : '')}
+        + (section === 'technology' || section === 'ideas' ? ' map-inspector--technology' : '')}
         data-map-selected={selected?.id ?? 0}
         hidden={benchmark || status !== 'ready'}>
         <div aria-live="polite">
@@ -321,7 +323,7 @@ export function MapPage() {
             </>
           ) : <p>Click a province to inspect it</p>}
         </div>
-        {(militaryEnabled || technologyEnabled) && (
+        {(militaryEnabled || technologyEnabled || ideasEnabled) && (
           <div className="inspector-tabs" role="group" aria-label="Inspector panels">
             <button type="button" aria-pressed={section === 'country'} onClick={() => {
               setSection('country');
@@ -331,6 +333,8 @@ export function MapPage() {
               onClick={() => setSection('military')}>Military</button>}
             {technologyEnabled && <button type="button" aria-pressed={section === 'technology'}
               onClick={() => setSection('technology')}>Technology</button>}
+            {ideasEnabled && <button type="button" aria-pressed={section === 'ideas'}
+              onClick={() => setSection('ideas')}>Ideas</button>}
           </div>
         )}
         {game && section === 'country' && (
@@ -346,6 +350,10 @@ export function MapPage() {
         )}
         {game && technologyEnabled && section === 'technology' && (
           <TechnologyPanel game={game} country={shownCountry} pending={hostGame.pending}
+            send={hostGame.send} />
+        )}
+        {game && ideasEnabled && section === 'ideas' && (
+          <IdeaPanel game={game} country={shownCountry} pending={hostGame.pending}
             send={hostGame.send} />
         )}
       </aside>

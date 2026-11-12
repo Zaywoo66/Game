@@ -221,10 +221,9 @@ mod tests {
 
     fn scenario(opinion: i32) -> (GameState, CountryId, CountryId) {
         let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
-        let graph = parse_provinces(
-            &std::fs::read(root.join("data/map/europe/provinces.json")).unwrap(),
-        )
-        .unwrap();
+        let graph =
+            parse_provinces(&std::fs::read(root.join("data/map/europe/provinces.json")).unwrap())
+                .unwrap();
         let state = load_scenario(graph, root.join("data/scenarios/1440.json")).unwrap();
         let ai: Vec<_> = state
             .countries()
@@ -270,10 +269,9 @@ mod tests {
     #[test]
     fn vassal_response_uses_profile_opinion_and_strict_army_advantage() {
         let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
-        let graph = parse_provinces(
-            &std::fs::read(root.join("data/map/europe/provinces.json")).unwrap(),
-        )
-        .unwrap();
+        let graph =
+            parse_provinces(&std::fs::read(root.join("data/map/europe/provinces.json")).unwrap())
+                .unwrap();
         let scenario = load_scenario(graph, root.join("data/scenarios/1440.json")).unwrap();
         let ai: Vec<_> = scenario
             .countries()
@@ -375,10 +373,9 @@ mod tests {
     #[test]
     fn ai_reaches_ten_percent_acceptance_when_both_border_a_stronger_country() {
         let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
-        let graph = parse_provinces(
-            &std::fs::read(root.join("data/map/europe/provinces.json")).unwrap(),
-        )
-        .unwrap();
+        let graph =
+            parse_provinces(&std::fs::read(root.join("data/map/europe/provinces.json")).unwrap())
+                .unwrap();
         let scenario = load_scenario(graph, root.join("data/scenarios/1440.json")).unwrap();
         let ai: Vec<_> = scenario
             .countries()

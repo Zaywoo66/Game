@@ -2,9 +2,11 @@
 Docs: DATA_FORMATS.md, SIM_RULES.md
 
 Progress: technology YAML v1 contract, prerequisite-DAG data linter, typed
-Rust loader, and the research-point/unlock slice are implemented. National
-ideas are implemented; reforms, tech-tree UI, and needs-aware AI weights remain open. The research
-slice grants 10 points at each new calendar month, caps unspent points at
+Rust loader, research-point/unlock slice, and data-positioned technology UI
+are implemented. National ideas have tag-keyed YAML catalogs, linter coverage,
+one-time purchases, permanent modifier sources, save v13/LAN v11 transport,
+profile-weighted AI selection, and a host-command UI panel. Reforms and
+needs-aware AI weights remain open. The research slice grants 10 points at each new calendar month, caps unspent points at
 1000, and spends the stated cost through an authorized `UnlockTechnology`
 command. Technology modifiers are permanent and retain their source IDs.
 The national-idea slice adds country-tagged YAML catalogs, one-time 100-point

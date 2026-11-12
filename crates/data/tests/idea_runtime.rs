@@ -1,11 +1,11 @@
 use std::{fs, path::PathBuf};
 
-use strategy_data::{load_scenario, parse_provinces};
+use strategy_data::{load_game, load_scenario, parse_provinces, save_game, state_hash};
 use strategy_sim::{Command, CommandActor, CommandError, CountryId, IdeaError, PlayerId};
 
 fn scenario() -> strategy_sim::GameState {
     let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
-    let map = fs::read(root.join("map/western_europe/provinces.json")).unwrap();
+    let map = fs::read(root.join("map/europe/provinces.json")).unwrap();
     let graph = parse_provinces(&map).unwrap();
     load_scenario(graph, root.join("scenarios/1440.json")).unwrap()
 }
@@ -71,4 +71,13 @@ fn english_idea_requires_unlock_and_spends_shared_points_once() {
         Err(CommandError::NotCountryController(_))
             | Err(CommandError::Idea(IdeaError::WrongCountry(_)))
     ));
+    let bytes = save_game(&state).unwrap();
+    assert!(String::from_utf8_lossy(&bytes).contains("\"schema_version\":13"));
+    let restored = load_game(&bytes, state.province_graph().clone()).unwrap();
+    assert_eq!(state_hash(&restored).unwrap(), state_hash(&state).unwrap());
+    assert!(restored
+        .ideas()
+        .unwrap()
+        .sources
+        .contains_key(&(england, "english_longbow".into())));
 }

@@ -35,14 +35,12 @@ pending events from the host snapshot, resolves English keys and submits a
 validated choice command. The 20–40 event target, Russian translation, and
 multiplayer acceptance remain open.
 The M9 technology YAML contract and typed loader validate branch files, effect
-units, and the cross-branch prerequisite DAG. The research-point and unlock
-slice adds monthly points, permanent modifiers, and profile-weighted AI choices;
-The tech-tree UI projects authoritative research state, modifier sources,
-catalog positions and English labels. The national-ideas slice adds country-
-tagged YAML catalogs, one-time shared research-point purchases, permanent
-modifiers and profile-weighted AI choices. Reforms, needs-aware choices, full
-historical idea catalogs for the remaining 1440 countries, and M9 acceptance
-remain open.
+units, and the cross-branch prerequisite DAG. Research adds monthly points,
+permanent modifiers, profile-weighted AI choices and a data-positioned tree UI.
+National ideas have tag-keyed catalogs, one-time purchases, permanent modifier
+sources, save v13/LAN v11 transport, profile-weighted AI choices and a host-
+command UI panel. Reforms, needs-aware AI weights, historical idea catalogs
+for the remaining 1440 countries, and M9 acceptance remain open.
 M5b.4 camera, water, borders and terrain have browser screenshot evidence; native 1080p FPS/RAM and owner visual review remain open for M5b acceptance.
 M5b.5 map modes, historical evidence display, English fallback labels and army badges have browser checks; Russian localization, fleet UI, native performance and owner visual acceptance remain open.
 

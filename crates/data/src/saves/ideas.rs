@@ -6,7 +6,7 @@ use strategy_sim::{
     ModifierSourceId, Trigger,
 };
 
-use super::{SaveError, require_sorted};
+use super::{require_sorted, SaveError};
 
 #[derive(Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]

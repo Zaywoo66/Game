@@ -156,6 +156,16 @@ p { font-size: 14px; color: #a8b6cf; }
 .technology-node p { margin: 2px 0; font-size: 11px; color: #c5d2ca; }
 .technology-node button { margin-top: auto; }
 .technology-node .technology-reason { color: #f0b28a; }
+.idea-panel { margin-top: 11px; padding-top: 8px; border-top: 1px solid #78918d55; }
+.idea-panel h3 { margin: 4px 0; font-size: 16px; color: #f5ebd5; }
+.idea-panel > p { margin: 4px 0 10px; color: #c5d2ca; font-size: 13px; }
+.idea-card { display: grid; gap: 6px; margin: 8px 0; padding: 9px; border: 1px solid #78918d88; border-radius: 5px; background: #182c30dd; }
+.idea-card[data-idea-status='known'] { border-color: #78ad83; background: #294438; }
+.idea-card[data-idea-status='ready'] { border-color: #e1c48c; }
+.idea-card h4 { margin: 0; font-size: 14px; color: #f5ebd5; }
+.idea-card ul { margin: 0; padding-left: 18px; font-size: 12px; color: #c5d2ca; }
+.idea-card button { justify-self: start; }
+.idea-reason { margin: 0; font-size: 12px; color: #f0b28a; }
 
 .map-lan { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
 .map-lan span { color: #c5d2ca; font-size: 13px; }

@@ -13,10 +13,7 @@ fn host_ai_resolves_pending_event_by_legal_command() {
     .unwrap();
     event.trigger = Trigger::All(Vec::new());
     event.mean_time_to_happen = NonZeroU64::new(1);
-    let graph = parse_provinces(include_bytes!(
-        "../../data/map/europe/provinces.json"
-    ))
-    .unwrap();
+    let graph = parse_provinces(include_bytes!("../../data/map/europe/provinces.json")).unwrap();
     let scenario =
         std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../data/scenarios/1440.json");
     let mut state = load_scenario(graph, scenario)

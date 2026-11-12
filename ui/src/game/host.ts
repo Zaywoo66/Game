@@ -39,6 +39,7 @@ export interface CountryView {
   heir: CharacterView | null;
   research_points: number | null;
   known_technologies: string[];
+  known_ideas: string[];
 }
 
 export interface TechnologyView {
@@ -49,6 +50,14 @@ export interface TechnologyView {
   pos_x: number;
   pos_y: number;
   effects: { key: string; value: string; kind: 'additive' | 'multiplicative'; source_key: string }[];
+}
+
+export interface IdeaView {
+  key: string;
+  country: string;
+  name_key: string;
+  available_countries: number[];
+  effects: { key: string; value: string; kind: 'additive' | 'multiplicative' }[];
 }
 
 export interface ArmyView {
@@ -123,6 +132,7 @@ export interface GameSnapshot {
   local_country_id: number | null;
   countries: CountryView[];
   technologies?: TechnologyView[];
+  ideas?: IdeaView[];
   pending_events?: EventView[];
   guarantees: { guarantor_id: number; protected_id: number }[];
   truces: TruceView[];
@@ -182,7 +192,7 @@ export type GameCommand =
   | { type: 'offer_vassalage'; country_id: number; toward_id: number }
   | { type: 'accept_vassalage' | 'reject_vassalage'; country_id: number; from_id: number }
   | { type: 'release_vassal'; country_id: number; subject_id: number }
-  | { type: 'unlock_technology'; country_id: number; key: string };
+  | { type: 'unlock_technology' | 'unlock_idea'; country_id: number; key: string };
 
 interface TauriBridge {
   core: { invoke<T>(name: string, args?: Record<string, unknown>): Promise<T> };
@@ -218,6 +228,7 @@ function normalizeSnapshot(snapshot: GameSnapshot): GameSnapshot {
       tribute_received: country.tribute_received ?? '0',
       research_points: country.research_points ?? null,
       known_technologies: country.known_technologies ?? [],
+      known_ideas: country.known_ideas ?? [],
     })),
     guarantees: snapshot.guarantees ?? [],
     truces: snapshot.truces ?? [],
@@ -247,6 +258,7 @@ function applyUpdate(snapshot: GameSnapshot, update: GameUpdate): GameSnapshot {
       tribute_received: country.tribute_received ?? '0',
       research_points: country.research_points ?? null,
       known_technologies: country.known_technologies ?? [],
+      known_ideas: country.known_ideas ?? [],
     })) ?? snapshot.countries,
     pending_events: update.pending_events ?? snapshot.pending_events,
     guarantees: update.guarantees ?? snapshot.guarantees,

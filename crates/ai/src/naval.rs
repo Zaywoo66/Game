@@ -372,6 +372,7 @@ mod tests {
             ai_profiles: BTreeMap::from([(
                 "test_profile".into(),
                 FiscalAiProfile {
+                    idea_priority: 0,
                     weights: AiWeights::default(),
                     thresholds: AiThresholds::default(),
                     preferred_tax_rate: Fixed::ZERO,

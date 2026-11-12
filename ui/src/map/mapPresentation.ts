@@ -6,8 +6,10 @@ function polityColor(name: string): Rgba {
   let hash = 2166136261;
   for (const character of name) hash = Math.imul(hash ^ character.codePointAt(0)!, 16777619);
   const hue = (hash >>> 0) % 360;
-  const saturation = 0.42;
-  const lightness = 0.55;
+  // Historical polity fills should read as a calm atlas palette. The former
+  // high saturation and mid-value colors competed with province boundaries.
+  const saturation = 0.24;
+  const lightness = 0.80;
   const chroma = (1 - Math.abs(2 * lightness - 1)) * saturation;
   const segment = hue / 60;
   const secondary = chroma * (1 - Math.abs(segment % 2 - 1));
