@@ -97,6 +97,7 @@ p { font-size: 14px; color: #a8b6cf; }
 .country-picker select { flex: 1; min-width: 0; }
 .country-name { display: flex; align-items: center; gap: 7px; }
 .country-name span { flex: 0 0 10px; height: 10px; border-radius: 2px; }
+.country-flag { width: 30px; height: 20px; object-fit: cover; border: 1px solid #182e35; }
 .country-economy, .character-stats { display: grid; margin: 8px 0; gap: 6px; }
 .country-economy { grid-template-columns: 1fr 1fr; }
 .character-stats { grid-template-columns: repeat(3, 1fr); }

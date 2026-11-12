@@ -150,16 +150,14 @@ and ordered types from `sim`. Callers handle file input/output.
 
 ## Countries (`data/countries/<tag>.json`)
 
-M3 country, character, scenario and AI profile files use strict JSON with unsigned
-32-bit `schema_version: 1`. Tags and keys are ASCII snake_case strings.
+Country, scenario and AI profile files use strict JSON with unsigned 32-bit
+`schema_version: 1`; characters use version 2 as specified below. Tags and keys are ASCII snake_case strings.
 Country and character numeric IDs are assigned in sorted key order starting at 1.
 
 | Country field | Representation and unit |
 |---|---|
 | `tag` | Country key and filename stem. |
 | `name` | Nonempty display name. |
-| `sex` | Required `male` or `female`. This content value is checked against biographical sources for historical characters. |
-| `spouse` | Optional key of another character in the scenario. Both character files must point to each other; the pair must be living, adult, from different countries and of opposite sex at scenario start. Omission means no modeled spouse. |
 | `color` | Three unsigned 8-bit RGB channel values in the order red, green, blue. |
 | `capital` | Province key referring to one of this country's land provinces. |
 | `ai_profile` | Profile key. |
@@ -167,6 +165,11 @@ Country and character numeric IDs are assigned in sorted key order starting at 1
 | `start.provinces` | Unique land province keys, owned by one country at most. |
 | `start.treasury`, `start.monthly_spending` | Raw Fixed thousandths of a treasury unit. Spending is per game month. |
 | `start.tax_rate` | Raw Fixed fraction of taxable income. `250` means 25%. |
+
+The UI loads an optional licensed SVG from `ui/src/assets/flags/<tag>.svg`,
+where `<tag>` is the country's `tag` in this file. This is a static content
+asset convention; missing SVGs leave the country color swatch visible. Record
+each new SVG and its source in `docs/ASSETS.md`.
 
 ### World-map country extensions (planned for M13)
 
@@ -182,6 +185,8 @@ below.
 |---|---|
 | `key`, `country`, `dynasty` | Character filename stem, country tag, dynasty key. |
 | `name` | Nonempty display name. |
+| `sex` | Required `male` or `female`. This content value is checked against biographical sources for historical characters. |
+| `spouse` | Optional key of another character in the scenario. Both character files must point to each other; the pair must be living, adult, from different countries and of opposite sex at scenario start. Omission means no modeled spouse. |
 | `birth`, `death` | Gregorian `[year, month, day]` as in saves. Omit `death` or use null if unspecified. |
 | `stats.adm`, `stats.dip`, `stats.mil` | Whole unsigned 8-bit skill points. |
 | `traits` | Unique keys from the scenario's trait map. |

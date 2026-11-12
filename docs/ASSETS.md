@@ -7,7 +7,7 @@
 
 ## Pipeline
 - 3D: Blender headless + `bpy` scripts in `/tools/models` -> export GLB. Units < 500 triangles, shared palette texture. Base packs: Kenney, Quaternius (CC0).
-- Flags/coats of arms: parametric SVG generator in `/tools/heraldry`.
+- Flags/coats of arms: original, source-cited SVGs for now; a parametric SVG generator in `/tools/heraldry` is planned separately.
 - UI icons: SVG, open-license icon sets. Textures: Krita/GIMP, power-of-two sizes, compressed where possible.
 - Portraits: placeholders first; any generated art must be recorded here with the tool used.
 
@@ -17,6 +17,7 @@
 | `app/icons/icon.png` | Original geometric placeholder | Project team | Own work | 32×32 PNG generated for the M0 Tauri window |
 | `app/icons/icon.ico` | Converted from `app/icons/icon.png` | Project team | Own work | Windows icon resource for Tauri |
 | `ui/public/models/infantry.glb` | `tools/models/build_infantry.py` | Project team | Own work | Original helmet, shield and spear geometry exported with Blender 4.5.3 LTS. 246 triangles and one embedded 6×1 palette. |
+| `ui/src/assets/flags/bre.svg` | Original SVG based on [BnF's Jean V coin description](https://catalogue.bnf.fr/ark:/12148/cb44989244k) and [ducal seal catalog](https://medaillesetantiques.bnf.fr/ws/catalogue/app/collection/record/ark:/12148/c33gb1h34f) | Project team | Own work | Original ermine motifs, drawn from historical heraldic descriptions rather than copied imagery; no modern striped flag. The UI selects flags by country tag when a licensed SVG exists. |
 | `tools/map/inputs/western_europe/land.geojson` | [Natural Earth 5.1.2, 1:50m physical vectors](https://github.com/nvkelso/natural-earth-vector/tree/v5.1.2/geojson) | Nathaniel Vaughn Kelso, Tom Patterson and contributors | [Public domain](https://www.naturalearthdata.com/about/terms-of-use/) | Clipped to the M2 bounding box |
 | `tools/map/inputs/western_europe/lakes.geojson` | [Natural Earth 5.1.2, 1:50m physical vectors](https://github.com/nvkelso/natural-earth-vector/tree/v5.1.2/geojson) | Nathaniel Vaughn Kelso, Tom Patterson and contributors | [Public domain](https://www.naturalearthdata.com/about/terms-of-use/) | Clipped to the M2 bounding box |
 | `tools/map/inputs/western_europe/rivers.geojson` | [Natural Earth 5.1.2, 1:50m physical vectors](https://github.com/nvkelso/natural-earth-vector/tree/v5.1.2/geojson) | Nathaniel Vaughn Kelso, Tom Patterson and contributors | [Public domain](https://www.naturalearthdata.com/about/terms-of-use/) | Clipped river and lake centerlines |
