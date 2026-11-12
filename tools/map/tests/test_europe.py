@@ -55,12 +55,12 @@ class EuropeMapTests(unittest.TestCase):
                             for item in evidence["assignments"]))
 
     def test_europe_scenario_declares_new_land_neutral(self):
-        scenario = json.loads((ROOT / "data/scenarios/1440_europe.json").read_text())
+        scenario = json.loads((ROOT / "data/scenarios/1440.json").read_text())
         western = {p["id"] for p in self.west["provinces"]}
         new_land = {p["key"] for p in self.europe["provinces"]
                     if p["kind"] == "land" and p["id"] not in western}
         self.assertTrue(new_land <= set(scenario["unowned_provinces"]))
-        self.assertEqual(scenario["countries"], json.loads((ROOT / "data/scenarios/1440.json").read_text())["countries"])
+        self.assertEqual(len(scenario["countries"]), len(set(scenario["countries"])))
 
 
 if __name__ == "__main__":

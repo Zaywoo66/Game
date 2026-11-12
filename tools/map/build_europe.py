@@ -246,13 +246,19 @@ def build():
     (OUTPUT / "areas.yaml").write_bytes(yaml_bytes(areas))
     (OUTPUT / "regions.yaml").write_bytes(yaml_bytes(regions))
     (OUTPUT / "names.en.json").write_bytes(json_bytes(names, pretty=True))
-    scenario = read_json(ROOT / "data" / "scenarios" / "1440.json")
-    neutrals = set(scenario["unowned_provinces"])
+    scenario_path = ROOT / "data" / "scenarios" / "1440.json"
+    scenario = read_json(scenario_path)
+    owned = set()
+    for tag in scenario["countries"]:
+        country = read_json(ROOT / "data" / "countries" / f"{tag}.json")
+        owned.update(country["start"]["provinces"])
+    neutrals = set(scenario["unowned_provinces"]) - owned
     western_province_ids = {p["id"] for p in west_records}
     neutrals.update(record["key"] for record in provinces
-                    if record["kind"] == "land" and record["id"] not in western_province_ids)
+                    if record["kind"] == "land" and record["id"] not in western_province_ids
+                    and record["key"] not in owned)
     scenario["unowned_provinces"] = sorted(neutrals)
-    (ROOT / "data" / "scenarios" / "1440_europe.json").write_bytes(json_bytes(scenario, pretty=True))
+    scenario_path.write_bytes(json_bytes(scenario, pretty=True))
     print(f"{len(provinces)} provinces: {dict(Counter(p['kind'] for p in provinces))}; hash {metadata['map_hash']}")
 
 
