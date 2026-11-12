@@ -45,11 +45,11 @@ function mapAssets() {
   };
 }
 
-function localeAsset(name, path) {
-  const fileName = `locales/${name}.en.json`;
+function localeAsset(name, language, path) {
+  const fileName = `locales/${name}.${language}.json`;
   const readLocale = () => readFileSync(path);
   return {
-    name: `strategy-${name}-locale`,
+    name: `strategy-${name}-${language}-locale`,
     configureServer(server) {
       const route = `${server.config.base}${fileName}`;
       server.middlewares.use((request, response, next) => {
@@ -78,7 +78,8 @@ export default defineConfig({
   server: { port: 5173, strictPort: true },
   plugins: [
     mapAssets(),
-    localeAsset('events', new URL('../data/locales/events.en.json', import.meta.url)),
-    localeAsset('techs', new URL('../data/locales/techs.en.json', import.meta.url)),
+    localeAsset('events', 'en', new URL('../data/locales/events.en.json', import.meta.url)),
+    localeAsset('events', 'ru', new URL('../data/locales/events.ru.json', import.meta.url)),
+    localeAsset('techs', 'en', new URL('../data/locales/techs.en.json', import.meta.url)),
   ],
 });

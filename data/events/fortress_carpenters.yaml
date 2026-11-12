@@ -1,0 +1,14 @@
+key: fortress_carpenters
+title: event_fortress_carpenters_title
+desc: event_fortress_carpenters_desc
+trigger: {at_war: true}
+mean_time_to_happen: 24000
+options:
+  - text: event_war_approve
+    ai_weight: 3
+    effects:
+      - add_modifier: {key: army_combat, value: 75, kind: multiplicative, duration_days: 180}
+  - text: event_war_decline
+    ai_weight: 2
+    effects:
+      - add_modifier: {key: army_morale, value: 75, kind: multiplicative, duration_days: 180}

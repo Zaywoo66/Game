@@ -306,7 +306,8 @@ implemented in a separate M7 task.
 `Effect` values; `strategy_data::load_events_from_dir` reads files in filename
 order and returns a key-ordered map, rejecting duplicate event keys. Text
 fields remain localization-key references; the data linter checks their presence
-in `data/locales/events.en.json`. The Rust loader uses pinned
+in the required `data/locales/events.en.json` and in every additional
+`events.<language>.json` catalog. The Rust loader uses pinned
 `yaml_serde` 0.10.7.
 The authoritative game copies these validated definitions into its state. On
 each game day it evaluates definitions in event-key order and countries in
@@ -317,13 +318,13 @@ events wait `cooldown_days` from the resolution tick. The option index is
 zero-based. Each effect receives a unique monotonically increasing modifier
 source ID so timed modifiers can expire independently.
 
-The event locale catalog is a flat JSON mapping from ASCII snake_case keys to
-nonempty English display strings. Every `title`, `desc`, and option `text` key
-used by a valid event must be present. Duplicate keys, empty strings, and
-missing references fail data lint. Vite serves the English catalog at
-`/locales/events.en.json` in development and includes it in production UI
-builds. The popup UI consumes this route in a separate M7 task; other
-languages remain open.
+Each event locale catalog is a flat JSON mapping from ASCII snake_case keys to
+nonempty display strings in its language. English is required; every added
+language catalog must cover every referenced `title`, `desc`, and option `text`
+key. Duplicate keys, empty strings, and missing references fail data lint.
+Vite serves and packages all catalogs. The event popup selects Russian when the
+browser language is Russian and otherwise uses English; a missing selected
+catalog falls back to English.
 
 | Field | Representation and unit |
 |---|---|
@@ -360,10 +361,11 @@ options:
     effects: []
 ```
 
-The 1440 starter pack currently has three generic events in `data/events/`:
-`court_auditors`, `harvest_surplus`, and `frontier_patrol`. They use only the
+The 1440 starter pack has 20 generic events in `data/events/`. They use the
 current `at_war` trigger and existing `tax_income`, `army_combat`, and
-`army_morale` modifier keys. This content is not a historical claim.
+`army_morale` modifier keys. Generic events carry no historical claim. Their
+mean-time and cooldown values are tuned so the repeatable harvest and patrol
+events do not continually fill the player’s pending-event queue.
 
 ## Scenarios (`data/scenarios/<year>.json`)
 

@@ -17,6 +17,7 @@ RAW_FIXED = (-(1 << 63), (1 << 63) - 1, "expected a raw Fixed integer in the sig
 DURATION_DAYS = (1, (1 << 64) - 1, "expected a positive integer day count in the unsigned 64-bit range")
 DATA_SUFFIXES = {".json", ".yaml", ".yml"}
 EVENT_LOCALE = Path("locales/events.en.json")
+EVENT_LOCALE_PREFIX = "events."
 TECH_LOCALE = Path("locales/techs.en.json")
 
 
@@ -80,7 +81,7 @@ def main():
     checked = 0
     event_keys = {}
     event_references = {}
-    event_locale = None
+    event_locales = {}
     tech_locale = None
     tech_locale_references = {}
     tech_branches = {}
@@ -102,7 +103,11 @@ def main():
             text = path.read_text(encoding="utf-8")
             if suffix == ".json":
                 hook = None
-                if relative_path == EVENT_LOCALE:
+                is_event_locale_file = (
+                    relative_path.parent == Path("locales")
+                    and path.stem.startswith(EVENT_LOCALE_PREFIX)
+                )
+                if is_event_locale_file:
                     hook = unique_locale_pairs
                 elif relative_path == TECH_LOCALE:
                     hook = lambda pairs: unique_locale_pairs(pairs, "technology")
@@ -142,8 +147,15 @@ def main():
                             *(option["text"] for option in document["options"])):
                     event_references.setdefault(key, relative_path)
 
-        if relative_path == EVENT_LOCALE:
-            event_locale = document
+        is_event_locale = (
+            relative_path.parent == Path("locales")
+            and path.stem.startswith(EVENT_LOCALE_PREFIX)
+            and suffix == ".json"
+        )
+        if is_event_locale:
+            language = path.stem.removeprefix(EVENT_LOCALE_PREFIX)
+            language_name = {"en": "English", "ru": "Russian"}.get(language, language.upper())
+            event_locales[language] = document
             if not isinstance(document, dict):
                 errors.append(f"{relative_path}: expected a flat localization mapping")
                 continue
@@ -151,7 +163,7 @@ def main():
                 if not isinstance(key, str) or KEY.fullmatch(key) is None:
                     errors.append(f"{relative_path}: invalid localization key {key!r}")
                 if not isinstance(value, str) or not value.strip():
-                    errors.append(f"{relative_path}: {key}: expected nonempty English text")
+                    errors.append(f"{relative_path}: {key}: expected nonempty {language_name} text")
 
         if relative_path == TECH_LOCALE:
             tech_locale = document
@@ -255,12 +267,15 @@ def main():
     for path, government in country_governments:
         if not isinstance(government, str) or government not in known_governments:
             errors.append(f"{path}: unknown government {government!r}")
-    if event_references and event_locale is None:
+    if event_references and "en" not in event_locales:
         errors.append(f"{EVENT_LOCALE}: required for event localization keys")
-    elif isinstance(event_locale, dict):
+    for language, locale in sorted(event_locales.items()):
+        if not isinstance(locale, dict):
+            continue
         for key, source in sorted(event_references.items()):
-            if key not in event_locale:
-                errors.append(f"{source}: missing English event localization key {key}")
+            if key not in locale:
+                language_name = "English" if language == "en" else language.upper()
+                errors.append(f"{source}: missing {language_name} event localization key {key}")
     if tech_locale_references and tech_locale is None:
         errors.append(f"{TECH_LOCALE}: required for technology localization keys")
     elif isinstance(tech_locale, dict):

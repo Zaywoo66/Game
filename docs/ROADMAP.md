@@ -26,14 +26,12 @@ visual acceptance remain in progress.
 AI levels L0–L3 are delivered inside M3, M4, M6, M7–M9 (see each milestone's AI slice); M10 only completes L4.
 
 After the 5b.2 dense-map rebuild passes CI, M6–M11 may proceed while physical two-PC M5 acceptance and the remaining M5b visual/UI checks are open. M12 cannot start until M5 and M5b are accepted. Local loopback and accelerated runs support development but do not close the two-PC acceptance.
-The owner authorized independent small M6–M11 PRs in parallel on 2026-11-11. M7 has begun with the event data contract and linter; event runtime, content and multiplayer acceptance remain open.
-The M7 data loader maps event YAML to typed simulation triggers/effects. The
-event runtime adds deterministic daily firing, pending choices and AI weighted
-responses. Starter content adds three generic YAML events and an English
-localization catalog with linted references. The popup shows local-player
-pending events from the host snapshot, resolves English keys and submits a
-validated choice command. The 20–40 event target, Russian translation, and
-multiplayer acceptance remain open.
+The owner authorized independent small M6–M11 PRs in parallel on 2026-11-11.
+M7 has a typed event loader, deterministic daily firing, pending choices, AI
+weighted responses, and host-validated choice commands. Its 20-event generic
+starter pack has complete English and Russian catalogs; browser language
+selects the displayed catalog. Historical event content, an AI-only content
+run, and multiplayer acceptance remain open.
 The M9 technology YAML contract and typed loader validate branch files, effect
 units, and the cross-branch prerequisite DAG. Research adds monthly points,
 permanent modifiers, profile-weighted AI choices and a data-positioned tree UI.

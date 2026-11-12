@@ -1,0 +1,14 @@
+key: granary_inspection
+title: event_granary_inspection_title
+desc: event_granary_inspection_desc
+trigger: {not: {at_war: true}}
+mean_time_to_happen: 24000
+options:
+  - text: event_peace_approve
+    ai_weight: 4
+    effects:
+      - add_modifier: {key: tax_income, value: 75, kind: multiplicative, duration_days: 365}
+  - text: event_peace_decline
+    ai_weight: 2
+    effects:
+      - add_modifier: {key: tax_income, value: -25, kind: multiplicative, duration_days: 90}

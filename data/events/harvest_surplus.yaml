@@ -2,9 +2,9 @@ key: harvest_surplus
 title: event_harvest_surplus_title
 desc: event_harvest_surplus_desc
 trigger: {not: {at_war: true}}
-mean_time_to_happen: 720
+mean_time_to_happen: 7200
 repeatable: true
-cooldown_days: 365
+cooldown_days: 7300
 options:
   - text: event_harvest_surplus_collect
     ai_weight: 5

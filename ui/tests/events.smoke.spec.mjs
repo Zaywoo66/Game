@@ -49,3 +49,26 @@ test('M7 localized choice waits for host update and sends the chosen option', as
   }), clock);
   await expect(dialog).toHaveCount(0);
 });
+
+test('M7 event popup selects the Russian catalog for a Russian browser locale', async ({ browser }) => {
+  const context = await browser.newContext({ locale: 'ru-RU', viewport: { width: 1280, height: 900 } });
+  const page = await context.newPage();
+  await page.addInitScript(({ clock, pending }) => {
+    window.__TAURI__ = {
+      event: { async listen() { return () => undefined; } },
+      core: { async invoke(name) {
+        if (name !== 'game_snapshot') throw Error(name);
+        return {
+          sequence: 1, clock, local_country_id: 1, countries: [], owners: [],
+          max_tax_rate: 200, max_monthly_spending: '10000', pending_events: [pending],
+        };
+      } },
+    };
+  }, { clock, pending });
+  await page.goto('/?verify=1&map=western_europe&verifyHost=1');
+  const dialog = page.getByRole('dialog', { name: 'Изобильный урожай' });
+  await expect(dialog).toBeVisible({ timeout: 60_000 });
+  await expect(dialog.getByText(/Земледельцы сообщают о полных амбарах/)).toBeVisible();
+  await expect(dialog.getByRole('button', { name: 'Оставить зерно на будущее' })).toBeVisible();
+  await context.close();
+});

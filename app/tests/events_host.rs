@@ -62,7 +62,15 @@ fn host_ai_resolves_pending_event_by_legal_command() {
 fn embedded_scenario_contains_production_events() {
     let state = load_embedded_scenario().unwrap();
     let events = state.events().unwrap();
-    for key in ["court_auditors", "frontier_patrol", "harvest_surplus"] {
+    assert_eq!(events.definitions.len(), 20);
+    for key in [
+        "court_auditors",
+        "frontier_patrol",
+        "harvest_surplus",
+        "market_charter",
+        "veteran_captains",
+        "storehouse_audit",
+    ] {
         assert!(events.definitions.contains_key(key), "missing {key}");
     }
 }
