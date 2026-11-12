@@ -294,6 +294,7 @@ impl PolityState {
         previous_date: Date,
         date: Date,
         graph: &ProvinceGraph,
+        blockaded_ports: &BTreeSet<ProvinceId>,
         base_countries: &BTreeMap<CountryId, CountryState>,
     ) -> (Vec<StateChange>, Vec<PolityTickFailure>) {
         let mut changes = self.advance_characters(previous_date, date);
@@ -312,6 +313,7 @@ impl PolityState {
                 &self.rules,
                 state,
                 graph,
+                blockaded_ports,
                 base_countries[&country].modifiers(),
                 ruler_traits,
                 state.economy.policy,
@@ -330,17 +332,26 @@ impl PolityState {
     pub(crate) fn forecast(
         &self,
         country: CountryId,
-        state: &CountryPolity,
         date: Date,
         graph: &ProvinceGraph,
+        blockaded_ports: &BTreeSet<ProvinceId>,
         modifiers: &ModifierStore,
         policy: FiscalPolicy,
     ) -> Result<EconomyState, FiscalError> {
+        let state = &self.countries[&country];
         let ruler_traits = self
             .projected_succession(country, state, date)
             .ruler
             .and_then(|ruler| self.characters.get(&ruler))
             .map(|ruler| &ruler.modifiers);
-        monthly_economy(&self.rules, state, graph, modifiers, ruler_traits, policy)
+        monthly_economy(
+            &self.rules,
+            state,
+            graph,
+            blockaded_ports,
+            modifiers,
+            ruler_traits,
+            policy,
+        )
     }
 }

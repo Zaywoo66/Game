@@ -959,6 +959,53 @@ impl GameState {
             .find_map(|(&country, state)| state.provinces.contains(&province).then_some(country))
     }
 
+    /// Returns port provinces whose taxable development is closed by an
+    /// unopposed enemy fleet in an adjacent sea zone. This is derived from
+    /// current fleets and wars, so the blockade lifts immediately on relief.
+    pub fn blockaded_ports(&self) -> BTreeSet<ProvinceId> {
+        let (Some(polity), Some(wars), Some(navy)) = (self.polity(), self.war_state(), self.navy())
+        else {
+            return BTreeSet::new();
+        };
+        let mut blocked = BTreeSet::new();
+        for (&country, nation) in &polity.countries {
+            let Some((_, war)) = wars.war_for(country) else {
+                continue;
+            };
+            let Some(side) = war.side(country) else {
+                continue;
+            };
+            for &id in &nation.provinces {
+                let Some(port) = self.province_graph.get(id) else {
+                    continue;
+                };
+                if port.kind != crate::ProvinceKind::Land {
+                    continue;
+                }
+                for &sea in &port.ports {
+                    let mut hostile = false;
+                    let mut defended = false;
+                    for fleet in navy.fleets.values().filter(|fleet| fleet.sea == sea) {
+                        if war.side(fleet.country) == Some(side) {
+                            defended = true;
+                        } else if war.opposed(country, fleet.country) {
+                            hostile = true;
+                        }
+                    }
+                    if hostile && !defended {
+                        blocked.insert(id);
+                        break;
+                    }
+                }
+            }
+        }
+        blocked
+    }
+
+    pub fn is_port_blockaded(&self, province: ProvinceId) -> bool {
+        self.blockaded_ports().contains(&province)
+    }
+
     pub fn is_in_regency(&self, country: CountryId) -> Option<bool> {
         self.polity()?.is_in_regency(country, self.time.date())
     }
@@ -982,13 +1029,13 @@ impl GameState {
             .country(country)
             .ok_or(CommandError::UnknownCountry(country))?;
         let polity = self.polity().ok_or(CommandError::PolityUnavailable)?;
-        let state = &polity.countries[&country];
+        let blockaded_ports = self.blockaded_ports();
         polity
             .forecast(
                 country,
-                state,
                 self.time.date(),
                 &self.province_graph,
+                &blockaded_ports,
                 base.modifiers(),
                 policy,
             )
@@ -1941,11 +1988,17 @@ impl GameState {
                 }
             }
         }
+        let blockaded_ports = if self.time.date().components().2 == 1 {
+            self.blockaded_ports()
+        } else {
+            BTreeSet::new()
+        };
         if let Some(polity) = &mut self.polity {
             let (changes, failures) = polity.advance(
                 previous_date,
                 self.time.date(),
                 &self.province_graph,
+                &blockaded_ports,
                 &self.countries,
             );
             report.delta.changes.extend(changes);

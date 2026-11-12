@@ -17,8 +17,8 @@ const other = {
   capital: 'Other Capital', ruler: null, heir: null, regency: false,
 };
 
-async function mockHost(page, provinceId) {
-  await page.addInitScript(({ initialClock, local, other, provinceId }) => {
+async function mockHost(page, provinceId, blockadedPorts = []) {
+  await page.addInitScript(({ initialClock, local, other, provinceId, blockadedPorts }) => {
     const listeners = new Set();
     const commands = [];
     const calls = [];
@@ -45,6 +45,7 @@ async function mockHost(page, provinceId) {
               sequence: 9, clock: initialClock, local_country_id: local.id,
               countries: [local, other], owners: [{ province_id: provinceId, country_id: local.id }],
               max_tax_rate: 200, max_monthly_spending: '999999999999999999',
+              blockaded_ports: blockadedPorts,
             };
           }
           if (name === 'game_command') {
@@ -60,7 +61,7 @@ async function mockHost(page, provinceId) {
         },
       },
     };
-  }, { initialClock, local, other, provinceId });
+  }, { initialClock, local, other, provinceId, blockadedPorts });
 }
 
 test('M3 panels apply host deltas and issue commands without optimistic writes', async ({ page }) => {
@@ -139,4 +140,27 @@ test('M3 colors a province from the host ownership snapshot', async ({ page }) =
   const selected = page.locator('[data-map-selected]');
   await expect(selected).toHaveAttribute('data-map-selected', String(id));
   await expect(selected.getByText('Owner · Test Realm')).toBeVisible();
+});
+
+test('M8 shows a blocked port and clears the indicator on a host update', async ({ page }) => {
+  const map = await page.request.get('/map/western_europe/provinces.json');
+  expect(map.ok()).toBe(true);
+  const provinces = (await map.json()).provinces;
+  const id = provinces.find(({ key }) => key === 'london').id;
+  await mockHost(page, id, [id]);
+  await page.goto('/?verify=1&verifyHost=1');
+  await expect(page.locator('main[data-map-status="ready"]')).toBeVisible({ timeout: 60_000 });
+  const point = await page.evaluate((provinceId) => window.strategyMapTest.projectProvince(provinceId), id);
+  expect(point).not.toBeNull();
+  await page.mouse.click(point.x, point.y);
+  const selected = page.locator('[data-map-selected]');
+  await expect(selected).toHaveAttribute('data-map-selected', String(id));
+  await expect(selected.getByText('Blockaded · port tax income closed')).toBeVisible();
+  await page.evaluate(() => {
+    window.__strategyMockHost.emit({
+      sequence: 11, clock: { date: '1440-02-02', tick: 32, paused: false, speed: 1 },
+      countries: [], owners: [], guarantees: [], blockaded_ports: [],
+    });
+  });
+  await expect(selected.getByText('Blockaded · port tax income closed')).toHaveCount(0);
 });

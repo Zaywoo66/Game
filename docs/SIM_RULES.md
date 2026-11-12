@@ -30,6 +30,7 @@
 3. AI decisions. The host calls `ai::decide` for AI countries in ascending `CountryId` order, then validates and applies their commands.
 4. Characters (age, death, traits)
 5. Economy
+   - A port under an unopposed wartime fleet blockade contributes no tax on a monthly tick; the budget forecast uses the same current fleet positions.
 6. Diplomacy timers
 7. Armies move
 8. Combat/sieges

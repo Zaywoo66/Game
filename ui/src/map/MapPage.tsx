@@ -303,6 +303,7 @@ export function MapPage() {
               <h2>{provinceName(selected.id)}</h2>
               <p>Province {selected.id} · {nameOf(selected.kind)} · {nameOf(selected.terrain)}</p>
               {game && <p>Owner · {provinceOwner?.name ?? 'Unowned'}</p>}
+              {game?.blockaded_ports?.includes(selected.id) && <p>Blockaded · port tax income closed</p>}
               {mapMode === 'historical' && selected.kind === 'land' && (
                 <p data-historical-resolution={attribution?.resolution ?? 'unmatched'}>
                   1440 source · {attribution?.polity_name ?? 'Unknown attribution'}

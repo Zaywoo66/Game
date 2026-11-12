@@ -220,6 +220,7 @@ pub(crate) struct Snapshot {
     max_tax_rate: i64,
     max_monthly_spending: String,
     guarantees: Vec<GuaranteeView>,
+    blockaded_ports: Vec<u32>,
     armies: Vec<ArmyView>,
     fleets: Vec<FleetView>,
     wars: Vec<WarView>,
@@ -237,6 +238,7 @@ struct Update {
     countries: Vec<CountryView>,
     pending_events: Option<Vec<EventView>>,
     guarantees: Vec<GuaranteeView>,
+    blockaded_ports: Vec<u32>,
     owners: Vec<OwnerView>,
     armies: Vec<ArmyView>,
     removed_armies: Vec<u32>,
@@ -648,6 +650,12 @@ pub(crate) fn game_snapshot(state: State<'_, Mutex<Session>>) -> Result<Snapshot
         max_tax_rate: polity.rules.max_tax_rate.raw(),
         max_monthly_spending: money(polity.rules.max_monthly_spending),
         guarantees: guarantee_views(&session.game),
+        blockaded_ports: session
+            .game
+            .blockaded_ports()
+            .into_iter()
+            .map(|id| id.get())
+            .collect(),
         armies: session.military.armies.values().cloned().collect(),
         fleets: session.military.fleets.values().cloned().collect(),
         wars: session.military.wars.values().cloned().collect(),
@@ -1091,6 +1099,12 @@ fn publish(app: &AppHandle, session: &mut Session) {
         countries: changed_rows(&session.visible_countries, &countries),
         pending_events: (session.visible_events != events).then(|| events.clone()),
         guarantees: guarantee_views(&session.game),
+        blockaded_ports: session
+            .game
+            .blockaded_ports()
+            .into_iter()
+            .map(|id| id.get())
+            .collect(),
         owners: owners
             .iter()
             .filter(|(id, owner)| session.visible_owners.get(id) != Some(*owner))

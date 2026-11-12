@@ -6,10 +6,10 @@ use std::{
 use strategy_sim::{
     AiProfileKey, AiThresholds, AiWeights, Army, ArmyId, Command, CommandActor, CommandError,
     Controller, CountryId, CountryPolity, CountryState, Date, EconomyState, EdgeKind,
-    FiscalAiProfile, Fixed, Fleet, FleetId, GameState, MapIdentity, ModKey, ModifierStore,
-    NavyError, NavyState, PlayerId, PolityRules, PolityState, Province, ProvinceEdge,
-    ProvinceGraph, ProvinceId, ProvinceKind, SimTime, Speed, StateChange, SuccessionState,
-    WarRules, WarState,
+    FiscalAiProfile, FiscalPolicy, Fixed, Fleet, FleetId, GameState, MapIdentity, ModKey,
+    ModifierStore, NavyError, NavyState, PlayerId, PolityRules, PolityState, Province,
+    ProvinceEdge, ProvinceGraph, ProvinceId, ProvinceKind, SimTime, Speed, StateChange,
+    SuccessionState, WarRules, WarState,
 };
 
 const A: CountryId = CountryId::new(1);
@@ -203,6 +203,135 @@ fn setup_with_enemy(ships: u32, enemy_at_port: bool) -> GameState {
     .unwrap()
     .with_navy(navy)
     .unwrap()
+}
+
+#[test]
+fn an_unopposed_fleet_closes_port_tax_until_it_sails_away() {
+    let mut state = setup(1);
+    let policy = FiscalPolicy {
+        tax_rate: Fixed::ONE,
+        monthly_spending: Fixed::ZERO,
+    };
+    state
+        .apply(
+            CommandActor::Host(PlayerId::new(2)),
+            &Command::SetFiscalPolicy { country: B, policy },
+        )
+        .unwrap();
+    let income = |state: &GameState| {
+        state
+            .preview_monthly_economy(B, policy)
+            .unwrap()
+            .last_month
+            .unwrap()
+            .income
+    };
+    assert_eq!(income(&state), Fixed::from_raw(4_000));
+    state
+        .apply(
+            HOST,
+            &Command::DeclareWar {
+                country: A,
+                defender: B,
+                goal: ProvinceId::new(2),
+            },
+        )
+        .unwrap();
+    state
+        .apply(
+            HOST,
+            &Command::MoveFleet {
+                country: A,
+                fleet: FLEET,
+                destination: ProvinceId::new(4),
+            },
+        )
+        .unwrap();
+    for _ in 0..2 {
+        state.tick(|_, _| vec![]).unwrap();
+    }
+    assert!(state.is_port_blockaded(ProvinceId::new(2)));
+    assert!(!state.is_port_blockaded(ProvinceId::new(5)));
+    assert_eq!(income(&state), Fixed::from_raw(2_000));
+    while state.time().date() != Date::new(1440, 2, 1).unwrap() {
+        state.tick(|_, _| vec![]).unwrap();
+    }
+    assert_eq!(
+        state
+            .country_polity(B)
+            .unwrap()
+            .economy
+            .last_month
+            .unwrap()
+            .income,
+        Fixed::from_raw(2_000)
+    );
+    state
+        .apply(
+            HOST,
+            &Command::MoveFleet {
+                country: A,
+                fleet: FLEET,
+                destination: ProvinceId::new(3),
+            },
+        )
+        .unwrap();
+    for _ in 0..2 {
+        state.tick(|_, _| vec![]).unwrap();
+    }
+    assert!(!state.is_port_blockaded(ProvinceId::new(2)));
+    assert_eq!(income(&state), Fixed::from_raw(4_000));
+
+    state
+        .apply(
+            HOST,
+            &Command::MoveFleet {
+                country: A,
+                fleet: FLEET,
+                destination: ProvinceId::new(4),
+            },
+        )
+        .unwrap();
+    for _ in 0..2 {
+        state.tick(|_, _| vec![]).unwrap();
+    }
+    assert!(state.is_port_blockaded(ProvinceId::new(2)));
+    let war = *state.war_state().unwrap().wars.keys().next().unwrap();
+    state
+        .apply(
+            HOST,
+            &Command::OfferPeace {
+                country: A,
+                war,
+                cede_goal: false,
+            },
+        )
+        .unwrap();
+    state
+        .apply(
+            CommandActor::Host(PlayerId::new(2)),
+            &Command::AcceptPeace { country: B, war },
+        )
+        .unwrap();
+    assert!(!state.is_port_blockaded(ProvinceId::new(2)));
+    assert_eq!(income(&state), Fixed::from_raw(4_000));
+}
+
+#[test]
+fn same_side_fleet_in_the_zone_prevents_a_blockade() {
+    let mut state = setup_with_enemy(1, true);
+    state
+        .apply(
+            HOST,
+            &Command::DeclareWar {
+                country: A,
+                defender: B,
+                goal: ProvinceId::new(2),
+            },
+        )
+        .unwrap();
+    // B's fleet sits beside A's port, but A's own fleet defends that sea zone.
+    assert!(!state.is_port_blockaded(ProvinceId::new(1)));
 }
 
 #[test]

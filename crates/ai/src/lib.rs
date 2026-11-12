@@ -67,6 +67,7 @@ pub enum NavalReason {
     EmbarkArmy,
     SailToGoal,
     LandArmy,
+    BlockadePort,
 }
 
 impl Reason {
@@ -103,6 +104,7 @@ impl Reason {
                 NavalReason::EmbarkArmy => "EmbarkArmy",
                 NavalReason::SailToGoal => "SailToGoal",
                 NavalReason::LandArmy => "LandArmy",
+                NavalReason::BlockadePort => "BlockadePort",
             },
         }
     }
