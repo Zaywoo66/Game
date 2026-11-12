@@ -391,6 +391,48 @@ fn vassal_save_v12_preserves_bonds_and_rejects_old_or_unsorted_payloads() {
     ));
 }
 
+#[test]
+fn active_independence_war_save_requires_its_vassal_bond() {
+    let base = original();
+    let id = |tag: &str| {
+        *base
+            .polity()
+            .unwrap()
+            .countries
+            .iter()
+            .find(|(_, country)| country.tag == tag)
+            .unwrap()
+            .0
+    };
+    let (subject, overlord) = (id("por"), id("cas"));
+    let mut diplomacy = DiplomacyState::default();
+    diplomacy.vassals.insert(subject, overlord);
+    let mut state = base.with_diplomacy(diplomacy).unwrap();
+    state
+        .apply(
+            strategy_sim::CommandActor::Ai(subject),
+            &strategy_sim::Command::DeclareIndependence { country: subject },
+        )
+        .unwrap();
+    assert!(state
+        .war_state()
+        .unwrap()
+        .wars
+        .values()
+        .any(|war| war.independence));
+    let bytes = save_game(&state).unwrap();
+    assert_eq!(load_game(&bytes, graph()).unwrap(), state);
+    let mut missing: Value = serde_json::from_slice(&bytes).unwrap();
+    missing["state"]
+        .as_object_mut()
+        .unwrap()
+        .remove("diplomacy");
+    assert!(matches!(
+        load_game(&serde_json::to_vec(&missing).unwrap(), graph()),
+        Err(SaveError::InvalidDiplomacy(DiplomacyError::InvalidState))
+    ));
+}
+
 fn edited_file(path: &str, edit: impl FnOnce(&mut Value)) -> Result<GameState, ScenarioLoadError> {
     let mut value: Value = serde_json::from_slice(&legacy_read(path).unwrap()).unwrap();
     edit(&mut value);

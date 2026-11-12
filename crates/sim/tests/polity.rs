@@ -344,12 +344,14 @@ fn fiscal_overflow_reports_the_country_and_preserves_its_budget() {
         }]
     );
     assert_eq!(state.country_polity(ALPHA).unwrap().economy, previous);
+    // A failed monthly batch must not credit another country while leaving
+    // its counterparty unchanged, including when a subject pays tribute.
     assert!(state
         .country_polity(BETA)
         .unwrap()
         .economy
         .last_month
-        .is_some());
+        .is_none());
 }
 
 #[test]
