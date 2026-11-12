@@ -30,6 +30,7 @@ impl AiContext {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Reason {
     Technology,
+    NationalIdea,
     ProfileBudget,
     AvoidDebt,
     RecoverDebt,
@@ -77,6 +78,7 @@ impl Reason {
     pub fn label(self) -> &'static str {
         match self {
             Self::Technology => "Technology",
+            Self::NationalIdea => "NationalIdea",
             Self::ProfileBudget => "ProfileBudget",
             Self::AvoidDebt => "AvoidDebt",
             Self::RecoverDebt => "RecoverDebt",
@@ -199,13 +201,63 @@ pub fn decide(
                     .unwrap_or(0);
                 b_weight.cmp(&a_weight).then_with(|| a.key.cmp(&b.key))
             });
-            if let Some(definition) = choices.first() {
-                let command = Command::UnlockTechnology {
-                    country,
-                    key: definition.key.clone(),
-                };
+            let tech = choices.first().map(|definition| {
+                (
+                    profile
+                        .tech_branch_weights
+                        .get(&definition.branch)
+                        .copied()
+                        .unwrap_or(0),
+                    definition.key.as_str(),
+                )
+            });
+            let idea = state.ideas().and_then(|ideas| {
+                ideas
+                    .definitions
+                    .values()
+                    .filter(|definition| definition.country == nation.tag)
+                    .find(|definition| {
+                        state
+                            .validate_command(
+                                actor,
+                                &Command::UnlockIdea {
+                                    country,
+                                    key: definition.key.clone(),
+                                },
+                            )
+                            .is_ok()
+                    })
+            });
+            let choose_idea = idea.is_some_and(|idea| {
+                tech.is_none_or(|(weight, key)| {
+                    profile.idea_priority > weight
+                        || (profile.idea_priority == weight && idea.key.as_str() < key)
+                })
+            });
+            let decision = if choose_idea {
+                idea.map(|idea| {
+                    (
+                        Command::UnlockIdea {
+                            country,
+                            key: idea.key.clone(),
+                        },
+                        Reason::NationalIdea,
+                    )
+                })
+            } else {
+                choices.first().map(|definition| {
+                    (
+                        Command::UnlockTechnology {
+                            country,
+                            key: definition.key.clone(),
+                        },
+                        Reason::Technology,
+                    )
+                })
+            };
+            if let Some((command, reason)) = decision {
                 if state.validate_command(actor, &command).is_ok() {
-                    commands.push((command, Reason::Technology));
+                    commands.push((command, reason));
                 }
             }
         }

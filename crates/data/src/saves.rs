@@ -5,11 +5,11 @@ use serde_json::value::RawValue;
 use sha2::{Digest, Sha256};
 use strategy_sim::{
     AiProfileKey, CharacterId, Controller, CountryId, CountryState, Date, DiplomacyError,
-    DiplomacyState, Effect, EventError, Fixed, GameState, InvalidDate, InvalidSpeed, MapIdentity,
-    MapIdentityMismatch, ModKey, Modifier, ModifierInsertError, ModifierKind, ModifierSourceId,
-    ModifierStore, NavyError, Opinion, OpinionError, OpinionStateError, PlayerId, PolityError,
-    ProvinceGraph, ScheduleError, ScheduledEffect, SeededRng, SimTime, Speed, TechnologyError,
-    Tick, TimeError, TriggerView, WarError, WarState,
+    DiplomacyState, Effect, EventError, Fixed, GameState, IdeaError, InvalidDate, InvalidSpeed,
+    MapIdentity, MapIdentityMismatch, ModKey, Modifier, ModifierInsertError, ModifierKind,
+    ModifierSourceId, ModifierStore, NavyError, Opinion, OpinionError, OpinionStateError, PlayerId,
+    PolityError, ProvinceGraph, ScheduleError, ScheduledEffect, SeededRng, SimTime, Speed,
+    TechnologyError, Tick, TimeError, TriggerView, WarError, WarState,
 };
 
 use crate::provinces::decode_hash;
@@ -74,6 +74,7 @@ pub enum SaveError {
     InvalidEvent(EventError),
     InvalidNavy(NavyError),
     InvalidTechnology(TechnologyError),
+    InvalidIdea(IdeaError),
     InvalidMapHash,
     MapMismatch(MapIdentityMismatch),
     UnorderedRecords(&'static str),
@@ -129,6 +130,7 @@ impl fmt::Display for SaveError {
             Self::InvalidEvent(error) => write!(f, "invalid saved event state: {error:?}"),
             Self::InvalidNavy(error) => write!(f, "invalid saved navy state: {error:?}"),
             Self::InvalidTechnology(error) => write!(f, "invalid saved technology state: {error:?}"),
+            Self::InvalidIdea(error) => write!(f, "invalid saved idea state: {error:?}"),
             Self::InvalidMapHash => f.write_str("map_hash must be 64 lowercase hexadecimal digits"),
             Self::MapMismatch(error) => error.fmt(f),
             Self::UnorderedRecords(records) => write!(f, "{records} must be unique and sorted"),

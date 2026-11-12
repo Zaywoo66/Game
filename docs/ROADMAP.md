@@ -37,10 +37,12 @@ multiplayer acceptance remain open.
 The M9 technology YAML contract and typed loader validate branch files, effect
 units, and the cross-branch prerequisite DAG. The research-point and unlock
 slice adds monthly points, permanent modifiers, and profile-weighted AI choices;
-ideas, reforms, and needs-aware tech choices remain open.
-The tech-tree UI slice now projects authoritative research state and permanent
-modifier sources alongside the packaged data positions and English labels;
-ideas, reforms and M9 acceptance remain open.
+The tech-tree UI projects authoritative research state, modifier sources,
+catalog positions and English labels. The national-ideas slice adds country-
+tagged YAML catalogs, one-time shared research-point purchases, permanent
+modifiers and profile-weighted AI choices. Reforms, needs-aware choices, full
+historical idea catalogs for the remaining 1440 countries, and M9 acceptance
+remain open.
 M5b.4 camera, water, borders and terrain have browser screenshot evidence; native 1080p FPS/RAM and owner visual review remain open for M5b acceptance.
 M5b.5 map modes, historical evidence display, English fallback labels and army badges have browser checks; Russian localization, fleet UI, native performance and owner visual acceptance remain open.
 

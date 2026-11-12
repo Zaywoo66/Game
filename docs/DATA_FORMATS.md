@@ -243,7 +243,7 @@ reads `.yaml`/`.yml` files in filename order, returns a technology-key ordered
 map, and rejects duplicate branch files, duplicate technology keys, missing
 prerequisites and cycles. The Rust loader uses the existing pinned
 `yaml_serde` 0.10.7. The research runtime and profile-weighted AI choice are
-recorded below; ideas and reforms remain separate M9 tasks.
+recorded below.
 
 The desktop tech tree reads the validated packaged layout coordinates from
 these YAML files. Coordinates are presentation grid units and are not saved;
@@ -257,7 +257,38 @@ data linter requires nonempty entries for every referenced key and rejects
 duplicate translation keys.
 
 ## Ideas (`data/ideas/<tag>.yaml`)
-`key, name, modifiers:[{key,value,kind}], unlock: Trigger`
+
+Each country has one YAML v1 file named for its lowercase country tag. The
+root is `{schema_version: 1, country: <tag>, ideas: [...]}`. Idea keys are
+unique across files. The loader and linter reject unknown fields, duplicate
+keys, noncanonical YAML scalar tokens, and invalid modifier units.
+
+| Field | Representation and unit |
+|---|---|
+| `schema_version` | Integer schema version, exactly 1; unitless. |
+| `country` | Country tag, matching the filename stem; unitless key. |
+| `ideas[].key` | Unique ASCII snake_case idea key; unitless. |
+| `ideas[].name` | ASCII snake_case localization key for display; unitless. |
+| `ideas[].unlock` | Required Trigger in the event trigger syntax; boolean condition evaluated for the buying country at purchase. |
+| `ideas[].modifiers[].key` | ASCII snake_case modifier key; unitless. |
+| `ideas[].modifiers[].value` | Signed 64-bit raw Fixed thousandths (100 means 0.100). |
+| `ideas[].modifiers[].kind` | `additive` or `multiplicative`; unitless. |
+
+Every idea has at least one permanent modifier. A country may buy each of its
+ideas once with a validated host command for exactly 100 whole research points
+from the same stockpile as technologies. Ideas have no duration. The catalog,
+purchases, and modifier source IDs are stored in authoritative saves.
+
+```yaml
+schema_version: 1
+country: eng
+ideas:
+  - key: english_longbow
+    name: english_longbow
+    unlock: {country_has_tech: professional_officers}
+    modifiers:
+      - {key: army_morale, value: 100, kind: multiplicative}
+```
 
 ## Events (`data/events/*.yaml`)
 
@@ -434,6 +465,7 @@ Add new leaves here first, then implement.
 | `preferred_tax_rate` | Raw Fixed fraction within scenario tax limits. |
 | `preferred_monthly_spending` | Raw Fixed treasury amount per month within scenario spending limits. |
 | `tech_branch_weights` | Optional object from loaded technology branch key to whole preference points 0 through 1000. Unknown branches and out-of-range weights are rejected when the catalog is attached. Missing branch weights score zero. |
+| `idea_priority` | Optional whole preference points 0 through 1000. Missing value scores zero. Compared monthly with technology branch weights for affordable, unlocked purchases; equal scores break by ascending content key. |
 
 ## Saved games (schema version 2)
 

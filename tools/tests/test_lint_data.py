@@ -174,6 +174,18 @@ class DataLintTest(unittest.TestCase):
         self.assertIn("unknown technology branch", result.stderr)
         self.assertIn("must be a whole score 0..1000", result.stderr)
 
+    def test_rejects_invalid_national_idea_fixture(self):
+        result = run_lint("bad_idea")
+        self.assertEqual(result.returncode, 1, result)
+        self.assertIn("$.ideas[0].modifiers[0].value: expected an integer", result.stderr)
+        self.assertIn("$.ideas[1].key: duplicate idea key", result.stderr)
+        self.assertIn("$.ideas[1].modifiers[0].duration_days: unknown field", result.stderr)
+
+    def test_rejects_idea_unlock_with_missing_technology(self):
+        result = run_lint("bad_idea_reference")
+        self.assertEqual(result.returncode, 1, result)
+        self.assertIn("idea unlock references unknown technology absent_technology", result.stderr)
+
 
 def run_lint(fixture):
     test_dir = Path(__file__).resolve().parent

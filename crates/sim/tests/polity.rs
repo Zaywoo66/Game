@@ -651,6 +651,7 @@ fn setup(start: Date, edit: impl FnOnce(&mut PolityState)) -> Result<GameState, 
         preferred_tax_rate: raw(500),
         preferred_monthly_spending: raw(1_000),
         tech_branch_weights: BTreeMap::new(),
+        idea_priority: 0,
     };
     let mut polity = PolityState {
         rules: PolityRules {

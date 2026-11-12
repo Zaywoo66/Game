@@ -2,8 +2,8 @@ use std::io::{Error, ErrorKind};
 use std::{collections::BTreeMap, str};
 
 use strategy_data::{
-    load_scenario_from_reader, parse_event_yaml, parse_provinces, parse_technology_branch_yaml,
-    TechnologyDefinition,
+    load_scenario_from_reader, parse_event_yaml, parse_ideas_yaml, parse_provinces,
+    parse_technology_branch_yaml, TechnologyDefinition,
 };
 use strategy_sim::GameState;
 
@@ -58,6 +58,32 @@ pub fn load_embedded_scenario() -> Result<GameState, String> {
         state = state
             .with_technologies(technologies)
             .map_err(|error| format!("invalid technology catalog: {error:?}"))?;
+    }
+    let mut ideas = BTreeMap::new();
+    for &(path, source) in CONTENT
+        .iter()
+        .filter(|(path, _)| path.starts_with("ideas/"))
+    {
+        let yaml = str::from_utf8(source).map_err(|error| format!("{path}: {error}"))?;
+        let country = path
+            .trim_start_matches("ideas/")
+            .trim_end_matches(".yaml")
+            .trim_end_matches(".yml");
+        for definition in
+            parse_ideas_yaml(yaml, country).map_err(|error| format!("{path}: {error}"))?
+        {
+            if ideas
+                .insert(definition.key.clone(), definition.into())
+                .is_some()
+            {
+                return Err(format!("duplicate packaged idea key in {path}"));
+            }
+        }
+    }
+    if !ideas.is_empty() {
+        state = state
+            .with_ideas(ideas)
+            .map_err(|error| format!("invalid idea catalog: {error:?}"))?;
     }
     let mut events = BTreeMap::new();
     for &(path, source) in CONTENT

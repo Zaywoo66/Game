@@ -254,6 +254,8 @@ struct ProfileContentFile {
     preferred_monthly_spending: i64,
     #[serde(default)]
     tech_branch_weights: BTreeMap<String, u16>,
+    #[serde(default)]
+    idea_priority: u16,
 }
 
 /// Loads a scenario file in `data/scenarios/` with its referenced content.
@@ -272,7 +274,7 @@ pub fn load_scenario(graph: ProvinceGraph, scenario_path: impl AsRef<Path>) -> R
         .filter(|parent| parent.file_name().is_some_and(|name| name == "scenarios"))
         .and_then(Path::parent)
         .ok_or_else(|| invalid("scenario path must be inside a scenarios directory"))?;
-    let state = load_scenario_from_reader(graph, scenario_key, |relative| {
+    let mut state = load_scenario_from_reader(graph, scenario_key, |relative| {
         fs::read(root.join(relative))
     })?;
     let technology_dir = root.join("techs");
@@ -282,12 +284,22 @@ pub fn load_scenario(graph: ProvinceGraph, scenario_path: impl AsRef<Path>) -> R
             .into_iter()
             .map(|(key, definition)| (key, definition.into()))
             .collect();
-        state
+        state = state
             .with_technologies(definitions)
-            .map_err(|error| invalid(format!("invalid technology catalog: {error:?}")))
-    } else {
-        Ok(state)
+            .map_err(|error| invalid(format!("invalid technology catalog: {error:?}")))?;
     }
+    let idea_dir = root.join("ideas");
+    if idea_dir.is_dir() {
+        let definitions = crate::load_ideas_from_dir(&idea_dir)
+            .map_err(|error| invalid(error.to_string()))?
+            .into_iter()
+            .map(|(key, definition)| (key, definition.into()))
+            .collect();
+        state = state
+            .with_ideas(definitions)
+            .map_err(|error| invalid(format!("invalid idea catalog: {error:?}")))?;
+    }
+    Ok(state)
 }
 
 /// Loads the same scenario from embedded assets or a filesystem resolver.
@@ -438,6 +450,7 @@ pub fn load_scenario_from_reader(
                 preferred_tax_rate: profile.preferred_tax_rate,
                 preferred_monthly_spending: profile.preferred_monthly_spending,
                 tech_branch_weights: profile.tech_branch_weights,
+                idea_priority: profile.idea_priority,
             }
             .restore();
             profiles.insert(key, profile);

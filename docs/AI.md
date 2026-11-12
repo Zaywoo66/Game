@@ -118,6 +118,11 @@ It chooses one affordable technology whose prerequisites are all known, using
 the profile's `tech_branch_weights`; equal scores use ascending technology key.
 It submits `UnlockTechnology` through the same validation as a human. The
 separate M9 needs-aware choice slice will add war/economy factors.
+National ideas compete with technologies for one monthly purchase from the
+shared research stockpile. The profile's `idea_priority` is compared with
+`tech_branch_weights`; equal scores use the ascending idea or technology key.
+The AI submits `UnlockIdea` through the same validation as a human and never
+buys an idea for another country.
 
 Each layer scores candidate actions: `score = sum(weight_i * factor_i)` with factors computed from state (strength ratio, distance, opinion, war score, treasury, threats). Highest score above a threshold wins; ties broken by `CountryId`/stable order then RNG.
 

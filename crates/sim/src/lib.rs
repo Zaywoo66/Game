@@ -4,6 +4,7 @@ mod diplomacy;
 mod effect;
 mod events;
 mod fixed;
+mod ideas;
 mod ids;
 mod modifiers;
 mod navy;
@@ -23,6 +24,7 @@ pub use events::{
     event_rng, ConditionalAiWeight, EventDefinition, EventError, EventOption, EventState,
 };
 pub use fixed::Fixed;
+pub use ideas::{IdeaDefinition, IdeaError, IdeaState, IDEA_COST};
 pub use ids::{ArmyId, CharacterId, CountryId, FleetId, PlayerId, ProvinceId, WarId};
 pub use modifiers::{
     effective_value, ModKey, Modifier, ModifierInsertError, ModifierKind, ModifierSourceId,

@@ -1,6 +1,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use crate::modifiers::effective_value_from;
+use crate::province_graph::is_content_key;
 use crate::war::{MilitaryAction, MilitaryBonuses, MilitaryOrder};
 use crate::{
     Army, ArmyId, MilitaryTickFailure, MovementLeg, Siege, War, WarError, WarId, WarState,
@@ -10,11 +11,12 @@ use crate::{Fleet, FleetId, FleetMovement, NavyError, NavyState, ProvinceEdge};
 use crate::{
     CharacterId, CharacterState, CountryId, CountryPolity, Date, DiplomacyError, DiplomacyState,
     EconomyState, EdgeKind, Effect, EffectError, EventDefinition, EventError, EventState,
-    FiscalError, FiscalPolicy, Fixed, MapIdentity, MarriageError, ModKey, Modifier,
-    ModifierInsertError, ModifierSourceId, ModifierStore, Opinion, OpinionStateError, PlayerId,
-    PolityError, PolityState, PolityTickFailure, PreparedModifier, ProvinceGraph, ProvinceId,
-    SeededRng, Sex, SimTime, Speed, SuccessionState, TechnologyDefinition, TechnologyError,
-    TechnologyState, Tick, TimeActor, TimeCommand, TimeError, TriggerView,
+    FiscalError, FiscalPolicy, Fixed, IdeaDefinition, IdeaError, IdeaState, MapIdentity,
+    MarriageError, ModKey, Modifier, ModifierInsertError, ModifierSourceId, ModifierStore, Opinion,
+    OpinionStateError, PlayerId, PolityError, PolityState, PolityTickFailure, PreparedModifier,
+    ProvinceGraph, ProvinceId, SeededRng, Sex, SimTime, Speed, SuccessionState,
+    TechnologyDefinition, TechnologyError, TechnologyState, Tick, TimeActor, TimeCommand,
+    TimeError, Trigger, TriggerView, IDEA_COST,
 };
 
 /// Reference to a scenario's data-driven AI profile.
@@ -155,6 +157,10 @@ pub enum Command {
         country: CountryId,
         key: String,
     },
+    UnlockIdea {
+        country: CountryId,
+        key: String,
+    },
     OfferRoyalMarriage {
         country: CountryId,
         character: CharacterId,
@@ -213,6 +219,7 @@ pub enum CommandError {
     Diplomacy(DiplomacyError),
     Event(EventError),
     Technology(TechnologyError),
+    Idea(IdeaError),
     Marriage(MarriageError),
     InvalidHeir {
         country: CountryId,
@@ -245,6 +252,11 @@ pub enum StateChange {
         points: u32,
     },
     TechnologyUnlocked {
+        country: CountryId,
+        key: String,
+        source: ModifierSourceId,
+    },
+    IdeaUnlocked {
         country: CountryId,
         key: String,
         source: ModifierSourceId,
@@ -502,6 +514,7 @@ pub struct GameState {
     diplomacy: Option<DiplomacyState>,
     events: Option<EventState>,
     technology: Option<TechnologyState>,
+    ideas: Option<IdeaState>,
     polity: Option<PolityState>,
     war_state: Option<WarState>,
     navy: Option<NavyState>,
@@ -529,6 +542,7 @@ enum PreparedCommand<'a> {
     ),
     Marriage(MarriageAction),
     UnlockTechnology(CountryId, &'a str, ModifierSourceId, Vec<Modifier>),
+    UnlockIdea(CountryId, &'a str, ModifierSourceId, Vec<Modifier>),
 }
 
 enum DiplomacyAction {
@@ -618,6 +632,7 @@ impl GameState {
             diplomacy: None,
             events: None,
             technology: None,
+            ideas: None,
             polity: None,
             war_state: None,
             navy: None,
@@ -983,6 +998,135 @@ impl GameState {
 
     pub fn research_points(&self, country: CountryId) -> Option<u32> {
         self.technology.as_ref()?.points.get(&country).copied()
+    }
+
+    /// Attaches the validated national-idea catalog to a game with research points.
+    pub fn with_ideas(
+        mut self,
+        definitions: BTreeMap<String, IdeaDefinition>,
+    ) -> Result<Self, IdeaError> {
+        if self.ideas.is_some() {
+            return Err(IdeaError::AlreadyConfigured);
+        }
+        if definitions.is_empty() {
+            return Err(IdeaError::EmptyCatalog);
+        }
+        if self.technology.is_none() || self.polity.is_none() {
+            return Err(IdeaError::InvalidDefinition(
+                "research and polity are required".into(),
+            ));
+        }
+        let polity = self.polity.as_ref().expect("checked polity");
+        fn valid_trigger(trigger: &Trigger, tech: &TechnologyState) -> bool {
+            match trigger {
+                Trigger::All(children) | Trigger::Any(children) => {
+                    children.iter().all(|child| valid_trigger(child, tech))
+                }
+                Trigger::Not(child) => valid_trigger(child, tech),
+                Trigger::CountryHasTech(key) => tech.definitions.contains_key(key),
+                Trigger::AtWar(_) => true,
+            }
+        }
+        let technology = self.technology.as_ref().expect("checked research");
+        for (key, idea) in &definitions {
+            if key != &idea.key
+                || !is_content_key(key)
+                || !is_content_key(&idea.name_key)
+                || idea.modifiers.is_empty()
+                || !polity
+                    .countries
+                    .values()
+                    .any(|country| country.tag == idea.country)
+                || !valid_trigger(&idea.unlock, technology)
+                || idea.modifiers.iter().any(|modifier| {
+                    let Effect::AddModifier {
+                        key, duration_days, ..
+                    } = modifier;
+                    !is_content_key(key.as_str())
+                        || duration_days.is_some()
+                        || modifier.prepare(ModifierSourceId::new(1), 0).is_err()
+                })
+            {
+                return Err(IdeaError::InvalidDefinition(key.clone()));
+            }
+        }
+        let next = self
+            .highest_modifier_source()
+            .checked_add(1)
+            .ok_or(IdeaError::ModifierSourceExhausted)?
+            .max(
+                self.technology
+                    .as_ref()
+                    .expect("checked research")
+                    .next_source_id,
+            )
+            .max(
+                self.events
+                    .as_ref()
+                    .map_or(1, |events| events.next_source_id),
+            );
+        self.ideas = Some(IdeaState {
+            definitions,
+            sources: BTreeMap::new(),
+            next_source_id: next,
+        });
+        Ok(self)
+    }
+
+    pub fn ideas(&self) -> Option<&IdeaState> {
+        self.ideas.as_ref()
+    }
+
+    /// Restores purchased ideas and checks their modifier sources against the catalog.
+    pub fn with_idea_state(mut self, ideas: IdeaState) -> Result<Self, IdeaError> {
+        let definitions = ideas.definitions.clone();
+        self = self.with_ideas(definitions)?;
+        let mut unique = BTreeSet::new();
+        for ((country, key), source) in &ideas.sources {
+            let Some(idea) = ideas.definitions.get(key) else {
+                return Err(IdeaError::InvalidSavedState);
+            };
+            let Some(polity) = self.polity.as_ref().and_then(|p| p.countries.get(country)) else {
+                return Err(IdeaError::InvalidSavedState);
+            };
+            if idea.country != polity.tag
+                || source.get() == 0
+                || source.get() >= ideas.next_source_id
+                || !unique.insert(*source)
+            {
+                return Err(IdeaError::InvalidSavedState);
+            }
+            let expected = idea
+                .modifiers
+                .iter()
+                .map(|effect| {
+                    effect
+                        .prepare(*source, self.time.tick().get())
+                        .ok()
+                        .map(|grant| grant.modifier)
+                })
+                .collect::<Option<Vec<_>>>();
+            if expected.as_deref()
+                != self.countries[country]
+                    .modifiers
+                    .sources()
+                    .find(|(id, _, _)| id == source)
+                    .and_then(|(_, expiry, modifiers)| expiry.is_none().then_some(modifiers))
+            {
+                return Err(IdeaError::InvalidSavedState);
+            }
+        }
+        if ideas.next_source_id
+            < self
+                .ideas
+                .as_ref()
+                .expect("configured ideas")
+                .next_source_id
+        {
+            return Err(IdeaError::InvalidSavedState);
+        }
+        self.ideas = Some(ideas);
+        Ok(self)
     }
 
     fn highest_modifier_source(&self) -> u32 {
@@ -1658,6 +1802,9 @@ impl GameState {
                 if let Some(events) = &mut self.events {
                     events.next_source_id = events.next_source_id.max(technology.next_source_id);
                 }
+                if let Some(ideas) = &mut self.ideas {
+                    ideas.next_source_id = ideas.next_source_id.max(technology.next_source_id);
+                }
                 let base = self.countries.get_mut(&country).expect("validated country");
                 base.known_technologies.insert(key.into());
                 base.modifiers
@@ -1677,6 +1824,43 @@ impl GameState {
                     });
                 }
                 delta.changes.push(StateChange::TechnologyUnlocked {
+                    country,
+                    key: key.into(),
+                    source,
+                });
+            }
+            PreparedCommand::UnlockIdea(country, key, source, modifiers) => {
+                let ideas = self.ideas.as_mut().expect("validated idea catalog");
+                ideas.sources.insert((country, key.into()), source);
+                ideas.next_source_id = source.get().checked_add(1).expect("validated source");
+                let technology = self.technology.as_mut().expect("shared research points");
+                let points = technology
+                    .points
+                    .get_mut(&country)
+                    .expect("validated country");
+                *points -= IDEA_COST;
+                technology.next_source_id = technology.next_source_id.max(ideas.next_source_id);
+                if let Some(events) = &mut self.events {
+                    events.next_source_id = events.next_source_id.max(ideas.next_source_id);
+                }
+                let base = self.countries.get_mut(&country).expect("validated country");
+                base.modifiers
+                    .insert_source(source, None, modifiers.clone())
+                    .expect("validated source");
+                delta.changes.push(StateChange::ResearchPointsChanged {
+                    country,
+                    points: *points,
+                });
+                for modifier in modifiers {
+                    delta.changes.push(StateChange::ModifierSourceActivated {
+                        country,
+                        grant: PreparedModifier {
+                            modifier,
+                            expires_at: None,
+                        },
+                    });
+                }
+                delta.changes.push(StateChange::IdeaUnlocked {
                     country,
                     key: key.into(),
                     source,
@@ -1890,6 +2074,71 @@ impl GameState {
                     })
                     .collect::<Result<Vec<_>, _>>()?;
                 Ok(PreparedCommand::UnlockTechnology(
+                    *country, key, source, modifiers,
+                ))
+            }
+            Command::UnlockIdea { country, key } => {
+                self.authorized_country(actor, *country)?;
+                let ideas = self
+                    .ideas
+                    .as_ref()
+                    .ok_or_else(|| CommandError::Idea(IdeaError::UnknownIdea(key.clone())))?;
+                let idea = ideas
+                    .definitions
+                    .get(key)
+                    .ok_or_else(|| CommandError::Idea(IdeaError::UnknownIdea(key.clone())))?;
+                let polity = self
+                    .polity
+                    .as_ref()
+                    .and_then(|polity| polity.countries.get(country))
+                    .ok_or(CommandError::PolityUnavailable)?;
+                if polity.tag != idea.country {
+                    return Err(CommandError::Idea(IdeaError::WrongCountry(key.clone())));
+                }
+                if ideas.sources.contains_key(&(*country, key.clone())) {
+                    return Err(CommandError::Idea(IdeaError::AlreadyKnown(key.clone())));
+                }
+                if !idea.unlock.evaluate(&self.countries[country]) {
+                    return Err(CommandError::Idea(IdeaError::Locked(key.clone())));
+                }
+                let available = self.research_points(*country).unwrap_or(0);
+                if available < IDEA_COST {
+                    return Err(CommandError::Idea(IdeaError::InsufficientPoints {
+                        available,
+                    }));
+                }
+                let next = self
+                    .highest_modifier_source()
+                    .checked_add(1)
+                    .ok_or(CommandError::Idea(IdeaError::ModifierSourceExhausted))?
+                    .max(ideas.next_source_id)
+                    .max(
+                        self.technology
+                            .as_ref()
+                            .expect("idea research points")
+                            .next_source_id,
+                    )
+                    .max(
+                        self.events
+                            .as_ref()
+                            .map_or(1, |events| events.next_source_id),
+                    );
+                next.checked_add(1)
+                    .ok_or(CommandError::Idea(IdeaError::ModifierSourceExhausted))?;
+                let source = ModifierSourceId::new(next);
+                let modifiers = idea
+                    .modifiers
+                    .iter()
+                    .map(|effect| {
+                        effect
+                            .prepare(source, self.time.tick().get())
+                            .map(|grant| grant.modifier)
+                            .map_err(|_| {
+                                CommandError::Idea(IdeaError::InvalidDefinition(key.clone()))
+                            })
+                    })
+                    .collect::<Result<Vec<_>, _>>()?;
+                Ok(PreparedCommand::UnlockIdea(
                     *country, key, source, modifiers,
                 ))
             }

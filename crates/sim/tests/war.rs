@@ -1550,6 +1550,7 @@ fn setup_internal(
                 preferred_tax_rate: Fixed::ZERO,
                 preferred_monthly_spending: Fixed::ZERO,
                 tech_branch_weights: BTreeMap::new(),
+                idea_priority: 0,
             },
         )]),
     };

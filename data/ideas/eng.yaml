@@ -1,0 +1,8 @@
+schema_version: 1
+country: eng
+ideas:
+  - key: english_longbow
+    name: english_longbow
+    unlock: {country_has_tech: professional_officers}
+    modifiers:
+      - {key: army_morale, value: 100, kind: multiplicative}

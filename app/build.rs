@@ -39,6 +39,21 @@ fn embed_game_data() -> std::io::Result<()> {
             }
         }
     }
+    let ideas = root.join("ideas");
+    println!("cargo:rerun-if-changed={}", ideas.display());
+    if ideas.is_dir() {
+        for entry in fs::read_dir(ideas)? {
+            let entry = entry?;
+            if entry.file_type()?.is_file()
+                && entry
+                    .path()
+                    .extension()
+                    .is_some_and(|ext| ext == "yaml" || ext == "yml")
+            {
+                paths.push(format!("ideas/{}", entry.file_name().to_string_lossy()));
+            }
+        }
+    }
     let events = root.join("events");
     println!("cargo:rerun-if-changed={}", events.display());
     if events.is_dir() {

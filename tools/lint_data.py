@@ -9,6 +9,7 @@ import yaml
 
 from event_schema import KEY, noncanonical_scalar_tokens, validate_event
 from tech_schema import validate_prerequisites, validate_tech_branch
+from idea_schema import technology_references, validate_ideas
 
 
 RAW_FIXED = (-(1 << 63), (1 << 63) - 1, "expected a raw Fixed integer in the signed 64-bit range")
@@ -84,6 +85,8 @@ def main():
     tech_branches = {}
     tech_keys = {}
     tech_graph = {}
+    idea_keys = {}
+    idea_tech_refs = []
     ai_profiles = []
     for path in sorted(root.rglob("*")):
         suffix = path.suffix.lower()
@@ -192,10 +195,28 @@ def main():
                         if isinstance(modifier, dict) and isinstance(modifier.get("key"), str):
                             tech_locale_references[f"modifier.{modifier['key']}"] = relative_path
 
+        if relative_path.parts[0] == "ideas":
+            if suffix not in {".yaml", ".yml"}:
+                errors.append(f"{relative_path}: ideas must use YAML")
+                continue
+            errors.extend(f"{relative_path}: {error}" for error in noncanonical_scalar_tokens(text))
+            idea_errors, keys = validate_ideas(document, path.stem)
+            errors.extend(f"{relative_path}: {error}" for error in idea_errors)
+            for key in keys:
+                if key in idea_keys:
+                    errors.append(f"{relative_path}: duplicate idea key {key} also in {idea_keys[key]}")
+                else:
+                    idea_keys[key] = relative_path
+            if not idea_errors:
+                idea_tech_refs.extend((relative_path, key) for key in technology_references(document))
+
         if relative_path.parts[:2] == ("ai", "profiles"):
             ai_profiles.append((relative_path, document))
 
     errors.extend(f"techs: {error}" for error in validate_prerequisites(tech_graph))
+    for source, key in idea_tech_refs:
+        if key not in tech_keys:
+            errors.append(f"{source}: idea unlock references unknown technology {key}")
     for profile_path, profile in ai_profiles:
         if not isinstance(profile, dict):
             errors.append(f"{profile_path}: expected a profile object")
@@ -209,6 +230,9 @@ def main():
                 errors.append(f"{profile_path}: unknown technology branch {branch!r}")
             if type(weight) is not int or not 0 <= weight <= 1000:
                 errors.append(f"{profile_path}: tech_branch_weights.{branch} must be a whole score 0..1000")
+        idea_priority = profile.get("idea_priority", 0)
+        if type(idea_priority) is not int or not 0 <= idea_priority <= 1000:
+            errors.append(f"{profile_path}: idea_priority must be a whole score 0..1000")
     if event_references and event_locale is None:
         errors.append(f"{EVENT_LOCALE}: required for event localization keys")
     elif isinstance(event_locale, dict):

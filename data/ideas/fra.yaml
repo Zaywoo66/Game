@@ -1,0 +1,8 @@
+schema_version: 1
+country: fra
+ideas:
+  - key: french_crown_lands
+    name: french_crown_lands
+    unlock: {country_has_tech: recordkeeping}
+    modifiers:
+      - {key: tax_income, value: 100, kind: multiplicative}

@@ -68,6 +68,8 @@ pub struct FiscalAiProfile {
     pub preferred_monthly_spending: Fixed,
     /// Content branch keys mapped to whole AI preference points (0..=1000).
     pub tech_branch_weights: BTreeMap<String, u16>,
+    /// Whole preference points for an affordable national idea (0..=1000).
+    pub idea_priority: u16,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -167,6 +169,7 @@ impl PolityState {
                     .tech_branch_weights
                     .iter()
                     .any(|(branch, weight)| !is_content_key(branch) || *weight > 1000)
+                || profile.idea_priority > 1000
                 || self
                     .rules
                     .check_policy(FiscalPolicy {
