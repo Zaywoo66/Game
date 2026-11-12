@@ -273,6 +273,7 @@ mod tests {
             score: 0,
             occupations: BTreeMap::new(),
             offer: None,
+            independence: false,
         };
         let mut navy = NavyState {
             fleets: BTreeMap::from([
@@ -375,6 +376,7 @@ mod tests {
                     thresholds: AiThresholds::default(),
                     preferred_tax_rate: Fixed::ZERO,
                     preferred_monthly_spending: Fixed::ZERO,
+                    tech_branch_weights: BTreeMap::new(),
                 },
             )]),
         };
@@ -413,6 +415,7 @@ mod tests {
                 score: 0,
                 occupations: BTreeMap::new(),
                 offer: None,
+                independence: false,
             },
         );
         wars.next_war_id = 2;

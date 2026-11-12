@@ -71,6 +71,7 @@ fn war() -> War {
         score: 0,
         occupations: BTreeMap::new(),
         offer: None,
+        independence: false,
     }
 }
 
