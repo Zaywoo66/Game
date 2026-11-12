@@ -1,0 +1,9 @@
+schema_version: 1
+branch: military
+technologies:
+  - key: professional_officers
+    cost: 250
+    requires: [recordkeeping]
+    pos: {x: 1, y: 0}
+    effects:
+      - add_modifier: {key: army_morale, value: 50, kind: additive}

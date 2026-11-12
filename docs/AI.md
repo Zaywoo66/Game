@@ -98,6 +98,12 @@ and diplomacy state. Timing varies by host and is excluded from state hashes.
 | Events | on event | pick option by `ai_weight` + profile |
 | Ruler | on trigger | marriages, heirs, regency choices |
 
+The first technology AI slice runs on the first day of each calendar month.
+It chooses one affordable technology whose prerequisites are all known, using
+the profile's `tech_branch_weights`; equal scores use ascending technology key.
+It submits `UnlockTechnology` through the same validation as a human. The
+separate M9 needs-aware choice slice will add war/economy factors.
+
 Each layer scores candidate actions: `score = sum(weight_i * factor_i)` with factors computed from state (strength ratio, distance, opinion, war score, treasury, threats). Highest score above a threshold wins; ties broken by `CountryId`/stable order then RNG.
 
 ## Scheduling and budget

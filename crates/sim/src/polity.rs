@@ -60,12 +60,14 @@ pub struct AiThresholds {
 }
 
 /// Scenario policy preferences. Bot decisions stay in the AI crate.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct FiscalAiProfile {
     pub weights: AiWeights,
     pub thresholds: AiThresholds,
     pub preferred_tax_rate: Fixed,
     pub preferred_monthly_spending: Fixed,
+    /// Content branch keys mapped to whole AI preference points (0..=1000).
+    pub tech_branch_weights: BTreeMap<String, u16>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -161,6 +163,10 @@ impl PolityState {
         for (key, profile) in &self.ai_profiles {
             if !is_content_key(key)
                 || !profile.weights.is_valid()
+                || profile
+                    .tech_branch_weights
+                    .iter()
+                    .any(|(branch, weight)| !is_content_key(branch) || *weight > 1000)
                 || self
                     .rules
                     .check_policy(FiscalPolicy {

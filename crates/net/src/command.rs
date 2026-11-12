@@ -106,6 +106,10 @@ pub enum PlayerCommand {
         key: String,
         option: u32,
     },
+    UnlockTechnology {
+        country: u32,
+        key: String,
+    },
     OfferRoyalMarriage {
         country: u32,
         character: u32,
@@ -311,6 +315,10 @@ impl From<&Command> for PlayerCommand {
                 key: key.clone(),
                 option: *option,
             },
+            Command::UnlockTechnology { country, key } => Self::UnlockTechnology {
+                country: country.get(),
+                key: key.clone(),
+            },
             Command::OfferRoyalMarriage {
                 country,
                 character,
@@ -511,6 +519,10 @@ impl TryFrom<PlayerCommand> for Command {
                 country: CountryId::new(country),
                 key,
                 option,
+            },
+            PlayerCommand::UnlockTechnology { country, key } => Self::UnlockTechnology {
+                country: CountryId::new(country),
+                key,
             },
             PlayerCommand::OfferRoyalMarriage {
                 country,

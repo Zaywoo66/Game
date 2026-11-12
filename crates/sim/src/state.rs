@@ -10,10 +10,11 @@ use crate::{Fleet, FleetId, FleetMovement, NavyError, NavyState, ProvinceEdge};
 use crate::{
     CharacterId, CharacterState, CountryId, CountryPolity, Date, DiplomacyError, DiplomacyState,
     EconomyState, EdgeKind, Effect, EffectError, EventDefinition, EventError, EventState,
-    FiscalError, FiscalPolicy, Fixed, MapIdentity, MarriageError, ModKey, ModifierInsertError,
-    ModifierSourceId, ModifierStore, Opinion, OpinionStateError, PlayerId, PolityError,
-    PolityState, PolityTickFailure, PreparedModifier, ProvinceGraph, ProvinceId, SeededRng, Sex,
-    SimTime, Speed, SuccessionState, Tick, TimeActor, TimeCommand, TimeError, TriggerView,
+    FiscalError, FiscalPolicy, Fixed, MapIdentity, MarriageError, ModKey, Modifier,
+    ModifierInsertError, ModifierSourceId, ModifierStore, Opinion, OpinionStateError, PlayerId,
+    PolityError, PolityState, PolityTickFailure, PreparedModifier, ProvinceGraph, ProvinceId,
+    SeededRng, Sex, SimTime, Speed, SuccessionState, TechnologyDefinition, TechnologyError,
+    TechnologyState, Tick, TimeActor, TimeCommand, TimeError, TriggerView,
 };
 
 /// Reference to a scenario's data-driven AI profile.
@@ -147,6 +148,10 @@ pub enum Command {
         key: String,
         option: u32,
     },
+    UnlockTechnology {
+        country: CountryId,
+        key: String,
+    },
     OfferRoyalMarriage {
         country: CountryId,
         character: CharacterId,
@@ -188,6 +193,7 @@ pub enum CommandError {
     Navy(NavyError),
     Diplomacy(DiplomacyError),
     Event(EventError),
+    Technology(TechnologyError),
     Marriage(MarriageError),
     InvalidHeir {
         country: CountryId,
@@ -213,6 +219,15 @@ pub enum StateChange {
     },
     ModifierSourceExpired {
         country: CountryId,
+        source: ModifierSourceId,
+    },
+    ResearchPointsChanged {
+        country: CountryId,
+        points: u32,
+    },
+    TechnologyUnlocked {
+        country: CountryId,
+        key: String,
         source: ModifierSourceId,
     },
     FiscalPolicyChanged {
@@ -453,6 +468,7 @@ pub struct GameState {
     opinions: BTreeMap<(CountryId, CountryId), Opinion>,
     diplomacy: Option<DiplomacyState>,
     events: Option<EventState>,
+    technology: Option<TechnologyState>,
     polity: Option<PolityState>,
     war_state: Option<WarState>,
     navy: Option<NavyState>,
@@ -475,6 +491,7 @@ enum PreparedCommand<'a> {
         Vec<(ModifierSourceId, PreparedModifier)>,
     ),
     Marriage(MarriageAction),
+    UnlockTechnology(CountryId, &'a str, ModifierSourceId, Vec<Modifier>),
 }
 
 enum DiplomacyAction {
@@ -559,6 +576,7 @@ impl GameState {
             opinions: BTreeMap::new(),
             diplomacy: None,
             events: None,
+            technology: None,
             polity: None,
             war_state: None,
             navy: None,
@@ -796,6 +814,127 @@ impl GameState {
 
     pub fn events(&self) -> Option<&EventState> {
         self.events.as_ref()
+    }
+
+    /// Installs the validated technology catalog and zero-point balances.
+    pub fn with_technologies(
+        mut self,
+        definitions: BTreeMap<String, TechnologyDefinition>,
+    ) -> Result<Self, TechnologyError> {
+        if self.technology.is_some() {
+            return Err(TechnologyError::AlreadyConfigured);
+        }
+        let next = self
+            .highest_modifier_source()
+            .checked_add(1)
+            .ok_or(TechnologyError::ModifierSourceExhausted)?
+            .max(
+                self.events
+                    .as_ref()
+                    .map_or(1, |events| events.next_source_id),
+            );
+        let technology = TechnologyState::new(definitions, self.countries.keys().copied(), next)?;
+        if let Some(polity) = &self.polity {
+            let branches = technology.branches();
+            for (key, profile) in &polity.ai_profiles {
+                if profile
+                    .tech_branch_weights
+                    .keys()
+                    .any(|branch| !branches.contains(branch.as_str()))
+                {
+                    return Err(TechnologyError::InvalidDefinition(format!(
+                        "AI profile {key} has an unknown technology branch"
+                    )));
+                }
+            }
+        }
+        self.technology = Some(technology);
+        Ok(self)
+    }
+
+    pub fn technologies(&self) -> Option<&TechnologyState> {
+        self.technology.as_ref()
+    }
+
+    /// Restores an authoritative technology snapshot after save decoding.
+    pub fn with_technology_state(
+        mut self,
+        technology: TechnologyState,
+    ) -> Result<Self, TechnologyError> {
+        if self.technology.is_some() {
+            return Err(TechnologyError::AlreadyConfigured);
+        }
+        let expected = TechnologyState::new(
+            technology.definitions.clone(),
+            self.countries.keys().copied(),
+            technology.next_source_id,
+        )?;
+        if let Some(polity) = &self.polity {
+            let branches = expected.branches();
+            if polity.ai_profiles.values().any(|profile| {
+                profile
+                    .tech_branch_weights
+                    .keys()
+                    .any(|branch| !branches.contains(branch.as_str()))
+            }) {
+                return Err(TechnologyError::InvalidSavedState);
+            }
+        }
+        let unique_sources: BTreeSet<_> = technology.sources.values().copied().collect();
+        if technology.points.keys().copied().collect::<Vec<_>>()
+            != expected.points.keys().copied().collect::<Vec<_>>()
+            || technology.points.values().any(|&points| points > 1000)
+            || unique_sources.len() != technology.sources.len()
+            || self.countries.iter().any(|(&country, state)| {
+                state
+                    .known_technologies
+                    .iter()
+                    .any(|key| !technology.sources.contains_key(&(country, key.clone())))
+            })
+            || technology
+                .sources
+                .values()
+                .any(|source| source.get() >= technology.next_source_id)
+            || technology.sources.iter().any(|((country, key), source)| {
+                technology.definitions.get(key).is_none_or(|definition| {
+                    self.countries.get(country).is_none_or(|state| {
+                        if !state.known_technologies.contains(key) {
+                            return true;
+                        }
+                        let expected: Option<Vec<_>> = definition
+                            .effects
+                            .iter()
+                            .map(|effect| {
+                                effect
+                                    .prepare(*source, self.time.tick().get())
+                                    .ok()
+                                    .map(|grant| grant.modifier)
+                            })
+                            .collect();
+                        state
+                            .modifiers
+                            .sources()
+                            .find(|(id, _, _)| *id == *source)
+                            .is_none_or(|(_, expiry, modifiers)| {
+                                expiry.is_some() || expected.as_deref() != Some(modifiers)
+                            })
+                    })
+                })
+            })
+        {
+            return Err(TechnologyError::InvalidSavedState);
+        }
+        if let Some(events) = &self.events {
+            if events.next_source_id < technology.next_source_id {
+                return Err(TechnologyError::InvalidSavedState);
+            }
+        }
+        self.technology = Some(technology);
+        Ok(self)
+    }
+
+    pub fn research_points(&self, country: CountryId) -> Option<u32> {
+        self.technology.as_ref()?.points.get(&country).copied()
     }
 
     fn highest_modifier_source(&self) -> u32 {
@@ -1317,6 +1456,46 @@ impl GameState {
                     }
                 }
             }
+            PreparedCommand::UnlockTechnology(country, key, source, modifiers) => {
+                let technology = self
+                    .technology
+                    .as_mut()
+                    .expect("validated technology catalog");
+                let definition = &technology.definitions[key];
+                let points = technology
+                    .points
+                    .get_mut(&country)
+                    .expect("validated country");
+                *points -= definition.cost.get();
+                technology.sources.insert((country, key.into()), source);
+                technology.next_source_id = source.get().checked_add(1).expect("validated source");
+                if let Some(events) = &mut self.events {
+                    events.next_source_id = events.next_source_id.max(technology.next_source_id);
+                }
+                let base = self.countries.get_mut(&country).expect("validated country");
+                base.known_technologies.insert(key.into());
+                base.modifiers
+                    .insert_source(source, None, modifiers.clone())
+                    .expect("validated source");
+                delta.changes.push(StateChange::ResearchPointsChanged {
+                    country,
+                    points: *points,
+                });
+                for modifier in modifiers {
+                    delta.changes.push(StateChange::ModifierSourceActivated {
+                        country,
+                        grant: PreparedModifier {
+                            modifier,
+                            expires_at: None,
+                        },
+                    });
+                }
+                delta.changes.push(StateChange::TechnologyUnlocked {
+                    country,
+                    key: key.into(),
+                    source,
+                });
+            }
         }
         Ok(delta)
     }
@@ -1459,6 +1638,72 @@ impl GameState {
                     .map_err(CommandError::Event)?;
                 Ok(PreparedCommand::ChooseEvent(
                     *country, key, *option, prepared,
+                ))
+            }
+            Command::UnlockTechnology { country, key } => {
+                self.authorized_country(actor, *country)?;
+                let technology = self.technology.as_ref().ok_or_else(|| {
+                    CommandError::Technology(TechnologyError::UnknownTechnology(key.clone()))
+                })?;
+                let definition = technology.definitions.get(key).ok_or_else(|| {
+                    CommandError::Technology(TechnologyError::UnknownTechnology(key.clone()))
+                })?;
+                let base = &self.countries[country];
+                if base.known_technologies.contains(key) {
+                    return Err(CommandError::Technology(TechnologyError::AlreadyKnown(
+                        key.clone(),
+                    )));
+                }
+                if let Some(required) = definition
+                    .requires
+                    .iter()
+                    .find(|required| !base.known_technologies.contains(*required))
+                {
+                    return Err(CommandError::Technology(
+                        TechnologyError::MissingPrerequisite(required.clone()),
+                    ));
+                }
+                let available = technology.points[country];
+                if available < definition.cost.get() {
+                    return Err(CommandError::Technology(
+                        TechnologyError::InsufficientPoints {
+                            required: definition.cost.get(),
+                            available,
+                        },
+                    ));
+                }
+                let next = self
+                    .highest_modifier_source()
+                    .checked_add(1)
+                    .ok_or(CommandError::Technology(
+                        TechnologyError::ModifierSourceExhausted,
+                    ))?
+                    .max(technology.next_source_id)
+                    .max(
+                        self.events
+                            .as_ref()
+                            .map_or(1, |events| events.next_source_id),
+                    );
+                next.checked_add(1).ok_or(CommandError::Technology(
+                    TechnologyError::ModifierSourceExhausted,
+                ))?;
+                let source = ModifierSourceId::new(next);
+                let modifiers = definition
+                    .effects
+                    .iter()
+                    .map(|effect| {
+                        effect
+                            .prepare(source, self.time.tick().get())
+                            .map(|grant| grant.modifier)
+                            .map_err(|_| {
+                                CommandError::Technology(TechnologyError::InvalidDefinition(
+                                    key.clone(),
+                                ))
+                            })
+                    })
+                    .collect::<Result<Vec<_>, _>>()?;
+                Ok(PreparedCommand::UnlockTechnology(
+                    *country, key, source, modifiers,
                 ))
             }
             Command::OfferRoyalMarriage {
@@ -1950,6 +2195,23 @@ impl GameState {
             );
             report.delta.changes.extend(changes);
             report.polity_failures = failures;
+        }
+        if previous_date.components().1 != self.time.date().components().1 {
+            if let Some(technology) = &mut self.technology {
+                for (&country, points) in &mut technology.points {
+                    let next = points.saturating_add(10).min(1000);
+                    if next != *points {
+                        *points = next;
+                        report
+                            .delta
+                            .changes
+                            .push(StateChange::ResearchPointsChanged {
+                                country,
+                                points: next,
+                            });
+                    }
+                }
+            }
         }
         if let Some(diplomacy) = &mut self.diplomacy {
             for offer in diplomacy.expire(self.time.date()) {

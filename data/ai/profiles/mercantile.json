@@ -17,5 +17,6 @@
     "marriage_min_opinion": 20
   },
   "preferred_tax_rate": 270,
-  "preferred_monthly_spending": 4500
+  "preferred_monthly_spending": 4500,
+  "tech_branch_weights": {"administration": 850, "military": 250}
 }

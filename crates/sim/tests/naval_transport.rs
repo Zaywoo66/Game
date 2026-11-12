@@ -120,6 +120,7 @@ fn setup_with_enemy(ships: u32, enemy_at_port: bool) -> GameState {
                 thresholds: AiThresholds::default(),
                 preferred_tax_rate: Fixed::ZERO,
                 preferred_monthly_spending: Fixed::ZERO,
+                tech_branch_weights: BTreeMap::new(),
             },
         )]),
     };

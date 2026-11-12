@@ -12,6 +12,7 @@
 - M7 event runtime adds save schema v8 and LAN protocol v6. V8 snapshots include event definitions, pending choices, resolution history and modifier-source sequence; v1–v7 saves remain readable without events. Both players must update together.
 - M6 guarantees add save schema v9 and LAN protocol v7. V9 snapshots preserve active guarantees; older saves remain readable without them. Both players must update together.
 - M8 fleet transport adds save schema v10 and LAN protocol v8. V10 snapshots preserve fleets, sea routes and embarked army IDs; v1–v9 saves remain readable without navy. Both players must update together.
+- M9 research adds save schema v11 and LAN protocol v9. V11 records point balances, technology definitions, and permanent modifier sources. Both players must update together; older saves remain readable without research state.
 
 ## 0.1.0 — Foundation
 

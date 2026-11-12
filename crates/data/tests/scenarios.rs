@@ -921,6 +921,19 @@ fn city_map_scenario_loads_with_explicit_land_partition_and_round_trips() {
     ));
 }
 
+#[test]
+fn saved_ai_technology_branch_weights_must_match_the_catalog() {
+    let data = data_root();
+    let map = load_provinces(data.join("map/western_europe/provinces.json")).unwrap();
+    let state = load_scenario(map.clone(), data.join("scenarios/1440.json")).unwrap();
+    let mut save: Value = serde_json::from_slice(&save_game(&state).unwrap()).unwrap();
+    save["state"]["polity"]["ai_profiles"][0]["tech_branch_weights"]["unknown_branch"] = json!(1);
+    assert!(matches!(
+        load_game(&serde_json::to_vec(&save).unwrap(), map),
+        Err(SaveError::InvalidTechnology(_))
+    ));
+}
+
 fn dense_with_navy(navy: Value) -> Result<GameState, ScenarioLoadError> {
     let root = data_root();
     let map = load_provinces(root.join("map/western_europe/provinces.json")).unwrap();
@@ -1013,7 +1026,7 @@ fn navy_save_v10_round_trips_embarked_army_and_route_and_rejects_bad_records() {
         .unwrap();
     let bytes = save_game(&state).unwrap();
     let document: Value = serde_json::from_slice(&bytes).unwrap();
-    assert_eq!(document["schema_version"], json!(10));
+    assert_eq!(document["schema_version"], json!(11));
     assert_eq!(
         document["state"]["navy"]["fleets"][0]["cargo"],
         json!(army_id.get())
@@ -1023,7 +1036,14 @@ fn navy_save_v10_round_trips_embarked_army_and_route_and_rejects_bad_records() {
     assert_eq!(save_game(&restored).unwrap(), bytes);
     assert_eq!(state_hash(&restored).unwrap(), state_hash(&state).unwrap());
 
+    // The original v10 contract still requires navy even when newer v11
+    // research snapshots can be constructed without it.
     let mut missing = document.clone();
+    missing["schema_version"] = json!(10);
+    missing["state"]
+        .as_object_mut()
+        .unwrap()
+        .remove("technology");
     missing["state"].as_object_mut().unwrap().remove("navy");
     assert!(matches!(
         load_game(&serde_json::to_vec(&missing).unwrap(), graph.clone()),
