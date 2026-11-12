@@ -7,20 +7,24 @@ use strategy_sim::{
     AiProfileKey, CharacterId, Controller, CountryId, CountryState, Date, DiplomacyError,
     DiplomacyState, Effect, EventError, Fixed, GameState, InvalidDate, InvalidSpeed, MapIdentity,
     MapIdentityMismatch, ModKey, Modifier, ModifierInsertError, ModifierKind, ModifierSourceId,
-    ModifierStore, Opinion, OpinionError, OpinionStateError, PlayerId, PolityError, ProvinceGraph,
-    ScheduleError, ScheduledEffect, SeededRng, SimTime, Speed, Tick, TimeError, TriggerView,
-    WarError, WarState,
+    ModifierStore, NavyError, Opinion, OpinionError, OpinionStateError, PlayerId, PolityError,
+    ProvinceGraph, ScheduleError, ScheduledEffect, SeededRng, SimTime, Speed, TechnologyError,
+    Tick, TimeError, TriggerView, WarError, WarState,
 };
 
 use crate::provinces::decode_hash;
 
 mod events;
 mod military;
+mod navy;
 mod polity;
+mod technology;
 
 use events::EventStateFile;
 use military::WarStateFile;
+use navy::NavyStateFile;
 use polity::PolityFile;
+use technology::TechnologyStateFile;
 
 const LEGACY_VERSION: u32 = 1;
 const POLITY_VERSION: u32 = 2;
@@ -31,6 +35,8 @@ const COALITION_VERSION: u32 = 6;
 const MARRIAGE_VERSION: u32 = 7;
 const EVENT_VERSION: u32 = 8;
 const GUARANTEE_VERSION: u32 = 9;
+const NAVY_VERSION: u32 = 10;
+const TECHNOLOGY_VERSION: u32 = 11;
 const STATE_HASH_DOMAIN_V1: &[u8] = b"strategy:game-state:v1\0";
 const STATE_HASH_DOMAIN_V2: &[u8] = b"strategy:game-state:v2\0";
 const STATE_HASH_DOMAIN_V3: &[u8] = b"strategy:game-state:v3\0";
@@ -40,6 +46,8 @@ const STATE_HASH_DOMAIN_V6: &[u8] = b"strategy:game-state:v6\0";
 const STATE_HASH_DOMAIN_V7: &[u8] = b"strategy:game-state:v7\0";
 const STATE_HASH_DOMAIN_V8: &[u8] = b"strategy:game-state:v8\0";
 const STATE_HASH_DOMAIN_V9: &[u8] = b"strategy:game-state:v9\0";
+const STATE_HASH_DOMAIN_V10: &[u8] = b"strategy:game-state:v10\0";
+const STATE_HASH_DOMAIN_V11: &[u8] = b"strategy:game-state:v11\0";
 
 #[derive(Debug)]
 pub enum SaveError {
@@ -53,12 +61,16 @@ pub enum SaveError {
     VersionMarriageMismatch(u32),
     VersionEventMismatch(u32),
     VersionGuaranteeMismatch(u32),
+    VersionNavyMismatch(u32),
+    VersionTechnologyMismatch(u32),
     InvalidPolity(PolityError),
     InvalidMilitary(WarError),
     InvalidOpinion(OpinionError),
     InvalidOpinionState(OpinionStateError),
     InvalidDiplomacy(DiplomacyError),
     InvalidEvent(EventError),
+    InvalidNavy(NavyError),
+    InvalidTechnology(TechnologyError),
     InvalidMapHash,
     MapMismatch(MapIdentityMismatch),
     UnorderedRecords(&'static str),
@@ -103,10 +115,16 @@ impl fmt::Display for SaveError {
             Self::VersionGuaranteeMismatch(version) => {
                 write!(f, "save version {version} has the wrong guarantee payload")
             }
+            Self::VersionNavyMismatch(version) => {
+                write!(f, "save version {version} has the wrong navy payload")
+            }
+            Self::VersionTechnologyMismatch(version) => write!(f, "save version {version} has the wrong technology payload"),
             Self::InvalidOpinion(error) => write!(f, "invalid saved opinion: {error:?}"),
             Self::InvalidOpinionState(error) => write!(f, "invalid saved opinion state: {error:?}"),
             Self::InvalidDiplomacy(error) => write!(f, "invalid saved diplomacy state: {error:?}"),
             Self::InvalidEvent(error) => write!(f, "invalid saved event state: {error:?}"),
+            Self::InvalidNavy(error) => write!(f, "invalid saved navy state: {error:?}"),
+            Self::InvalidTechnology(error) => write!(f, "invalid saved technology state: {error:?}"),
             Self::InvalidMapHash => f.write_str("map_hash must be 64 lowercase hexadecimal digits"),
             Self::MapMismatch(error) => error.fmt(f),
             Self::UnorderedRecords(records) => write!(f, "{records} must be unique and sorted"),
@@ -176,6 +194,8 @@ pub fn load_game(bytes: &[u8], graph: ProvinceGraph) -> Result<GameState, SaveEr
             | MARRIAGE_VERSION
             | EVENT_VERSION
             | GUARANTEE_VERSION
+            | NAVY_VERSION
+            | TECHNOLOGY_VERSION
     ) {
         return Err(SaveError::UnsupportedSchemaVersion(save.schema_version));
     }
@@ -248,6 +268,16 @@ pub fn load_game(bytes: &[u8], graph: ProvinceGraph) -> Result<GameState, SaveEr
     {
         return Err(SaveError::VersionGuaranteeMismatch(save.schema_version));
     }
+    if (save.schema_version < NAVY_VERSION && restored.navy().is_some())
+        || (save.schema_version == NAVY_VERSION && restored.navy().is_none())
+    {
+        return Err(SaveError::VersionNavyMismatch(save.schema_version));
+    }
+    if (save.schema_version < TECHNOLOGY_VERSION && restored.technologies().is_some())
+        || (save.schema_version == TECHNOLOGY_VERSION && restored.technologies().is_none())
+    {
+        return Err(SaveError::VersionTechnologyMismatch(save.schema_version));
+    }
     Ok(restored)
 }
 
@@ -255,6 +285,8 @@ pub fn load_game(bytes: &[u8], graph: ProvinceGraph) -> Result<GameState, SaveEr
 pub fn state_hash(state: &GameState) -> Result<[u8; 32], SaveError> {
     let mut hash = Sha256::new();
     hash.update(match schema_version(state) {
+        TECHNOLOGY_VERSION => STATE_HASH_DOMAIN_V11,
+        NAVY_VERSION => STATE_HASH_DOMAIN_V10,
         GUARANTEE_VERSION => STATE_HASH_DOMAIN_V9,
         EVENT_VERSION => STATE_HASH_DOMAIN_V8,
         MARRIAGE_VERSION => STATE_HASH_DOMAIN_V7,
@@ -270,7 +302,11 @@ pub fn state_hash(state: &GameState) -> Result<[u8; 32], SaveError> {
 }
 
 fn schema_version(state: &GameState) -> u32 {
-    if state
+    if state.technologies().is_some() {
+        TECHNOLOGY_VERSION
+    } else if state.navy().is_some() {
+        NAVY_VERSION
+    } else if state
         .diplomacy()
         .is_some_and(|diplomacy| !diplomacy.guarantees.is_empty())
     {
@@ -340,8 +376,16 @@ struct StateFile {
         deserialize_with = "present_military"
     )]
     military: Option<WarStateFile>,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "present_navy"
+    )]
+    navy: Option<NavyStateFile>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     events: Option<EventStateFile>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    technology: Option<TechnologyStateFile>,
 }
 
 impl From<&GameState> for StateFile {
@@ -378,7 +422,9 @@ impl From<&GameState> for StateFile {
             diplomacy: state.diplomacy().map(DiplomacyFile::from),
             polity: state.polity().map(PolityFile::from),
             military: state.war_state().map(WarStateFile::from),
+            navy: state.navy().map(NavyStateFile::from),
             events: state.events().map(EventStateFile::from),
+            technology: state.technologies().map(TechnologyStateFile::from),
         }
     }
 }
@@ -452,10 +498,24 @@ impl StateFile {
         } else {
             Ok(state)
         }?;
-        if let Some(events) = self.events {
+        let state = if let Some(events) = self.events {
             state
                 .with_event_state(events.restore()?)
                 .map_err(SaveError::InvalidEvent)
+        } else {
+            Ok(state)
+        }?;
+        let state = if let Some(navy) = self.navy {
+            state
+                .with_navy(navy.restore()?)
+                .map_err(SaveError::InvalidNavy)
+        } else {
+            Ok(state)
+        }?;
+        if let Some(technology) = self.technology {
+            state
+                .with_technology_state(technology.restore()?)
+                .map_err(SaveError::InvalidTechnology)
         } else {
             Ok(state)
         }
@@ -855,4 +915,10 @@ fn present_military<'de, D: Deserializer<'de>>(
     deserializer: D,
 ) -> Result<Option<WarStateFile>, D::Error> {
     WarStateFile::deserialize(deserializer).map(Some)
+}
+
+fn present_navy<'de, D: Deserializer<'de>>(
+    deserializer: D,
+) -> Result<Option<NavyStateFile>, D::Error> {
+    NavyStateFile::deserialize(deserializer).map(Some)
 }

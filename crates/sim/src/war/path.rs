@@ -36,7 +36,7 @@ impl WarState {
     ) -> bool {
         (allow_capital || goal != polity.countries[&defender].capital)
             && owner(polity, goal) == Some(defender)
-            && polity.countries[&attacker].provinces.iter().any(|&from| {
+            && (polity.countries[&attacker].provinces.iter().any(|&from| {
                 let frontier = graph.neighbors(from).is_some_and(|edges| {
                     edges.iter().any(|edge| {
                         edge.kind != EdgeKind::Port && owner(polity, edge.to) == Some(defender)
@@ -47,7 +47,17 @@ impl WarState {
                         owner(polity, province).is_some_and(|id| id == attacker || id == defender)
                     })
                     .is_some()
-            })
+            }) || graph.get(goal).is_some_and(|coast| {
+                coast.ports.iter().any(|&goal_sea| {
+                    polity.countries[&attacker].provinces.iter().any(|&from| {
+                        graph.get(from).is_some_and(|port| {
+                            port.ports
+                                .iter()
+                                .any(|&from_sea| graph.sea_route(from_sea, goal_sea).is_some())
+                        })
+                    })
+                })
+            }))
     }
 }
 

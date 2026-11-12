@@ -81,6 +81,7 @@ def main():
     tech_branches = {}
     tech_keys = {}
     tech_graph = {}
+    ai_profiles = []
     for path in sorted(root.rglob("*")):
         suffix = path.suffix.lower()
         if suffix not in DATA_SUFFIXES or not path.is_file():
@@ -165,7 +166,23 @@ def main():
                         tech_keys[key] = relative_path
                         tech_graph[key] = requirements
 
+        if relative_path.parts[:2] == ("ai", "profiles"):
+            ai_profiles.append((relative_path, document))
+
     errors.extend(f"techs: {error}" for error in validate_prerequisites(tech_graph))
+    for profile_path, profile in ai_profiles:
+        if not isinstance(profile, dict):
+            errors.append(f"{profile_path}: expected a profile object")
+            continue
+        weights = profile.get("tech_branch_weights", {})
+        if not isinstance(weights, dict):
+            errors.append(f"{profile_path}: tech_branch_weights must be an object")
+            continue
+        for branch, weight in weights.items():
+            if not isinstance(branch, str) or KEY.fullmatch(branch) is None or branch not in tech_branches:
+                errors.append(f"{profile_path}: unknown technology branch {branch!r}")
+            if type(weight) is not int or not 0 <= weight <= 1000:
+                errors.append(f"{profile_path}: tech_branch_weights.{branch} must be a whole score 0..1000")
     if event_references and event_locale is None:
         errors.append(f"{EVENT_LOCALE}: required for event localization keys")
     elif isinstance(event_locale, dict):

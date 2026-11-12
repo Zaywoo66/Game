@@ -3,7 +3,7 @@ use std::fmt;
 use serde::{Deserialize, Serialize};
 use strategy_sim::{
     AiProfileKey, ArmyId, CharacterId, Command, Controller, CountryId, FiscalPolicy, Fixed,
-    PlayerId, ProvinceId, Speed, TimeCommand, WarId,
+    FleetId, PlayerId, ProvinceId, Speed, TimeCommand, WarId,
 };
 
 use crate::LobbyController;
@@ -51,6 +51,21 @@ pub enum PlayerCommand {
         army: u32,
         destination: u32,
     },
+    MoveFleet {
+        country: u32,
+        fleet: u32,
+        destination: u32,
+    },
+    EmbarkArmy {
+        country: u32,
+        army: u32,
+        fleet: u32,
+    },
+    DisembarkArmy {
+        country: u32,
+        fleet: u32,
+        destination: u32,
+    },
     RetreatArmy {
         country: u32,
         army: u32,
@@ -93,6 +108,10 @@ pub enum PlayerCommand {
         country: u32,
         key: String,
         option: u32,
+    },
+    UnlockTechnology {
+        country: u32,
+        key: String,
     },
     OfferRoyalMarriage {
         country: u32,
@@ -232,6 +251,33 @@ impl From<&Command> for PlayerCommand {
                 army: army.get(),
                 destination: destination.get(),
             },
+            Command::MoveFleet {
+                country,
+                fleet,
+                destination,
+            } => Self::MoveFleet {
+                country: country.get(),
+                fleet: fleet.get(),
+                destination: destination.get(),
+            },
+            Command::EmbarkArmy {
+                country,
+                army,
+                fleet,
+            } => Self::EmbarkArmy {
+                country: country.get(),
+                army: army.get(),
+                fleet: fleet.get(),
+            },
+            Command::DisembarkArmy {
+                country,
+                fleet,
+                destination,
+            } => Self::DisembarkArmy {
+                country: country.get(),
+                fleet: fleet.get(),
+                destination: destination.get(),
+            },
             Command::RetreatArmy {
                 country,
                 army,
@@ -290,6 +336,10 @@ impl From<&Command> for PlayerCommand {
                 country: country.get(),
                 key: key.clone(),
                 option: *option,
+            },
+            Command::UnlockTechnology { country, key } => Self::UnlockTechnology {
+                country: country.get(),
+                key: key.clone(),
             },
             Command::OfferRoyalMarriage {
                 country,
@@ -425,6 +475,33 @@ impl TryFrom<PlayerCommand> for Command {
                 army: ArmyId::new(army),
                 destination: ProvinceId::new(destination),
             },
+            PlayerCommand::MoveFleet {
+                country,
+                fleet,
+                destination,
+            } => Self::MoveFleet {
+                country: CountryId::new(country),
+                fleet: FleetId::new(fleet),
+                destination: ProvinceId::new(destination),
+            },
+            PlayerCommand::EmbarkArmy {
+                country,
+                army,
+                fleet,
+            } => Self::EmbarkArmy {
+                country: CountryId::new(country),
+                army: ArmyId::new(army),
+                fleet: FleetId::new(fleet),
+            },
+            PlayerCommand::DisembarkArmy {
+                country,
+                fleet,
+                destination,
+            } => Self::DisembarkArmy {
+                country: CountryId::new(country),
+                fleet: FleetId::new(fleet),
+                destination: ProvinceId::new(destination),
+            },
             PlayerCommand::RetreatArmy {
                 country,
                 army,
@@ -483,6 +560,10 @@ impl TryFrom<PlayerCommand> for Command {
                 country: CountryId::new(country),
                 key,
                 option,
+            },
+            PlayerCommand::UnlockTechnology { country, key } => Self::UnlockTechnology {
+                country: CountryId::new(country),
+                key,
             },
             PlayerCommand::OfferRoyalMarriage {
                 country,

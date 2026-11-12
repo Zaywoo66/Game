@@ -15,8 +15,8 @@ use strategy_app::{
 };
 use strategy_net::discover_rooms;
 use strategy_sim::{
-    ArmyId, Command, CommandActor, Controller, CountryId, Date, FiscalPolicy, Fixed, GameState,
-    PlayerId, ProvinceId, Speed, TimeCommand, WarId,
+    ArmyId, Command, CommandActor, Controller, CountryId, Date, FiscalPolicy, Fixed, FleetId,
+    GameState, PlayerId, ProvinceId, Speed, TimeCommand, WarId,
 };
 use tauri::{App, AppHandle, Emitter, Manager, State};
 
@@ -148,6 +148,18 @@ struct ArmyView {
     morale: i64,
     to_province_id: Option<u32>,
     progress: i64,
+    embarked_on: Option<u32>,
+}
+
+#[derive(Clone, PartialEq, Eq, Serialize)]
+struct FleetView {
+    id: u32,
+    country_id: u32,
+    sea_province_id: u32,
+    ships: u32,
+    cargo_army_id: Option<u32>,
+    to_sea_province_id: Option<u32>,
+    progress: i64,
 }
 
 #[derive(Clone, PartialEq, Eq, Serialize)]
@@ -207,6 +219,7 @@ struct VassalOfferView {
 #[derive(Default)]
 struct MilitaryView {
     armies: BTreeMap<u32, ArmyView>,
+    fleets: BTreeMap<u32, FleetView>,
     wars: BTreeMap<u32, WarView>,
     sieges: Vec<SiegeView>,
 }
@@ -226,6 +239,7 @@ pub(crate) struct Snapshot {
     vassals: Vec<VassalView>,
     vassal_offers: Vec<VassalOfferView>,
     armies: Vec<ArmyView>,
+    fleets: Vec<FleetView>,
     wars: Vec<WarView>,
     sieges: Vec<SiegeView>,
     forts: Vec<FortView>,
@@ -246,6 +260,8 @@ struct Update {
     owners: Vec<OwnerView>,
     armies: Vec<ArmyView>,
     removed_armies: Vec<u32>,
+    fleets: Vec<FleetView>,
+    removed_fleets: Vec<u32>,
     wars: Vec<WarView>,
     removed_wars: Vec<u32>,
     sieges: Option<Vec<SiegeView>>,
@@ -297,6 +313,21 @@ pub(crate) enum UiCommand {
         army_id: u32,
         destination: u32,
     },
+    MoveFleet {
+        country_id: u32,
+        fleet_id: u32,
+        destination: u32,
+    },
+    EmbarkArmy {
+        country_id: u32,
+        army_id: u32,
+        fleet_id: u32,
+    },
+    DisembarkArmy {
+        country_id: u32,
+        fleet_id: u32,
+        destination: u32,
+    },
     RetreatArmy {
         country_id: u32,
         army_id: u32,
@@ -318,6 +349,10 @@ pub(crate) enum UiCommand {
     AcceptPeace {
         country_id: u32,
         war_id: u32,
+    },
+    UnlockTechnology {
+        country_id: u32,
+        key: String,
     },
     ChooseEvent {
         country_id: u32,
@@ -408,6 +443,33 @@ impl UiCommand {
                 army: ArmyId::new(army_id),
                 destination: ProvinceId::new(destination),
             },
+            Self::MoveFleet {
+                country_id,
+                fleet_id,
+                destination,
+            } => Command::MoveFleet {
+                country: CountryId::new(country_id),
+                fleet: FleetId::new(fleet_id),
+                destination: ProvinceId::new(destination),
+            },
+            Self::EmbarkArmy {
+                country_id,
+                army_id,
+                fleet_id,
+            } => Command::EmbarkArmy {
+                country: CountryId::new(country_id),
+                army: ArmyId::new(army_id),
+                fleet: FleetId::new(fleet_id),
+            },
+            Self::DisembarkArmy {
+                country_id,
+                fleet_id,
+                destination,
+            } => Command::DisembarkArmy {
+                country: CountryId::new(country_id),
+                fleet: FleetId::new(fleet_id),
+                destination: ProvinceId::new(destination),
+            },
             Self::RetreatArmy {
                 country_id,
                 army_id,
@@ -441,6 +503,10 @@ impl UiCommand {
             Self::AcceptPeace { country_id, war_id } => Command::AcceptPeace {
                 country: CountryId::new(country_id),
                 war: WarId::new(war_id),
+            },
+            Self::UnlockTechnology { country_id, key } => Command::UnlockTechnology {
+                country: CountryId::new(country_id),
+                key,
             },
             Self::ChooseEvent {
                 country_id,
@@ -663,6 +729,7 @@ pub(crate) fn game_snapshot(state: State<'_, Mutex<Session>>) -> Result<Snapshot
         vassals: vassal_views(&session.game),
         vassal_offers: vassal_offer_views(&session.game),
         armies: session.military.armies.values().cloned().collect(),
+        fleets: session.military.fleets.values().cloned().collect(),
         wars: session.military.wars.values().cloned().collect(),
         sieges: session.military.sieges.clone(),
         forts: war
@@ -1124,6 +1191,8 @@ fn publish(app: &AppHandle, session: &mut Session) {
             .collect(),
         armies: changed_rows(&session.military.armies, &military.armies),
         removed_armies: removed_rows(&session.military.armies, &military.armies),
+        fleets: changed_rows(&session.military.fleets, &military.fleets),
+        removed_fleets: removed_rows(&session.military.fleets, &military.fleets),
         wars: changed_rows(&session.military.wars, &military.wars),
         removed_wars: removed_rows(&session.military.wars, &military.wars),
         sieges: (session.military.sieges != military.sieges).then(|| military.sieges.clone()),
@@ -1203,6 +1272,33 @@ fn military_view(game: &GameState) -> MilitaryView {
         return MilitaryView::default();
     };
     MilitaryView {
+        fleets: game
+            .navy()
+            .into_iter()
+            .flat_map(|navy| &navy.fleets)
+            .map(|(&id, fleet)| {
+                let movement = fleet.movement.as_ref();
+                let progress = movement.map_or(0, |movement| {
+                    movement.route.first().map_or(0, |leg| {
+                        i64::from(movement.elapsed_ticks) * 1000 / i64::from(leg.cost)
+                    })
+                });
+                (
+                    id.get(),
+                    FleetView {
+                        id: id.get(),
+                        country_id: fleet.country.get(),
+                        sea_province_id: fleet.sea.get(),
+                        ships: fleet.ships,
+                        cargo_army_id: fleet.cargo.map(ArmyId::get),
+                        to_sea_province_id: movement
+                            .and_then(|m| m.route.first())
+                            .map(|leg| leg.to.get()),
+                        progress,
+                    },
+                )
+            })
+            .collect(),
         armies: state
             .armies
             .iter()
@@ -1220,6 +1316,11 @@ fn military_view(game: &GameState) -> MilitaryView {
                             .and_then(|movement| movement.route.first())
                             .map(|leg| leg.to.get()),
                         progress: movement.map_or(0, |movement| movement.progress().raw()),
+                        embarked_on: game.navy().and_then(|navy| {
+                            navy.fleets.iter().find_map(|(&fleet_id, fleet)| {
+                                (fleet.cargo == Some(id)).then_some(fleet_id.get())
+                            })
+                        }),
                     },
                 )
             })

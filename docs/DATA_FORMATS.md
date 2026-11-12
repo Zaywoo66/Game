@@ -195,8 +195,10 @@ equal to the ASCII snake_case filename stem, and a `technologies` list. Every
 technology key is unique across all branch files. Prerequisites may refer to
 another branch, but every referenced key must exist and the complete directed
 graph must have no cycles. The data linter checks those conditions before
-technology content enters the game. This format task does not yet add research
-points, unlock commands, or AI technology choices.
+technology content enters the game. Research points accrue by 10 on each new
+calendar month and are capped at 1000 whole points. `UnlockTechnology` spends
+the data cost at once if all prerequisites are known. Technology modifiers are
+permanent and have a source record keyed by country and technology.
 
 | Field | Representation and unit |
 |---|---|
@@ -235,8 +237,8 @@ simulation `Effect` values. `strategy_data::load_technologies_from_dir`
 reads `.yaml`/`.yml` files in filename order, returns a technology-key ordered
 map, and rejects duplicate branch files, duplicate technology keys, missing
 prerequisites and cycles. The Rust loader uses the existing pinned
-`yaml_serde` 0.10.7. Technology runtime state and AI selection remain a
-separate M9 task.
+`yaml_serde` 0.10.7. The research runtime and profile-weighted AI choice are
+recorded below; ideas, reforms and the tech-tree UI remain separate M9 tasks.
 
 ## Ideas (`data/ideas/<tag>.yaml`)
 `key, name, modifiers:[{key,value,kind}], unlock: Trigger`
@@ -334,6 +336,22 @@ current `at_war` trigger and existing `tax_income`, `army_combat`, and
 | `rules.income_modifier` | Modifier key used to calculate monthly tax income. |
 | `traits` | Trait keys mapped to arrays of permanent modifier records in the format below. |
 | `military` | Optional object containing `rules` and `forts`. Forts map land province keys to positive unsigned 8-bit levels. |
+| `navy.fleets[]` | Optional starting fleets. Each record has `country` (country tag), `port` (owned land province key), `sea` (adjacent sea province key with a reciprocal `port` edge), and `ships` (positive unsigned 32-bit count). Records receive stable numeric fleet IDs in array order, starting at 1. `navy` requires `military`. |
+
+M8.2 has one transport ship type. Each ship holds 1,000 whole soldiers; an
+army boards as one unit and must fit in one fleet. Fleets start in the
+specified sea cell, travel only by `normal` or `strait` sea-to-sea edges, and
+spend each edge's positive whole tick cost in game days. A fleet that would
+enter a sea cell occupied by a wartime opponent stops in its previous cell,
+cancels its route and emits `FleetBlocked` with the blocking fleet ID. Naval
+battles, attrition, blockades and ship construction follow in separate M8/M9
+tasks. Peacetime alliance alone grants no port access. Embarkation requires a
+port owned by the country or a participant on its side of the same war;
+landing may use such a port or an enemy port during war, with land combat
+resolved on the next tick. An embarked army keeps its last land province in
+the army record for save compatibility, but is excluded from land movement,
+supply, sieges and battles until landing. Its actual position is its carrier
+fleet's sea cell.
 
 Validate content and cross-references with
 `cargo run --locked -p strategy-data --bin lint-scenario -- data/scenarios/1440.json data/map/western_europe/provinces.json`.
@@ -390,6 +408,7 @@ Add new leaves here first, then implement.
 | `thresholds.war_min_score`, `peace_accept_score`, `alliance_min_opinion`, `marriage_min_opinion` | Signed 32-bit whole decision score points. The 1440 marriage threshold is 20 effective opinion points. |
 | `preferred_tax_rate` | Raw Fixed fraction within scenario tax limits. |
 | `preferred_monthly_spending` | Raw Fixed treasury amount per month within scenario spending limits. |
+| `tech_branch_weights` | Optional object from loaded technology branch key to whole preference points 0 through 1000. Unknown branches and out-of-range weights are rejected when the catalog is attached. Missing branch weights score zero. |
 
 ## Saved games (schema version 2)
 
@@ -563,3 +582,33 @@ least one guarantee; v1–v8 saves may not carry guarantees. V9 may also carry
 the v7 marriage and v8 event payloads, which remain validated and retained
 on load. LAN protocol v7 transports the same canonical snapshot and the
 validated guarantee/revoke commands.
+
+## Saved games (schema version 10)
+
+A game with attached navy uses save schema v10 and hash domain
+`strategy:game-state:v10` followed by NUL and canonical save bytes. The
+`state.navy` object contains `fleets` sorted by positive numeric `id` and
+`next_fleet_id` (positive unsigned 32-bit, greater than every stored ID).
+Each fleet stores `country` (positive country ID), `sea` (positive sea province
+ID), `ships` (positive whole unsigned 32-bit ship count), `movement` (null or
+`{route,elapsed_ticks}`), and `cargo` (null or a positive army ID). Route
+legs are ordered `{to,kind,cost}` with a sea destination ID, `normal` or
+`strait` edge kind, and positive whole daily tick cost; `elapsed_ticks` is
+nonnegative and smaller than the first leg's cost. The referenced army must
+belong to the same country, be stationary and fit at 1,000 whole soldiers per
+ship; an army cannot appear in two cargo slots. V10 requires a navy payload
+and may retain the prior marriage, event and guarantee payloads. V1–v9 saves
+remain readable without navy. LAN protocol v8 carries v10 snapshots and
+validated fleet, embark and disembark commands.
+
+## Saved games (schema version 11)
+
+V11 adds `state.technology` with technology definitions ordered by key,
+research-point records ordered by country ID, modifier sources ordered by
+country ID then technology key, and the positive next modifier-source ID.
+Research points are whole unsigned 32-bit points from 0 through 1000. Each
+definition stores its branch key, positive whole-point cost, prerequisite
+keys, and permanent modifier effects in raw Fixed thousandths. The country
+record's `known_technologies` and the technology source records must agree.
+The hash domain is `strategy:game-state:v11` followed by NUL and canonical
+save bytes. Older saves remain readable without research state.

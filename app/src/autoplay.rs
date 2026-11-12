@@ -2,8 +2,8 @@ use std::{collections::BTreeSet, time::Instant};
 
 use strategy_data::state_hash;
 use strategy_sim::{
-    Command, CommandActor, Controller, Date, Fixed, GameState, PlayerId, ProvinceKind, StateChange,
-    TimeCommand,
+    Army, Command, CommandActor, Controller, Date, Fixed, GameState, PlayerId, ProvinceKind,
+    StateChange, TimeCommand,
 };
 
 use crate::{load_embedded_scenario, tick_host_with_log, AiDecisionLog};
@@ -56,6 +56,11 @@ pub fn new_autoplay(seed: u64) -> Result<GameState, String> {
         game = game
             .with_event_state(events.clone())
             .map_err(|error| format!("invalid autoplay events: {error:?}"))?;
+    }
+    if let Some(navy) = scenario.navy() {
+        game = game
+            .with_navy(navy.clone())
+            .map_err(|error| format!("invalid autoplay navy: {error:?}"))?;
     }
     let host = CommandActor::Host(PlayerId::new(1));
     for (&country, nation) in &polity.countries {
@@ -178,16 +183,7 @@ fn check_invariants(game: &GameState, initial_count: usize) -> Result<(), &'stat
         }
     }
     for army in military.armies.values() {
-        if army.soldiers == 0
-            || army.soldiers > military.rules.max_army_size
-            || army.morale < Fixed::ZERO
-            || army.morale > military.rules.max_morale
-            || !polity.countries.contains_key(&army.country)
-            || game
-                .province_graph()
-                .get(army.province)
-                .is_none_or(|province| province.kind != ProvinceKind::Land)
-        {
+        if !army_valid(game, army) {
             return Err("army state is invalid");
         }
     }
@@ -210,4 +206,102 @@ fn check_invariants(game: &GameState, initial_count: usize) -> Result<(), &'stat
         }
     }
     Ok(())
+}
+
+fn army_valid(game: &GameState, army: &Army) -> bool {
+    let Some(military) = game.war_state() else {
+        return false;
+    };
+    army.soldiers > 0
+        && army.soldiers <= military.rules.max_army_size
+        && army.morale >= Fixed::ZERO
+        && game
+            .effective_army_morale_limit(army.country)
+            .is_some_and(|limit| army.morale <= limit)
+        && game
+            .polity()
+            .is_some_and(|polity| polity.countries.contains_key(&army.country))
+        && game
+            .province_graph()
+            .get(army.province)
+            .is_some_and(|province| province.kind == ProvinceKind::Land)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use strategy_sim::{ArmyId, CountryState, Modifier, ModifierKind, ModifierSourceId};
+
+    #[test]
+    fn autoplay_accepts_modified_morale_ceiling_but_rejects_excess() {
+        let opening = new_autoplay(1440).unwrap();
+        let (&country_id, nation) = opening.polity().unwrap().countries.iter().next().unwrap();
+        let army = Army {
+            country: country_id,
+            province: nation.capital,
+            soldiers: 1_000,
+            morale: Fixed::ONE,
+            movement: None,
+        };
+        let country = opening.country(army.country).unwrap();
+        let source = ModifierSourceId::new(999_999);
+        let mut modifiers = country.modifiers().clone();
+        modifiers
+            .insert_source(
+                source,
+                None,
+                vec![Modifier {
+                    source,
+                    key: opening.war_state().unwrap().rules.morale_modifier.clone(),
+                    value: Fixed::from_raw(100),
+                    kind: ModifierKind::Additive,
+                }],
+            )
+            .unwrap();
+        let countries = opening
+            .countries()
+            .map(|(id, state)| {
+                if id == army.country {
+                    (
+                        id,
+                        CountryState::new(
+                            state.controller().clone(),
+                            state.known_technologies().map(str::to_owned).collect(),
+                            false,
+                            modifiers.clone(),
+                        ),
+                    )
+                } else {
+                    (id, state.clone())
+                }
+            })
+            .collect();
+        let mut military = opening.war_state().unwrap().clone();
+        let army_id = ArmyId::new(military.next_army_id);
+        military.next_army_id += 1;
+        military.armies.insert(army_id, army.clone());
+        let game = GameState::new(
+            *opening.time(),
+            opening.seed(),
+            opening.province_graph().clone(),
+            countries,
+            [],
+        )
+        .unwrap()
+        .with_polity(opening.polity().unwrap().clone())
+        .unwrap()
+        .with_war_state(military)
+        .unwrap();
+        let mut at_cap = army.clone();
+        at_cap.morale = game.effective_army_morale_limit(army.country).unwrap();
+        assert_eq!(at_cap.morale, Fixed::from_raw(1_100));
+        assert!(army_valid(&game, &at_cap));
+        let mut over_cap = at_cap;
+        over_cap.morale = game
+            .effective_army_morale_limit(army.country)
+            .unwrap()
+            .checked_add(Fixed::from_raw(1))
+            .unwrap();
+        assert!(!army_valid(&game, &over_cap));
+    }
 }

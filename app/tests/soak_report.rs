@@ -7,6 +7,7 @@ fn soak_uses_packaged_event_rules() {
     assert!(opening.events().is_some());
     assert_eq!(autoplay.events(), opening.events());
     assert_eq!(autoplay.diplomacy(), opening.diplomacy());
+    assert_eq!(autoplay.navy(), opening.navy());
 }
 
 #[test]

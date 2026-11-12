@@ -6,11 +6,13 @@ mod events;
 mod fixed;
 mod ids;
 mod modifiers;
+mod navy;
 mod opinion;
 mod polity;
 mod province_graph;
 mod rng;
 mod state;
+mod technology;
 mod time;
 mod trigger;
 mod war;
@@ -21,11 +23,12 @@ pub use events::{
     event_rng, ConditionalAiWeight, EventDefinition, EventError, EventOption, EventState,
 };
 pub use fixed::Fixed;
-pub use ids::{ArmyId, CharacterId, CountryId, PlayerId, ProvinceId, WarId};
+pub use ids::{ArmyId, CharacterId, CountryId, FleetId, PlayerId, ProvinceId, WarId};
 pub use modifiers::{
     effective_value, ModKey, Modifier, ModifierInsertError, ModifierKind, ModifierSourceId,
     ModifierStore,
 };
+pub use navy::{Fleet, FleetMovement, NavyError, NavyState, SHIP_CAPACITY};
 pub use opinion::{Opinion, OpinionError, OpinionStateError};
 pub use polity::{
     AiThresholds, AiWeights, CharacterState, CharacterStats, CountryPolity, EconomyState,
@@ -42,6 +45,7 @@ pub use state::{
     CountryState, Delta, GameState, ScheduleError, ScheduledEffect, ScheduledEffectFailure,
     StateChange, TickReport,
 };
+pub use technology::{TechnologyDefinition, TechnologyError, TechnologyState};
 pub use time::{
     Date, InvalidDate, InvalidSpeed, SimTime, Speed, Tick, TimeActor, TimeCommand, TimeError,
 };

@@ -1,5 +1,5 @@
 import { FormEvent, useState } from 'react';
-import { AiLogEntry, ArmyView, GameCommand, GameSnapshot, WarView } from './host';
+import { AiLogEntry, ArmyView, FleetView, GameCommand, GameSnapshot, WarView } from './host';
 
 export type ArmyOrder = 'move_army' | 'retreat_army';
 
@@ -185,6 +185,7 @@ export function MilitaryPanel(props: MilitaryProps) {
   const localId = game.local_country_id;
   const local = game.countries.find((country) => country.id === localId);
   const armies = game.armies ?? [];
+  const fleets = game.fleets ?? [];
   const wars = game.wars ?? [];
   const countryName = (id: number) => game.countries.find((country) => country.id === id)?.name ?? 'Country ' + id;
   const owner = game.owners.find((row) => row.province_id === provinceId)?.country_id;
@@ -217,10 +218,11 @@ export function MilitaryPanel(props: MilitaryProps) {
           <h4>{countryName(army.country_id)} · Army {army.id}</h4>
           <p>{army.soldiers.toLocaleString()} soldiers · Morale {army.morale / 10}%</p>
           <p>{provinceName(army.province_id)}</p>
+          {army.embarked_on && <p>Aboard fleet {army.embarked_on}</p>}
           {army.to_province_id !== null && (
             <p>Moving to {provinceName(army.to_province_id)} · {army.progress / 10}%</p>
           )}
-          {army.country_id === localId && (
+          {army.country_id === localId && !army.embarked_on && (
             <ArmyOrders key={army.id} army={army} armies={armies} pending={pending} chooseOrder={chooseOrder} send={send} />
           )}
           {order && army.country_id === localId && (
@@ -237,6 +239,32 @@ export function MilitaryPanel(props: MilitaryProps) {
             min={game.min_raise_soldiers} max={game.max_raise_soldiers} pending={pending} send={send} />
         ) : <p>Capital is not controlled. Raising is unavailable.</p>
       )}
+      <h3>Fleets</h3>
+      {fleets.length ? fleets.map((fleet: FleetView) => (
+        <section key={fleet.id} aria-label={`Fleet ${fleet.id}`}>
+          <h4>{countryName(fleet.country_id)} · Fleet {fleet.id}</h4>
+          <p>{fleet.ships} ships · Capacity {(fleet.ships * 1000).toLocaleString()} soldiers</p>
+          <p>{provinceName(fleet.sea_province_id)}</p>
+          {fleet.cargo_army_id && <p>Carrying army {fleet.cargo_army_id}</p>}
+          {fleet.to_sea_province_id && <p>Sailing to {provinceName(fleet.to_sea_province_id)} · {fleet.progress / 10}%</p>}
+          {fleet.country_id === localId && localId !== null && (
+            <div className="military-actions">
+              <button type="button" disabled={pending || provinceId === null || provinceIsLand || fleet.to_sea_province_id !== null}
+                onClick={() => provinceId !== null && void send({ type: 'move_fleet', country_id: localId, fleet_id: fleet.id, destination: provinceId })}>
+                Sail to selected sea zone
+              </button>
+              <button type="button" disabled={pending || !army || army.country_id !== localId || Boolean(fleet.cargo_army_id) || fleet.to_sea_province_id !== null}
+                onClick={() => army && void send({ type: 'embark_army', country_id: localId, army_id: army.id, fleet_id: fleet.id })}>
+                Embark selected army
+              </button>
+              <button type="button" disabled={pending || !fleet.cargo_army_id || provinceId === null || !provinceIsLand || fleet.to_sea_province_id !== null}
+                onClick={() => provinceId !== null && void send({ type: 'disembark_army', country_id: localId, fleet_id: fleet.id, destination: provinceId })}>
+                Land at selected port
+              </button>
+            </div>
+          )}
+        </section>
+      )) : <p>No fleets</p>}
       <h3>Wars</h3>
       {fort && <p>Fort level {fort.level}</p>}
       {sieges.map((siege) => (

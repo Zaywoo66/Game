@@ -35,14 +35,16 @@ pending events from the host snapshot, resolves English keys and submits a
 validated choice command. The 20–40 event target, Russian translation, and
 multiplayer acceptance remain open.
 The M9 technology YAML contract and typed loader validate branch files, effect
-units, and the cross-branch prerequisite DAG; research-point gameplay and AI
-remain open.
+units, and the cross-branch prerequisite DAG. The research-point and unlock
+slice adds monthly points, permanent modifiers, and profile-weighted AI choices;
+ideas, reforms, needs-aware tech choices, and the tech-tree UI remain open.
 M5b.4 camera, water, borders and terrain have browser screenshot evidence; native 1080p FPS/RAM and owner visual review remain open for M5b acceptance.
 M5b.5 map modes, historical evidence display, English fallback labels and army badges have browser checks; Russian localization, fleet UI, native performance and owner visual acceptance remain open.
 
 M6 alliance and royal-marriage slices implemented: validated 30-day offers, acceptance/rejection, spouse links and death cleanup, +20 temporary effective opinion, deterministic AI factors, and network/save transport. The guarantee slice adds unilateral indefinite guarantees, automatic defensive joining, broken-promise penalties and AI offers. Vassalage, truce proposals and the diplomacy UI remain open.
 The royal-marriage slice uses named adult characters and synthetic tests; the 1440 content currently has no female character or modeled existing spouse links. Historical marriage content is an M11 gap.
 The war-participants prerequisite supports additional countries on either side of one war, with side-based armies, sieges, peace and pairwise truces.
+M8 sea graph and strict v3 port validation are complete. The fleet/transport slice adds deterministic sea movement, port embarkation and landing, and an AI amphibious landing test; naval battles, blockade, attrition, construction, ship models and full AI L3 acceptance remain open.
 The 1440 scenario currently starts with neutral opinions; historically supported positive opening relationships and their values belong to M11 content review. Until then, the alliance AI's favorable branch is covered by a synthetic scenario test.
 
 M13 is the first post-beta milestone; colonization, trade, religion and later eras follow.

@@ -8,6 +8,7 @@ use strategy_sim::{
 mod diplomacy;
 mod marriage;
 mod military;
+mod naval;
 
 /// Fresh context for one country's decision on one simulation tick.
 pub struct AiContext {
@@ -28,11 +29,13 @@ impl AiContext {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Reason {
+    Technology,
     ProfileBudget,
     AvoidDebt,
     RecoverDebt,
     NominateSuccessor,
     Military { action: MilitaryReason, score: i32 },
+    Naval(NavalReason),
     AllianceAccepted,
     AllianceRejected,
     AllianceProposed,
@@ -60,9 +63,19 @@ pub enum MilitaryReason {
     AcceptPeace,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum NavalReason {
+    MarchToPort,
+    SailToPort,
+    EmbarkArmy,
+    SailToGoal,
+    LandArmy,
+}
+
 impl Reason {
     pub fn label(self) -> &'static str {
         match self {
+            Self::Technology => "Technology",
             Self::ProfileBudget => "ProfileBudget",
             Self::AvoidDebt => "AvoidDebt",
             Self::RecoverDebt => "RecoverDebt",
@@ -89,6 +102,13 @@ impl Reason {
                 MilitaryReason::OfferGoal => "OfferGoal",
                 MilitaryReason::OfferWhitePeace => "OfferWhitePeace",
                 MilitaryReason::AcceptPeace => "AcceptPeace",
+            },
+            Self::Naval(action) => match action {
+                NavalReason::MarchToPort => "MarchToPort",
+                NavalReason::SailToPort => "SailToPort",
+                NavalReason::EmbarkArmy => "EmbarkArmy",
+                NavalReason::SailToGoal => "SailToGoal",
+                NavalReason::LandArmy => "LandArmy",
             },
         }
     }
@@ -148,6 +168,46 @@ pub fn decide(
         }
     }
     let economy_period = 28;
+    if state.time().date().components().2 == 1 {
+        if let Some(technology) = state.technologies() {
+            let points = state.research_points(country).unwrap_or(0);
+            let mut choices: Vec<_> = technology
+                .definitions
+                .values()
+                .filter(|definition| definition.cost.get() <= points)
+                .filter(|definition| {
+                    state.country(country).is_some_and(|base| {
+                        !base.known_technologies().any(|key| key == definition.key)
+                            && definition.requires.iter().all(|required| {
+                                base.known_technologies().any(|key| key == required)
+                            })
+                    })
+                })
+                .collect();
+            choices.sort_by(|a, b| {
+                let a_weight = profile
+                    .tech_branch_weights
+                    .get(&a.branch)
+                    .copied()
+                    .unwrap_or(0);
+                let b_weight = profile
+                    .tech_branch_weights
+                    .get(&b.branch)
+                    .copied()
+                    .unwrap_or(0);
+                b_weight.cmp(&a_weight).then_with(|| a.key.cmp(&b.key))
+            });
+            if let Some(definition) = choices.first() {
+                let command = Command::UnlockTechnology {
+                    country,
+                    key: definition.key.clone(),
+                };
+                if state.validate_command(actor, &command).is_ok() {
+                    commands.push((command, Reason::Technology));
+                }
+            }
+        }
+    }
     if (state.time().tick().get() % economy_period + u64::from(country.get())) % economy_period == 0
     {
         if let Some(decision) = fiscal_decision(state, country, profile) {
@@ -185,7 +245,9 @@ pub fn decide(
             }
         }
     }
-    if let Some(command) = military::decide(state, country, nation, profile, ctx) {
+    if let Some(command) = naval::decide(state, country, nation)
+        .or_else(|| military::decide(state, country, nation, profile, ctx))
+    {
         commands.push(command);
     }
     if !commands

@@ -98,6 +98,12 @@ and diplomacy state. Timing varies by host and is excluded from state hashes.
 | Events | on event | pick option by `ai_weight` + profile |
 | Ruler | on trigger | marriages, heirs, regency choices |
 
+The first technology AI slice runs on the first day of each calendar month.
+It chooses one affordable technology whose prerequisites are all known, using
+the profile's `tech_branch_weights`; equal scores use ascending technology key.
+It submits `UnlockTechnology` through the same validation as a human. The
+separate M9 needs-aware choice slice will add war/economy factors.
+
 Each layer scores candidate actions: `score = sum(weight_i * factor_i)` with factors computed from state (strength ratio, distance, opinion, war score, treasury, threats). Highest score above a threshold wins; ties broken by `CountryId`/stable order then RNG.
 
 ## Scheduling and budget
@@ -112,6 +118,14 @@ Each layer scores candidate actions: `score = sum(weight_i * factor_i)` with fac
 - **L2 (M6)**: diplomacy — alliances, guarantees, marriages, truces, reacts to proposals and to threats.
 - **L3 (M7, M8, M9)**: chooses event options, uses navy and transports, picks technologies and ideas.
 - **L4 (M10)**: strategic coordination, balance of power, alliance calls, long-term goals, tuning, soak testing.
+
+The first M8 naval slice follows an existing attacking war across sea. On its
+three-day military cadence, the AI validates the same commands as a human:
+move an army to an owned port, embark it on a fleet with enough ships, sail
+to a sea cell adjacent to the war goal, and land at the enemy port. It does
+not issue a command when no legal route or capacity exists. Declaring a new
+overseas war, escorts, naval combat, blockade and attrition avoidance remain
+part of the later M8 L3 work.
 
 Every mechanic milestone must ship its AI level in the same milestone (see each milestone's "AI slice"). A mechanic without AI support is not accepted.
 

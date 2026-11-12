@@ -18,5 +18,6 @@
     "vassal_min_opinion": 20
   },
   "preferred_tax_rate": 230,
-  "preferred_monthly_spending": 6000
+  "preferred_monthly_spending": 6000,
+  "tech_branch_weights": {"administration": 600, "military": 500}
 }
