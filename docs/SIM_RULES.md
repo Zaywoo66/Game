@@ -30,6 +30,10 @@
 3. AI decisions. The host calls `ai::decide` for AI countries in ascending `CountryId` order, then validates and applies their commands.
 4. Characters (age, death, traits)
 5. Economy
+   - At the start of a new Gregorian month, after the economy step, each country
+     gains 10 whole research points up to a stockpile of 1000. The host-side AI
+     chooses at the start of the month before this grant, so the new points are
+     spendable on its next monthly choice.
 6. Diplomacy timers
 7. Armies move
 8. Combat/sieges

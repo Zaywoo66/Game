@@ -1,9 +1,12 @@
 # M9 Technology and ideas
 Docs: DATA_FORMATS.md, SIM_RULES.md
 
-Progress: technology YAML v1 contract, prerequisite-DAG data linter, and typed
-Rust loader are in progress. Research points, unlocks, ideas, reforms,
-tech-tree UI, and AI choices remain open.
+Progress: technology YAML v1 contract, prerequisite-DAG data linter, typed
+Rust loader, and the research-point/unlock slice are implemented. Ideas,
+reforms, tech-tree UI, and needs-aware AI weights remain open. The research
+slice grants 10 points at each new calendar month, caps unspent points at
+1000, and spends the stated cost through an authorized `UnlockTechnology`
+command. Technology modifiers are permanent and retain their source IDs.
 
 ## Tasks
 - Tech DAG loader, research points, unlock effects as modifiers

@@ -18,7 +18,7 @@ fn identity() -> MapIdentity {
 #[test]
 fn handshake_rejects_each_incompatible_identity_component() {
     let map = identity();
-    assert_eq!(PROTOCOL_VERSION, 8);
+    assert_eq!(PROTOCOL_VERSION, 9);
     assert_eq!(validate_hello(PROTOCOL_VERSION, 2, [42; 32], map), Ok(()));
     assert_eq!(
         validate_hello(3, 2, [42; 32], map),
@@ -171,6 +171,10 @@ fn command_conversion_preserves_raw_fixed_units_and_validates_speed() {
             country: 4,
             key: "harvest_festival".into(),
             option: 1,
+        },
+        PlayerCommand::UnlockTechnology {
+            country: 1,
+            key: "recordkeeping".into(),
         },
         PlayerCommand::Guarantee {
             country: 4,

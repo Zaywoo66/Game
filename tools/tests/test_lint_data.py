@@ -157,6 +157,12 @@ class DataLintTest(unittest.TestCase):
         self.assertEqual(result.returncode, 1, result)
         self.assertIn("technology effects must be permanent", result.stderr)
 
+    def test_rejects_unknown_and_fractional_ai_technology_branch_weights(self):
+        result = run_lint("bad_tech_profile")
+        self.assertEqual(result.returncode, 1, result)
+        self.assertIn("unknown technology branch", result.stderr)
+        self.assertIn("must be a whole score 0..1000", result.stderr)
+
 
 def run_lint(fixture):
     test_dir = Path(__file__).resolve().parent

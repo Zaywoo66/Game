@@ -146,7 +146,8 @@ export type GameCommand =
   | { type: 'offer_peace'; country_id: number; war_id: number; cede_goal: boolean }
   | { type: 'accept_peace'; country_id: number; war_id: number }
   | { type: 'choose_event'; country_id: number; key: string; option: number }
-  | { type: 'guarantee' | 'revoke_guarantee'; country_id: number; protected_id: number };
+  | { type: 'guarantee' | 'revoke_guarantee'; country_id: number; protected_id: number }
+  | { type: 'unlock_technology'; country_id: number; key: string };
 
 interface TauriBridge {
   core: { invoke<T>(name: string, args?: Record<string, unknown>): Promise<T> };

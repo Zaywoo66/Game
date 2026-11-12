@@ -327,6 +327,10 @@ pub(crate) enum UiCommand {
         country_id: u32,
         war_id: u32,
     },
+    UnlockTechnology {
+        country_id: u32,
+        key: String,
+    },
     ChooseEvent {
         country_id: u32,
         key: String,
@@ -457,6 +461,10 @@ impl UiCommand {
             Self::AcceptPeace { country_id, war_id } => Command::AcceptPeace {
                 country: CountryId::new(country_id),
                 war: WarId::new(war_id),
+            },
+            Self::UnlockTechnology { country_id, key } => Command::UnlockTechnology {
+                country: CountryId::new(country_id),
+                key,
             },
             Self::ChooseEvent {
                 country_id,

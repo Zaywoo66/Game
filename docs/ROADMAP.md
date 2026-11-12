@@ -35,8 +35,9 @@ pending events from the host snapshot, resolves English keys and submits a
 validated choice command. The 20–40 event target, Russian translation, and
 multiplayer acceptance remain open.
 The M9 technology YAML contract and typed loader validate branch files, effect
-units, and the cross-branch prerequisite DAG; research-point gameplay and AI
-remain open.
+units, and the cross-branch prerequisite DAG. The research-point and unlock
+slice adds monthly points, permanent modifiers, and profile-weighted AI choices;
+ideas, reforms, needs-aware tech choices, and the tech-tree UI remain open.
 M5b.4 camera, water, borders and terrain have browser screenshot evidence; native 1080p FPS/RAM and owner visual review remain open for M5b acceptance.
 M5b.5 map modes, historical evidence display, English fallback labels and army badges have browser checks; Russian localization, fleet UI, native performance and owner visual acceptance remain open.
 
