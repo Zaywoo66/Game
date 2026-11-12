@@ -38,6 +38,20 @@ test('projected provinces pick their canonical IDs and representative clicks sel
   }
 });
 
+test('country labels stay clear of map controls and panels', async ({ page }) => {
+  await page.evaluate(() => window.strategyMapTest.setCameraPreset('whole-region'));
+  const overlaps = await page.evaluate(() => {
+    const panels = [...document.querySelectorAll('.map-panel, .event-popup')]
+      .map((element) => element.getBoundingClientRect());
+    return [...document.querySelectorAll('.map-label')].filter((label) => {
+      const rect = label.getBoundingClientRect();
+      return panels.some((panel) => rect.right > panel.left && rect.left < panel.right
+        && rect.bottom > panel.top && rect.top < panel.bottom);
+    }).map((label) => label.textContent);
+  });
+  expect(overlaps).toEqual([]);
+});
+
 test('owner recoloring changes the rendered province in place', async ({ page }) => {
   await page.getByRole('button', { name: 'Game political' }).click();
   const land = (await loadProvinces(page)).filter(({ kind }) => kind === 'land');
@@ -73,6 +87,32 @@ test('owner recoloring changes the rendered province in place', async ({ page })
   expect(otherAfter).toEqual(otherColor);
   expect(await page.evaluate(({ x, y }) => window.strategyMapTest.pickAt(x, y), point))
     .toBe(target.id);
+});
+
+test('adjacent historical countries receive clearly separated atlas colors', async ({ page }) => {
+  const [mapResponse, evidenceResponse] = await Promise.all([
+    page.request.get('/map/western_europe/provinces.json'),
+    page.request.get('/map/western_europe/polities_1440.json'),
+  ]);
+  expect(mapResponse.ok() && evidenceResponse.ok()).toBe(true);
+  const [map, evidence] = await Promise.all([mapResponse.json(), evidenceResponse.json()]);
+  const provinces = new Map(map.provinces.map((province) => [province.id, province]));
+  const attributions = new Map(evidence.assignments.map((entry) => [entry.province_id, entry]));
+  const pair = [...provinces.values()].flatMap((province) => province.neighbors.flatMap(({ id }) => {
+    const left = attributions.get(province.id);
+    const right = attributions.get(id);
+    return left?.polity_name && right?.polity_name && left.polity_name !== right.polity_name
+      ? [[province.id, id]] : [];
+  }))[0];
+  expect(pair).toBeTruthy();
+  await page.getByRole('button', { name: 'Historical 1440' }).click();
+  const [left, right] = await page.evaluate(([a, b]) => [
+    window.strategyMapTest.readHistoricalColor(a),
+    window.strategyMapTest.readHistoricalColor(b),
+  ], pair);
+  const distance = Math.sqrt(0.30 * (left[0] - right[0]) ** 2
+    + 0.59 * (left[1] - right[1]) ** 2 + 0.11 * (left[2] - right[2]) ** 2);
+  expect(distance).toBeGreaterThan(35);
 });
 
 test('camera presets stay bounded and wide margins render as ocean', async ({ page }) => {

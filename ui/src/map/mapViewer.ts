@@ -25,6 +25,7 @@ export interface MapTestControls {
   pickAt(clientX: number, clientY: number): number;
   projectProvince(id: number): { x: number; y: number } | null;
   readOwnerColor(id: number): Rgba;
+  readHistoricalColor(id: number): Rgba;
   readArmyPosition(id: number): [number, number, number] | null;
   setOwnerColor(id: number, rgba: Rgba): OwnerUpdate;
   startBenchmark(): void;
@@ -250,6 +251,9 @@ export function createMapViewer(
     if (now - lastLabelRender < 90) return;
     lastLabelRender = now;
     const bounds = viewport.getBoundingClientRect();
+    const overlays = [...document.querySelectorAll<HTMLElement>('.map-panel, .event-popup')]
+      .map((element) => element.getBoundingClientRect())
+      .filter((rect) => rect.width > 0 && rect.height > 0);
     const minimumHistoricalArea = camera.zoom < 1.5 ? 5_500 : 700;
     const labels = mapMode === 'historical'
       ? historical.labels.filter((item) => item.weight >= minimumHistoricalArea)
@@ -272,7 +276,10 @@ export function createMapViewer(
       const y = point.y - bounds.top;
       const halfWidth = Math.max(55, item.text.length * (camera.zoom < 2.2 ? 4.9 : 3.7));
       if (x < halfWidth || y < 25 || x > bounds.width - halfWidth || y > bounds.height - 25
-        || (x < 350 && y < 175)
+        || overlays.some((rect) => bounds.left + x + halfWidth > rect.left
+          && bounds.left + x - halfWidth < rect.right
+          && bounds.top + y + 15 > rect.top
+          && bounds.top + y - 15 < rect.bottom)
         || placed.some((previous) => Math.abs(previous.x - x) < previous.halfWidth + halfWidth + 8 && Math.abs(previous.y - y) < 29)) continue;
       placed.push({ x, y, halfWidth });
       const label = document.createElement('span');
@@ -366,6 +373,16 @@ export function createMapViewer(
       ownerBytes[id * 4 + 1],
       ownerBytes[id * 4 + 2],
       ownerBytes[id * 4 + 3],
+    ];
+  }
+
+  function readHistoricalColor(id: number): Rgba {
+    if (!provinces.has(id)) throw new RangeError('Unknown map province');
+    return [
+      historicalBytes[id * 4],
+      historicalBytes[id * 4 + 1],
+      historicalBytes[id * 4 + 2],
+      historicalBytes[id * 4 + 3],
     ];
   }
 
@@ -529,7 +546,7 @@ export function createMapViewer(
     readBenchmark,
     testControls: {
       renderFrame: () => renderFrame(performance.now()),
-      decodeProvinceId, pickAt, projectProvince, readOwnerColor,
+      decodeProvinceId, pickAt, projectProvince, readOwnerColor, readHistoricalColor,
       readArmyPosition(id) {
         armyLayer.update(performance.now());
         return armyLayer.readPosition(id);

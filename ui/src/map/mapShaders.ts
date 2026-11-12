@@ -148,7 +148,7 @@ void main() {
   ));
   float rasterPixelsPerScreenPixel = max(fwidth(mapUv.x) * rasterSize.x, fwidth(mapUv.y) * rasterSize.y);
   float detail = 1.0 - smoothstep(1.0, 3.5, rasterPixelsPerScreenPixel);
-  float borderOpacity = border.x * (0.17 + 0.20 * detail) + border.y * 0.18 + country * 0.39;
+  float borderOpacity = border.x * (0.15 + 0.17 * detail) + border.y * 0.16 + country * 0.62;
   if (water > 0.5) borderOpacity *= 0.07;
   color = mix(color, water > 0.5 ? vec3(0.070, 0.153, 0.178) : vec3(0.066, 0.085, 0.057), clamp(borderOpacity, 0.0, 0.78));
   if (selectedId > 0.0 && abs(id - selectedId) < 0.5) {
