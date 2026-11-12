@@ -255,10 +255,7 @@ pub enum StateChange {
         fleet: FleetId,
         state: Option<Fleet>,
     },
-    FleetBlocked {
-        fleet: FleetId,
-        by: FleetId,
-    },
+    NavalBattleResolved(crate::NavalBattle),
     WarChanged {
         war: WarId,
         state: Option<War>,
@@ -2047,6 +2044,11 @@ impl GameState {
         if fleet.movement.is_some() {
             return Err(CommandError::Navy(NavyError::FleetInMotion(fleet_id)));
         }
+        if let Some((&blocker, _)) = navy.fleets.iter().find(|(&id, other)| {
+            id != fleet_id && other.sea == fleet.sea && self.directly_at_war(country, other.country)
+        }) {
+            return Err(CommandError::Navy(NavyError::HostileFleet(blocker)));
+        }
         let army_id = fleet
             .cargo
             .ok_or(CommandError::Navy(NavyError::NoCargo(fleet_id)))?;
@@ -2234,38 +2236,42 @@ impl GameState {
             }
         }
         self.advance_military(&mut report);
-        let opposed_pairs: BTreeSet<_> = self
-            .war_state
-            .iter()
-            .flat_map(|war| war.wars.values())
-            .flat_map(|war| {
-                war.attacker_supporters
-                    .iter()
-                    .copied()
-                    .chain(std::iter::once(war.attacker))
-                    .flat_map(move |a| {
-                        war.defender_supporters
-                            .iter()
-                            .copied()
-                            .chain(std::iter::once(war.defender))
-                            .map(move |b| (a.min(b), a.max(b)))
-                    })
-            })
-            .collect();
         if let Some(navy) = &mut self.navy {
-            for (id, blocked_by) in
-                navy.advance(|a, b| opposed_pairs.contains(&(a.min(b), a.max(b))))
-            {
+            let previous = navy.advance();
+            let battles = navy.resolve_battles(
+                &self.province_graph,
+                self.war_state
+                    .iter()
+                    .flat_map(|state| state.wars.iter().map(|(&id, war)| (id, war))),
+                &previous,
+                |army| {
+                    self.war_state
+                        .as_ref()
+                        .and_then(|war| war.armies.get(&army).map(|a| a.soldiers))
+                },
+            );
+            let mut changed: BTreeSet<_> = previous.keys().copied().collect();
+            for battle in battles {
+                changed.extend(battle.changed_fleets.iter().copied());
+                if let Some(war) = &mut self.war_state {
+                    for &army in &battle.lost_armies {
+                        war.armies.remove(&army);
+                        report
+                            .delta
+                            .changes
+                            .push(StateChange::ArmyChanged { army, state: None });
+                    }
+                }
+                report
+                    .delta
+                    .changes
+                    .push(StateChange::NavalBattleResolved(battle));
+            }
+            for id in changed {
                 report.delta.changes.push(StateChange::FleetChanged {
                     fleet: id,
                     state: navy.fleets.get(&id).cloned(),
                 });
-                if let Some(by) = blocked_by {
-                    report
-                        .delta
-                        .changes
-                        .push(StateChange::FleetBlocked { fleet: id, by });
-                }
             }
         }
         if let Some(events) = &mut self.events {

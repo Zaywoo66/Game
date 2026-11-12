@@ -44,6 +44,10 @@ fn province(
 }
 
 fn setup(ships: u32) -> GameState {
+    setup_with_enemy(ships, false)
+}
+
+fn setup_with_enemy(ships: u32, enemy_at_port: bool) -> GameState {
     let graph = ProvinceGraph::try_new(
         MapIdentity {
             version: NonZeroU32::new(3).unwrap(),
@@ -173,7 +177,19 @@ fn setup(ships: u32) -> GameState {
             cargo: None,
         },
     );
-    navy.next_fleet_id = 2;
+    if enemy_at_port {
+        navy.fleets.insert(
+            FleetId::new(2),
+            Fleet {
+                country: B,
+                sea: ProvinceId::new(3),
+                ships: 1,
+                movement: None,
+                cargo: None,
+            },
+        );
+    }
+    navy.next_fleet_id = if enemy_at_port { 3 } else { 2 };
     GameState::new(
         SimTime::new(Date::new(1440, 1, 1).unwrap(), Speed::One, false),
         42,
@@ -188,6 +204,48 @@ fn setup(ships: u32) -> GameState {
     .unwrap()
     .with_navy(navy)
     .unwrap()
+}
+
+#[test]
+fn hostile_fleet_interrupts_landing_until_naval_battle_clears_the_port() {
+    let mut state = setup_with_enemy(2, true);
+    state
+        .apply(
+            HOST,
+            &Command::DeclareWar {
+                country: A,
+                defender: B,
+                goal: ProvinceId::new(2),
+            },
+        )
+        .unwrap();
+    state
+        .apply(
+            HOST,
+            &Command::EmbarkArmy {
+                country: A,
+                army: ARMY,
+                fleet: FLEET,
+            },
+        )
+        .unwrap();
+    let landing = Command::DisembarkArmy {
+        country: A,
+        fleet: FLEET,
+        destination: ProvinceId::new(1),
+    };
+    assert_eq!(
+        state.validate_command(HOST, &landing),
+        Err(CommandError::Navy(NavyError::HostileFleet(FleetId::new(2))))
+    );
+    let report = state.tick(|_, _| vec![]).unwrap();
+    assert!(report
+        .delta
+        .changes()
+        .iter()
+        .any(|change| matches!(change, StateChange::NavalBattleResolved(_))));
+    assert!(!state.navy().unwrap().fleets.contains_key(&FleetId::new(2)));
+    assert!(state.validate_command(HOST, &landing).is_ok());
 }
 
 #[test]

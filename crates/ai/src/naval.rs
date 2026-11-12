@@ -1,4 +1,7 @@
-use strategy_sim::{Command, CommandActor, CountryId, CountryPolity, EdgeKind, GameState, WarSide};
+use strategy_sim::{
+    Command, CommandActor, CountryId, CountryPolity, EdgeKind, Fleet, GameState, NavyState,
+    ProvinceGraph, ProvinceId, War, WarSide,
+};
 
 use crate::{NavalReason, Reason};
 
@@ -28,11 +31,11 @@ pub(super) fn decide(
         if fleet.country != country || fleet.movement.is_some() {
             continue;
         }
-        let Some(&target_sea) = goal
-            .ports
-            .iter()
-            .find(|&&sea| graph.sea_route(fleet.sea, sea).is_some())
-        else {
+        // Avoid ordering a transport into a sea battle it cannot win. A
+        // stronger escort may still enter through the ordinary MoveFleet
+        // command and the host resolves the battle on arrival.
+        let safe_to_sail = |target| route_is_safe(graph, navy, war, fleet, target);
+        let Some(&target_sea) = goal.ports.iter().find(|&&sea| safe_to_sail(sea)) else {
             continue;
         };
         if fleet.cargo.is_some() {
@@ -72,11 +75,7 @@ pub(super) fn decide(
             }
             for &port_id in &nation.provinces {
                 let port = graph.get(port_id)?;
-                let Some(&port_sea) = port
-                    .ports
-                    .iter()
-                    .find(|&&sea| graph.sea_route(fleet.sea, sea).is_some())
-                else {
+                let Some(&port_sea) = port.ports.iter().find(|&&sea| safe_to_sail(sea)) else {
                     continue;
                 };
                 if port
@@ -124,4 +123,102 @@ pub(super) fn decide(
         }
     }
     None
+}
+
+fn route_is_safe(
+    graph: &ProvinceGraph,
+    navy: &NavyState,
+    war: &War,
+    fleet: &Fleet,
+    target: ProvinceId,
+) -> bool {
+    graph.sea_route(fleet.sea, target).is_some_and(|route| {
+        route.iter().all(|edge| {
+            let enemy_ships: u64 = navy
+                .fleets
+                .values()
+                .filter(|other| other.sea == edge.to && war.opposed(fleet.country, other.country))
+                .map(|other| u64::from(other.ships))
+                .sum();
+            u64::from(fleet.ships) > enemy_ships
+        })
+    })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::{
+        collections::{BTreeMap, BTreeSet},
+        num::NonZeroU32,
+    };
+    use strategy_sim::{FleetId, MapIdentity, Province, ProvinceEdge, ProvinceKind, Tick};
+
+    #[test]
+    fn ai_avoids_equal_or_stronger_wartime_fleet_on_its_sea_route() {
+        let province = |id, target| Province {
+            id: ProvinceId::new(id),
+            key: format!("sea_{id}"),
+            kind: ProvinceKind::Sea,
+            terrain: "sea".into(),
+            centroid: [id as i32, 0],
+            development: 0,
+            neighbors: vec![ProvinceEdge {
+                to: ProvinceId::new(target),
+                kind: EdgeKind::Normal,
+                cost: 1,
+            }],
+            ports: vec![],
+        };
+        let graph = ProvinceGraph::try_new(
+            MapIdentity {
+                version: NonZeroU32::new(1).unwrap(),
+                sha256: [0; 32],
+            },
+            [province(1, 2), province(2, 1)],
+        )
+        .unwrap();
+        let own = Fleet {
+            country: CountryId::new(1),
+            sea: ProvinceId::new(1),
+            ships: 2,
+            movement: None,
+            cargo: None,
+        };
+        let mut enemy = Fleet {
+            country: CountryId::new(2),
+            sea: ProvinceId::new(2),
+            ships: 2,
+            movement: None,
+            cargo: None,
+        };
+        let war = War {
+            attacker: own.country,
+            defender: enemy.country,
+            attacker_supporters: BTreeSet::new(),
+            defender_supporters: BTreeSet::new(),
+            goal: ProvinceId::new(1),
+            started_at: Tick::ZERO,
+            score: 0,
+            occupations: BTreeMap::new(),
+            offer: None,
+        };
+        let mut navy = NavyState {
+            fleets: BTreeMap::from([
+                (FleetId::new(1), own.clone()),
+                (FleetId::new(2), enemy.clone()),
+            ]),
+            next_fleet_id: 3,
+        };
+        assert!(!route_is_safe(
+            &graph,
+            &navy,
+            &war,
+            &own,
+            ProvinceId::new(2)
+        ));
+        enemy.ships = 1;
+        navy.fleets.insert(FleetId::new(2), enemy);
+        assert!(route_is_safe(&graph, &navy, &war, &own, ProvinceId::new(2)));
+    }
 }

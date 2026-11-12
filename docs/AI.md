@@ -123,8 +123,10 @@ The first M8 naval slice follows an existing attacking war across sea. On its
 three-day military cadence, the AI validates the same commands as a human:
 move an army to an owned port, embark it on a fleet with enough ships, sail
 to a sea cell adjacent to the war goal, and land at the enemy port. It does
-not issue a command when no legal route or capacity exists. Declaring a new
-overseas war, escorts, naval combat, blockade and attrition avoidance remain
+not issue a command when no legal route or capacity exists. During naval
+combat, it uses the same validated fleet move command and avoids a sea route
+where an opposing fleet has at least as many ships as its own fleet. Declaring
+a new overseas war, escorts, blockade and attrition avoidance remain
 part of the later M8 L3 work.
 
 Every mechanic milestone must ship its AI level in the same milestone (see each milestone's "AI slice"). A mechanic without AI support is not accepted.

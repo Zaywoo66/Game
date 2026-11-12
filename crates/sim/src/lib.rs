@@ -28,7 +28,7 @@ pub use modifiers::{
     effective_value, ModKey, Modifier, ModifierInsertError, ModifierKind, ModifierSourceId,
     ModifierStore,
 };
-pub use navy::{Fleet, FleetMovement, NavyError, NavyState, SHIP_CAPACITY};
+pub use navy::{Fleet, FleetMovement, NavalBattle, NavyError, NavyState, SHIP_CAPACITY};
 pub use opinion::{Opinion, OpinionError, OpinionStateError};
 pub use polity::{
     AiThresholds, AiWeights, CharacterState, CharacterStats, CountryPolity, EconomyState,
