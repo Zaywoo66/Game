@@ -18,8 +18,9 @@ declare global {
   }
 }
 
-const base = import.meta.env.BASE_URL + 'map/western_europe/';
 const options = new URLSearchParams(window.location.search);
+const mapRegion = options.get('map') === 'western_europe' ? 'western_europe' : 'europe';
+const base = import.meta.env.BASE_URL + `map/${mapRegion}/`;
 const verify = options.get('verify') === '1';
 const benchmark = options.get('benchmark') === '1';
 const manualFrames = import.meta.env.DEV && !benchmark && (verify || options.get('testFrames') === '1');
@@ -112,7 +113,7 @@ export function MapPage() {
   const game = hostGame.snapshot;
   const hasGame = Boolean(game);
   useEffect(() => {
-    if (hasGame && !modeChosenByUser.current) setMapMode('political');
+    if (hasGame && mapRegion === 'western_europe' && !modeChosenByUser.current) setMapMode('political');
   }, [hasGame]);
   const militaryEnabled = game?.armies !== undefined;
   const technologyEnabled = Boolean(game?.technologies?.length);
@@ -251,7 +252,7 @@ export function MapPage() {
     <main className="map-page" data-map-status={status} data-map-renderer={renderer} data-map-mode={mapMode}>
       <div className="map-viewport" data-map-viewport ref={viewport} />
       <header className="map-header map-panel">
-        <h1>Western Europe</h1>
+        <h1>{mapRegion === 'europe' ? 'Europe' : 'Western Europe'}</h1>
         {benchmark ? (
           <>
             <p data-map-benchmark role="status">{status === 'error' ? error : benchmarkResult}</p>
@@ -270,7 +271,10 @@ export function MapPage() {
                 </button>
               ))}
             </nav>
-            {mapMode === 'historical' && <p className="map-mode-note">Reference borders (1440), not game ownership.</p>}
+            {mapMode === 'historical' && <p className="map-mode-note">
+              1440 source colors · Solid: named polygon · Hatched: broad group · Gray hatched: no match.
+              These are reference borders, not game ownership.
+            </p>}
             {lan.status && (
               <div className="map-lan">
                 <button type="button" onClick={() => setLobbyOpen(true)}>LAN multiplayer</button>

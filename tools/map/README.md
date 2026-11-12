@@ -1,5 +1,17 @@
 # Western Europe map generator
 
+## Full Europe alpha reference map
+
+Run `python tools/map/fetch_europe.py` only when refreshing the pinned source
+subsets. Build the checked-in source data offline with
+`python tools/map/build_europe.py --region europe`, then run
+`python -B -m unittest tools/map/tests/test_europe.py` and
+`cargo run --locked -p strategy-data --bin lint-provinces -- data/map/europe/provinces.json`.
+The default UI opens the colored Historical 1440 view. The packaged host
+loads the same Europe graph. New land remains neutral in gameplay pending
+country review. The Europe map preserves western raster pixels and IDs at
+offset `(0, 408)`.
+
 Install the pinned dependencies using Python 3.12, then build and verify the
 offline Western Europe slice:
 

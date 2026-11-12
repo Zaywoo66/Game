@@ -50,6 +50,28 @@ Island settlements remain provinces. Ports retain contact with the sea.
 The dense slice adds no over-water land connections. Sea access is
 scheduled for M8.
 
+## Europe alpha extent
+
+`python tools/map/fetch_europe.py` fetches checksum-pinned Natural Earth v5.1.2
+and Cliopatria v0.1.3 subsets plus a value-pinned NOAA ETOPO1 subset. The
+clipped inputs are checked in. `python tools/map/build_europe.py --region europe`
+builds `data/map/europe/` offline. The 2336 × 1152 raster covers longitudes
+−13 to 60 and latitudes 36 to 72 at 32 pixels per degree. The western
+800 × 744 raster is embedded pixel for pixel at x=0..799, y=408..1151.
+All existing province IDs and keys remain stable; the extension stays below
+the reserved Europe ID ceiling of 2000. The full map has its own version and
+hash because its graph and projection differ from the western slice.
+
+New land cells use ranked Natural Earth settlements and sparse coordinate
+fallbacks. Cliopatria's largest polygon overlap is recorded for every land
+province with `polygon`, `coarse_group`, or `unmatched` resolution. These are
+reference colors and source evidence, not scenario ownership. The packaged
+host and default UI both load the Europe graph, so picking, commands, path
+queries, LAN identity and saves share its map version and hash. New provinces
+remain neutral in game ownership until their country content is reviewed;
+the default Historical 1440 view colors them as source evidence. Use
+`?map=western_europe` only to inspect the legacy slice without a live host.
+
 ## Rendering (`/ui/src/map`, three.js WebGL2)
 - Terrain mesh from heightmap (chunked), custom shaders: terrain blend, hillshade, rivers, depth-colored water, province/area/country borders, owner color via lookup texture (`provinceId -> ownerColor`).
 - An orthographic camera clamps zoom, tilt and pan. A low ocean skirt and a short edge fade cover the finite raster edge in wide or tilted views; land outside the regional source extent is not inferred.

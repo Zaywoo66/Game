@@ -43,9 +43,9 @@ pub fn embedded_technologies() -> Result<BTreeMap<String, TechnologyDefinition>,
     Ok(technologies)
 }
 
-/// Loads the playable Western Europe test scenario from packaged data.
+/// Loads the 1440 scenario on the full Europe province graph.
 pub fn load_embedded_scenario() -> Result<GameState, String> {
-    let map = bytes_at("map/western_europe/provinces.json").map_err(|error| error.to_string())?;
+    let map = bytes_at("map/europe/provinces.json").map_err(|error| error.to_string())?;
     let graph = parse_provinces(map).map_err(|error| error.to_string())?;
     let mut state =
         load_scenario_from_reader(graph, "1440", |path| bytes_at(path).map(<[u8]>::to_vec))
