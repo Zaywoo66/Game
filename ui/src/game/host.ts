@@ -209,6 +209,23 @@ function updateRows<T extends { id: number }>(
   return [...rows.values()];
 }
 
+function normalizeSnapshot(snapshot: GameSnapshot): GameSnapshot {
+  return {
+    ...snapshot,
+    countries: snapshot.countries.map((country) => ({
+      ...country,
+      tribute_paid: country.tribute_paid ?? '0',
+      tribute_received: country.tribute_received ?? '0',
+      research_points: country.research_points ?? null,
+      known_technologies: country.known_technologies ?? [],
+    })),
+    guarantees: snapshot.guarantees ?? [],
+    truces: snapshot.truces ?? [],
+    vassals: snapshot.vassals ?? [],
+    vassal_offers: snapshot.vassal_offers ?? [],
+  };
+}
+
 function applyUpdate(snapshot: GameSnapshot, update: GameUpdate): GameSnapshot {
   if (update.sequence <= snapshot.sequence) return snapshot;
   let owners = snapshot.owners;
@@ -224,13 +241,19 @@ function applyUpdate(snapshot: GameSnapshot, update: GameUpdate): GameSnapshot {
     ...snapshot,
     sequence: update.sequence,
     clock: update.clock,
-    countries: updateRows(snapshot.countries, update.countries) ?? snapshot.countries,
+    countries: updateRows(snapshot.countries, update.countries)?.map((country) => ({
+      ...country,
+      tribute_paid: country.tribute_paid ?? '0',
+      tribute_received: country.tribute_received ?? '0',
+      research_points: country.research_points ?? null,
+      known_technologies: country.known_technologies ?? [],
+    })) ?? snapshot.countries,
     pending_events: update.pending_events ?? snapshot.pending_events,
-    guarantees: update.guarantees,
+    guarantees: update.guarantees ?? snapshot.guarantees,
     truces: update.truces ?? snapshot.truces,
     blockaded_ports: update.blockaded_ports ?? snapshot.blockaded_ports,
-    vassals: update.vassals,
-    vassal_offers: update.vassal_offers,
+    vassals: update.vassals ?? snapshot.vassals,
+    vassal_offers: update.vassal_offers ?? snapshot.vassal_offers,
     owners,
     armies: updateRows(snapshot.armies, update.armies, update.removed_armies),
     fleets: updateRows(snapshot.fleets, update.fleets, update.removed_fleets),
@@ -287,7 +310,7 @@ export function useGameHost(enabled: boolean, generation = 0, canCommand = true,
         if (initial.generation !== undefined && initial.generation !== generation) return;
         const latest = queued
           .sort((left, right) => left.sequence - right.sequence)
-          .reduce(applyUpdate, initial);
+          .reduce(applyUpdate, normalizeSnapshot(initial));
         queued.length = 0;
         ready = true;
         setModel({ generation, snapshot: latest });

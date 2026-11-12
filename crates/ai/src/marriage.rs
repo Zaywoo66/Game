@@ -134,7 +134,7 @@ mod tests {
     fn scenario(points: i32) -> (GameState, CountryId, CharacterId, CountryId, CharacterId) {
         let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
         let graph = parse_provinces(
-            &std::fs::read(root.join("data/map/western_europe/provinces.json")).unwrap(),
+            &std::fs::read(root.join("data/map/europe/provinces.json")).unwrap(),
         )
         .unwrap();
         let original = load_scenario(graph.clone(), root.join("data/scenarios/1440.json")).unwrap();

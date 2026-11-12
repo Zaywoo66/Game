@@ -14,7 +14,7 @@ fn host_ai_resolves_pending_event_by_legal_command() {
     event.trigger = Trigger::All(Vec::new());
     event.mean_time_to_happen = NonZeroU64::new(1);
     let graph = parse_provinces(include_bytes!(
-        "../../data/map/western_europe/provinces.json"
+        "../../data/map/europe/provinces.json"
     ))
     .unwrap();
     let scenario =

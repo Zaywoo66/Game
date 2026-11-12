@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 
 test.beforeEach(async ({ page }) => {
-  await page.goto('/?verify=1');
+  await page.goto('/?verify=1&map=western_europe');
   await expect(page.locator('main[data-map-status="ready"]')).toBeVisible({
     timeout: 60_000,
   });
@@ -10,7 +10,7 @@ test.beforeEach(async ({ page }) => {
   expect(renderer).toBeTruthy();
   console.info('Map test WebGL renderer: ' + renderer);
   await expect(page.locator('main')).toHaveAttribute('data-map-mode', 'historical');
-  await expect(page.getByText('Reference borders (1440), not game ownership.')).toBeVisible();
+  await expect(page.getByText(/These are reference borders, not game ownership\./)).toBeVisible();
 });
 
 test('projected provinces pick their canonical IDs and representative clicks select them', async ({ page }) => {

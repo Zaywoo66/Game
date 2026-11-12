@@ -74,7 +74,7 @@ test('M6 shows active truce and blocks a war order until expiry', async ({ page 
   await mockHost(page, id, {
     truces: [{ a_id: 1, b_id: 2, remaining_days: 4, ends_on: '1440-02-05' }],
   });
-  await page.goto('/?verify=1&verifyHost=1');
+  await page.goto('/?verify=1&map=western_europe&verifyHost=1');
   await expect(page.locator('main[data-map-status="ready"]')).toBeVisible({ timeout: 60_000 });
   const panel = page.getByRole('region', { name: 'Country and rulers' });
   await expect(panel.getByRole('region', { name: 'Truces' })).toContainText('Other Realm · 4 days left · ends 1440-02-05');
@@ -107,7 +107,7 @@ test('M11 Brittany displays its period-grounded ermine flag', async ({ page }) =
   await mockHost(page, 1, {
     localCountry: { ...local, tag: 'bre', name: 'Duchy of Brittany' },
   });
-  await page.goto('/?verify=1&verifyHost=1');
+  await page.goto('/?verify=1&map=western_europe&verifyHost=1');
   const flag = page.getByRole('region', { name: 'Country and rulers' }).locator('img.country-flag');
   await expect(flag).toBeVisible({ timeout: 60_000 });
   await expect(flag).toHaveAttribute('src', /bre(?:-[\w-]+)?\.svg/);
@@ -116,7 +116,7 @@ test('M11 Brittany displays its period-grounded ermine flag', async ({ page }) =
 
 test('M3 panels apply host deltas and issue commands without optimistic writes', async ({ page }) => {
   await mockHost(page, 1);
-  await page.goto('/?verify=1&verifyHost=1');
+  await page.goto('/?verify=1&map=western_europe&verifyHost=1');
   const panel = page.getByRole('region', { name: 'Country and rulers' });
   const clock = page.getByRole('region', { name: 'Game clock' });
   await expect(panel).toBeVisible({ timeout: 60_000 });
@@ -177,7 +177,7 @@ test('M3 colors a province from the host ownership snapshot', async ({ page }) =
   const provinces = (await map.json()).provinces;
   const id = provinces.find(({ key }) => key === 'london').id;
   await mockHost(page, id);
-  await page.goto('/?verify=1&verifyHost=1');
+  await page.goto('/?verify=1&map=western_europe&verifyHost=1');
   await expect(page.locator('main[data-map-status="ready"]')).toBeVisible({ timeout: 60_000 });
   await expect(page.getByRole('region', { name: 'Country and rulers' })).toBeVisible();
   await expect.poll(() => page.evaluate((provinceId) => {
@@ -198,7 +198,7 @@ test('M8 shows a blocked port and clears the indicator on a host update', async 
   const provinces = (await map.json()).provinces;
   const id = provinces.find(({ key }) => key === 'london').id;
   await mockHost(page, id, { blockadedPorts: [id] });
-  await page.goto('/?verify=1&verifyHost=1');
+  await page.goto('/?verify=1&map=western_europe&verifyHost=1');
   await expect(page.locator('main[data-map-status="ready"]')).toBeVisible({ timeout: 60_000 });
   const point = await page.evaluate((provinceId) => window.strategyMapTest.projectProvince(provinceId), id);
   expect(point).not.toBeNull();

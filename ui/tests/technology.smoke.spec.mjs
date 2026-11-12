@@ -54,7 +54,7 @@ test('M9 technology tree uses data positions and waits for authoritative researc
     };
   }, { clock, local, technologies });
 
-  await page.goto('/?verify=1&verifyHost=1');
+  await page.goto('/?verify=1&map=western_europe&verifyHost=1');
   await page.getByRole('button', { name: 'Technology', exact: true }).click();
   const tree = page.getByRole('region', { name: 'Technology tree' });
   const root = tree.locator('[data-tech-key="recordkeeping"]');

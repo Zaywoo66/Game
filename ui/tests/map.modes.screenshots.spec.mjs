@@ -10,7 +10,7 @@ test.use({ viewport: { width: 1920, height: 1080 }, deviceScaleFactor: 1 });
 const output = fileURLToPath(new URL('../../docs/screenshots/m5b5/', import.meta.url));
 
 test('capture historical and terrain modes at named views', async ({ page }) => {
-  await page.goto('/?verify=1');
+  await page.goto('/?verify=1&map=western_europe');
   await expect(page.locator('main[data-map-status="ready"]')).toBeVisible({ timeout: 60_000 });
   await mkdir(output, { recursive: true });
   for (const [mode, preset, name] of [

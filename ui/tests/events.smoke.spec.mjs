@@ -34,7 +34,7 @@ test('M7 localized choice waits for host update and sends the chosen option', as
       } },
     };
   }, { clock, pending });
-  await page.goto('/?verify=1&verifyHost=1');
+  await page.goto('/?verify=1&map=western_europe&verifyHost=1');
   const dialog = page.getByRole('dialog', { name: 'A Surplus Harvest' });
   await expect(dialog).toBeVisible({ timeout: 60_000 });
   await expect(dialog.getByText('Farmers report full granaries.', { exact: false })).toBeVisible();

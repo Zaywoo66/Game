@@ -1,6 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { mkdir } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
+import process from 'node:process';
 
 test.skip(!process.env.CAPTURE_EUROPE, 'Run only for requested visual review');
 

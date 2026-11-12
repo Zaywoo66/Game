@@ -7,7 +7,7 @@ use strategy_sim::{Command, Controller};
 
 fn scenario() -> strategy_sim::GameState {
     let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
-    let map = fs::read(root.join("map/western_europe/provinces.json")).unwrap();
+    let map = fs::read(root.join("map/europe/provinces.json")).unwrap();
     let graph = parse_provinces(&map).unwrap();
     load_scenario(graph, root.join("scenarios/1440.json")).unwrap()
 }

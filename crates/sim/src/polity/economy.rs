@@ -72,6 +72,10 @@ impl EconomyState {
     }
 }
 
+#[expect(
+    clippy::too_many_arguments,
+    reason = "tax sources, policy, and tribute are distinct deterministic inputs"
+)]
 pub(super) fn monthly_economy(
     rules: &PolityRules,
     country: &CountryPolity,

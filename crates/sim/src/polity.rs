@@ -397,6 +397,10 @@ impl PolityState {
         (changes, failures)
     }
 
+    #[expect(
+        clippy::too_many_arguments,
+        reason = "forecast receives the same explicit state inputs as the monthly tick"
+    )]
     pub(crate) fn forecast(
         &self,
         country: CountryId,

@@ -993,7 +993,7 @@ fn explicit_unowned_land_must_partition_the_map() {
 #[test]
 fn city_map_scenario_loads_with_explicit_land_partition_and_round_trips() {
     let data = data_root();
-    let map = load_provinces(data.join("map/western_europe/provinces.json")).unwrap();
+    let map = load_provinces(data.join("map/europe/provinces.json")).unwrap();
     let scenario_path = data.join("scenarios/1440.json");
     let state = load_scenario(map.clone(), &scenario_path).unwrap();
     let scenario: Value = serde_json::from_slice(&fs::read(scenario_path).unwrap()).unwrap();
@@ -1010,7 +1010,7 @@ fn city_map_scenario_loads_with_explicit_land_partition_and_round_trips() {
         .map(|province| province.key.as_str())
         .collect();
     assert_eq!(declared, neutral);
-    assert_eq!(map.identity().version.get(), 3);
+    assert_eq!(map.identity().version.get(), 4);
     assert_eq!(state.polity().unwrap().countries.len(), 7);
     assert_eq!(state.polity().unwrap().characters.len(), 14);
     let brittany = state
@@ -1041,7 +1041,7 @@ fn city_map_scenario_loads_with_explicit_land_partition_and_round_trips() {
 #[test]
 fn saved_ai_technology_branch_weights_must_match_the_catalog() {
     let data = data_root();
-    let map = load_provinces(data.join("map/western_europe/provinces.json")).unwrap();
+    let map = load_provinces(data.join("map/europe/provinces.json")).unwrap();
     let state = load_scenario(map.clone(), data.join("scenarios/1440.json")).unwrap();
     let mut save: Value = serde_json::from_slice(&save_game(&state).unwrap()).unwrap();
     save["state"]["polity"]["ai_profiles"][0]["tech_branch_weights"]["unknown_branch"] = json!(1);
@@ -1053,7 +1053,7 @@ fn saved_ai_technology_branch_weights_must_match_the_catalog() {
 
 fn dense_with_navy(navy: Value) -> Result<GameState, ScenarioLoadError> {
     let root = data_root();
-    let map = load_provinces(root.join("map/western_europe/provinces.json")).unwrap();
+    let map = load_provinces(root.join("map/europe/provinces.json")).unwrap();
     load_scenario_from_reader(map, "1440", |logical| {
         let bytes = fs::read(root.join(logical))?;
         if logical != "scenarios/1440.json" {
@@ -1089,7 +1089,7 @@ fn scenario_fleets_use_explicit_owned_port_and_adjacent_sea() {
 #[test]
 fn navy_save_v10_round_trips_embarked_army_and_route_and_rejects_bad_records() {
     let root = data_root();
-    let graph = load_provinces(root.join("map/western_europe/provinces.json")).unwrap();
+    let graph = load_provinces(root.join("map/europe/provinces.json")).unwrap();
     let mut state = load_scenario(graph.clone(), root.join("scenarios/1440.json")).unwrap();
     let fleet_id = strategy_sim::FleetId::new(1);
     let fleet = state.navy().unwrap().fleets[&fleet_id].clone();
