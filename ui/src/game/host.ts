@@ -123,6 +123,7 @@ export interface GameSnapshot {
   pending_events?: EventView[];
   guarantees: { guarantor_id: number; protected_id: number }[];
   truces: TruceView[];
+  blockaded_ports?: number[];
   owners: { province_id: number; country_id: number }[];
   max_tax_rate: number;
   max_monthly_spending: string;
@@ -143,6 +144,7 @@ interface GameUpdate {
   pending_events?: EventView[] | null;
   guarantees: { guarantor_id: number; protected_id: number }[];
   truces: TruceView[];
+  blockaded_ports?: number[];
   armies?: ArmyView[];
   removed_armies?: number[];
   fleets?: FleetView[];
@@ -215,6 +217,7 @@ function applyUpdate(snapshot: GameSnapshot, update: GameUpdate): GameSnapshot {
     pending_events: update.pending_events ?? snapshot.pending_events,
     guarantees: update.guarantees,
     truces: update.truces ?? snapshot.truces,
+    blockaded_ports: update.blockaded_ports ?? snapshot.blockaded_ports,
     owners,
     armies: updateRows(snapshot.armies, update.armies, update.removed_armies),
     fleets: updateRows(snapshot.fleets, update.fleets, update.removed_fleets),

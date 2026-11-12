@@ -17,8 +17,10 @@ const other = {
   capital: 'Other Capital', ruler: null, heir: null, regency: false,
 };
 
-async function mockHost(page, provinceId, truces = [], localCountry = local) {
-  await page.addInitScript(({ initialClock, local, other, provinceId, truces }) => {
+async function mockHost(page, provinceId, {
+  truces = [], localCountry = local, blockadedPorts = [],
+} = {}) {
+  await page.addInitScript(({ initialClock, local, other, provinceId, truces, blockadedPorts }) => {
     const listeners = new Set();
     const commands = [];
     const calls = [];
@@ -46,6 +48,7 @@ async function mockHost(page, provinceId, truces = [], localCountry = local) {
               countries: [local, other], owners: [{ province_id: provinceId, country_id: local.id }],
               truces, armies: truces.length ? [] : undefined,
               max_tax_rate: 200, max_monthly_spending: '999999999999999999',
+              blockaded_ports: blockadedPorts,
             };
           }
           if (name === 'game_command') {
@@ -61,14 +64,16 @@ async function mockHost(page, provinceId, truces = [], localCountry = local) {
         },
       },
     };
-  }, { initialClock, local: localCountry, other, provinceId, truces });
+  }, { initialClock, local: localCountry, other, provinceId, truces, blockadedPorts });
 }
 
 test('M6 shows active truce and blocks a war order until expiry', async ({ page }) => {
   const map = await page.request.get('/map/western_europe/provinces.json');
   expect(map.ok()).toBe(true);
   const id = (await map.json()).provinces.find(({ key }) => key === 'london').id;
-  await mockHost(page, id, [{ a_id: 1, b_id: 2, remaining_days: 4, ends_on: '1440-02-05' }]);
+  await mockHost(page, id, {
+    truces: [{ a_id: 1, b_id: 2, remaining_days: 4, ends_on: '1440-02-05' }],
+  });
   await page.goto('/?verify=1&verifyHost=1');
   await expect(page.locator('main[data-map-status="ready"]')).toBeVisible({ timeout: 60_000 });
   const panel = page.getByRole('region', { name: 'Country and rulers' });
@@ -99,7 +104,9 @@ test('M6 shows active truce and blocks a war order until expiry', async ({ page 
 });
 
 test('M11 Brittany displays its period-grounded ermine flag', async ({ page }) => {
-  await mockHost(page, 1, [], { ...local, tag: 'bre', name: 'Duchy of Brittany' });
+  await mockHost(page, 1, {
+    localCountry: { ...local, tag: 'bre', name: 'Duchy of Brittany' },
+  });
   await page.goto('/?verify=1&verifyHost=1');
   const flag = page.getByRole('region', { name: 'Country and rulers' }).locator('img.country-flag');
   await expect(flag).toBeVisible({ timeout: 60_000 });
@@ -183,4 +190,27 @@ test('M3 colors a province from the host ownership snapshot', async ({ page }) =
   const selected = page.locator('[data-map-selected]');
   await expect(selected).toHaveAttribute('data-map-selected', String(id));
   await expect(selected.getByText('Owner · Test Realm')).toBeVisible();
+});
+
+test('M8 shows a blocked port and clears the indicator on a host update', async ({ page }) => {
+  const map = await page.request.get('/map/western_europe/provinces.json');
+  expect(map.ok()).toBe(true);
+  const provinces = (await map.json()).provinces;
+  const id = provinces.find(({ key }) => key === 'london').id;
+  await mockHost(page, id, { blockadedPorts: [id] });
+  await page.goto('/?verify=1&verifyHost=1');
+  await expect(page.locator('main[data-map-status="ready"]')).toBeVisible({ timeout: 60_000 });
+  const point = await page.evaluate((provinceId) => window.strategyMapTest.projectProvince(provinceId), id);
+  expect(point).not.toBeNull();
+  await page.mouse.click(point.x, point.y);
+  const selected = page.locator('[data-map-selected]');
+  await expect(selected).toHaveAttribute('data-map-selected', String(id));
+  await expect(selected.getByText('Blockaded · port tax income closed')).toBeVisible();
+  await page.evaluate(() => {
+    window.__strategyMockHost.emit({
+      sequence: 11, clock: { date: '1440-02-02', tick: 32, paused: false, speed: 1 },
+      countries: [], owners: [], guarantees: [], blockaded_ports: [],
+    });
+  });
+  await expect(selected.getByText('Blockaded · port tax income closed')).toHaveCount(0);
 });

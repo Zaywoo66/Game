@@ -1,4 +1,6 @@
-use crate::{modifiers::effective_value_from, Fixed, ModifierStore, ProvinceGraph};
+use std::collections::BTreeSet;
+
+use crate::{modifiers::effective_value_from, Fixed, ModifierStore, ProvinceGraph, ProvinceId};
 
 use super::{CountryPolity, PolityRules};
 
@@ -62,6 +64,7 @@ pub(super) fn monthly_economy(
     rules: &PolityRules,
     country: &CountryPolity,
     graph: &ProvinceGraph,
+    blockaded_ports: &BTreeSet<ProvinceId>,
     country_modifiers: &ModifierStore,
     ruler_traits: Option<&ModifierStore>,
     policy: FiscalPolicy,
@@ -70,6 +73,7 @@ pub(super) fn monthly_economy(
     let development: i128 = country
         .provinces
         .iter()
+        .filter(|id| !blockaded_ports.contains(id))
         .map(|id| {
             let province = graph.get(*id).expect("polity owns a known province");
             i128::from(province.development)

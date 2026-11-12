@@ -34,6 +34,7 @@
      gains 10 whole research points up to a stockpile of 1000. The host-side AI
      chooses at the start of the month before this grant, so the new points are
      spendable on its next monthly choice.
+   - A port under an unopposed wartime fleet blockade contributes no tax on a monthly tick; the budget forecast uses the same current fleet positions.
 6. Diplomacy timers
 7. Armies move
 8. Combat/sieges

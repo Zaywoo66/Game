@@ -84,6 +84,11 @@ Run the same host tick without a window with
 `cargo run --locked -p strategy-app --bin ai-smoke -- 3653 1440 1441 1442`.
 The arguments are the daily tick count followed by one or more seeds.
 
+At war, the L3 naval planner prefers a legal amphibious order. Otherwise it
+sends an idle uncargoed fleet through the validated `MoveFleet` command toward
+an enemy port it can blockade. A fleet already maintaining a blockade stays
+in its sea zone. The decision log uses `BlockadePort` as its reason code.
+
 For yearly multi-seed measurements, run
 `cargo run --locked -p strategy-app --bin ai-soak -- 100 1440 1441 1442 1443 1444`.
 It prints tab-separated rows with state hashes, ownership share and local
