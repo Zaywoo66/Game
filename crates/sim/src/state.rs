@@ -5,6 +5,7 @@ use crate::war::{MilitaryAction, MilitaryBonuses, MilitaryOrder};
 use crate::{
     Army, ArmyId, MilitaryTickFailure, MovementLeg, Siege, War, WarError, WarId, WarState,
 };
+use crate::{Fleet, FleetId, FleetMovement, NavyError, NavyState, ProvinceEdge};
 
 use crate::{
     CharacterId, CharacterState, CountryId, CountryPolity, Date, DiplomacyError, DiplomacyState,
@@ -91,6 +92,21 @@ pub enum Command {
         army: ArmyId,
         destination: ProvinceId,
     },
+    MoveFleet {
+        country: CountryId,
+        fleet: FleetId,
+        destination: ProvinceId,
+    },
+    EmbarkArmy {
+        country: CountryId,
+        army: ArmyId,
+        fleet: FleetId,
+    },
+    DisembarkArmy {
+        country: CountryId,
+        fleet: FleetId,
+        destination: ProvinceId,
+    },
     RetreatArmy {
         country: CountryId,
         army: ArmyId,
@@ -169,6 +185,7 @@ pub enum CommandError {
     UnknownAiProfile(CountryId),
     Fiscal(FiscalError),
     War(WarError),
+    Navy(NavyError),
     Diplomacy(DiplomacyError),
     Event(EventError),
     Marriage(MarriageError),
@@ -218,6 +235,14 @@ pub enum StateChange {
     ArmyChanged {
         army: ArmyId,
         state: Option<Army>,
+    },
+    FleetChanged {
+        fleet: FleetId,
+        state: Option<Fleet>,
+    },
+    FleetBlocked {
+        fleet: FleetId,
+        by: FleetId,
     },
     WarChanged {
         war: WarId,
@@ -433,6 +458,7 @@ pub struct GameState {
     events: Option<EventState>,
     polity: Option<PolityState>,
     war_state: Option<WarState>,
+    navy: Option<NavyState>,
 }
 
 enum PreparedCommand<'a> {
@@ -441,6 +467,9 @@ enum PreparedCommand<'a> {
     SetFiscalPolicy(CountryId, FiscalPolicy),
     NominateHeir(CountryId, Option<CharacterId>),
     Military(MilitaryAction, Vec<(CountryId, CountryId)>),
+    MoveFleet(FleetId, Vec<ProvinceEdge>),
+    Embark(ArmyId, FleetId),
+    Disembark(ArmyId, FleetId, ProvinceId),
     Diplomacy(DiplomacyAction),
     ChooseEvent(
         CountryId,
@@ -535,6 +564,7 @@ impl GameState {
             events: None,
             polity: None,
             war_state: None,
+            navy: None,
         })
     }
 
@@ -873,6 +903,27 @@ impl GameState {
         self.war_state.as_ref()
     }
 
+    /// Attaches scenario or save fleets after military armies have been loaded.
+    pub fn with_navy(mut self, navy: NavyState) -> Result<Self, NavyError> {
+        if self.navy.is_some() {
+            return Err(NavyError::AlreadyConfigured);
+        }
+        let war = self.war_state().ok_or(NavyError::Unavailable)?;
+        navy.validate(
+            &self.province_graph,
+            self.countries.keys().copied(),
+            war.armies
+                .iter()
+                .map(|(&id, army)| (id, army.country, army.soldiers, army.movement.is_some())),
+        )?;
+        self.navy = Some(navy);
+        Ok(self)
+    }
+
+    pub const fn navy(&self) -> Option<&NavyState> {
+        self.navy.as_ref()
+    }
+
     pub fn country_at_war(&self, country: CountryId) -> bool {
         self.country(country).is_some_and(TriggerView::is_at_war)
     }
@@ -1071,6 +1122,48 @@ impl GameState {
                     }
                 }
                 self.sync_war_flags();
+            }
+            PreparedCommand::MoveFleet(id, route) => {
+                let navy = self.navy.as_mut().expect("navy state validated");
+                let fleet = navy.fleets.get_mut(&id).expect("fleet validated");
+                fleet.movement = Some(FleetMovement {
+                    route,
+                    elapsed_ticks: 0,
+                });
+                delta.changes.push(StateChange::FleetChanged {
+                    fleet: id,
+                    state: Some(fleet.clone()),
+                });
+            }
+            PreparedCommand::Embark(army_id, fleet_id) => {
+                let navy = self.navy.as_mut().expect("navy state validated");
+                let fleet = navy.fleets.get_mut(&fleet_id).expect("fleet validated");
+                fleet.cargo = Some(army_id);
+                delta.changes.push(StateChange::FleetChanged {
+                    fleet: fleet_id,
+                    state: Some(fleet.clone()),
+                });
+            }
+            PreparedCommand::Disembark(army_id, fleet_id, destination) => {
+                let navy = self.navy.as_mut().expect("navy state validated");
+                let fleet = navy.fleets.get_mut(&fleet_id).expect("fleet validated");
+                fleet.cargo = None;
+                delta.changes.push(StateChange::FleetChanged {
+                    fleet: fleet_id,
+                    state: Some(fleet.clone()),
+                });
+                let army = self
+                    .war_state
+                    .as_mut()
+                    .expect("war state validated")
+                    .armies
+                    .get_mut(&army_id)
+                    .expect("cargo army validated");
+                army.province = destination;
+                delta.changes.push(StateChange::ArmyChanged {
+                    army: army_id,
+                    state: Some(army.clone()),
+                });
             }
             PreparedCommand::Diplomacy(action) => {
                 let diplomacy = self.diplomacy.get_or_insert_with(DiplomacyState::default);
@@ -1300,6 +1393,29 @@ impl GameState {
                 army,
                 destination,
             } => self.prepare_military(actor, *country, MilitaryOrder::Move(*army, *destination)),
+            Command::MoveFleet {
+                country,
+                fleet,
+                destination,
+            } => {
+                self.authorized_polity(actor, *country)?;
+                let navy = self
+                    .navy()
+                    .ok_or(CommandError::Navy(NavyError::Unavailable))?;
+                navy.fleet_route(&self.province_graph, *fleet, *country, *destination)
+                    .map(|route| PreparedCommand::MoveFleet(*fleet, route))
+                    .map_err(CommandError::Navy)
+            }
+            Command::EmbarkArmy {
+                country,
+                army,
+                fleet,
+            } => self.prepare_embark(actor, *country, *army, *fleet),
+            Command::DisembarkArmy {
+                country,
+                fleet,
+                destination,
+            } => self.prepare_disembark(actor, *country, *fleet, *destination),
             Command::RetreatArmy {
                 country,
                 army,
@@ -1539,6 +1655,20 @@ impl GameState {
         order: MilitaryOrder,
     ) -> Result<PreparedCommand<'static>, CommandError> {
         let polity = self.authorized_polity(actor, country)?;
+        if let Some(navy) = &self.navy {
+            let armies = match order {
+                MilitaryOrder::Merge(a, b) => [Some(a), Some(b)],
+                MilitaryOrder::Split(a, _)
+                | MilitaryOrder::Move(a, _)
+                | MilitaryOrder::Retreat(a, _) => [Some(a), None],
+                _ => [None, None],
+            };
+            for army in armies.into_iter().flatten() {
+                if navy.fleets.values().any(|fleet| fleet.cargo == Some(army)) {
+                    return Err(CommandError::Navy(NavyError::CargoAlreadyAboard(army)));
+                }
+            }
+        }
         if let MilitaryOrder::Declare(defender, _) = order {
             if self.allied(country, defender) {
                 return Err(CommandError::Diplomacy(DiplomacyError::MustBreakAlliance));
@@ -1582,6 +1712,126 @@ impl GameState {
             }
         }
         Ok(PreparedCommand::Military(action, failed_guarantees))
+    }
+
+    fn prepare_embark(
+        &self,
+        actor: CommandActor,
+        country: CountryId,
+        army_id: ArmyId,
+        fleet_id: FleetId,
+    ) -> Result<PreparedCommand<'static>, CommandError> {
+        self.authorized_polity(actor, country)?;
+        let war = self
+            .war_state()
+            .ok_or(CommandError::Navy(NavyError::Unavailable))?;
+        let navy = self
+            .navy()
+            .ok_or(CommandError::Navy(NavyError::Unavailable))?;
+        let army = war
+            .armies
+            .get(&army_id)
+            .ok_or(CommandError::Navy(NavyError::UnknownArmy(army_id)))?;
+        let fleet = navy
+            .fleets
+            .get(&fleet_id)
+            .ok_or(CommandError::Navy(NavyError::UnknownFleet(fleet_id)))?;
+        if army.country != country || fleet.country != country {
+            return Err(CommandError::Navy(NavyError::NotFleetOwner(fleet_id)));
+        }
+        if army.movement.is_some() {
+            return Err(CommandError::Navy(NavyError::ArmyInMotion(army_id)));
+        }
+        if fleet.movement.is_some() {
+            return Err(CommandError::Navy(NavyError::FleetInMotion(fleet_id)));
+        }
+        if fleet.cargo.is_some() {
+            return Err(CommandError::Navy(NavyError::FleetHasCargo(fleet_id)));
+        }
+        if navy
+            .fleets
+            .values()
+            .any(|fleet| fleet.cargo == Some(army_id))
+        {
+            return Err(CommandError::Navy(NavyError::CargoAlreadyAboard(army_id)));
+        }
+        if u64::from(army.soldiers) > u64::from(fleet.ships) * u64::from(crate::SHIP_CAPACITY) {
+            return Err(CommandError::Navy(NavyError::InsufficientCapacity(
+                fleet_id,
+            )));
+        }
+        let port_access = self.owner_of_province(army.province).is_some_and(|owner| {
+            owner == country
+                || war
+                    .war_for(country)
+                    .is_some_and(|(_, conflict)| conflict.side(owner) == conflict.side(country))
+        });
+        if !port_access
+            || !self.province_graph.get(army.province).is_some_and(|port| {
+                port.kind == crate::ProvinceKind::Land
+                    && port.ports.contains(&fleet.sea)
+                    && port
+                        .neighbors
+                        .iter()
+                        .any(|edge| edge.to == fleet.sea && edge.kind == EdgeKind::Port)
+            })
+        {
+            return Err(CommandError::Navy(NavyError::InvalidPort(army.province)));
+        }
+        Ok(PreparedCommand::Embark(army_id, fleet_id))
+    }
+
+    fn prepare_disembark(
+        &self,
+        actor: CommandActor,
+        country: CountryId,
+        fleet_id: FleetId,
+        destination: ProvinceId,
+    ) -> Result<PreparedCommand<'static>, CommandError> {
+        self.authorized_polity(actor, country)?;
+        let navy = self
+            .navy()
+            .ok_or(CommandError::Navy(NavyError::Unavailable))?;
+        let fleet = navy
+            .fleets
+            .get(&fleet_id)
+            .ok_or(CommandError::Navy(NavyError::UnknownFleet(fleet_id)))?;
+        if fleet.country != country {
+            return Err(CommandError::Navy(NavyError::NotFleetOwner(fleet_id)));
+        }
+        if fleet.movement.is_some() {
+            return Err(CommandError::Navy(NavyError::FleetInMotion(fleet_id)));
+        }
+        let army_id = fleet
+            .cargo
+            .ok_or(CommandError::Navy(NavyError::NoCargo(fleet_id)))?;
+        let owner = self
+            .owner_of_province(destination)
+            .ok_or(CommandError::Navy(NavyError::InvalidPort(destination)))?;
+        let same_side = self.war_state().is_some_and(|war| {
+            war.war_for(country)
+                .is_some_and(|(_, conflict)| conflict.side(owner) == conflict.side(country))
+        });
+        if owner != country && !same_side && !self.directly_at_war(country, owner) {
+            return Err(CommandError::Navy(NavyError::NotAtWar));
+        }
+        if !self.province_graph.get(destination).is_some_and(|port| {
+            port.kind == crate::ProvinceKind::Land
+                && port.ports.contains(&fleet.sea)
+                && port
+                    .neighbors
+                    .iter()
+                    .any(|edge| edge.to == fleet.sea && edge.kind == EdgeKind::Port)
+        }) {
+            return Err(CommandError::Navy(NavyError::InvalidPort(destination)));
+        }
+        Ok(PreparedCommand::Disembark(army_id, fleet_id, destination))
+    }
+
+    /// Returns the current morale ceiling after country and ruler modifiers.
+    pub fn effective_army_morale_limit(&self, country: CountryId) -> Option<Fixed> {
+        let rules = &self.war_state.as_ref()?.rules;
+        self.military_modifier(country, rules.max_morale, &rules.morale_modifier)
     }
 
     fn military_modifier(&self, country: CountryId, base: Fixed, key: &ModKey) -> Option<Fixed> {
@@ -1722,6 +1972,40 @@ impl GameState {
             }
         }
         self.advance_military(&mut report);
+        let opposed_pairs: BTreeSet<_> = self
+            .war_state
+            .iter()
+            .flat_map(|war| war.wars.values())
+            .flat_map(|war| {
+                war.attacker_supporters
+                    .iter()
+                    .copied()
+                    .chain(std::iter::once(war.attacker))
+                    .flat_map(move |a| {
+                        war.defender_supporters
+                            .iter()
+                            .copied()
+                            .chain(std::iter::once(war.defender))
+                            .map(move |b| (a.min(b), a.max(b)))
+                    })
+            })
+            .collect();
+        if let Some(navy) = &mut self.navy {
+            for (id, blocked_by) in
+                navy.advance(|a, b| opposed_pairs.contains(&(a.min(b), a.max(b))))
+            {
+                report.delta.changes.push(StateChange::FleetChanged {
+                    fleet: id,
+                    state: navy.fleets.get(&id).cloned(),
+                });
+                if let Some(by) = blocked_by {
+                    report
+                        .delta
+                        .changes
+                        .push(StateChange::FleetBlocked { fleet: id, by });
+                }
+            }
+        }
         if let Some(events) = &mut self.events {
             let countries = self
                 .countries
@@ -1762,7 +2046,19 @@ impl GameState {
             .collect();
         let war = self.war_state.as_mut().expect("military state exists");
         let polity = self.polity.as_ref().expect("military state has a polity");
+        // Cargo remains in the army table for stable IDs and saves, but cannot
+        // fight, siege, recover, move or take land supply while aboard.
+        let cargo_ids: Vec<_> = self
+            .navy
+            .iter()
+            .flat_map(|navy| navy.fleets.values().filter_map(|fleet| fleet.cargo))
+            .collect();
+        let embarked: Vec<_> = cargo_ids
+            .into_iter()
+            .filter_map(|id| war.armies.remove(&id).map(|army| (id, army)))
+            .collect();
         let (changes, failures) = war.advance(&self.province_graph, polity, &bonuses);
+        war.armies.extend(embarked);
         report.delta.changes.extend(changes);
         report.military_failures = failures;
     }
