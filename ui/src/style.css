@@ -137,6 +137,23 @@ p { font-size: 14px; color: #a8b6cf; }
 .military-debug li + li { margin-top: 5px; }
 
 .map-inspector--technology { width: min(720px, calc(100% - 36px)); }
+.diplomacy-panel { margin-top: 11px; padding-top: 8px; border-top: 1px solid #78918d55; }
+.diplomacy-panel > p { margin: 4px 0 10px; font-size: 13px; }
+.diplomacy-panel h3 { margin: 8px 0 5px; color: #e1c48c; font-size: 14px; }
+.diplomacy-country-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 7px; max-height: min(58vh, 560px); overflow: auto; padding: 2px; }
+.diplomacy-country { min-width: 0; padding: 8px; border: 1px solid #78918d66; border-radius: 4px; background: #182c30dd; }
+.diplomacy-country-heading { display: flex; align-items: center; gap: 6px; }
+.diplomacy-country-heading strong { flex: 1; }
+.diplomacy-swatch { width: 10px; height: 10px; flex: 0 0 10px; border: 1px solid #ffffff55; border-radius: 2px; }
+.diplomacy-opinion { color: #e1c48c; font-size: 12px; font-variant-numeric: tabular-nums; }
+.diplomacy-country > p { margin: 4px 0 6px; font-size: 12px; }
+.diplomacy-actions { display: flex; flex-wrap: wrap; gap: 5px; align-items: center; }
+.diplomacy-actions button { font-size: 12px; }
+.diplomacy-actions span { color: #c5d2ca; font-size: 12px; }
+.diplomacy-panel ul { list-style: none; margin: 0; padding: 0; }
+.diplomacy-panel li { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 4px 0; color: #c5d2ca; font-size: 13px; }
+.diplomacy-panel li > span { flex: 1; }
+.diplomacy-panel li button { font-size: 12px; }
 .technology-panel { margin-top: 11px; padding-top: 8px; border-top: 1px solid #78918d55; }
 .technology-panel h3 { margin: 4px 0; font-size: 16px; color: #f5ebd5; }
 .technology-panel > p { margin: 4px 0 10px; color: #c5d2ca; font-size: 13px; }

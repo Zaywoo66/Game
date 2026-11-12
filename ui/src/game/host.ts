@@ -147,6 +147,9 @@ export interface GameSnapshot {
   reforms?: ReformView[];
   pending_events?: EventView[];
   guarantees: { guarantor_id: number; protected_id: number }[];
+  alliances?: { a_id: number; b_id: number }[];
+  alliance_offers?: { from_id: number; toward_id: number; expires_at: string }[];
+  opinions?: { from_id: number; toward_id: number; points: number; effective_points: number }[];
   truces: TruceView[];
   blockaded_ports?: number[];
   vassals: { subject_id: number; overlord_id: number }[];
@@ -170,6 +173,9 @@ interface GameUpdate {
   countries: CountryView[];
   pending_events?: EventView[] | null;
   guarantees: { guarantor_id: number; protected_id: number }[];
+  alliances?: { a_id: number; b_id: number }[];
+  alliance_offers?: { from_id: number; toward_id: number; expires_at: string }[];
+  opinions?: { from_id: number; toward_id: number; points: number; effective_points: number }[];
   truces: TruceView[];
   blockaded_ports?: number[];
   vassals: { subject_id: number; overlord_id: number }[];
@@ -199,6 +205,9 @@ export type GameCommand =
   | { type: 'declare_independence'; country_id: number }
   | { type: 'offer_peace'; country_id: number; war_id: number; cede_goal: boolean }
   | { type: 'accept_peace'; country_id: number; war_id: number }
+  | { type: 'offer_alliance'; country_id: number; toward_id: number }
+  | { type: 'accept_alliance' | 'reject_alliance'; country_id: number; from_id: number }
+  | { type: 'break_alliance'; country_id: number; other_id: number }
   | { type: 'choose_event'; country_id: number; key: string; option: number }
   | { type: 'guarantee' | 'revoke_guarantee'; country_id: number; protected_id: number }
   | { type: 'offer_vassalage'; country_id: number; toward_id: number }
@@ -246,6 +255,9 @@ function normalizeSnapshot(snapshot: GameSnapshot): GameSnapshot {
       chosen_reform_tiers: country.chosen_reform_tiers ?? [],
     })),
     guarantees: snapshot.guarantees ?? [],
+    alliances: snapshot.alliances ?? [],
+    alliance_offers: snapshot.alliance_offers ?? [],
+    opinions: snapshot.opinions ?? [],
     truces: snapshot.truces ?? [],
     vassals: snapshot.vassals ?? [],
     vassal_offers: snapshot.vassal_offers ?? [],
@@ -280,6 +292,9 @@ function applyUpdate(snapshot: GameSnapshot, update: GameUpdate): GameSnapshot {
     })) ?? snapshot.countries,
     pending_events: update.pending_events ?? snapshot.pending_events,
     guarantees: update.guarantees ?? snapshot.guarantees,
+    alliances: update.alliances ?? snapshot.alliances ?? [],
+    alliance_offers: update.alliance_offers ?? snapshot.alliance_offers ?? [],
+    opinions: update.opinions ?? snapshot.opinions ?? [],
     truces: update.truces ?? snapshot.truces,
     blockaded_ports: update.blockaded_ports ?? snapshot.blockaded_ports,
     vassals: update.vassals ?? snapshot.vassals,

@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { CountryPanel, HostControls } from '../game/CountryPanel';
+import { DiplomacyPanel } from '../game/DiplomacyPanel';
 import { EventPopup } from '../game/EventPopup';
 import { IdeaPanel } from '../game/IdeaPanel';
 import { ReformPanel } from '../game/ReformPanel';
@@ -96,7 +97,7 @@ export function MapPage() {
   const [mapAssets, setMapAssets] = useState<MapAssets | null>(null);
   const [mapMode, setMapMode] = useState<MapMode>('historical');
   const modeChosenByUser = useRef(false);
-  const [section, setSection] = useState<'country' | 'military' | 'technology' | 'ideas' | 'reforms'>('country');
+  const [section, setSection] = useState<'country' | 'diplomacy' | 'military' | 'technology' | 'ideas' | 'reforms'>('country');
   const [inspectedArmy, setInspectedArmy] = useState(0);
   const [order, setOrder] = useState<ArmyOrder | null>(null);
   const [renderer, setRenderer] = useState('');
@@ -305,7 +306,7 @@ export function MapPage() {
         </p>
       )}
       <aside className={'map-inspector map-panel' + (game ? ' map-inspector--host' : '')
-        + (section === 'technology' || section === 'ideas' || section === 'reforms' ? ' map-inspector--technology' : '')}
+        + (section === 'technology' || section === 'ideas' || section === 'reforms' || section === 'diplomacy' ? ' map-inspector--technology' : '')}
         data-map-selected={selected?.id ?? 0}
         hidden={benchmark || status !== 'ready'}>
         <div aria-live="polite">
@@ -325,12 +326,14 @@ export function MapPage() {
             </>
           ) : <p>Click a province to inspect it</p>}
         </div>
-        {(militaryEnabled || technologyEnabled || ideasEnabled || reformsEnabled) && (
+        {(militaryEnabled || technologyEnabled || ideasEnabled || reformsEnabled || (game && game.local_country_id !== null)) && (
           <div className="inspector-tabs" role="group" aria-label="Inspector panels">
             <button type="button" aria-pressed={section === 'country'} onClick={() => {
               setSection('country');
               setOrder(null);
             }}>Country</button>
+            {game && game.local_country_id !== null && <button type="button" aria-pressed={section === 'diplomacy'}
+              onClick={() => { setSection('diplomacy'); setOrder(null); }}>Diplomacy</button>}
             {militaryEnabled && <button type="button" aria-pressed={section === 'military'}
               onClick={() => setSection('military')}>Military</button>}
             {technologyEnabled && <button type="button" aria-pressed={section === 'technology'}
@@ -344,6 +347,9 @@ export function MapPage() {
         {game && section === 'country' && (
           <CountryPanel game={game} country={shownCountry} pending={hostGame.pending}
             onSelect={setInspectedCountry} send={hostGame.send} />
+        )}
+        {game && section === 'diplomacy' && (
+          <DiplomacyPanel game={game} pending={hostGame.pending} send={hostGame.send} />
         )}
         {game && militaryEnabled && section === 'military' && (
           <MilitaryPanel game={game} pending={hostGame.pending} provinceId={selected?.id ?? null}

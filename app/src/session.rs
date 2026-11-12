@@ -255,6 +255,27 @@ struct GuaranteeView {
     protected_id: u32,
 }
 
+#[derive(Clone, PartialEq, Eq, Serialize)]
+struct AllianceView {
+    a_id: u32,
+    b_id: u32,
+}
+
+#[derive(Clone, PartialEq, Eq, Serialize)]
+struct AllianceOfferView {
+    from_id: u32,
+    toward_id: u32,
+    expires_at: String,
+}
+
+#[derive(Clone, PartialEq, Eq, Serialize)]
+struct OpinionView {
+    from_id: u32,
+    toward_id: u32,
+    points: i16,
+    effective_points: i16,
+}
+
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 struct TruceView {
     a_id: u32,
@@ -299,6 +320,9 @@ pub(crate) struct Snapshot {
     max_tax_rate: i64,
     max_monthly_spending: String,
     guarantees: Vec<GuaranteeView>,
+    alliances: Vec<AllianceView>,
+    alliance_offers: Vec<AllianceOfferView>,
+    opinions: Vec<OpinionView>,
     truces: Vec<TruceView>,
     blockaded_ports: Vec<u32>,
     vassals: Vec<VassalView>,
@@ -320,6 +344,9 @@ struct Update {
     countries: Vec<CountryView>,
     pending_events: Option<Vec<EventView>>,
     guarantees: Vec<GuaranteeView>,
+    alliances: Vec<AllianceView>,
+    alliance_offers: Vec<AllianceOfferView>,
+    opinions: Vec<OpinionView>,
     truces: Vec<TruceView>,
     blockaded_ports: Vec<u32>,
     vassals: Vec<VassalView>,
@@ -416,6 +443,22 @@ pub(crate) enum UiCommand {
     AcceptPeace {
         country_id: u32,
         war_id: u32,
+    },
+    OfferAlliance {
+        country_id: u32,
+        toward_id: u32,
+    },
+    AcceptAlliance {
+        country_id: u32,
+        from_id: u32,
+    },
+    RejectAlliance {
+        country_id: u32,
+        from_id: u32,
+    },
+    BreakAlliance {
+        country_id: u32,
+        other_id: u32,
     },
     UnlockTechnology {
         country_id: u32,
@@ -578,6 +621,34 @@ impl UiCommand {
             Self::AcceptPeace { country_id, war_id } => Command::AcceptPeace {
                 country: CountryId::new(country_id),
                 war: WarId::new(war_id),
+            },
+            Self::OfferAlliance {
+                country_id,
+                toward_id,
+            } => Command::OfferAlliance {
+                country: CountryId::new(country_id),
+                toward: CountryId::new(toward_id),
+            },
+            Self::AcceptAlliance {
+                country_id,
+                from_id,
+            } => Command::AcceptAlliance {
+                country: CountryId::new(country_id),
+                from: CountryId::new(from_id),
+            },
+            Self::RejectAlliance {
+                country_id,
+                from_id,
+            } => Command::RejectAlliance {
+                country: CountryId::new(country_id),
+                from: CountryId::new(from_id),
+            },
+            Self::BreakAlliance {
+                country_id,
+                other_id,
+            } => Command::BreakAlliance {
+                country: CountryId::new(country_id),
+                other: CountryId::new(other_id),
             },
             Self::UnlockTechnology { country_id, key } => Command::UnlockTechnology {
                 country: CountryId::new(country_id),
@@ -812,6 +883,9 @@ pub(crate) fn game_snapshot(state: State<'_, Mutex<Session>>) -> Result<Snapshot
         max_tax_rate: polity.rules.max_tax_rate.raw(),
         max_monthly_spending: money(polity.rules.max_monthly_spending),
         guarantees: guarantee_views(&session.game),
+        alliances: alliance_views(&session.game),
+        alliance_offers: alliance_offer_views(&session.game),
+        opinions: opinion_views(&session.game),
         truces: truce_views(&session.game),
         blockaded_ports: session
             .game
@@ -1264,6 +1338,9 @@ fn publish(app: &AppHandle, session: &mut Session) {
         countries: changed_rows(&session.visible_countries, &countries),
         pending_events: (session.visible_events != events).then(|| events.clone()),
         guarantees: guarantee_views(&session.game),
+        alliances: alliance_views(&session.game),
+        alliance_offers: alliance_offer_views(&session.game),
+        opinions: opinion_views(&session.game),
         truces: truce_views(&session.game),
         blockaded_ports: session
             .game
@@ -1327,6 +1404,43 @@ fn guarantee_views(game: &GameState) -> Vec<GuaranteeView> {
         .map(|&(guarantor, protected)| GuaranteeView {
             guarantor_id: guarantor.get(),
             protected_id: protected.get(),
+        })
+        .collect()
+}
+
+fn alliance_views(game: &GameState) -> Vec<AllianceView> {
+    game.diplomacy()
+        .into_iter()
+        .flat_map(|diplomacy| &diplomacy.alliances)
+        .map(|&(a, b)| AllianceView {
+            a_id: a.get(),
+            b_id: b.get(),
+        })
+        .collect()
+}
+
+fn alliance_offer_views(game: &GameState) -> Vec<AllianceOfferView> {
+    game.diplomacy()
+        .into_iter()
+        .flat_map(|diplomacy| &diplomacy.offers)
+        .map(|(&(from, toward), &expires)| AllianceOfferView {
+            from_id: from.get(),
+            toward_id: toward.get(),
+            expires_at: format_date(expires),
+        })
+        .collect()
+}
+
+fn opinion_views(game: &GameState) -> Vec<OpinionView> {
+    game.opinions()
+        .map(|(from, toward, opinion)| OpinionView {
+            from_id: from.get(),
+            toward_id: toward.get(),
+            points: opinion.points(),
+            effective_points: game
+                .effective_opinion(from, toward)
+                .unwrap_or(opinion)
+                .points(),
         })
         .collect()
 }
@@ -1904,6 +2018,49 @@ mod tests {
                         protected: CountryId::new(2),
                     }
                 }
+            );
+        }
+    }
+
+    #[test]
+    fn alliance_ui_commands_preserve_direction_and_country_ids() {
+        let cases = [
+            (
+                r#"{"type":"offer_alliance","country_id":3,"toward_id":2}"#,
+                Command::OfferAlliance {
+                    country: CountryId::new(3),
+                    toward: CountryId::new(2),
+                },
+            ),
+            (
+                r#"{"type":"accept_alliance","country_id":2,"from_id":3}"#,
+                Command::AcceptAlliance {
+                    country: CountryId::new(2),
+                    from: CountryId::new(3),
+                },
+            ),
+            (
+                r#"{"type":"reject_alliance","country_id":2,"from_id":3}"#,
+                Command::RejectAlliance {
+                    country: CountryId::new(2),
+                    from: CountryId::new(3),
+                },
+            ),
+            (
+                r#"{"type":"break_alliance","country_id":3,"other_id":2}"#,
+                Command::BreakAlliance {
+                    country: CountryId::new(3),
+                    other: CountryId::new(2),
+                },
+            ),
+        ];
+        for (json, expected) in cases {
+            assert_eq!(
+                serde_json::from_str::<UiCommand>(json)
+                    .unwrap()
+                    .into_sim()
+                    .unwrap(),
+                expected
             );
         }
     }

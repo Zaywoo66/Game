@@ -30,8 +30,12 @@ updates project only active pairs, remaining game days and the calculated end
 date. The country card shows each pair; the military panel disables a war
 declaration against a country under truce and states the expiry reason. AI war
 commands already pass the same validation. No separate peacetime truce offer
-is part of the approved M6 rule. The full diplomacy window and player-to-player
-proposal acceptance remain open.
+is part of the approved M6 rule. The country-list diplomacy window projects
+effective opinions, active alliances, alliance proposals with expiry, and
+guarantee/vassalage controls. It sends alliance offers, responses, and breaks
+through host-validated commands; the UI changes only on an authoritative
+snapshot or update. Browser coverage checks this command/update path. Two-PC
+LAN acceptance and the remaining marriage proposal UI are still open.
 
 ## Defensive guarantee slice
 

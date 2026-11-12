@@ -21,8 +21,10 @@ const other = {
 
 async function mockHost(page, provinceId, {
   truces = [], localCountry = local, blockadedPorts = [], ideas = [], reforms = [],
+  alliances = [], allianceOffers = [], opinions = [],
 } = {}) {
-  await page.addInitScript(({ initialClock, local, other, provinceId, truces, blockadedPorts, ideas, reforms }) => {
+  await page.addInitScript(({ initialClock, local, other, provinceId, truces, blockadedPorts, ideas, reforms,
+    alliances, allianceOffers, opinions }) => {
     const listeners = new Set();
     const commands = [];
     const calls = [];
@@ -50,6 +52,9 @@ async function mockHost(page, provinceId, {
               countries: [local, other], owners: [{ province_id: provinceId, country_id: local.id }],
               ideas,
               reforms,
+              alliances,
+              alliance_offers: allianceOffers,
+              opinions,
               truces, armies: truces.length ? [] : undefined,
               max_tax_rate: 200, max_monthly_spending: '999999999999999999',
               blockaded_ports: blockadedPorts,
@@ -68,8 +73,46 @@ async function mockHost(page, provinceId, {
         },
       },
     };
-  }, { initialClock, local: localCountry, other, provinceId, truces, blockadedPorts, ideas, reforms });
+  }, { initialClock, local: localCountry, other, provinceId, truces, blockadedPorts, ideas, reforms,
+    alliances, allianceOffers, opinions });
 }
+
+test('M6 diplomacy window accepts a LAN proposal and sends a new alliance offer through the host', async ({ page }) => {
+  const map = await page.request.get('/map/western_europe/provinces.json');
+  expect(map.ok()).toBe(true);
+  const id = (await map.json()).provinces.find(({ key }) => key === 'london').id;
+  await mockHost(page, id, {
+    allianceOffers: [{ from_id: 2, toward_id: 1, expires_at: '1440-03-01' }],
+    opinions: [{ from_id: 1, toward_id: 2, points: 10, effective_points: 10 }],
+  });
+  await page.goto('/?verify=1&map=western_europe&verifyHost=1');
+  await page.getByRole('button', { name: 'Diplomacy', exact: true }).click();
+  const panel = page.getByRole('region', { name: 'Diplomacy' });
+  await expect(panel.getByRole('region', { name: 'Incoming alliance proposals' }))
+    .toContainText('Other Realm · expires 1440-03-01');
+  await expect(panel).toContainText('Opinion 10/100');
+  await panel.getByRole('button', { name: 'Accept', exact: true }).click();
+  await expect.poll(() => page.evaluate(() => window.__strategyMockHost.commands)).toEqual([{
+    type: 'accept_alliance', country_id: 1, from_id: 2,
+  }]);
+
+  await page.evaluate((clock) => window.__strategyMockHost.emit({
+    sequence: 11, clock, countries: [], alliance_offers: [], alliances: [{ a_id: 1, b_id: 2 }],
+  }), initialClock);
+  await expect(panel.getByRole('button', { name: 'Break alliance' })).toBeVisible();
+  await panel.getByRole('button', { name: 'Break alliance' }).click();
+  await expect.poll(() => page.evaluate(() => window.__strategyMockHost.commands[1])).toEqual({
+    type: 'break_alliance', country_id: 1, other_id: 2,
+  });
+
+  await page.evaluate((clock) => window.__strategyMockHost.emit({
+    sequence: 12, clock, countries: [], alliances: [],
+  }), initialClock);
+  await panel.getByRole('button', { name: 'Offer alliance' }).click();
+  await expect.poll(() => page.evaluate(() => window.__strategyMockHost.commands[2])).toEqual({
+    type: 'offer_alliance', country_id: 1, toward_id: 2,
+  });
+});
 
 test('M9 purchases one government reform per tier through the host', async ({ page }) => {
   const map = await page.request.get('/map/western_europe/provinces.json');
