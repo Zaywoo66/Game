@@ -430,7 +430,7 @@ Add new leaves here first, then implement.
 |---|---|
 | `key` | Profile key and filename stem. |
 | `weights.aggression`, `expansion`, `caution`, `diplomacy`, `economy`, `naval`, `loyalty` | Whole weight points from 0 through 1000. |
-| `thresholds.war_min_score`, `peace_accept_score`, `alliance_min_opinion`, `marriage_min_opinion` | Signed 32-bit whole decision score points. The 1440 marriage threshold is 20 effective opinion points. |
+| `thresholds.war_min_score`, `peace_accept_score`, `alliance_min_opinion`, `marriage_min_opinion`, `vassal_min_opinion` | Signed 32-bit whole decision score points. The 1440 marriage and vassal thresholds are 20 effective opinion points. |
 | `preferred_tax_rate` | Raw Fixed fraction within scenario tax limits. |
 | `preferred_monthly_spending` | Raw Fixed treasury amount per month within scenario spending limits. |
 | `tech_branch_weights` | Optional object from loaded technology branch key to whole preference points 0 through 1000. Unknown branches and out-of-range weights are rejected when the catalog is attached. Missing branch weights score zero. |
@@ -637,3 +637,25 @@ keys, and permanent modifier effects in raw Fixed thousandths. The country
 record's `known_technologies` and the technology source records must agree.
 The hash domain is `strategy:game-state:v11` followed by NUL and canonical
 save bytes. Older saves remain readable without research state.
+
+## Saved games (schema version 12)
+
+Vassalage uses save schema v12 and hash domain `strategy:game-state:v12`
+followed by NUL and canonical save bytes. The `state.diplomacy.vassals`
+array stores directed `{a,b}` records with `a` the positive unsigned 32-bit
+subject country ID and `b` the positive unsigned 32-bit overlord ID. Records
+are sorted by `(a,b)`, unique by subject, and form no chains or cycles.
+`vassal_offers` stores directed `{a,b,until}` records: positive unsigned
+32-bit overlord and prospective-subject IDs followed by a Gregorian
+`[year,month,day]` expiry after the saved date. Both arrays omit empty values.
+An active war's optional boolean `independence` is true only for a subject
+attacking its overlord with the overlord capital as goal. A true goal-peace
+offer ends the bond without ceding that province; white peace keeps it.
+
+The optional monthly budget fields `tribute_paid` and `tribute_received` are
+raw Fixed treasury amounts (thousandths), never negative, and omitted when
+zero. The AI profile's optional `vassal_min_opinion` is in whole opinion
+points and omitted when zero. V12 is selected when any of these vassalage
+fields is active or nonzero. V1–v11 saves without them remain readable and
+keep their original canonical bytes. LAN protocol v10 transports the v12
+snapshot and the validated vassalage commands.

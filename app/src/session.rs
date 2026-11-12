@@ -110,6 +110,8 @@ struct CountryView {
     capital: String,
     treasury: String,
     income: String,
+    tribute_paid: String,
+    tribute_received: String,
     expenses: String,
     tax_rate: i64,
     monthly_spending: String,
@@ -197,6 +199,7 @@ struct WarView {
     attacker_supporters: Vec<u32>,
     defender_supporters: Vec<u32>,
     goal_province_id: u32,
+    independence: bool,
     score: i32,
     occupations: Vec<OwnerView>,
     offer: Option<PeaceView>,
@@ -231,6 +234,19 @@ struct TruceView {
     ends_on: Option<String>,
 }
 
+#[derive(Clone, PartialEq, Eq, Serialize)]
+struct VassalView {
+    subject_id: u32,
+    overlord_id: u32,
+}
+
+#[derive(Clone, PartialEq, Eq, Serialize)]
+struct VassalOfferView {
+    overlord_id: u32,
+    subject_id: u32,
+    expires_at: String,
+}
+
 #[derive(Default)]
 struct MilitaryView {
     armies: BTreeMap<u32, ArmyView>,
@@ -254,6 +270,8 @@ pub(crate) struct Snapshot {
     guarantees: Vec<GuaranteeView>,
     truces: Vec<TruceView>,
     blockaded_ports: Vec<u32>,
+    vassals: Vec<VassalView>,
+    vassal_offers: Vec<VassalOfferView>,
     armies: Vec<ArmyView>,
     fleets: Vec<FleetView>,
     wars: Vec<WarView>,
@@ -273,6 +291,8 @@ struct Update {
     guarantees: Vec<GuaranteeView>,
     truces: Vec<TruceView>,
     blockaded_ports: Vec<u32>,
+    vassals: Vec<VassalView>,
+    vassal_offers: Vec<VassalOfferView>,
     owners: Vec<OwnerView>,
     armies: Vec<ArmyView>,
     removed_armies: Vec<u32>,
@@ -354,6 +374,9 @@ pub(crate) enum UiCommand {
         defender_id: u32,
         goal_province_id: u32,
     },
+    DeclareIndependence {
+        country_id: u32,
+    },
     OfferPeace {
         country_id: u32,
         war_id: u32,
@@ -379,6 +402,22 @@ pub(crate) enum UiCommand {
     RevokeGuarantee {
         country_id: u32,
         protected_id: u32,
+    },
+    OfferVassalage {
+        country_id: u32,
+        toward_id: u32,
+    },
+    AcceptVassalage {
+        country_id: u32,
+        from_id: u32,
+    },
+    RejectVassalage {
+        country_id: u32,
+        from_id: u32,
+    },
+    ReleaseVassal {
+        country_id: u32,
+        subject_id: u32,
     },
 }
 
@@ -485,6 +524,9 @@ impl UiCommand {
                 defender: CountryId::new(defender_id),
                 goal: ProvinceId::new(goal_province_id),
             },
+            Self::DeclareIndependence { country_id } => Command::DeclareIndependence {
+                country: CountryId::new(country_id),
+            },
             Self::OfferPeace {
                 country_id,
                 war_id,
@@ -524,6 +566,34 @@ impl UiCommand {
             } => Command::RevokeGuarantee {
                 country: CountryId::new(country_id),
                 protected: CountryId::new(protected_id),
+            },
+            Self::OfferVassalage {
+                country_id,
+                toward_id,
+            } => Command::OfferVassalage {
+                country: CountryId::new(country_id),
+                toward: CountryId::new(toward_id),
+            },
+            Self::AcceptVassalage {
+                country_id,
+                from_id,
+            } => Command::AcceptVassalage {
+                country: CountryId::new(country_id),
+                from: CountryId::new(from_id),
+            },
+            Self::RejectVassalage {
+                country_id,
+                from_id,
+            } => Command::RejectVassalage {
+                country: CountryId::new(country_id),
+                from: CountryId::new(from_id),
+            },
+            Self::ReleaseVassal {
+                country_id,
+                subject_id,
+            } => Command::ReleaseVassal {
+                country: CountryId::new(country_id),
+                subject: CountryId::new(subject_id),
             },
         })
     }
@@ -700,6 +770,8 @@ pub(crate) fn game_snapshot(state: State<'_, Mutex<Session>>) -> Result<Snapshot
             .into_iter()
             .map(|id| id.get())
             .collect(),
+        vassals: vassal_views(&session.game),
+        vassal_offers: vassal_offer_views(&session.game),
         armies: session.military.armies.values().cloned().collect(),
         fleets: session.military.fleets.values().cloned().collect(),
         wars: session.military.wars.values().cloned().collect(),
@@ -1150,6 +1222,8 @@ fn publish(app: &AppHandle, session: &mut Session) {
             .into_iter()
             .map(|id| id.get())
             .collect(),
+        vassals: vassal_views(&session.game),
+        vassal_offers: vassal_offer_views(&session.game),
         owners: owners
             .iter()
             .filter(|(id, owner)| session.visible_owners.get(id) != Some(*owner))
@@ -1250,6 +1324,29 @@ fn collect_truce_views(war: &WarState, now: Tick, today: Date) -> Vec<TruceView>
         .collect()
 }
 
+fn vassal_views(game: &GameState) -> Vec<VassalView> {
+    game.diplomacy()
+        .into_iter()
+        .flat_map(|diplomacy| &diplomacy.vassals)
+        .map(|(&subject, &overlord)| VassalView {
+            subject_id: subject.get(),
+            overlord_id: overlord.get(),
+        })
+        .collect()
+}
+
+fn vassal_offer_views(game: &GameState) -> Vec<VassalOfferView> {
+    game.diplomacy()
+        .into_iter()
+        .flat_map(|diplomacy| &diplomacy.vassal_offers)
+        .map(|(&(overlord, subject), &expires)| VassalOfferView {
+            overlord_id: overlord.get(),
+            subject_id: subject.get(),
+            expires_at: format_date(expires),
+        })
+        .collect()
+}
+
 fn owner_views(game: &GameState) -> BTreeMap<u32, u32> {
     game.polity()
         .into_iter()
@@ -1342,6 +1439,7 @@ fn military_view(game: &GameState) -> MilitaryView {
                             .map(|id| id.get())
                             .collect(),
                         goal_province_id: war.goal.get(),
+                        independence: war.independence,
                         score: war.score,
                         occupations: war
                             .occupations
@@ -1454,6 +1552,16 @@ fn country_views(game: &GameState) -> BTreeMap<u32, CountryView> {
                         economy
                             .last_month
                             .map_or(Fixed::ZERO, |budget| budget.income),
+                    ),
+                    tribute_paid: money(
+                        economy
+                            .last_month
+                            .map_or(Fixed::ZERO, |budget| budget.tribute_paid),
+                    ),
+                    tribute_received: money(
+                        economy
+                            .last_month
+                            .map_or(Fixed::ZERO, |budget| budget.tribute_received),
                     ),
                     expenses: money(
                         economy
@@ -1656,6 +1764,53 @@ mod tests {
                     }
                 }
             );
+        }
+    }
+
+    #[test]
+    fn vassal_ui_commands_preserve_direction_and_country_ids() {
+        let cases = [
+            (
+                r#"{"type":"offer_vassalage","country_id":3,"toward_id":2}"#,
+                Command::OfferVassalage {
+                    country: CountryId::new(3),
+                    toward: CountryId::new(2),
+                },
+            ),
+            (
+                r#"{"type":"accept_vassalage","country_id":2,"from_id":3}"#,
+                Command::AcceptVassalage {
+                    country: CountryId::new(2),
+                    from: CountryId::new(3),
+                },
+            ),
+            (
+                r#"{"type":"reject_vassalage","country_id":2,"from_id":3}"#,
+                Command::RejectVassalage {
+                    country: CountryId::new(2),
+                    from: CountryId::new(3),
+                },
+            ),
+            (
+                r#"{"type":"release_vassal","country_id":3,"subject_id":2}"#,
+                Command::ReleaseVassal {
+                    country: CountryId::new(3),
+                    subject: CountryId::new(2),
+                },
+            ),
+            (
+                r#"{"type":"declare_independence","country_id":2}"#,
+                Command::DeclareIndependence {
+                    country: CountryId::new(2),
+                },
+            ),
+        ];
+        for (json, expected) in cases {
+            let actual = serde_json::from_str::<UiCommand>(json)
+                .unwrap()
+                .into_sim()
+                .unwrap();
+            assert_eq!(actual, expected);
         }
     }
 

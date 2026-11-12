@@ -76,6 +76,362 @@ fn alliance_offer_accept_break_and_calendar_cooldown() {
 }
 
 #[test]
+fn vassal_offers_expire_and_bonds_reject_chains_and_external_treaties() {
+    let mut state = setup_guarantee(|_| {});
+    let proposal = Command::OfferVassalage {
+        country: A,
+        toward: B,
+    };
+    assert_eq!(
+        state.validate_command(GUEST, &proposal),
+        Err(CommandError::NotCountryController(A))
+    );
+    apply(&mut state, HOST, proposal.clone());
+    let expiry = state.diplomacy().unwrap().vassal_offers[&(A, B)];
+    assert_eq!(expiry, Date::new(1440, 1, 31).unwrap());
+    for _ in 0..30 {
+        day(&mut state);
+    }
+    assert!(!state
+        .diplomacy()
+        .unwrap()
+        .vassal_offers
+        .contains_key(&(A, B)));
+    assert_eq!(
+        state.validate_command(
+            GUEST,
+            &Command::AcceptVassalage {
+                country: B,
+                from: A
+            }
+        ),
+        Err(CommandError::Diplomacy(DiplomacyError::NoOffer))
+    );
+    apply(&mut state, HOST, proposal);
+    apply(
+        &mut state,
+        GUEST,
+        Command::AcceptVassalage {
+            country: B,
+            from: A,
+        },
+    );
+    assert_eq!(state.diplomacy().unwrap().overlord_of(B), Some(A));
+    assert_eq!(
+        state.validate_command(
+            HOST,
+            &Command::OfferVassalage {
+                country: A,
+                toward: B
+            }
+        ),
+        Err(CommandError::Diplomacy(DiplomacyError::AlreadyVassal))
+    );
+    assert_eq!(
+        state.validate_command(
+            GUEST,
+            &Command::OfferAlliance {
+                country: B,
+                toward: C
+            }
+        ),
+        Err(CommandError::Diplomacy(
+            DiplomacyError::SubjectCannotOfferTreaty
+        ))
+    );
+    assert_eq!(
+        state.validate_command(
+            GUEST,
+            &Command::DeclareWar {
+                country: B,
+                defender: C,
+                goal: province(6)
+            }
+        ),
+        Err(CommandError::Diplomacy(
+            DiplomacyError::SubjectCannotDeclareWar
+        ))
+    );
+    let c_actor = CommandActor::Host(PlayerId::new(3));
+    assert_eq!(
+        state.validate_command(
+            c_actor,
+            &Command::OfferVassalage {
+                country: C,
+                toward: A
+            }
+        ),
+        Err(CommandError::Diplomacy(DiplomacyError::VassalChain))
+    );
+}
+
+fn form_vassal(state: &mut GameState) {
+    apply(
+        state,
+        HOST,
+        Command::OfferVassalage {
+            country: A,
+            toward: B,
+        },
+    );
+    apply(
+        state,
+        GUEST,
+        Command::AcceptVassalage {
+            country: B,
+            from: A,
+        },
+    );
+}
+
+#[test]
+fn overlord_defends_subject_and_subject_leader_can_make_defensive_peace() {
+    let mut state = setup_guarantee(|_| {});
+    form_vassal(&mut state);
+    let c_actor = CommandActor::Host(PlayerId::new(3));
+    apply(
+        &mut state,
+        c_actor,
+        Command::DeclareWar {
+            country: C,
+            defender: B,
+            goal: province(5),
+        },
+    );
+    let war = &state.war_state().unwrap().wars[&WAR];
+    assert_eq!(war.defender, B);
+    assert!(war.defender_supporters.contains(&A));
+    assert_eq!(
+        state.validate_command(
+            HOST,
+            &Command::OfferPeace {
+                country: A,
+                war: WAR,
+                cede_goal: false
+            }
+        ),
+        Err(CommandError::War(WarError::NotWarLeader))
+    );
+    apply(
+        &mut state,
+        GUEST,
+        Command::OfferPeace {
+            country: B,
+            war: WAR,
+            cede_goal: false,
+        },
+    );
+    apply(
+        &mut state,
+        c_actor,
+        Command::AcceptPeace {
+            country: C,
+            war: WAR,
+        },
+    );
+    assert_eq!(state.diplomacy().unwrap().overlord_of(B), Some(A));
+}
+
+#[test]
+fn broken_double_defense_costs_one_opinion_penalty_and_retains_bond() {
+    let mut state = setup_guarantee(|_| {});
+    let c_actor = CommandActor::Host(PlayerId::new(3));
+    apply(
+        &mut state,
+        HOST,
+        Command::OfferAlliance {
+            country: A,
+            toward: C,
+        },
+    );
+    apply(
+        &mut state,
+        c_actor,
+        Command::AcceptAlliance {
+            country: C,
+            from: A,
+        },
+    );
+    apply(
+        &mut state,
+        HOST,
+        Command::Guarantee {
+            country: A,
+            protected: B,
+        },
+    );
+    form_vassal(&mut state);
+    apply(
+        &mut state,
+        c_actor,
+        Command::DeclareWar {
+            country: C,
+            defender: B,
+            goal: province(5),
+        },
+    );
+    assert!(!state.war_state().unwrap().wars[&WAR]
+        .defender_supporters
+        .contains(&A));
+    assert!(!state.diplomacy().unwrap().guarantees(A, B));
+    assert_eq!(state.diplomacy().unwrap().overlord_of(B), Some(A));
+    assert_eq!(state.opinion(B, A).unwrap().points(), -25);
+}
+
+#[test]
+fn overlord_busy_in_another_war_breaks_defense_without_ending_vassalage() {
+    let mut state = setup_guarantee_four(|_| {});
+    let c_actor = CommandActor::Host(PlayerId::new(3));
+    apply(
+        &mut state,
+        c_actor,
+        Command::OfferVassalage {
+            country: C,
+            toward: B,
+        },
+    );
+    apply(
+        &mut state,
+        GUEST,
+        Command::AcceptVassalage {
+            country: B,
+            from: C,
+        },
+    );
+    apply(
+        &mut state,
+        c_actor,
+        Command::DeclareWar {
+            country: C,
+            defender: D,
+            goal: province(8),
+        },
+    );
+    apply(
+        &mut state,
+        HOST,
+        Command::DeclareWar {
+            country: A,
+            defender: B,
+            goal: province(5),
+        },
+    );
+    let defensive = state.war_state().unwrap().war_for(B).unwrap().1;
+    assert!(!defensive.defender_supporters.contains(&C));
+    assert_eq!(state.diplomacy().unwrap().overlord_of(B), Some(C));
+    assert_eq!(state.opinion(B, C).unwrap().points(), -25);
+}
+
+#[test]
+fn peaceful_release_and_independence_war_keep_or_end_the_bond_by_peace_terms() {
+    let mut released = setup(|_| {});
+    form_vassal(&mut released);
+    apply(
+        &mut released,
+        HOST,
+        Command::ReleaseVassal {
+            country: A,
+            subject: B,
+        },
+    );
+    assert_eq!(released.diplomacy().unwrap().overlord_of(B), None);
+
+    let mut white = setup(|_| {});
+    form_vassal(&mut white);
+    apply(
+        &mut white,
+        GUEST,
+        Command::DeclareIndependence { country: B },
+    );
+    let war = &white.war_state().unwrap().wars[&WAR];
+    assert!(war.independence);
+    assert_eq!(war.goal, province(1));
+    assert_eq!(
+        white.validate_command(
+            HOST,
+            &Command::ReleaseVassal {
+                country: A,
+                subject: B
+            }
+        ),
+        Err(CommandError::Diplomacy(DiplomacyError::AtWar))
+    );
+    apply(
+        &mut white,
+        GUEST,
+        Command::OfferPeace {
+            country: B,
+            war: WAR,
+            cede_goal: false,
+        },
+    );
+    apply(
+        &mut white,
+        HOST,
+        Command::AcceptPeace {
+            country: A,
+            war: WAR,
+        },
+    );
+    assert_eq!(white.diplomacy().unwrap().overlord_of(B), Some(A));
+
+    let mut winning = setup(|rules| rules.peace_score = 30);
+    form_vassal(&mut winning);
+    apply(
+        &mut winning,
+        GUEST,
+        Command::DeclareIndependence { country: B },
+    );
+    assert_eq!(
+        winning.validate_command(
+            GUEST,
+            &Command::OfferPeace {
+                country: B,
+                war: WAR,
+                cede_goal: true
+            }
+        ),
+        Err(CommandError::War(WarError::InvalidPeaceTerms))
+    );
+    raise(&mut winning, GUEST, B, 4, 200);
+    apply(
+        &mut winning,
+        GUEST,
+        Command::MoveArmy {
+            country: B,
+            army: FIRST_ARMY,
+            destination: province(1),
+        },
+    );
+    for _ in 0..40 {
+        day(&mut winning);
+    }
+    assert_eq!(
+        winning.war_state().unwrap().occupation(province(1)),
+        Some(B)
+    );
+    apply(
+        &mut winning,
+        GUEST,
+        Command::OfferPeace {
+            country: B,
+            war: WAR,
+            cede_goal: true,
+        },
+    );
+    apply(
+        &mut winning,
+        HOST,
+        Command::AcceptPeace {
+            country: A,
+            war: WAR,
+        },
+    );
+    assert_eq!(winning.diplomacy().unwrap().overlord_of(B), None);
+    assert_eq!(winning.owner_of_province(province(1)), Some(A));
+}
+
+#[test]
 fn alliance_rejection_and_expiry_are_deterministic() {
     let mut state = setup(|_| {})
         .with_opinions([(A, B, Opinion::new(100).unwrap())])
@@ -1235,6 +1591,7 @@ fn setup_internal(
                 attacker_supporters: BTreeSet::from([C]),
                 defender_supporters: BTreeSet::new(),
                 goal: province(5),
+                independence: false,
                 started_at: strategy_sim::Tick::new(0),
                 score: 0,
                 occupations: BTreeMap::new(),

@@ -44,6 +44,8 @@ pub enum Reason {
     MarriageRejected,
     MarriageProposed,
     GuaranteeIssued,
+    VassalageAccepted,
+    VassalageRejected,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -87,6 +89,8 @@ impl Reason {
             Self::MarriageRejected => "MarriageRejected",
             Self::MarriageProposed => "MarriageProposed",
             Self::GuaranteeIssued => "GuaranteeIssued",
+            Self::VassalageAccepted => "VassalageAccepted",
+            Self::VassalageRejected => "VassalageRejected",
             Self::Military { action, .. } => match action {
                 MilitaryReason::RaiseArmy => "RaiseArmy",
                 MilitaryReason::CombineArmies => "CombineArmies",
@@ -262,7 +266,9 @@ pub fn decide(
     commands
 }
 
-pub use diplomacy::{alliance_acceptance_factors, AllianceAcceptanceFactor};
+pub use diplomacy::{
+    alliance_acceptance_factors, vassal_acceptance_factors, AllianceAcceptanceFactor,
+};
 pub use marriage::{marriage_acceptance_factors, MarriageAcceptanceFactor};
 
 fn fiscal_decision(

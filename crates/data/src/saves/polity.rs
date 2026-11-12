@@ -146,6 +146,8 @@ impl From<&EconomyState> for EconomyFile {
             },
             last_month: economy.last_month.as_ref().map(|budget| BudgetFile {
                 income: budget.income.raw(),
+                tribute_paid: budget.tribute_paid.raw(),
+                tribute_received: budget.tribute_received.raw(),
                 expenses: budget.expenses.raw(),
             }),
             bankrupt: economy.bankrupt,
@@ -163,6 +165,8 @@ impl From<EconomyFile> for EconomyState {
             },
             last_month: file.last_month.map(|budget| MonthlyBudget {
                 income: Fixed::from_raw(budget.income),
+                tribute_paid: Fixed::from_raw(budget.tribute_paid),
+                tribute_received: Fixed::from_raw(budget.tribute_received),
                 expenses: Fixed::from_raw(budget.expenses),
             }),
             bankrupt: file.bankrupt,
@@ -181,7 +185,15 @@ struct PolicyFile {
 #[serde(deny_unknown_fields)]
 struct BudgetFile {
     income: i64,
+    #[serde(default, skip_serializing_if = "is_zero_i64")]
+    tribute_paid: i64,
+    #[serde(default, skip_serializing_if = "is_zero_i64")]
+    tribute_received: i64,
     expenses: i64,
+}
+
+fn is_zero_i64(value: &i64) -> bool {
+    *value == 0
 }
 
 #[derive(Serialize, Deserialize)]

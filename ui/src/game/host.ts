@@ -28,6 +28,8 @@ export interface CountryView {
   capital: string;
   treasury: string;
   income: string;
+  tribute_paid: string;
+  tribute_received: string;
   expenses: string;
   tax_rate: number;
   monthly_spending: string;
@@ -77,6 +79,7 @@ export interface WarView {
   attacker_supporters: number[];
   defender_supporters: number[];
   goal_province_id: number;
+  independence: boolean;
   score: number;
   occupations: { province_id: number; country_id: number }[];
   offer: { offered_by: number; cede_goal: boolean } | null;
@@ -124,6 +127,8 @@ export interface GameSnapshot {
   guarantees: { guarantor_id: number; protected_id: number }[];
   truces: TruceView[];
   blockaded_ports?: number[];
+  vassals: { subject_id: number; overlord_id: number }[];
+  vassal_offers: { overlord_id: number; subject_id: number; expires_at: string }[];
   owners: { province_id: number; country_id: number }[];
   max_tax_rate: number;
   max_monthly_spending: string;
@@ -145,6 +150,8 @@ interface GameUpdate {
   guarantees: { guarantor_id: number; protected_id: number }[];
   truces: TruceView[];
   blockaded_ports?: number[];
+  vassals: { subject_id: number; overlord_id: number }[];
+  vassal_offers: { overlord_id: number; subject_id: number; expires_at: string }[];
   armies?: ArmyView[];
   removed_armies?: number[];
   fleets?: FleetView[];
@@ -167,10 +174,14 @@ export type GameCommand =
   | { type: 'embark_army'; country_id: number; army_id: number; fleet_id: number }
   | { type: 'disembark_army'; country_id: number; fleet_id: number; destination: number }
   | { type: 'declare_war'; country_id: number; defender_id: number; goal_province_id: number }
+  | { type: 'declare_independence'; country_id: number }
   | { type: 'offer_peace'; country_id: number; war_id: number; cede_goal: boolean }
   | { type: 'accept_peace'; country_id: number; war_id: number }
   | { type: 'choose_event'; country_id: number; key: string; option: number }
   | { type: 'guarantee' | 'revoke_guarantee'; country_id: number; protected_id: number }
+  | { type: 'offer_vassalage'; country_id: number; toward_id: number }
+  | { type: 'accept_vassalage' | 'reject_vassalage'; country_id: number; from_id: number }
+  | { type: 'release_vassal'; country_id: number; subject_id: number }
   | { type: 'unlock_technology'; country_id: number; key: string };
 
 interface TauriBridge {
@@ -218,6 +229,8 @@ function applyUpdate(snapshot: GameSnapshot, update: GameUpdate): GameSnapshot {
     guarantees: update.guarantees,
     truces: update.truces ?? snapshot.truces,
     blockaded_ports: update.blockaded_ports ?? snapshot.blockaded_ports,
+    vassals: update.vassals,
+    vassal_offers: update.vassal_offers,
     owners,
     armies: updateRows(snapshot.armies, update.armies, update.removed_armies),
     fleets: updateRows(snapshot.fleets, update.fleets, update.removed_fleets),

@@ -54,6 +54,34 @@ pub(super) fn decide(
     ctx: &mut AiContext,
 ) -> Option<(Command, Reason)> {
     let actor = CommandActor::Ai(country);
+    if let Some(offer) = state
+        .diplomacy()
+        .and_then(|d| d.vassal_offers_to(country).next())
+    {
+        let factors = vassal_acceptance_factors(state, offer.from, country, profile);
+        let accepts = factors[0].value >= factors[1].value && factors[2].value > factors[3].value;
+        let (command, reason) = if accepts {
+            (
+                Command::AcceptVassalage {
+                    country,
+                    from: offer.from,
+                },
+                Reason::VassalageAccepted,
+            )
+        } else {
+            (
+                Command::RejectVassalage {
+                    country,
+                    from: offer.from,
+                },
+                Reason::VassalageRejected,
+            )
+        };
+        return state
+            .validate_command(actor, &command)
+            .is_ok()
+            .then_some((command, reason));
+    }
     if let Some(offer) = state.diplomacy().and_then(|d| d.offers_to(country).next()) {
         let factors = alliance_acceptance_factors(state, offer.from, country, profile);
         let opinion = factors[0].value;
@@ -141,6 +169,45 @@ fn accepts_negative(common_threat: bool, rng: &mut SeededRng) -> bool {
     common_threat && rng.next_u64() % 10 == 0
 }
 
+/// Explainable factors for an AI country's response to an overlord offer.
+pub fn vassal_acceptance_factors(
+    state: &GameState,
+    overlord: CountryId,
+    subject: CountryId,
+    profile: &FiscalAiProfile,
+) -> Vec<AllianceAcceptanceFactor> {
+    let army_strength = |country| -> i32 {
+        let soldiers: u64 = state
+            .war_state()
+            .into_iter()
+            .flat_map(|war| war.armies.values())
+            .filter(|army| army.country == country)
+            .map(|army| u64::from(army.soldiers))
+            .sum();
+        i32::try_from(soldiers).unwrap_or(i32::MAX)
+    };
+    vec![
+        AllianceAcceptanceFactor {
+            key: "effective_opinion",
+            value: state
+                .effective_opinion(subject, overlord)
+                .map_or(0, |o| i32::from(o.points())),
+        },
+        AllianceAcceptanceFactor {
+            key: "profile_minimum",
+            value: profile.thresholds.vassal_min_opinion,
+        },
+        AllianceAcceptanceFactor {
+            key: "overlord_soldiers",
+            value: army_strength(overlord),
+        },
+        AllianceAcceptanceFactor {
+            key: "subject_soldiers",
+            value: army_strength(subject),
+        },
+    ]
+}
+
 #[cfg(test)]
 mod tests {
     use std::path::Path;
@@ -197,6 +264,88 @@ mod tests {
             assert!(state
                 .validate_command(CommandActor::Ai(toward), &command)
                 .is_ok());
+        }
+    }
+
+    #[test]
+    fn vassal_response_uses_profile_opinion_and_strict_army_advantage() {
+        let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+        let graph = parse_provinces(
+            &std::fs::read(root.join("data/map/western_europe/provinces.json")).unwrap(),
+        )
+        .unwrap();
+        let scenario = load_scenario(graph, root.join("data/scenarios/1440.json")).unwrap();
+        let ai: Vec<_> = scenario
+            .countries()
+            .filter_map(|(id, state)| matches!(state.controller(), Controller::Ai(_)).then_some(id))
+            .collect();
+        let (overlord, subject) = (ai[0], ai[1]);
+        for (opinion, overlord_soldiers, subject_soldiers, accepts) in [
+            (20, 100, 50, true),
+            (19, 100, 50, false),
+            (20, 50, 50, false),
+        ] {
+            let mut military = scenario.war_state().unwrap().clone();
+            military.armies.clear();
+            military.next_army_id = 3;
+            for (id, country, soldiers) in [
+                (1, overlord, overlord_soldiers),
+                (2, subject, subject_soldiers),
+            ] {
+                military.armies.insert(
+                    ArmyId::new(id),
+                    Army {
+                        country,
+                        province: scenario.country_polity(country).unwrap().capital,
+                        soldiers,
+                        morale: military.rules.max_morale,
+                        movement: None,
+                    },
+                );
+            }
+            let mut diplomacy = DiplomacyState::default();
+            diplomacy.vassal_offers.insert(
+                (overlord, subject),
+                scenario.time().date().checked_add_days(30).unwrap(),
+            );
+            let state = GameState::new(
+                *scenario.time(),
+                scenario.seed(),
+                scenario.province_graph().clone(),
+                scenario
+                    .countries()
+                    .map(|(id, country)| (id, country.clone()))
+                    .collect(),
+                [],
+            )
+            .unwrap()
+            .with_polity(scenario.polity().unwrap().clone())
+            .unwrap()
+            .with_war_state(military)
+            .unwrap()
+            .with_opinions([(subject, overlord, Opinion::new(opinion).unwrap())])
+            .unwrap()
+            .with_diplomacy(diplomacy)
+            .unwrap();
+            let profile_key = match state.country(subject).unwrap().controller() {
+                Controller::Ai(key) => key,
+                _ => unreachable!(),
+            };
+            let profile = &state.polity().unwrap().ai_profiles[profile_key.as_str()];
+            assert_eq!(profile.thresholds.vassal_min_opinion, 20);
+            let factors = vassal_acceptance_factors(&state, overlord, subject, profile);
+            assert_eq!(factors[0].value, opinion);
+            let mut context = AiContext::new(&state, subject);
+            let (command, reason) = decide(&state, subject, profile, &mut context).unwrap();
+            assert_eq!(matches!(command, Command::AcceptVassalage { .. }), accepts);
+            assert_eq!(
+                reason,
+                if accepts {
+                    Reason::VassalageAccepted
+                } else {
+                    Reason::VassalageRejected
+                }
+            );
         }
     }
 

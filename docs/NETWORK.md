@@ -7,10 +7,10 @@ Host-authoritative. Host runs sim. Client sends `Command`s, receives `Delta`s an
 `tokio` + TCP with Postcard 1.1.3 payloads and a big-endian unsigned 32-bit
 length prefix. Client frames are bounded to 64 KiB and server frames to
 8 MiB. Readers run dedicated tasks so cancellation cannot consume part of
-the next frame. The handshake validates protocol version 9 and both map
+the next frame. The handshake validates protocol version 10 and both map
 identity fields before accepting a guest.
 
-## Messages (v9)
+## Messages (v10)
 - Client->Host: `Hello{version,name,map_version,map_hash,resume}`, `Confirm{resume}`, `Command{seq,command}`, `PauseRequest{seq,paused}`, `Ping{nonce}`, `Pong{nonce}`, `Resync`. Commands include validated alliance and royal-marriage actions and `ChooseEvent{country,key,option}`.
 - Host->Client: `Welcome{player_id}`, `Snapshot{state}` (join/resync), `Delta{tick,changes}`, `CommandRejected{seq,reason}`, `Checksum{tick,hash}`, `Pause{bool}`, `Speed{n}`, `Ping{nonce}`, `Pong{nonce}`.
 - Either human player can pause or resume. Only the host sets speed (D2).
@@ -32,6 +32,11 @@ identity fields before accepting a guest.
   authority and the same save-byte delta/resync path as land armies.
 - V9 adds `UnlockTechnology{country,key}` and v11 research balances,
   definitions, and permanent modifier sources to canonical snapshots.
+- V10 adds directed `OfferVassalage`, `AcceptVassalage`, `RejectVassalage`,
+  `ReleaseVassal` and `DeclareIndependence` commands and v12 bond, offer,
+  tribute and independence-war state to canonical snapshots. The host
+  validates controller authority and every rule; the client cannot mutate
+  diplomacy or treasury locally.
 - See [LAN_ACCEPTANCE.md](LAN_ACCEPTANCE.md) for the two-PC checklist and `--lan-log` mode.
 - Welcome includes a private 128-bit resume token. The guest confirms it
   after parsing its first snapshot. A disconnected, unconfirmed handshake

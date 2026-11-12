@@ -9,6 +9,10 @@ use strategy_sim::{
 use super::{require_sorted, required_optional, SaveError};
 use crate::{provinces::EdgeKindDef, war_format::WarRulesFile};
 
+fn is_false(value: &bool) -> bool {
+    !*value
+}
+
 #[derive(Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub(super) struct WarStateFile {
@@ -244,6 +248,8 @@ struct WarFile {
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     defender_supporters: Vec<u32>,
     goal: u32,
+    #[serde(default, skip_serializing_if = "is_false")]
+    independence: bool,
     started_at: u64,
     score: i32,
     occupations: Vec<OccupationFile>,
@@ -260,6 +266,7 @@ impl WarFile {
             attacker_supporters: war.attacker_supporters.iter().map(|id| id.get()).collect(),
             defender_supporters: war.defender_supporters.iter().map(|id| id.get()).collect(),
             goal: war.goal.get(),
+            independence: war.independence,
             started_at: war.started_at.get(),
             score: war.score,
             occupations: war
@@ -299,6 +306,7 @@ impl WarFile {
                     .map(CountryId::new)
                     .collect(),
                 goal: ProvinceId::new(self.goal),
+                independence: self.independence,
                 started_at: Tick::new(self.started_at),
                 score: self.score,
                 occupations: self

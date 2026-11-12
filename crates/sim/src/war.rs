@@ -102,6 +102,8 @@ pub struct War {
     /// Countries fighting with the defender, excluding the war leader.
     pub defender_supporters: BTreeSet<CountryId>,
     pub goal: ProvinceId,
+    /// Subject's war against its overlord; enforcing the goal ends the bond.
+    pub independence: bool,
     pub started_at: Tick,
     /// Positive scores favor the attacker.
     pub score: i32,
@@ -309,7 +311,8 @@ impl WarState {
                 .get(&war.goal)
                 .is_some_and(|occupier| war.side(*occupier) == Some(WarSide::Attacker))
             && polity.countries.get(&war.defender).is_some_and(|defender| {
-                defender.provinces.len() > 1 && defender.provinces.contains(&war.goal)
+                defender.provinces.contains(&war.goal)
+                    && (war.independence || defender.provinces.len() > 1)
             })
     }
 
@@ -351,7 +354,15 @@ impl WarState {
                         !polity.countries.contains_key(&country) || !parties.insert(country)
                     })
                 || war.started_at > tick
-                || !self.can_reach_goal(graph, polity, war.attacker, war.defender, war.goal)
+                || !self.can_reach_goal(
+                    graph,
+                    polity,
+                    war.attacker,
+                    war.defender,
+                    war.goal,
+                    war.independence,
+                )
+                || (war.independence && polity.countries[&war.defender].capital != war.goal)
                 || war
                     .offer
                     .is_some_and(|offer| !war.is_leader(offer.offered_by))

@@ -76,6 +76,9 @@ pub enum PlayerCommand {
         defender: u32,
         goal: u32,
     },
+    DeclareIndependence {
+        country: u32,
+    },
     OfferPeace {
         country: u32,
         war: u32,
@@ -135,6 +138,22 @@ pub enum PlayerCommand {
     RevokeGuarantee {
         country: u32,
         protected: u32,
+    },
+    OfferVassalage {
+        country: u32,
+        toward: u32,
+    },
+    AcceptVassalage {
+        country: u32,
+        from: u32,
+    },
+    RejectVassalage {
+        country: u32,
+        from: u32,
+    },
+    ReleaseVassal {
+        country: u32,
+        subject: u32,
     },
 }
 
@@ -277,6 +296,9 @@ impl From<&Command> for PlayerCommand {
                 defender: defender.get(),
                 goal: goal.get(),
             },
+            Command::DeclareIndependence { country } => Self::DeclareIndependence {
+                country: country.get(),
+            },
             Command::OfferPeace {
                 country,
                 war,
@@ -359,6 +381,22 @@ impl From<&Command> for PlayerCommand {
             Command::RevokeGuarantee { country, protected } => Self::RevokeGuarantee {
                 country: country.get(),
                 protected: protected.get(),
+            },
+            Command::OfferVassalage { country, toward } => Self::OfferVassalage {
+                country: country.get(),
+                toward: toward.get(),
+            },
+            Command::AcceptVassalage { country, from } => Self::AcceptVassalage {
+                country: country.get(),
+                from: from.get(),
+            },
+            Command::RejectVassalage { country, from } => Self::RejectVassalage {
+                country: country.get(),
+                from: from.get(),
+            },
+            Command::ReleaseVassal { country, subject } => Self::ReleaseVassal {
+                country: country.get(),
+                subject: subject.get(),
             },
         }
     }
@@ -482,6 +520,9 @@ impl TryFrom<PlayerCommand> for Command {
                 defender: CountryId::new(defender),
                 goal: ProvinceId::new(goal),
             },
+            PlayerCommand::DeclareIndependence { country } => Self::DeclareIndependence {
+                country: CountryId::new(country),
+            },
             PlayerCommand::OfferPeace {
                 country,
                 war,
@@ -564,6 +605,22 @@ impl TryFrom<PlayerCommand> for Command {
             PlayerCommand::RevokeGuarantee { country, protected } => Self::RevokeGuarantee {
                 country: CountryId::new(country),
                 protected: CountryId::new(protected),
+            },
+            PlayerCommand::OfferVassalage { country, toward } => Self::OfferVassalage {
+                country: CountryId::new(country),
+                toward: CountryId::new(toward),
+            },
+            PlayerCommand::AcceptVassalage { country, from } => Self::AcceptVassalage {
+                country: CountryId::new(country),
+                from: CountryId::new(from),
+            },
+            PlayerCommand::RejectVassalage { country, from } => Self::RejectVassalage {
+                country: CountryId::new(country),
+                from: CountryId::new(from),
+            },
+            PlayerCommand::ReleaseVassal { country, subject } => Self::ReleaseVassal {
+                country: CountryId::new(country),
+                subject: CountryId::new(subject),
             },
         })
     }

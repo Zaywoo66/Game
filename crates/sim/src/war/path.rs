@@ -32,8 +32,9 @@ impl WarState {
         attacker: CountryId,
         defender: CountryId,
         goal: ProvinceId,
+        allow_capital: bool,
     ) -> bool {
-        goal != polity.countries[&defender].capital
+        (allow_capital || goal != polity.countries[&defender].capital)
             && owner(polity, goal) == Some(defender)
             && (polity.countries[&attacker].provinces.iter().any(|&from| {
                 let frontier = graph.neighbors(from).is_some_and(|edges| {

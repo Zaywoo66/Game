@@ -12,6 +12,7 @@ pub(crate) enum MilitaryOrder {
     Move(ArmyId, ProvinceId),
     Retreat(ArmyId, ProvinceId),
     Declare(CountryId, ProvinceId),
+    DeclareIndependence(CountryId, ProvinceId),
     Offer(WarId, bool),
     Accept(WarId),
 }
@@ -158,12 +159,14 @@ impl WarState {
                 army.movement = None;
                 Ok(MilitaryAction::Update(id, army))
             }
-            MilitaryOrder::Declare(defender, goal) => {
+            MilitaryOrder::Declare(defender, goal)
+            | MilitaryOrder::DeclareIndependence(defender, goal) => {
+                let independence = matches!(order, MilitaryOrder::DeclareIndependence(..));
                 if !polity.countries.contains_key(&defender) {
                     return Err(WarError::UnknownCountry(defender));
                 }
                 if country == defender
-                    || !self.can_reach_goal(graph, polity, country, defender, goal)
+                    || !self.can_reach_goal(graph, polity, country, defender, goal, independence)
                 {
                     return Err(WarError::InvalidWarGoal(goal));
                 }
@@ -199,6 +202,7 @@ impl WarState {
                     attacker_supporters: Default::default(),
                     defender_supporters: Default::default(),
                     goal,
+                    independence,
                     started_at: tick,
                     score: 0,
                     occupations: Default::default(),
@@ -233,7 +237,7 @@ impl WarState {
                     PeaceTreaty {
                         attacker: war.attacker,
                         defender: war.defender,
-                        ceded: offer.cede_goal.then_some(war.goal),
+                        ceded: (offer.cede_goal && !war.independence).then_some(war.goal),
                         concluded_at: tick,
                     },
                 ))

@@ -18,7 +18,7 @@ fn identity() -> MapIdentity {
 #[test]
 fn handshake_rejects_each_incompatible_identity_component() {
     let map = identity();
-    assert_eq!(PROTOCOL_VERSION, 9);
+    assert_eq!(PROTOCOL_VERSION, 10);
     assert_eq!(validate_hello(PROTOCOL_VERSION, 2, [42; 32], map), Ok(()));
     assert_eq!(
         validate_hello(3, 2, [42; 32], map),
@@ -184,6 +184,23 @@ fn command_conversion_preserves_raw_fixed_units_and_validates_speed() {
             country: 4,
             protected: 9,
         },
+        PlayerCommand::OfferVassalage {
+            country: 4,
+            toward: 9,
+        },
+        PlayerCommand::AcceptVassalage {
+            country: 9,
+            from: 4,
+        },
+        PlayerCommand::RejectVassalage {
+            country: 9,
+            from: 4,
+        },
+        PlayerCommand::ReleaseVassal {
+            country: 4,
+            subject: 9,
+        },
+        PlayerCommand::DeclareIndependence { country: 9 },
         PlayerCommand::SetPaused { paused: true },
         PlayerCommand::SetSpeed { speed: 5 },
     ];
