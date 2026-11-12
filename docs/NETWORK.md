@@ -24,6 +24,9 @@ identity fields before accepting a guest.
   defender side or records the broken commitment and opinion penalty. The
   canonical snapshot and byte delta include guarantees and war supporters;
   clients cannot choose whether their guaranteed country is defended.
+- Post-war truce rows are derived from the existing treaty and coalition-truce
+  records in the canonical snapshot for the Tauri UI. They add no LAN command
+  or protocol version.
 - V8 adds `MoveFleet`, `EmbarkArmy` and `DisembarkArmy` commands and v10 navy
   data to canonical snapshots. Fleet positions, routes and cargo use host
   authority and the same save-byte delta/resync path as land armies.
