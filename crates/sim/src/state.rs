@@ -872,6 +872,17 @@ impl GameState {
             self.countries.keys().copied(),
             technology.next_source_id,
         )?;
+        if let Some(polity) = &self.polity {
+            let branches = expected.branches();
+            if polity.ai_profiles.values().any(|profile| {
+                profile
+                    .tech_branch_weights
+                    .keys()
+                    .any(|branch| !branches.contains(branch.as_str()))
+            }) {
+                return Err(TechnologyError::InvalidSavedState);
+            }
+        }
         let unique_sources: BTreeSet<_> = technology.sources.values().copied().collect();
         if technology.points.keys().copied().collect::<Vec<_>>()
             != expected.points.keys().copied().collect::<Vec<_>>()
