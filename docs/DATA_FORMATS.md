@@ -238,7 +238,18 @@ reads `.yaml`/`.yml` files in filename order, returns a technology-key ordered
 map, and rejects duplicate branch files, duplicate technology keys, missing
 prerequisites and cycles. The Rust loader uses the existing pinned
 `yaml_serde` 0.10.7. The research runtime and profile-weighted AI choice are
-recorded below; ideas, reforms and the tech-tree UI remain separate M9 tasks.
+recorded below; ideas and reforms remain separate M9 tasks.
+
+The desktop tech tree reads the validated packaged layout coordinates from
+these YAML files. Coordinates are presentation grid units and are not saved;
+research points, known technologies, costs, prerequisites and modifier effects
+are projected from the authoritative game state. The UI receives the catalog
+in its initial snapshot and receives changed country research rows through
+normal host updates. `data/locales/techs.en.json` is a flat English text map:
+`branch.<branch_key>` names every branch, `tech.<technology_key>` names every
+technology, and `modifier.<modifier_key>` names each technology effect. The
+data linter requires nonempty entries for every referenced key and rejects
+duplicate translation keys.
 
 ## Ideas (`data/ideas/<tag>.yaml`)
 `key, name, modifiers:[{key,value,kind}], unlock: Trigger`

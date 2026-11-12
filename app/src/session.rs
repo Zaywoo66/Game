@@ -10,13 +10,15 @@ use std::{
 
 use serde::{Deserialize, Serialize};
 use strategy_app::{
+    embedded_technologies,
     lan::{ClientPhase, HostConfig, LanClient, LanHost, LanMetrics},
     load_embedded_scenario, tick_host_with_log, AiDecisionLog,
 };
 use strategy_net::discover_rooms;
 use strategy_sim::{
-    ArmyId, Command, CommandActor, Controller, CountryId, Date, FiscalPolicy, Fixed, FleetId,
-    GameState, PlayerId, ProvinceId, Speed, Tick, TimeCommand, WarId, WarState,
+    ArmyId, Command, CommandActor, Controller, CountryId, Date, Effect, FiscalPolicy, Fixed,
+    FleetId, GameState, ModifierKind, PlayerId, ProvinceId, Speed, Tick, TimeCommand, WarId,
+    WarState,
 };
 use tauri::{App, AppHandle, Emitter, Manager, State};
 
@@ -115,6 +117,27 @@ struct CountryView {
     regency: bool,
     ruler: Option<CharacterView>,
     heir: Option<CharacterView>,
+    research_points: Option<u32>,
+    known_technologies: Vec<String>,
+}
+
+#[derive(Serialize)]
+struct TechnologyEffectView {
+    key: String,
+    value: String,
+    kind: &'static str,
+    source_key: String,
+}
+
+#[derive(Serialize)]
+struct TechnologyView {
+    key: String,
+    branch: String,
+    cost: u32,
+    requires: Vec<String>,
+    pos_x: i32,
+    pos_y: i32,
+    effects: Vec<TechnologyEffectView>,
 }
 
 #[derive(Clone, PartialEq, Eq, Serialize)]
@@ -223,6 +246,7 @@ pub(crate) struct Snapshot {
     clock: ClockView,
     local_country_id: Option<u32>,
     countries: Vec<CountryView>,
+    technologies: Vec<TechnologyView>,
     pending_events: Vec<EventView>,
     owners: Vec<OwnerView>,
     max_tax_rate: i64,
@@ -654,6 +678,7 @@ pub(crate) fn game_snapshot(state: State<'_, Mutex<Session>>) -> Result<Snapshot
         clock: clock_view(&session.game),
         local_country_id,
         countries: session.visible_countries.values().cloned().collect(),
+        technologies: technology_views(&session.game)?,
         pending_events: event_views(&session.game, player),
         owners: session
             .visible_owners
@@ -1427,8 +1452,55 @@ fn country_views(game: &GameState) -> BTreeMap<u32, CountryView> {
                     regency: game.is_in_regency(id).unwrap_or_default(),
                     ruler: country.succession.ruler.and_then(character_view),
                     heir: country.succession.heir.and_then(character_view),
+                    research_points: game.research_points(id),
+                    known_technologies: game
+                        .country(id)
+                        .map(|state| state.known_technologies().map(str::to_owned).collect())
+                        .unwrap_or_default(),
                 },
             )
+        })
+        .collect()
+}
+
+fn technology_views(game: &GameState) -> Result<Vec<TechnologyView>, String> {
+    let Some(technology) = game.technologies() else {
+        return Ok(Vec::new());
+    };
+    let packaged = embedded_technologies()?;
+    technology
+        .definitions
+        .iter()
+        .map(|(key, definition)| {
+            let layout = packaged
+                .get(key)
+                .ok_or_else(|| format!("missing packaged technology layout for {key}"))?;
+            let effects = definition
+                .effects
+                .iter()
+                .map(|effect| match effect {
+                    Effect::AddModifier {
+                        key, value, kind, ..
+                    } => TechnologyEffectView {
+                        key: key.as_str().to_owned(),
+                        value: value.raw().to_string(),
+                        kind: match kind {
+                            ModifierKind::Additive => "additive",
+                            ModifierKind::Multiplicative => "multiplicative",
+                        },
+                        source_key: definition.key.clone(),
+                    },
+                })
+                .collect();
+            Ok(TechnologyView {
+                key: key.clone(),
+                branch: definition.branch.clone(),
+                cost: definition.cost.get(),
+                requires: definition.requires.clone(),
+                pos_x: layout.position.x,
+                pos_y: layout.position.y,
+                effects,
+            })
         })
         .collect()
 }
@@ -1454,7 +1526,10 @@ fn money(value: Fixed) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::{collect_truce_views, event_views, Startup, TruceView, UiCommand, GUEST, HOST};
+    use super::{
+        collect_truce_views, event_views, technology_views, Startup, TruceView, UiCommand, GUEST,
+        HOST,
+    };
     use std::{
         collections::{BTreeMap, BTreeSet},
         num::{NonZeroU32, NonZeroU64},
@@ -1522,6 +1597,21 @@ mod tests {
         assert_eq!(rows[0].ends_on.as_deref(), Some("1440-01-10"));
     }
 
+    #[test]
+    fn packaged_technology_layout_projects_authoritative_effects() {
+        let game = strategy_app::load_embedded_scenario().unwrap();
+        let nodes = technology_views(&game).unwrap();
+        assert_eq!(nodes.len(), game.technologies().unwrap().definitions.len());
+        let military = nodes
+            .iter()
+            .find(|node| node.key == "professional_officers")
+            .unwrap();
+        assert_eq!((military.pos_x, military.pos_y), (1, 0));
+        assert_eq!(military.requires, ["recordkeeping"]);
+        assert_eq!(military.effects.len(), 1);
+        assert_eq!(military.effects[0].source_key, military.key);
+        assert_eq!(military.effects[0].value, "50");
+    }
     #[test]
     fn guarantee_ui_commands_preserve_direction_and_country_ids() {
         for (json, revoke) in [
