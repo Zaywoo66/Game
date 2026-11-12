@@ -1420,15 +1420,6 @@ fn technology_views(game: &GameState) -> Result<Vec<TechnologyView>, String> {
             let layout = packaged
                 .get(key)
                 .ok_or_else(|| format!("missing packaged technology layout for {key}"))?;
-            if layout.branch != definition.branch
-                || layout.cost != definition.cost
-                || layout.requires != definition.requires
-                || layout.effects != definition.effects
-            {
-                return Err(format!(
-                    "packaged technology {key} differs from the game state"
-                ));
-            }
             let effects = definition
                 .effects
                 .iter()
