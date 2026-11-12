@@ -50,6 +50,7 @@ The royal-marriage slice uses named adult characters and synthetic tests; the 14
 The war-participants prerequisite supports additional countries on either side of one war, with side-based armies, sieges, peace and pairwise truces.
 M8 sea graph and strict v3 port validation are complete. The fleet/transport slice adds deterministic sea movement, port embarkation and landing, and an AI amphibious landing test. The naval combat slice resolves opposing fleets and transport losses. The blockade slice suppresses tax from unopposed wartime blockaded ports. Original instanced low-poly fleet models are implemented; attrition, construction and full AI L3 acceptance remain open.
 The 1440 scenario currently starts with neutral opinions; historically supported positive opening relationships and their values belong to M11 content review. Until then, the alliance AI's favorable branch is covered by a synthetic scenario test.
+M11 adds a sourced Duchy of Milan country slice on four full-coverage 1440 polygon matches; partial-overlap provinces around its borders remain unowned. The 8-country scenario passed a 10-year seed-1440 AI smoke; the wider European country and ruler set and M10 multi-seed soak remain incomplete.
 
 M13 is the first post-beta milestone; colonization, trade, religion and later eras follow.
 M10 has a yearly multi-seed headless soak report harness; L4 strategy, balance acceptance and the scheduled workflow remain open until M6–M9 mechanics and M11 beta content are ready.

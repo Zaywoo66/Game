@@ -284,15 +284,15 @@ fn legacy_read(logical: &str) -> io::Result<Vec<u8>> {
     let legacy: Value =
         serde_json::from_str(include_str!("fixtures/western_europe_v2_ownership.json")).unwrap();
     if logical == "scenarios/1440.json" {
-        // The fixed v2 map fixture predates the Brittany content batch.
+        // The fixed v2 map fixture predates the Brittany and Milan content batches.
         file["countries"]
             .as_array_mut()
             .unwrap()
-            .retain(|tag| tag != "bre");
+            .retain(|tag| tag != "bre" && tag != "mil");
         file["characters"]
             .as_array_mut()
             .unwrap()
-            .retain(|key| key != "john_v_brittany");
+            .retain(|key| key != "john_v_brittany" && key != "filippo_maria_visconti");
         file.as_object_mut().unwrap().remove("unowned_provinces");
         file.as_object_mut().unwrap().remove("navy");
         file["military"]["forts"] = legacy["forts"].clone();
@@ -1019,8 +1019,26 @@ fn city_map_scenario_loads_with_explicit_land_partition_and_round_trips() {
         .collect();
     assert_eq!(declared, neutral);
     assert_eq!(map.identity().version.get(), 4);
-    assert_eq!(state.polity().unwrap().countries.len(), 7);
-    assert_eq!(state.polity().unwrap().characters.len(), 14);
+    assert_eq!(state.polity().unwrap().countries.len(), 8);
+    assert_eq!(state.polity().unwrap().characters.len(), 15);
+    let polity = state.polity().unwrap();
+    let milan = polity
+        .countries
+        .values()
+        .find(|country| country.tag == "mil")
+        .unwrap();
+    assert_eq!(map.get(milan.capital).unwrap().key, "milan");
+    let milan_keys: BTreeSet<_> = milan
+        .provinces
+        .iter()
+        .map(|id| map.get(*id).unwrap().key.as_str())
+        .collect();
+    assert_eq!(
+        milan_keys,
+        BTreeSet::from(["bellinzona", "como", "lugano", "milan"])
+    );
+    let ruler = milan.succession.ruler.unwrap();
+    assert_eq!(polity.characters[&ruler].name, "Filippo Maria Visconti");
     let brittany = state
         .polity()
         .unwrap()
