@@ -24,6 +24,11 @@ Conventional style: `feat(sim): army pathfinding`, `fix(net): resync on checksum
 
 From M10, run the AI soak test through a scheduled or manual workflow.
 
+CI caches Cargo dependencies and compiled dependency artifacts after installing
+the pinned Rust toolchain. A cache miss still runs every required check. The
+cache key follows the toolchain and Cargo manifests/lockfile, so changes to
+dependencies trigger the necessary rebuilds.
+
 Release workflow on tag `v*`: build Windows/macOS/Linux bundles via Tauri, upload to GitHub Releases.
 
 ## PR template
