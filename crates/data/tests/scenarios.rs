@@ -276,6 +276,15 @@ fn legacy_read(logical: &str) -> io::Result<Vec<u8>> {
     let legacy: Value =
         serde_json::from_str(include_str!("fixtures/western_europe_v2_ownership.json")).unwrap();
     if logical == "scenarios/1440.json" {
+        // The fixed v2 map fixture predates the Brittany content batch.
+        file["countries"]
+            .as_array_mut()
+            .unwrap()
+            .retain(|tag| tag != "bre");
+        file["characters"]
+            .as_array_mut()
+            .unwrap()
+            .retain(|key| key != "john_v_brittany");
         file.as_object_mut().unwrap().remove("unowned_provinces");
         file.as_object_mut().unwrap().remove("navy");
         file["military"]["forts"] = legacy["forts"].clone();
