@@ -7,6 +7,7 @@ import { CountryView, GameSnapshot, useGameHost } from '../game/host';
 import { LanLobby } from '../game/LanLobby';
 import { lanStatusText, useLan } from '../game/lan';
 import { ArmyOrder, MilitaryPanel } from '../game/MilitaryPanel';
+import { TechnologyPanel } from '../game/TechnologyPanel';
 import { loadMapAssets, MapAssets, Province, Rgba } from './mapData';
 import { MapMode } from './mapPresentation';
 import { BenchmarkSample, createMapViewer, MapTestControls } from './mapViewer';
@@ -92,7 +93,7 @@ export function MapPage() {
   const [mapAssets, setMapAssets] = useState<MapAssets | null>(null);
   const [mapMode, setMapMode] = useState<MapMode>('historical');
   const modeChosenByUser = useRef(false);
-  const [section, setSection] = useState<'country' | 'military'>('country');
+  const [section, setSection] = useState<'country' | 'military' | 'technology'>('country');
   const [inspectedArmy, setInspectedArmy] = useState(0);
   const [order, setOrder] = useState<ArmyOrder | null>(null);
   const [renderer, setRenderer] = useState('');
@@ -114,6 +115,7 @@ export function MapPage() {
     if (hasGame && !modeChosenByUser.current) setMapMode('political');
   }, [hasGame]);
   const militaryEnabled = game?.armies !== undefined;
+  const technologyEnabled = Boolean(game?.technologies?.length);
   const colors = useMemo(
     () => provinceColors(game?.owners, game?.countries),
     [game?.owners, game?.countries],
@@ -294,7 +296,8 @@ export function MapPage() {
           {status === 'loading' ? 'Loading terrain and provinces…' : error}
         </p>
       )}
-      <aside className={'map-inspector map-panel' + (game ? ' map-inspector--host' : '')}
+      <aside className={'map-inspector map-panel' + (game ? ' map-inspector--host' : '')
+        + (section === 'technology' ? ' map-inspector--technology' : '')}
         data-map-selected={selected?.id ?? 0}
         hidden={benchmark || status !== 'ready'}>
         <div aria-live="polite">
@@ -313,17 +316,19 @@ export function MapPage() {
             </>
           ) : <p>Click a province to inspect it</p>}
         </div>
-        {militaryEnabled && (
+        {(militaryEnabled || technologyEnabled) && (
           <div className="inspector-tabs" role="group" aria-label="Inspector panels">
             <button type="button" aria-pressed={section === 'country'} onClick={() => {
               setSection('country');
               setOrder(null);
             }}>Country</button>
-            <button type="button" aria-pressed={section === 'military'}
-              onClick={() => setSection('military')}>Military</button>
+            {militaryEnabled && <button type="button" aria-pressed={section === 'military'}
+              onClick={() => setSection('military')}>Military</button>}
+            {technologyEnabled && <button type="button" aria-pressed={section === 'technology'}
+              onClick={() => setSection('technology')}>Technology</button>}
           </div>
         )}
-        {game && (!militaryEnabled || section === 'country') && (
+        {game && section === 'country' && (
           <CountryPanel game={game} country={shownCountry} pending={hostGame.pending}
             onSelect={setInspectedCountry} send={hostGame.send} />
         )}
@@ -333,6 +338,10 @@ export function MapPage() {
             selectArmy={(id) => { setInspectedArmy(id); setOrder(null); }}
             chooseOrder={setOrder} cancelOrder={() => setOrder(null)} provinceName={provinceName}
             send={hostGame.send} readAiLog={hostGame.readAiLog} canReadAiLog={!guest} />
+        )}
+        {game && technologyEnabled && section === 'technology' && (
+          <TechnologyPanel game={game} country={shownCountry} pending={hostGame.pending}
+            send={hostGame.send} />
         )}
       </aside>
       {lobbyOpen && lan.status && <LanLobby game={game} lan={lan} onClose={() => setLobbyOpen(false)} />}
