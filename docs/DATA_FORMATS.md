@@ -86,15 +86,20 @@ requires the generated map to pass validation.
 | `data/map/<region>/regions.yaml` | Schema v1 and region records with `key`, `name_key` and `name`. |
 | `data/map/<region>/names.en.json` | Flat v1 localization key→English fallback name mapping, with no `schema_version` field. |
 
-MAP_SCALE.md defines the hierarchy and reserved ID ranges. The generated Western Europe map uses `map_version: 3`. The loader still verifies schema v1/v2 maps with their original hash rules. Older saves are accepted only when loaded against their own map identity.
+MAP_SCALE.md defines the hierarchy and reserved ID ranges. The refreshed Western Europe map uses `map_version: 4`; full Europe uses `map_version: 6` after its eastward extension through Tura. Full-Europe IDs remain stable from the v5 baseline, but its map hash changed, so saves and LAN clients must use the matching map identity. The loader still verifies schema v1/v2 maps with their original hash rules.
 
 ### 1440 polity overlap evidence (`polities_1440.json`)
 
-This generated sidecar records the largest rasterized Cliopatria v0.1.3 polygon
-overlap for every land province. It is evidence for content review, not a
-scenario owner table. An unmatched cell stays unknown; Holy Roman Empire minor
-states and Kalmar Union labels are coarse groups. Equal pixel overlaps break
-by polity name in lexical order.
+This generated sidecar records the largest rasterized Cliopatria v0.2.1 polygon
+overlap for every land province. The generated input applies one documented
+correction: western Bavaria-Straubing components transferred to Burgundy are
+labelled `Burgundian Netherlands` in 1440.
+It is source evidence, not an owner table by itself. `tools/map/assign_1440_ownership.py`
+seeds the current scenario only when a named polygon maps to an existing
+country and covers at least half of the province pixels; it never overwrites
+an owner. Unmatched cells stay unknown; Holy Roman Empire minor states and
+Kalmar Union labels are coarse groups and are not assigned. Equal pixel
+overlaps break by polity name in lexical order.
 
 | Field | Representation and unit |
 |---|---|
@@ -103,7 +108,7 @@ by polity name in lexical order.
 | `map_hash` | Lowercase SHA-256 hex string matching `provinces.json`. |
 | `reference_year` | Integer Gregorian calendar year, currently 1440. |
 | `source` | `name`, `release`, `url`, `license`, repo-relative `file`, and lowercase SHA-256 `sha256` of the clipped GeoJSON with Git-canonical LF line endings. |
-| `method` | Literal raster overlap selection and tie break. |
+| `method` | Literal raster overlap selection, documented Bavaria correction, and tie break. |
 | `assignments[].province_id` | Positive integer province ID from the map; unitless. |
 | `assignments[].province_key` | Stable province key from the map. |
 | `assignments[].polity_name` | Exact source polygon name, or `null` when no polygon overlaps. |
@@ -162,15 +167,17 @@ Country and character numeric IDs are assigned in sorted key order starting at 1
 | `capital` | Province key referring to one of this country's land provinces. |
 | `ai_profile` | Profile key. |
 | `government` | Government key matching an entry in `data/reforms/governments.yaml`; unitless. |
-| `start.ruler`, `start.heir` | Character keys. The heir may be omitted or null. |
+| `start.ruler`, `start.heir` | Character keys. A minor AI-controlled country may omit `ruler` or set it to null when no ruler is documented; such a country must also omit `heir` or set it to null. A human-controlled country requires a ruler. |
 | `start.provinces` | Unique land province keys, owned by one country at most. |
 | `start.treasury`, `start.monthly_spending` | Raw Fixed thousandths of a treasury unit. Spending is per game month. |
 | `start.tax_rate` | Raw Fixed fraction of taxable income. `250` means 25%. |
 
-The UI loads an optional licensed SVG from `ui/src/assets/flags/<tag>.svg`,
-where `<tag>` is the country's `tag` in this file. This is a static content
-asset convention; missing SVGs leave the country color swatch visible. Record
-each new SVG and its source in `docs/ASSETS.md`.
+The UI loads an SVG from `ui/src/assets/flags/<tag>.svg`, where `<tag>` is the
+country's `tag` in this file. Each country included in the M11 1440 scenario
+must have a flag asset; countries in editor fixtures may omit it, in which
+case the UI leaves the country color swatch visible. Medieval heraldic banners
+are not presented as modern national flags. Record each new SVG and its source
+in `docs/ASSETS.md`.
 
 ### World-map country extensions (planned for M13)
 
@@ -189,10 +196,11 @@ below.
 | `sex` | Required `male` or `female`. This content value is checked against biographical sources for historical characters. |
 | `spouse` | Optional key of another character in the scenario. Both character files must point to each other; the pair must be living, adult, from different countries and of opposite sex at scenario start. Omission means no modeled spouse. |
 | `birth`, `death` | Gregorian `[year, month, day]` as in saves. Omit `death` or use null if unspecified. |
+| `birth_precision` | Optional `day` (default) or `year`. For `year`, `birth` must use January 1 as a placeholder; age increments on January 1, and the date is approximate rather than a documented day. |
 | `stats.adm`, `stats.dip`, `stats.mil` | Whole unsigned 8-bit skill points. |
 | `traits` | Unique keys from the scenario's trait map. |
 
-The 13 existing `male` entries were checked against the [UK Royal Family biographies](https://www.royal.uk/henry-vi) (Henry VI, Edward IV, Humphrey of Gloucester, James II and James III), [France's Larousse biographies](https://www.larousse.fr/encyclopedie/personnage/Charles_VII/112825) (Charles VII and Louis XI), the [Spanish national archives](https://pares.cultura.gob.es/ParesBusquedas20/catalogo/autoridad/46221) (John II of Aragon, Alfonso V of Aragon, John II and Henry IV of Castile), and the [Portuguese expansion encyclopedia](https://eve.fcsh.unl.pt/en/people/prince-dom-fernando-1433-1470) (Ferdinand of Viseu and Afonso V of Portugal). No female historic character has been added to the 1440 slice; that content review belongs to M11.
+Existing male entries are checked against the [UK Royal Family biographies](https://www.royal.uk/henry-vi), [France's Larousse biographies](https://www.larousse.fr/encyclopedie/personnage/Charles_VII/112825), the [Spanish national archives](https://pares.cultura.gob.es/ParesBusquedas20/catalogo/autoridad/46221), and the [Portuguese expansion encyclopedia](https://eve.fcsh.unl.pt/en/people/prince-dom-fernando-1433-1470). M11 adds Isabella of Portugal as the first female historical character in the 1440 scenario and models her reciprocal marriage to Philip the Good; her `country` remains `por` to retain her Portuguese royal affiliation, while the cross-country spouse link supplies the marriage relation.
 
 ## Technologies (`data/techs/<branch>.yaml`) — DAG
 
@@ -259,7 +267,7 @@ duplicate translation keys.
 
 ## Ideas (`data/ideas/<tag>.yaml`)
 
-Each country has one YAML v1 file named for its lowercase country tag. The
+An optional country idea catalog uses one YAML v1 file named for its lowercase country tag. A missing file means the country has no national ideas in this scenario. The
 root is `{schema_version: 1, country: <tag>, ideas: [...]}`. Idea keys are
 unique across files. The loader and linter reject unknown fields, duplicate
 keys, noncanonical YAML scalar tokens, and invalid modifier units.
@@ -742,3 +750,16 @@ reforms in one tier. V14 retains all earlier payloads; its hash domain is
 `strategy:game-state:v14` followed by NUL and canonical save bytes. V1–v13
 remain readable without government or reform data. LAN protocol v12 transports
 the v14 state and the validated `UnlockReform` command.
+
+
+## Saved games (schema version 15)
+
+V15 adds optional `state.navy.shipyards`, sorted by `port` province ID. Each order stores `port` and `sea` positive province IDs, `country` positive country ID, and `days_remaining` from 1 through 30 (whole game days). The command requires the port to be owned by `country` when accepted; `sea` must be linked by a reciprocal `port` edge. A country may have one active order per port. One ship costs 5 treasury units, or 5,000 raw Fixed thousandths, paid when ordered; it completes after 30 daily simulation ticks. If the port changes owner before completion, the order is canceled on the next tick without refund. On completion, the ship appears in the selected sea province. V15 uses hash domain `strategy:game-state:v15` followed by NUL and canonical save bytes. V1–v14 remain readable without shipyard orders. LAN protocol v13 carries this state and the validated `BuildShip` command.
+
+## Saved games (schema version 16)
+
+V16 preserves the birth precision of each historical character. Exact day precision is implicit and omitted; year precision is stored as `birth_precision: year` alongside a January 1 placeholder date. Age advances on January 1 for these characters. V16 retains all previous payloads and uses hash domain `strategy:game-state:v16` followed by NUL and canonical save bytes. V1–v15 remain readable without year-precision birth dates. A v16 save must contain at least one year-precision birth date. LAN protocol v14 carries this state.
+
+## Saved games (schema version 17)
+
+V17 adds `state.diplomacy.call_to_arms_offers`, sorted by `(war_id, from_country_id, toward_country_id)`. Each offer stores its war ID, inviting leader, recipient, side (`attacker` or `defender`), and expiry date. Offers are created for the leaders' peaceful allies when war is declared, expire after 30 game days, and are removed when the war ends, the alliance becomes invalid, or the recipient joins either side. Either answer removes competing invitations to that country for the same war. V17 uses hash domain `strategy:game-state:v17` followed by NUL and canonical save bytes. V1–v16 remain readable without call-to-arms data. LAN protocol v15 carries these offers and the validated accept/reject commands.

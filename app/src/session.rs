@@ -9,6 +9,9 @@ use std::{
 };
 
 use serde::{Deserialize, Serialize};
+use strategy_ai::{
+    alliance_acceptance_factors, marriage_acceptance_factors, vassal_acceptance_factors,
+};
 use strategy_app::{
     embedded_technologies,
     lan::{ClientPhase, HostConfig, LanClient, LanHost, LanMetrics},
@@ -129,6 +132,26 @@ struct CountryView {
     chosen_reform_tiers: Vec<u16>,
 }
 
+#[derive(Clone, PartialEq, Eq, Serialize)]
+struct AcceptanceFactorView {
+    key: &'static str,
+    value: i32,
+}
+
+#[derive(Clone, PartialEq, Eq, Serialize)]
+struct ProposalAcceptanceView {
+    outcome: &'static str,
+    factors: Vec<AcceptanceFactorView>,
+}
+
+#[derive(Clone, PartialEq, Eq, Serialize)]
+struct CountryAcceptancePreviewView {
+    country_id: u32,
+    alliance: ProposalAcceptanceView,
+    vassalage: ProposalAcceptanceView,
+    marriage: Option<ProposalAcceptanceView>,
+}
+
 #[derive(Serialize)]
 struct TechnologyEffectView {
     key: String,
@@ -214,6 +237,14 @@ struct FleetView {
     cargo_army_id: Option<u32>,
     to_sea_province_id: Option<u32>,
     progress: i64,
+}
+
+#[derive(Clone, PartialEq, Eq, Serialize)]
+struct ShipyardView {
+    port_province_id: u32,
+    sea_province_id: u32,
+    country_id: u32,
+    days_remaining: u8,
 }
 
 #[derive(Clone, PartialEq, Eq, Serialize)]
@@ -308,6 +339,15 @@ struct VassalOfferView {
     expires_at: String,
 }
 
+#[derive(Clone, PartialEq, Eq, Serialize)]
+struct CallToArmsOfferView {
+    war_id: u32,
+    from_id: u32,
+    toward_id: u32,
+    side: String,
+    expires_at: String,
+}
+
 #[derive(Default)]
 struct MilitaryView {
     armies: BTreeMap<u32, ArmyView>,
@@ -323,6 +363,7 @@ pub(crate) struct Snapshot {
     clock: ClockView,
     local_country_id: Option<u32>,
     countries: Vec<CountryView>,
+    acceptance_previews: Vec<CountryAcceptancePreviewView>,
     technologies: Vec<TechnologyView>,
     ideas: Vec<IdeaView>,
     reforms: Vec<ReformView>,
@@ -340,8 +381,10 @@ pub(crate) struct Snapshot {
     blockaded_ports: Vec<u32>,
     vassals: Vec<VassalView>,
     vassal_offers: Vec<VassalOfferView>,
+    call_to_arms_offers: Vec<CallToArmsOfferView>,
     armies: Vec<ArmyView>,
     fleets: Vec<FleetView>,
+    shipyards: Vec<ShipyardView>,
     wars: Vec<WarView>,
     sieges: Vec<SiegeView>,
     forts: Vec<FortView>,
@@ -355,6 +398,7 @@ struct Update {
     generation: u64,
     clock: ClockView,
     countries: Vec<CountryView>,
+    acceptance_previews: Vec<CountryAcceptancePreviewView>,
     pending_events: Option<Vec<EventView>>,
     guarantees: Vec<GuaranteeView>,
     alliances: Vec<AllianceView>,
@@ -366,10 +410,12 @@ struct Update {
     blockaded_ports: Vec<u32>,
     vassals: Vec<VassalView>,
     vassal_offers: Vec<VassalOfferView>,
+    call_to_arms_offers: Vec<CallToArmsOfferView>,
     owners: Vec<OwnerView>,
     armies: Vec<ArmyView>,
     removed_armies: Vec<u32>,
     fleets: Vec<FleetView>,
+    shipyards: Vec<ShipyardView>,
     removed_fleets: Vec<u32>,
     wars: Vec<WarView>,
     removed_wars: Vec<u32>,
@@ -427,6 +473,11 @@ pub(crate) enum UiCommand {
         fleet_id: u32,
         destination: u32,
     },
+    BuildShip {
+        country_id: u32,
+        port_id: u32,
+        sea_id: u32,
+    },
     EmbarkArmy {
         country_id: u32,
         army_id: u32,
@@ -458,6 +509,16 @@ pub(crate) enum UiCommand {
     AcceptPeace {
         country_id: u32,
         war_id: u32,
+    },
+    AcceptCallToArms {
+        country_id: u32,
+        war_id: u32,
+        from_id: u32,
+    },
+    RejectCallToArms {
+        country_id: u32,
+        war_id: u32,
+        from_id: u32,
     },
     OfferAlliance {
         country_id: u32,
@@ -603,6 +664,15 @@ impl UiCommand {
                 fleet: FleetId::new(fleet_id),
                 destination: ProvinceId::new(destination),
             },
+            Self::BuildShip {
+                country_id,
+                port_id,
+                sea_id,
+            } => Command::BuildShip {
+                country: CountryId::new(country_id),
+                port: ProvinceId::new(port_id),
+                sea: ProvinceId::new(sea_id),
+            },
             Self::EmbarkArmy {
                 country_id,
                 army_id,
@@ -654,6 +724,24 @@ impl UiCommand {
             Self::AcceptPeace { country_id, war_id } => Command::AcceptPeace {
                 country: CountryId::new(country_id),
                 war: WarId::new(war_id),
+            },
+            Self::AcceptCallToArms {
+                country_id,
+                war_id,
+                from_id,
+            } => Command::AcceptCallToArms {
+                country: CountryId::new(country_id),
+                war: WarId::new(war_id),
+                from: CountryId::new(from_id),
+            },
+            Self::RejectCallToArms {
+                country_id,
+                war_id,
+                from_id,
+            } => Command::RejectCallToArms {
+                country: CountryId::new(country_id),
+                war: WarId::new(war_id),
+                from: CountryId::new(from_id),
             },
             Self::OfferAlliance {
                 country_id,
@@ -934,6 +1022,7 @@ pub(crate) fn game_snapshot(state: State<'_, Mutex<Session>>) -> Result<Snapshot
         clock: clock_view(&session.game),
         local_country_id,
         countries: session.visible_countries.values().cloned().collect(),
+        acceptance_previews: acceptance_preview_views(&session.game, local_country_id),
         technologies: technology_views(&session.game)?,
         ideas: idea_views(&session.game),
         reforms: reform_views(&session.game),
@@ -963,8 +1052,10 @@ pub(crate) fn game_snapshot(state: State<'_, Mutex<Session>>) -> Result<Snapshot
             .collect(),
         vassals: vassal_views(&session.game),
         vassal_offers: vassal_offer_views(&session.game),
+        call_to_arms_offers: call_to_arms_offer_views(&session.game),
         armies: session.military.armies.values().cloned().collect(),
         fleets: session.military.fleets.values().cloned().collect(),
+        shipyards: shipyard_views(&session.game),
         wars: session.military.wars.values().cloned().collect(),
         sieges: session.military.sieges.clone(),
         forts: war
@@ -1404,6 +1495,13 @@ fn publish(app: &AppHandle, session: &mut Session) {
         generation: session.generation,
         clock: clock_view(&session.game),
         countries: changed_rows(&session.visible_countries, &countries),
+        acceptance_previews: acceptance_preview_views(
+            &session.game,
+            session.game.countries().find_map(|(id, country)| {
+                (country.controller() == &Controller::Human(local_player(&session.mode)))
+                    .then_some(id.get())
+            }),
+        ),
         pending_events: (session.visible_events != events).then(|| events.clone()),
         guarantees: guarantee_views(&session.game),
         alliances: alliance_views(&session.game),
@@ -1423,6 +1521,7 @@ fn publish(app: &AppHandle, session: &mut Session) {
             .collect(),
         vassals: vassal_views(&session.game),
         vassal_offers: vassal_offer_views(&session.game),
+        call_to_arms_offers: call_to_arms_offer_views(&session.game),
         owners: owners
             .iter()
             .filter(|(id, owner)| session.visible_owners.get(id) != Some(*owner))
@@ -1443,6 +1542,7 @@ fn publish(app: &AppHandle, session: &mut Session) {
         removed_armies: removed_rows(&session.military.armies, &military.armies),
         fleets: changed_rows(&session.military.fleets, &military.fleets),
         removed_fleets: removed_rows(&session.military.fleets, &military.fleets),
+        shipyards: shipyard_views(&session.game),
         wars: changed_rows(&session.military.wars, &military.wars),
         removed_wars: removed_rows(&session.military.wars, &military.wars),
         sieges: (session.military.sieges != military.sieges).then(|| military.sieges.clone()),
@@ -1599,6 +1699,26 @@ fn vassal_offer_views(game: &GameState) -> Vec<VassalOfferView> {
         .collect()
 }
 
+fn call_to_arms_offer_views(game: &GameState) -> Vec<CallToArmsOfferView> {
+    game.diplomacy()
+        .into_iter()
+        .flat_map(|diplomacy| &diplomacy.call_to_arms_offers)
+        .map(
+            |(&(war, from, toward), &(side, expires_at))| CallToArmsOfferView {
+                war_id: war.get(),
+                from_id: from.get(),
+                toward_id: toward.get(),
+                side: match side {
+                    strategy_sim::WarSide::Attacker => "attacker",
+                    strategy_sim::WarSide::Defender => "defender",
+                }
+                .to_owned(),
+                expires_at: format_date(expires_at),
+            },
+        )
+        .collect()
+}
+
 fn owner_views(game: &GameState) -> BTreeMap<u32, u32> {
     game.polity()
         .into_iter()
@@ -1721,6 +1841,19 @@ fn military_view(game: &GameState) -> MilitaryView {
             })
             .collect(),
     }
+}
+
+fn shipyard_views(game: &GameState) -> Vec<ShipyardView> {
+    game.navy()
+        .into_iter()
+        .flat_map(|navy| navy.shipyards.iter())
+        .map(|(&port, order)| ShipyardView {
+            port_province_id: port.get(),
+            sea_province_id: order.sea.get(),
+            country_id: order.country.get(),
+            days_remaining: order.days_remaining,
+        })
+        .collect()
 }
 
 fn local_player(mode: &Mode) -> PlayerId {
@@ -1864,6 +1997,139 @@ fn country_views(game: &GameState) -> BTreeMap<u32, CountryView> {
         .collect()
 }
 
+fn acceptance_preview_views(
+    game: &GameState,
+    local_country_id: Option<u32>,
+) -> Vec<CountryAcceptancePreviewView> {
+    let Some(local_country) = local_country_id.map(CountryId::new) else {
+        return Vec::new();
+    };
+    let Some(polity) = game.polity() else {
+        return Vec::new();
+    };
+    let Some(local_data) = polity.countries.get(&local_country) else {
+        return Vec::new();
+    };
+    let mut previews = Vec::new();
+    for (target, country_state) in game.countries() {
+        let Controller::Ai(profile_key) = country_state.controller() else {
+            continue;
+        };
+        if target == local_country {
+            continue;
+        }
+        let Some(profile) = polity.ai_profiles.get(profile_key.as_str()) else {
+            continue;
+        };
+        let alliance_factors = alliance_acceptance_factors(game, local_country, target, profile);
+        let alliance_opinion = alliance_factors
+            .iter()
+            .find(|factor| factor.key == "opinion")
+            .map_or(0, |factor| factor.value);
+        let alliance_minimum = alliance_factors
+            .iter()
+            .find(|factor| factor.key == "profile_minimum")
+            .map_or(0, |factor| factor.value);
+        let direct_war = alliance_factors
+            .iter()
+            .find(|factor| factor.key == "direct_war")
+            .is_some_and(|factor| factor.value == 1);
+        let negative_chance = alliance_factors
+            .iter()
+            .find(|factor| factor.key == "negative_opinion_accept_percent")
+            .map_or(0, |factor| factor.value);
+        let alliance_outcome = if direct_war {
+            "blocked by war"
+        } else if alliance_opinion < 0 && negative_chance > 0 {
+            "10% acceptance chance"
+        } else if alliance_opinion >= 0 && alliance_opinion >= alliance_minimum {
+            "would accept"
+        } else {
+            "would decline"
+        };
+        let alliance = ProposalAcceptanceView {
+            outcome: alliance_outcome,
+            factors: alliance_factors
+                .into_iter()
+                .map(|factor| AcceptanceFactorView {
+                    key: factor.key,
+                    value: factor.value,
+                })
+                .collect(),
+        };
+
+        let vassal_factors = vassal_acceptance_factors(game, local_country, target, profile);
+        let vassalage = ProposalAcceptanceView {
+            outcome: if vassal_factors[0].value >= vassal_factors[1].value
+                && vassal_factors[2].value > vassal_factors[3].value
+            {
+                "would accept"
+            } else {
+                "would decline"
+            },
+            factors: vassal_factors
+                .into_iter()
+                .map(|factor| AcceptanceFactorView {
+                    key: factor.key,
+                    value: factor.value,
+                })
+                .collect(),
+        };
+
+        let target_data = &polity.countries[&target];
+        let marriage = local_data
+            .succession
+            .ruler
+            .into_iter()
+            .chain(local_data.succession.heir)
+            .flat_map(|character| {
+                target_data
+                    .succession
+                    .ruler
+                    .into_iter()
+                    .chain(target_data.succession.heir)
+                    .map(move |partner| (character, partner))
+            })
+            .find(|(character, partner)| {
+                game.marriage_eligibility(local_country, *character, target, *partner)
+                    .is_ok()
+            })
+            .map(|(character, partner)| {
+                let factors = marriage_acceptance_factors(
+                    game,
+                    local_country,
+                    character,
+                    target,
+                    partner,
+                    profile,
+                );
+                let accepts = factors[2].value == 1 && factors[0].value >= factors[1].value;
+                ProposalAcceptanceView {
+                    outcome: if accepts {
+                        "would accept"
+                    } else {
+                        "would decline"
+                    },
+                    factors: factors
+                        .into_iter()
+                        .map(|factor| AcceptanceFactorView {
+                            key: factor.key,
+                            value: factor.value,
+                        })
+                        .collect(),
+                }
+            });
+
+        previews.push(CountryAcceptancePreviewView {
+            country_id: target.get(),
+            alliance,
+            vassalage,
+            marriage,
+        });
+    }
+    previews
+}
+
 fn technology_views(game: &GameState) -> Result<Vec<TechnologyView>, String> {
     let Some(technology) = game.technologies() else {
         return Ok(Vec::new());
@@ -1999,8 +2265,8 @@ fn money(value: Fixed) -> String {
 #[cfg(test)]
 mod tests {
     use super::{
-        collect_truce_views, event_views, technology_views, Startup, TruceView, UiCommand, GUEST,
-        HOST,
+        acceptance_preview_views, collect_truce_views, event_views, technology_views, Startup,
+        TruceView, UiCommand, GUEST, HOST,
     };
     use std::{
         collections::{BTreeMap, BTreeSet},
@@ -2010,8 +2276,37 @@ mod tests {
     use strategy_data::parse_event_yaml;
     use strategy_sim::{
         Command, Controller, CountryId, CountryState, Date, GameState, MapIdentity, ModifierStore,
-        PeaceTreaty, ProvinceGraph, SimTime, Speed, Tick, Trigger, WarId,
+        PeaceTreaty, PlayerId, ProvinceGraph, SimTime, Speed, Tick, Trigger, WarId,
     };
+
+    #[test]
+    fn acceptance_preview_projection_covers_ai_countries_and_their_factors() {
+        let game = load_embedded_scenario().unwrap();
+        let local = game
+            .countries()
+            .find_map(|(id, country)| {
+                (country.controller() == &Controller::Human(PlayerId::new(1))).then_some(id)
+            })
+            .expect("the scenario assigns a human player");
+        let previews = acceptance_preview_views(&game, Some(local.get()));
+        let ai_countries: BTreeSet<_> = game
+            .countries()
+            .filter_map(|(id, country)| {
+                matches!(country.controller(), Controller::Ai(_)).then_some(id.get())
+            })
+            .collect();
+        let preview_countries: BTreeSet<_> = previews.iter().map(|row| row.country_id).collect();
+
+        assert!(!ai_countries.is_empty());
+        assert_eq!(preview_countries, ai_countries);
+        assert!(previews.iter().all(|row| {
+            row.alliance
+                .factors
+                .iter()
+                .any(|factor| factor.key == "negative_opinion_accept_percent")
+                && row.vassalage.factors.len() == 4
+        }));
+    }
 
     #[test]
     fn truce_projection_includes_coalition_pairs_and_expires_on_time() {

@@ -12,7 +12,7 @@ import { lanStatusText, useLan } from '../game/lan';
 import { ArmyOrder, MilitaryPanel } from '../game/MilitaryPanel';
 import { TechnologyPanel } from '../game/TechnologyPanel';
 import { loadMapAssets, MapAssets, Province, Rgba } from './mapData';
-import { MapMode } from './mapPresentation';
+import { historicalPresentation, MapMode } from './mapPresentation';
 import { BenchmarkSample, createMapViewer, MapTestControls } from './mapViewer';
 import { FleetMarker } from './fleetLayer';
 
@@ -48,8 +48,8 @@ function MapSources() {
       <summary>Map sources</summary>
       <ul>
         <li>
-          <a href="https://github.com/Seshat-Global-History-Databank/cliopatria/releases/tag/v0.1.3"
-            target="_blank" rel="noreferrer">Cliopatria v0.1.3</a> by Bennett et al. (Seshat),
+          <a href="https://github.com/Seshat-Global-History-Databank/cliopatria/releases/tag/v0.2.1"
+            target="_blank" rel="noreferrer">Cliopatria v0.2.1</a> by Bennett et al. (Seshat),
           {' '}<a href="https://creativecommons.org/licenses/by/4.0/"
             target="_blank" rel="noreferrer">CC BY 4.0</a>. Clipped and used to seed test provinces.
         </li>
@@ -58,6 +58,7 @@ function MapSources() {
           <a href="https://www.naturalearthdata.com/downloads/"
             target="_blank" rel="noreferrer">Natural Earth</a>.
         </li>
+        <li>Political coloring uses the cited historical source polygons, not extracted Europa Universalis IV game data.</li>
         <li>
           Elevation and bathymetry from{' '}
           <a href="https://www.ncei.noaa.gov/products/etopo-global-relief-model"
@@ -71,9 +72,14 @@ function MapSources() {
 function provinceColors(
   owners: GameSnapshot['owners'] | undefined,
   countries: CountryView[] | undefined,
+  historical?: ReadonlyMap<number, Rgba>,
 ): Map<number, Rgba> {
   const colors = new Map<number, Rgba>();
   if (!owners || !countries) return colors;
+  for (const [provinceId, [red, green, blue]] of historical ?? []) {
+    // Historical source fill is intentionally translucent to distinguish it from ownership.
+    colors.set(provinceId, [red, green, blue, 132]);
+  }
   const byCountry = new Map<number, Rgba>();
   for (const country of countries) {
     if (!/^#[a-f\d]{6}$/i.test(country.color)) continue;
@@ -119,15 +125,19 @@ export function MapPage() {
   const game = hostGame.snapshot;
   const hasGame = Boolean(game);
   useEffect(() => {
-    if (hasGame && mapRegion === 'western_europe' && !modeChosenByUser.current) setMapMode('political');
+    if (hasGame && !modeChosenByUser.current) setMapMode('political');
   }, [hasGame]);
   const militaryEnabled = game?.armies !== undefined;
   const technologyEnabled = Boolean(game?.technologies?.length);
   const ideasEnabled = Boolean(game?.ideas?.length);
   const reformsEnabled = Boolean(game?.reforms?.length);
+  const historicalColors = useMemo(
+    () => mapAssets ? historicalPresentation(mapAssets).colors : undefined,
+    [mapAssets],
+  );
   const colors = useMemo(
-    () => provinceColors(game?.owners, game?.countries),
-    [game?.owners, game?.countries],
+    () => provinceColors(game?.owners, game?.countries, historicalColors),
+    [game?.owners, game?.countries, historicalColors],
   );
   const occupationColors = useMemo(
     () => provinceColors(game?.wars?.flatMap((war) => war.occupations), game?.countries),
@@ -185,8 +195,8 @@ export function MapPage() {
   }, [order, mayTarget, shownArmy, hostGame.pending, hostGame.send]);
 
   useEffect(() => {
-    if (hasGame && status === 'ready') viewerRef.current?.setOwnerColors(colors);
-  }, [hasGame, status, colors]);
+    if (status === 'ready') viewerRef.current?.setOwnerColors(colors);
+  }, [status, colors]);
   useEffect(() => {
     if (status === 'ready') viewerRef.current?.setMapMode(mapMode);
   }, [status, mapMode]);
@@ -305,7 +315,7 @@ export function MapPage() {
           </>
         ) : (
           <>
-            <p>Drag to pan · Scroll to zoom · Right-drag to tilt</p>
+            <p>Drag to pan · WASD/arrows · Scroll to zoom · Double-click to focus · Home for region</p>
             <a href="?smoke=1">WebGL smoke test</a>
             <MapSources />
             <nav className="map-modes" aria-label="Map mode">
@@ -317,8 +327,12 @@ export function MapPage() {
               ))}
             </nav>
             {mapMode === 'historical' && <p className="map-mode-note">
-              1440 source colors · Solid: named polygon · Hatched: broad group · Gray hatched: no match.
-              These are reference borders, not game ownership.
+              1440 reference colors · Solid tint: named polity · Muted tint: unresolved placeholder.
+              Scandinavian realm labels are visual references; placeholder colors do not assert game ownership.
+            </p>}
+            {game && mapMode === 'political' && <p className="map-mode-note">
+              Solid fill: campaign owner · Muted fill: historical reference on unmodeled land ·
+              Fine stripes: low-confidence source; placeholder colors do not imply ownership.
             </p>}
             {lan.status && (
               <div className="map-lan">
@@ -367,7 +381,9 @@ export function MapPage() {
               {game?.blockaded_ports?.includes(selected.id) && <p>Blockaded · port tax income closed</p>}
               {mapMode === 'historical' && selected.kind === 'land' && (
                 <p data-historical-resolution={attribution?.resolution ?? 'unmatched'}>
-                  1440 source · {attribution?.polity_name ?? 'Unknown attribution'}
+                  1440 source · {attribution?.polity_name === 'Kalmar Union'
+                    ? 'Scandinavian kingdoms · separate reference tints'
+                    : attribution?.polity_name ?? 'Unknown attribution'}
                   {attribution?.resolution === 'coarse_group' && ' · Low precision group'}
                 </p>
               )}
@@ -402,7 +418,9 @@ export function MapPage() {
         )}
         {game && militaryEnabled && section === 'military' && (
           <MilitaryPanel game={game} pending={hostGame.pending} provinceId={selected?.id ?? null}
-            provinceIsLand={selected?.kind === 'land'} army={shownArmy} order={order}
+            provinceIsLand={selected?.kind === 'land'}
+            portSeaIds={selected?.neighbors.filter((edge) => edge.edge === 'port').map((edge) => edge.id)}
+            army={shownArmy} order={order}
             selectArmy={(id) => { setInspectedArmy(id); setOrder(null); }}
             selectedFleetId={inspectedFleet}
             chooseOrder={setOrder} cancelOrder={() => setOrder(null)} provinceName={provinceName}

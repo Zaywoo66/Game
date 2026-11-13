@@ -3,9 +3,9 @@
   "tag": "bre",
   "name": "Duchy of Brittany",
   "color": [
-    70,
-    83,
-    103
+    177,
+    166,
+    211
   ],
   "capital": "nantes",
   "ai_profile": "balanced",
@@ -13,6 +13,7 @@
     "ruler": "john_v_brittany",
     "heir": null,
     "provinces": [
+      "angers",
       "brest",
       "lorient",
       "nantes",

@@ -1,0 +1,20 @@
+{
+  "schema_version": 2,
+  "key": "jahan_shah",
+  "country": "qar",
+  "name": "Jahan Shah",
+  "dynasty": "qara_qoyunlu",
+  "sex": "male",
+  "birth": [
+    1397,
+    1,
+    1
+  ],
+  "birth_precision": "year",
+  "stats": {
+    "adm": 3,
+    "dip": 3,
+    "mil": 4
+  },
+  "traits": []
+}

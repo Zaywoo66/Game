@@ -35,7 +35,9 @@ fn host_ai_resolves_pending_event_by_legal_command() {
         .contains_key(&(*country, "harvest_festival".into()))));
     let snapshot = save_game(&state).unwrap();
     let version: serde_json::Value = serde_json::from_slice(&snapshot).unwrap();
-    assert_eq!(version["schema_version"], 14);
+    // The 1440 scenario includes year-precision historical births, introduced
+    // with save schema v16; this event-only state has no v17 call-to-arms data.
+    assert_eq!(version["schema_version"], 16);
     assert_eq!(
         load_game(&snapshot, state.province_graph().clone()).unwrap(),
         state

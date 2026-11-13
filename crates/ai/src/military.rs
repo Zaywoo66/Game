@@ -9,7 +9,7 @@ use crate::{AiContext, MilitaryReason, Reason};
 
 const ORDER_PERIOD: u64 = 3;
 const STRATEGY_PERIOD: u64 = 31;
-const MAX_WAR_CANDIDATES: usize = 32;
+const MAX_WAR_TARGET_COUNTRIES: usize = 32;
 const WAR_TIMEOUT_DAYS: u64 = 365 * 2;
 
 pub(super) fn decide(
@@ -90,6 +90,33 @@ impl Planner<'_> {
         self.military.rules.max_army_size.min(soldiers as u32)
     }
 
+    fn defensive_coalition_strength(&self, defender: CountryId, attacker: CountryId) -> u64 {
+        let mut members = BTreeSet::from([defender]);
+        if let Some(diplomacy) = self.state.diplomacy() {
+            members.extend(diplomacy.guarantors_of(defender).filter(|&supporter| {
+                supporter != attacker
+                    && self.military.war_for(supporter).is_none()
+                    && !self.state.allied(supporter, attacker)
+            }));
+            if let Some(overlord) = diplomacy.overlord_of(defender) {
+                if overlord != attacker
+                    && self.military.war_for(overlord).is_none()
+                    && !self.state.allied(overlord, attacker)
+                {
+                    members.insert(overlord);
+                }
+            }
+        }
+
+        members.into_iter().fold(0_u64, |total, member| {
+            let potential = self
+                .state
+                .country_polity(member)
+                .map_or(0, |nation| u64::from(self.levies(nation)));
+            total.saturating_add(self.strength(member).max(potential))
+        })
+    }
+
     fn raise(&self) -> Option<(Command, Reason)> {
         if self.armies().next().is_some() {
             return None;
@@ -141,21 +168,10 @@ impl Planner<'_> {
             .collect();
         neighbors
             .into_iter()
+            .take(MAX_WAR_TARGET_COUNTRIES)
             .filter_map(|defender| {
-                self.state
-                    .country_polity(defender)
-                    .map(|enemy| (defender, enemy))
-            })
-            .flat_map(|(defender, enemy)| {
-                enemy
-                    .provinces
-                    .iter()
-                    .filter(move |&&goal| goal != enemy.capital)
-                    .map(move |&goal| (goal, defender, enemy))
-            })
-            .take(MAX_WAR_CANDIDATES)
-            .filter_map(|(goal, defender, enemy)| {
-                let opposition = self.strength(defender).max(u64::from(self.levies(enemy)));
+                let enemy = self.state.country_polity(defender)?;
+                let opposition = self.defensive_coalition_strength(defender, self.country);
                 if strength <= opposition {
                     return None;
                 }
@@ -168,16 +184,22 @@ impl Planner<'_> {
                 if score < self.profile.thresholds.war_min_score {
                     return None;
                 }
-                self.checked(
-                    Command::DeclareWar {
-                        country: self.country,
-                        defender,
-                        goal,
-                    },
-                    MilitaryReason::DeclareAgainstWeakerNeighbor,
-                    score,
-                )
-                .map(|decision| ((score, Reverse(goal)), decision))
+                enemy
+                    .provinces
+                    .iter()
+                    .filter(|&&goal| goal != enemy.capital)
+                    .find_map(|&goal| {
+                        self.checked(
+                            Command::DeclareWar {
+                                country: self.country,
+                                defender,
+                                goal,
+                            },
+                            MilitaryReason::DeclareAgainstWeakerNeighbor,
+                            score,
+                        )
+                        .map(|decision| ((score, Reverse(goal)), decision))
+                    })
             })
             .max_by_key(|(rank, _)| *rank)
             .map(|(_, decision)| decision)
@@ -379,5 +401,88 @@ impl Planner<'_> {
                 self.profile.weights.caution
             }),
         )
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::{fs, path::PathBuf};
+
+    use super::*;
+    use strategy_data::{load_scenario, parse_provinces};
+
+    fn scenario() -> GameState {
+        let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
+        let map = fs::read(root.join("map/europe/provinces.json")).unwrap();
+        let graph = parse_provinces(&map).unwrap();
+        load_scenario(graph, root.join("scenarios/1440.json")).unwrap()
+    }
+
+    fn id_for_tag(state: &GameState, tag: &str) -> CountryId {
+        state
+            .polity()
+            .unwrap()
+            .countries
+            .iter()
+            .find_map(|(&id, country)| (country.tag == tag).then_some(id))
+            .unwrap()
+    }
+
+    #[test]
+    fn defense_estimate_deduplicates_guarantors_and_overlords_who_can_join() {
+        let mut state = scenario();
+        let attacker = id_for_tag(&state, "cas");
+        let defender = id_for_tag(&state, "fra");
+        let guarantor = id_for_tag(&state, "eng");
+        let mut diplomacy = state.diplomacy().cloned().unwrap_or_default();
+        diplomacy.guarantees.insert((guarantor, defender));
+        diplomacy.vassals.insert(defender, guarantor);
+        state = state.with_diplomacy(diplomacy.clone()).unwrap();
+
+        let military = state.war_state().unwrap();
+        let nation = state.country_polity(attacker).unwrap();
+        let profile_key = match state.country(attacker).unwrap().controller() {
+            strategy_sim::Controller::Ai(profile) => profile.as_str().to_owned(),
+            strategy_sim::Controller::Human(_) => panic!("Castile must be AI-controlled"),
+        };
+        let profile = &state.polity().unwrap().ai_profiles[profile_key.as_str()];
+        let planner = Planner {
+            state: &state,
+            military,
+            country: attacker,
+            nation,
+            profile,
+        };
+        let defender_only = planner.strength(defender).max(u64::from(
+            planner.levies(state.country_polity(defender).unwrap()),
+        ));
+        let with_guarantor = planner.defensive_coalition_strength(defender, attacker);
+        let guarantor_strength = planner.strength(guarantor).max(u64::from(
+            planner.levies(state.country_polity(guarantor).unwrap()),
+        ));
+        assert_eq!(with_guarantor, defender_only + guarantor_strength);
+        let attacker_potential = u64::from(planner.levies(nation));
+        assert!(attacker_potential > defender_only);
+        assert!(attacker_potential <= with_guarantor);
+
+        diplomacy.alliances.insert(if attacker < guarantor {
+            (attacker, guarantor)
+        } else {
+            (guarantor, attacker)
+        });
+        let allied_state = state.with_diplomacy(diplomacy).unwrap();
+        let allied_military = allied_state.war_state().unwrap();
+        let allied_planner = Planner {
+            state: &allied_state,
+            military: allied_military,
+            country: attacker,
+            nation: allied_state.country_polity(attacker).unwrap(),
+            profile: &allied_state.polity().unwrap().ai_profiles[profile_key.as_str()],
+        };
+        assert_eq!(
+            allied_planner.defensive_coalition_strength(defender, attacker),
+            defender_only,
+            "a guarantor allied to the attacker breaks its promise instead of joining",
+        );
     }
 }

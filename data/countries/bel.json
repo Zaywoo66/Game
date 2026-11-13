@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "tag": "bel",
+  "name": "Principality of Beloozero",
+  "color": [
+    161,
+    175,
+    147
+  ],
+  "capital": "cherepovets",
+  "ai_profile": "balanced",
+  "government": "monarchy",
+  "start": {
+    "ruler": null,
+    "heir": null,
+    "provinces": [
+      "cherepovets",
+      "eu_516_111"
+    ],
+    "treasury": 50000,
+    "tax_rate": 220,
+    "monthly_spending": 3500
+  }
+}

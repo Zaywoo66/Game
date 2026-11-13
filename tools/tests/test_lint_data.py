@@ -1,10 +1,23 @@
+import json
 from pathlib import Path
 import subprocess
 import sys
 import unittest
+import xml.etree.ElementTree as ET
 
 
 class DataLintTest(unittest.TestCase):
+    def test_every_1440_country_has_a_registered_flag(self):
+        repo = Path(__file__).resolve().parents[2]
+        scenario = json.loads((repo / "data/scenarios/1440.json").read_text(encoding="utf-8"))
+        register = (repo / "docs/ASSETS.md").read_text(encoding="utf-8")
+        for tag in scenario["countries"]:
+            with self.subTest(country=tag):
+                flag = repo / "ui/src/assets/flags" / f"{tag}.svg"
+                self.assertTrue(flag.is_file(), f"missing flag asset for scenario country {tag}")
+                ET.parse(flag)
+                self.assertIn(f"ui/src/assets/flags/{tag}.svg", register)
+
     def test_rejects_invalid_json(self):
         result = run_lint("bad_json")
         self.assertEqual(result.returncode, 1, result)

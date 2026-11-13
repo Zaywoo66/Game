@@ -1,0 +1,25 @@
+{
+  "schema_version": 2,
+  "key": "shah_rukh",
+  "country": "tim",
+  "name": "Shah Rukh",
+  "dynasty": "timurid",
+  "sex": "male",
+  "birth": [
+    1377,
+    1,
+    1
+  ],
+  "birth_precision": "year",
+  "death": [
+    1447,
+    3,
+    13
+  ],
+  "stats": {
+    "adm": 4,
+    "dip": 4,
+    "mil": 3
+  },
+  "traits": []
+}

@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "tag": "ham",
+  "name": "City of Hamburg",
+  "color": [
+    161,
+    193,
+    177
+  ],
+  "capital": "hamburg",
+  "ai_profile": "balanced",
+  "government": "republic",
+  "start": {
+    "ruler": null,
+    "heir": null,
+    "provinces": [
+      "hamburg"
+    ],
+    "treasury": 50000,
+    "tax_rate": 220,
+    "monthly_spending": 3500
+  }
+}

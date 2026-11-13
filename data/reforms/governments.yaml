@@ -19,3 +19,41 @@ governments:
           ai_weight: 450
           effects:
             - {key: army_combat, value: 100, kind: multiplicative}
+  republic:
+    - reforms:
+        - key: civic_charters
+          ai_weight: 600
+          effects:
+            - {key: tax_income, value: 100, kind: multiplicative}
+        - key: citizen_militias
+          ai_weight: 350
+          effects:
+            - {key: army_morale, value: 100, kind: multiplicative}
+    - reforms:
+        - key: public_arsenals
+          ai_weight: 500
+          effects:
+            - {key: army_combat, value: 100, kind: multiplicative}
+        - key: merchant_ledgers
+          ai_weight: 450
+          effects:
+            - {key: tax_income, value: 150, kind: multiplicative}
+  theocracy:
+    - reforms:
+        - key: diocesan_administration
+          ai_weight: 600
+          effects:
+            - {key: tax_income, value: 100, kind: multiplicative}
+        - key: holy_levies
+          ai_weight: 350
+          effects:
+            - {key: army_morale, value: 100, kind: multiplicative}
+    - reforms:
+        - key: papal_diplomacy
+          ai_weight: 500
+          effects:
+            - {key: tax_income, value: 100, kind: multiplicative}
+        - key: sanctified_command
+          ai_weight: 450
+          effects:
+            - {key: army_combat, value: 100, kind: multiplicative}

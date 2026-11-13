@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "tag": "tyr",
+  "name": "Lordship of Tyrone",
+  "color": [
+    118,
+    158,
+    170
+  ],
+  "capital": "omagh",
+  "ai_profile": "balanced",
+  "government": "monarchy",
+  "start": {
+    "ruler": null,
+    "heir": null,
+    "provinces": [
+      "donegal",
+      "londonderry_derry",
+      "omagh"
+    ],
+    "treasury": 50000,
+    "tax_rate": 220,
+    "monthly_spending": 3500
+  }
+}

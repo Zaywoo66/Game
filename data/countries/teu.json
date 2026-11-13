@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "tag": "teu",
+  "name": "Teutonic Order",
+  "color": [
+    139,
+    198,
+    168
+  ],
+  "capital": "gda_sk",
+  "ai_profile": "balanced",
+  "government": "monarchy",
+  "start": {
+    "ruler": "paul_von_rusdorf",
+    "heir": null,
+    "provinces": [
+      "eu_321_186",
+      "gda_sk",
+      "kaliningrad",
+      "liepaga",
+      "olsztyn",
+      "sovetsk"
+    ],
+    "treasury": 70000,
+    "tax_rate": 220,
+    "monthly_spending": 5000
+  }
+}

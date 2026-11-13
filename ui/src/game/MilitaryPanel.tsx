@@ -8,6 +8,7 @@ interface MilitaryProps {
   pending: boolean;
   provinceId: number | null;
   provinceIsLand: boolean;
+  portSeaIds?: number[];
   army: ArmyView | undefined;
   order: ArmyOrder | null;
   selectArmy(id: number): void;
@@ -188,6 +189,7 @@ export function MilitaryPanel(props: MilitaryProps) {
   const local = game.countries.find((country) => country.id === localId);
   const armies = game.armies ?? [];
   const fleets = game.fleets ?? [];
+  const shipyards = game.shipyards ?? [];
   const wars = game.wars ?? [];
   const countryName = (id: number) => game.countries.find((country) => country.id === id)?.name ?? 'Country ' + id;
   const owner = game.owners.find((row) => row.province_id === provinceId)?.country_id;
@@ -247,6 +249,20 @@ export function MilitaryPanel(props: MilitaryProps) {
         ) : <p>Capital is not controlled. Raising is unavailable.</p>
       )}
       <h3>Fleets</h3>
+      {local && provinceId !== null && provinceIsLand && props.portSeaIds?.length ? (
+        <div className="military-actions" aria-label="Ship construction">
+          {props.portSeaIds.map((seaId) => (
+            <button key={seaId} type="button" disabled={pending || owner !== local.id
+              || shipyards.some((order) => order.port_province_id === provinceId)}
+              onClick={() => void send({ type: 'build_ship', country_id: local.id, port_id: provinceId, sea_id: seaId })}>
+              Build ship at {provinceName(provinceId)} · 5 treasury · 30 days
+            </button>
+          ))}
+        </div>
+      ) : null}
+      {shipyards.filter((yard) => yard.country_id === localId).map((yard) => (
+        <p key={yard.port_province_id} role="status">Shipbuilding at {provinceName(yard.port_province_id)}: {yard.days_remaining} days remaining</p>
+      ))}
       {fleets.length ? fleets.map((fleet: FleetView) => (
         <section key={fleet.id} aria-label={`Fleet ${fleet.id}`} data-selected={fleet.id === selectedFleetId}>
           <h4>{countryName(fleet.country_id)} · Fleet {fleet.id}</h4>

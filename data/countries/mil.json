@@ -3,9 +3,9 @@
   "tag": "mil",
   "name": "Duchy of Milan",
   "color": [
-    77,
-    98,
-    142
+    166,
+    211,
+    200
   ],
   "capital": "milan",
   "ai_profile": "balanced",
@@ -14,10 +14,20 @@
     "ruler": "filippo_maria_visconti",
     "heir": null,
     "provinces": [
+      "altdorf",
+      "asti",
       "bellinzona",
       "como",
+      "genoa",
       "lugano",
-      "milan"
+      "milan",
+      "modena",
+      "novara",
+      "parma",
+      "pisa",
+      "sarnen",
+      "siena",
+      "turin"
     ],
     "treasury": 65000,
     "tax_rate": 230,

@@ -210,7 +210,7 @@ struct CountryFile {
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 struct CountryStart {
-    ruler: String,
+    ruler: Option<String>,
     heir: Option<String>,
     provinces: Vec<String>,
     treasury: i64,
@@ -229,10 +229,20 @@ struct CharacterFile {
     sex: CharacterSexFile,
     spouse: Option<String>,
     birth: DateFields,
+    #[serde(default)]
+    birth_precision: BirthPrecisionFile,
     death: Option<DateFields>,
     #[serde(with = "StatsFile")]
     stats: CharacterStats,
     traits: Vec<String>,
+}
+
+#[derive(Clone, Copy, Debug, Default, Deserialize)]
+#[serde(rename_all = "snake_case")]
+enum BirthPrecisionFile {
+    #[default]
+    Day,
+    Year,
 }
 
 #[derive(Deserialize)]
@@ -383,6 +393,14 @@ pub fn load_scenario_from_reader(
             .get(file.country.as_str())
             .ok_or_else(|| invalid(format!("{path}: unknown country {}", file.country)))?;
         let birth = parse_date(file.birth, &format!("{path} birth"))?;
+        let (_, birth_month, birth_day) = birth.components();
+        if matches!(file.birth_precision, BirthPrecisionFile::Year)
+            && (birth_month != 1 || birth_day != 1)
+        {
+            return Err(invalid(format!(
+                "{path}: year-precision birth dates must use January 1 as a placeholder"
+            )));
+        }
         let death = file
             .death
             .map(|parts| parse_date(parts, &format!("{path} death")))
@@ -424,6 +442,10 @@ pub fn load_scenario_from_reader(
                 },
                 spouse: None,
                 birth,
+                birth_precision: match file.birth_precision {
+                    BirthPrecisionFile::Day => strategy_sim::BirthPrecision::Day,
+                    BirthPrecisionFile::Year => strategy_sim::BirthPrecision::Year,
+                },
                 death,
                 stats: file.stats,
                 traits: trait_keys,
@@ -498,14 +520,29 @@ pub fn load_scenario_from_reader(
             )));
         }
 
-        let ruler = resolve_character(&characters, &character_states, &file.start.ruler, id, date)?;
+        let ruler = file
+            .start
+            .ruler
+            .as_ref()
+            .map(|key| resolve_character(&characters, &character_states, key, id, date))
+            .transpose()?;
         let heir = file
             .start
             .heir
             .as_ref()
             .map(|key| resolve_character(&characters, &character_states, key, id, date))
             .transpose()?;
-        if heir == Some(ruler) {
+        if ruler.is_none() && matches!(&controller, Controller::Human(_)) {
+            return Err(invalid(format!(
+                "{path}: a human-controlled country requires a ruler"
+            )));
+        }
+        if ruler.is_none() && heir.is_some() {
+            return Err(invalid(format!(
+                "{path}: an heir requires a recorded ruler"
+            )));
+        }
+        if ruler.is_some() && heir == ruler {
             return Err(invalid(format!(
                 "{path}: ruler and heir are the same character"
             )));
@@ -532,10 +569,7 @@ pub fn load_scenario_from_reader(
                     last_month: None,
                     bankrupt: false,
                 },
-                succession: SuccessionState {
-                    ruler: Some(ruler),
-                    heir,
-                },
+                succession: SuccessionState { ruler, heir },
                 ai_profile: profile_key,
             },
         );

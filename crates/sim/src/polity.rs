@@ -10,7 +10,7 @@ mod succession;
 
 use economy::{monthly_economy, monthly_tax_income, Tribute};
 pub use economy::{EconomyState, FiscalError, FiscalPolicy, MonthlyBudget};
-pub use succession::{CharacterState, CharacterStats, Sex, SuccessionState};
+pub use succession::{BirthPrecision, CharacterState, CharacterStats, Sex, SuccessionState};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct PolityRules {

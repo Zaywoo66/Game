@@ -1,0 +1,19 @@
+{
+  "schema_version": 2,
+  "key": "christopher_iii",
+  "country": "den",
+  "name": "Christopher of Bavaria",
+  "dynasty": "wittelsbach",
+  "sex": "male",
+  "birth": [
+    1416,
+    2,
+    26
+  ],
+  "stats": {
+    "adm": 3,
+    "dip": 3,
+    "mil": 3
+  },
+  "traits": []
+}

@@ -211,7 +211,7 @@ fn setup_with_enemy(ships: u32, enemy_at_port: bool) -> GameState {
 
 #[test]
 fn an_unopposed_fleet_closes_port_tax_until_it_sails_away() {
-    let mut state = setup(1);
+    let mut state = setup(100);
     let policy = FiscalPolicy {
         tax_rate: Fixed::ONE,
         monthly_spending: Fixed::ZERO,
@@ -339,6 +339,46 @@ fn same_side_fleet_in_the_zone_prevents_a_blockade() {
 }
 
 #[test]
+fn shipbuilding_spends_five_units_and_finishes_after_thirty_days() {
+    let mut state = setup(1);
+    let treasury_before = state.country_polity(A).unwrap().economy.treasury;
+    state
+        .apply(
+            HOST,
+            &Command::BuildShip {
+                country: A,
+                port: ProvinceId::new(1),
+                sea: ProvinceId::new(3),
+            },
+        )
+        .unwrap();
+    assert_eq!(
+        state.country_polity(A).unwrap().economy.treasury,
+        treasury_before.checked_sub(Fixed::from_raw(5_000)).unwrap()
+    );
+    assert_eq!(
+        state.navy().unwrap().shipyards[&ProvinceId::new(1)].days_remaining,
+        30
+    );
+    for _ in 0..29 {
+        state.tick(|_, _| vec![]).unwrap();
+    }
+    assert_eq!(state.navy().unwrap().fleets.len(), 1);
+    assert_eq!(
+        state.navy().unwrap().shipyards[&ProvinceId::new(1)].days_remaining,
+        1
+    );
+    state.tick(|_, _| vec![]).unwrap();
+    assert_eq!(state.navy().unwrap().fleets.len(), 2);
+    assert!(state.navy().unwrap().shipyards.is_empty());
+    assert_eq!(state.navy().unwrap().fleets[&FleetId::new(2)].ships, 1);
+    assert_eq!(
+        state.navy().unwrap().fleets[&FleetId::new(2)].sea,
+        ProvinceId::new(3)
+    );
+}
+
+#[test]
 fn hostile_fleet_interrupts_landing_until_naval_battle_clears_the_port() {
     let mut state = setup_with_enemy(2, true);
     state
@@ -378,6 +418,83 @@ fn hostile_fleet_interrupts_landing_until_naval_battle_clears_the_port() {
         .any(|change| matches!(change, StateChange::NavalBattleResolved(_))));
     assert!(!state.navy().unwrap().fleets.contains_key(&FleetId::new(2)));
     assert!(state.validate_command(HOST, &landing).is_ok());
+}
+
+#[test]
+fn monthly_naval_attrition_shelters_stationary_fleets_by_accessible_ports() {
+    let mut sheltered = setup(1);
+    while sheltered.time().date() != Date::new(1440, 2, 1).unwrap() {
+        sheltered.tick(|_, _| vec![]).unwrap();
+    }
+    assert_eq!(sheltered.navy().unwrap().fleets[&FLEET].ships, 1);
+
+    let mut exposed = setup(101);
+    exposed
+        .apply(
+            HOST,
+            &Command::MoveFleet {
+                country: A,
+                fleet: FLEET,
+                destination: ProvinceId::new(4),
+            },
+        )
+        .unwrap();
+    while exposed.time().date() != Date::new(1440, 2, 1).unwrap() {
+        exposed.tick(|_, _| vec![]).unwrap();
+    }
+    assert_eq!(exposed.navy().unwrap().fleets[&FLEET].ships, 99);
+}
+
+#[test]
+fn attrition_that_sinks_a_transport_also_removes_its_embarked_army() {
+    let mut state = setup(1);
+    state
+        .apply(
+            HOST,
+            &Command::EmbarkArmy {
+                country: A,
+                army: ARMY,
+                fleet: FLEET,
+            },
+        )
+        .unwrap();
+    state
+        .apply(
+            HOST,
+            &Command::MoveFleet {
+                country: A,
+                fleet: FLEET,
+                destination: ProvinceId::new(4),
+            },
+        )
+        .unwrap();
+    let mut removed_fleet = false;
+    let mut removed_army = false;
+    while state.time().date() != Date::new(1440, 2, 1).unwrap() {
+        let report = state.tick(|_, _| vec![]).unwrap();
+        removed_fleet |= report.delta.changes().iter().any(|change| {
+            matches!(
+                change,
+                StateChange::FleetChanged {
+                    fleet: FLEET,
+                    state: None
+                }
+            )
+        });
+        removed_army |= report.delta.changes().iter().any(|change| {
+            matches!(
+                change,
+                StateChange::ArmyChanged {
+                    army: ARMY,
+                    state: None
+                }
+            )
+        });
+    }
+    assert!(removed_fleet);
+    assert!(removed_army);
+    assert!(!state.navy().unwrap().fleets.contains_key(&FLEET));
+    assert!(!state.war_state().unwrap().armies.contains_key(&ARMY));
 }
 
 #[test]

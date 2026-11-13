@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "tag": "neu",
+  "name": "County of Nevers",
+  "color": [
+    197,
+    160,
+    169
+  ],
+  "capital": "nevers",
+  "ai_profile": "balanced",
+  "government": "monarchy",
+  "start": {
+    "ruler": "charles_i_nevers",
+    "heir": null,
+    "provinces": [
+      "auxerre",
+      "nevers"
+    ],
+    "treasury": 50000,
+    "tax_rate": 220,
+    "monthly_spending": 3500
+  }
+}

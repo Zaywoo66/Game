@@ -1,0 +1,13 @@
+{
+  "schema_version": 2,
+  "key": "stephen_ii_moldavia",
+  "country": "mol",
+  "name": "Stephen II",
+  "dynasty": "musatin",
+  "sex": "male",
+  "birth": [1410, 1, 1],
+  "birth_precision": "year",
+  "death": [1447, 7, 22],
+  "stats": {"adm": 3, "dip": 2, "mil": 4},
+  "traits": []
+}

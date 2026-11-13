@@ -18,6 +18,15 @@ pub enum Sex {
     Female,
 }
 
+/// Precision of a historical birth date. `Year` records only the year and
+/// treats a character as having reached each new age on January 1.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum BirthPrecision {
+    #[default]
+    Day,
+    Year,
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct CharacterState {
     pub name: String,
@@ -26,6 +35,7 @@ pub struct CharacterState {
     pub sex: Sex,
     pub spouse: Option<CharacterId>,
     pub birth: Date,
+    pub birth_precision: BirthPrecision,
     pub death: Option<Date>,
     pub stats: CharacterStats,
     pub traits: BTreeSet<String>,
@@ -47,6 +57,9 @@ impl CharacterState {
         }
         let (year, month, day) = end.components();
         let (birth_year, birth_month, birth_day) = self.birth.components();
+        if self.birth_precision == BirthPrecision::Year {
+            return Some(year - birth_year);
+        }
         Some(year - birth_year - u32::from((month, day) < (birth_month, birth_day)))
     }
 }

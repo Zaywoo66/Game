@@ -1,0 +1,12 @@
+{
+  "schema_version": 2,
+  "key": "tvrtko_ii_bosnia",
+  "country": "bos",
+  "name": "Tvrtko II Kotromanić",
+  "dynasty": "kotromanic",
+  "sex": "male",
+  "birth": [1380, 1, 1],
+  "birth_precision": "year",
+  "stats": {"adm": 3, "dip": 3, "mil": 3},
+  "traits": []
+}

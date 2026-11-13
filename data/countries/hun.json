@@ -1,0 +1,49 @@
+{
+  "schema_version": 1,
+  "tag": "hun",
+  "name": "Kingdom of Hungary",
+  "color": [
+    99,
+    191,
+    99
+  ],
+  "capital": "budapest",
+  "ai_profile": "balanced",
+  "government": "monarchy",
+  "start": {
+    "ruler": "elizabeth_of_luxembourg",
+    "heir": null,
+    "provinces": [
+      "b_k_scsaba",
+      "baia_mare",
+      "belgrade",
+      "bra_ov",
+      "budapest",
+      "cluj_napoca",
+      "debrecen",
+      "deva",
+      "eu_291_276",
+      "eu_306_231",
+      "eu_321_261",
+      "eu_381_246",
+      "gy_r",
+      "miskolc",
+      "ni",
+      "p_cs",
+      "pre_ov",
+      "slavonski_brod",
+      "szeged",
+      "szolnok",
+      "szombathely",
+      "timi_oara",
+      "tirgu_mures",
+      "uzhgorod",
+      "zadar",
+      "zagreb",
+      "zvolen"
+    ],
+    "treasury": 80000,
+    "tax_rate": 230,
+    "monthly_spending": 5000
+  }
+}

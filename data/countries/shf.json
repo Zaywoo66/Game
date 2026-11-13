@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "tag": "shf",
+  "name": "Free Imperial City of Schaffhausen",
+  "color": [
+    189,
+    143,
+    158
+  ],
+  "capital": "schaffhausen",
+  "ai_profile": "balanced",
+  "government": "republic",
+  "start": {
+    "ruler": null,
+    "heir": null,
+    "provinces": [
+      "schaffhausen"
+    ],
+    "treasury": 50000,
+    "tax_rate": 220,
+    "monthly_spending": 3500
+  }
+}

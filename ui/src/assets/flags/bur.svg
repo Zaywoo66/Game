@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 150 100" role="img" aria-labelledby="title">
+  <title id="title">Simplified quartered arms of Valois Burgundy</title>
+  <defs>
+    <clipPath id="banner"><rect x="4" y="4" width="142" height="92" rx="2"/></clipPath>
+    <g id="fleur" fill="#e4bd55">
+      <path d="M0-14c-3 4-8 6-8 11 0 3 2 5 5 5h1v7l-5 4 7-2 7 2-5-4v-7h1c3 0 5-2 5-5 0-5-5-7-8-11z"/>
+    </g>
+    <pattern id="bendy" width="20" height="20" patternTransform="rotate(35)" patternUnits="userSpaceOnUse">
+      <rect width="20" height="20" fill="#e4bd55"/>
+      <rect width="7" height="20" fill="#244b8d"/>
+    </pattern>
+  </defs>
+  <g clip-path="url(#banner)">
+    <rect x="4" y="4" width="71" height="46" fill="#244b8d"/>
+    <rect x="75" y="4" width="71" height="46" fill="url(#bendy)"/>
+    <rect x="4" y="50" width="71" height="46" fill="url(#bendy)"/>
+    <rect x="75" y="50" width="71" height="46" fill="#244b8d"/>
+    <use href="#fleur" x="25" y="22"/>
+    <use href="#fleur" x="54" y="38"/>
+    <use href="#fleur" x="96" y="66"/>
+    <use href="#fleur" x="125" y="82"/>
+  </g>
+  <path d="M75 4v92M4 50h142" fill="none" stroke="#e4bd55" stroke-width="2"/>
+  <rect x="4" y="4" width="142" height="92" rx="2" fill="none" stroke="#3a2a23" stroke-width="4"/>
+</svg>

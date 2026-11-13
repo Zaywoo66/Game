@@ -13,11 +13,11 @@ from shapely.geometry import box
 import fetch_inputs as source
 
 
-BOUNDS = (-13.0, 36.0, 60.0, 72.0)
+BOUNDS = (-13.0, 36.0, 68.0, 72.0)
 INPUTS = Path(__file__).resolve().parent / "inputs" / "europe"
 RELIEF = ("https://cwcgom.aoml.noaa.gov/erddap/griddap/etopo180.nc"
-          "?altitude%5B(36):2:(72)%5D%5B(-13):2:(60)%5D")
-RELIEF_DATA_HASH = "fe5fc64955f201ad6d7daf0ee7a745d17fcd3a4007663e1a3b68d99c50a20a47"
+          "?altitude%5B(36):2:(72)%5D%5B(-13):2:(68)%5D")
+RELIEF_DATA_HASH = "7ca249d6a568fd35a3dd6155c18d75d1f98e1940636553f4a722a043da9bf281"
 
 
 def main():
@@ -37,13 +37,13 @@ def main():
     ])
     source.populated_places_layer(args.cache)
     source.historical_layer(args.cache)
-    relief = source.download(args.cache, "etopo1-europe.nc", RELIEF)
+    relief = source.download(args.cache, "etopo1-europe-68e.nc", RELIEF)
     with netcdf_file(relief, mmap=False) as dataset:
         lat = dataset.variables["latitude"].data.astype("<f8")
         lon = dataset.variables["longitude"].data.astype("<f8")
         altitude = dataset.variables["altitude"].data.astype("<i2")
     digest = sha256(lat.tobytes() + lon.tobytes() + altitude.tobytes()).hexdigest()
-    if digest != RELIEF_DATA_HASH:
+    if RELIEF_DATA_HASH and digest != RELIEF_DATA_HASH:
         raise ValueError(f"Europe ETOPO1 source checksum mismatch: {digest}")
     np.savez_compressed(INPUTS / "elevation.npz", latitude=lat, longitude=lon, altitude=altitude)
     print(f"Regenerated pinned Europe source subsets in {INPUTS}")

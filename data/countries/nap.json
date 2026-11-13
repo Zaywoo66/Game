@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "tag": "nap",
+  "name": "Kingdom of Naples",
+  "color": [
+    168,
+    198,
+    139
+  ],
+  "capital": "naples",
+  "ai_profile": "balanced",
+  "government": "monarchy",
+  "start": {
+    "ruler": "rene_of_anjou",
+    "heir": null,
+    "provinces": [
+      "bari",
+      "catanzaro",
+      "eu_276_321",
+      "eu_291_321",
+      "foggia",
+      "lecce",
+      "naples",
+      "pescara"
+    ],
+    "treasury": 75000,
+    "tax_rate": 230,
+    "monthly_spending": 5000
+  }
+}

@@ -1,6 +1,12 @@
 import { expect, test } from '@playwright/test';
 
 test.beforeEach(async ({ page }) => {
+  const webglErrors = [];
+  page.on('console', (message) => {
+    if (/WebGL.*(?:GL_INVALID_|Failed to compile shader|Shader Error)|GL_INVALID_(?:ENUM|OPERATION|VALUE)/i.test(message.text())) {
+      webglErrors.push(message.text());
+    }
+  });
   await page.goto('/?verify=1&map=western_europe');
   await expect(page.locator('main[data-map-status="ready"]')).toBeVisible({
     timeout: 60_000,
@@ -10,7 +16,8 @@ test.beforeEach(async ({ page }) => {
   expect(renderer).toBeTruthy();
   console.info('Map test WebGL renderer: ' + renderer);
   await expect(page.locator('main')).toHaveAttribute('data-map-mode', 'historical');
-  await expect(page.getByText(/These are reference borders, not game ownership\./)).toBeVisible();
+  await expect(page.getByText(/placeholder colors do not (?:assert game|imply) ownership/i)).toBeVisible();
+  expect(webglErrors, 'WebGL initialization must not report texture or shader errors').toEqual([]);
 });
 
 test('projected provinces pick their canonical IDs and representative clicks select them', async ({ page }) => {
@@ -169,10 +176,37 @@ test('camera presets stay bounded and wide margins render as ocean', async ({ pa
     expect(camera.target[1]).toBeLessThanOrEqual(744);
     expect(camera.polarAngle).toBeLessThanOrEqual(0.72);
   }
-  expect(result.samples['whole-region'].zoom).toBe(1);
+  expect(result.samples['whole-region'].zoom).toBeCloseTo(0.96, 2);
   expect(result.samples.province.zoom).toBeGreaterThan(result.samples.britain.zoom);
   expect(result.margin[2]).toBeGreaterThan(result.margin[0] * 2);
   expect(result.margin).not.toEqual([21, 35, 44, 255]);
+});
+
+test('keyboard camera controls frame, pan, and double-click to focus a province', async ({ page }) => {
+  const province = (await loadProvinces(page)).find(({ kind }) => kind === 'land');
+  expect(province).toBeTruthy();
+  const canvas = page.locator('[data-map-viewport] canvas');
+  await page.evaluate(() => window.strategyMapTest.setCameraPreset('province'));
+  await canvas.focus();
+  await page.keyboard.press('Home');
+  await expect.poll(() => page.evaluate(() => window.strategyMapTest.readCamera().zoom)).toBeCloseTo(0.96, 2);
+
+  // The fully framed map is intentionally clamped to its center. Test keyboard
+  // panning after zooming into a subregion where the camera has room to move.
+  await page.evaluate(() => window.strategyMapTest.setCameraPreset('britain'));
+  const beforePan = await page.evaluate(() => window.strategyMapTest.readCamera().target);
+  await page.keyboard.press('ArrowRight');
+  const afterPan = await page.evaluate(() => window.strategyMapTest.readCamera().target);
+  expect(afterPan[0]).toBeGreaterThan(beforePan[0]);
+
+  await page.evaluate(() => window.strategyMapTest.setCameraPreset('whole-region'));
+  const point = await page.evaluate((id) => window.strategyMapTest.projectProvince(id), province.id);
+  expect(point).toBeTruthy();
+  const beforeFocus = await page.evaluate(() => window.strategyMapTest.readCamera());
+  await page.mouse.dblclick(point.x, point.y);
+  await expect.poll(() => page.evaluate(() => window.strategyMapTest.readCamera().zoom)).toBe(2.5);
+  const afterFocus = await page.evaluate(() => window.strategyMapTest.readCamera());
+  expect(afterFocus.target).not.toEqual(beforeFocus.target);
 });
 
 test('map modes keep host owner bytes separate from 1440 evidence', async ({ page }) => {
@@ -187,6 +221,8 @@ test('map modes keep host owner bytes separate from 1440 evidence', async ({ pag
   }, polygon.province_id);
   const point = await page.evaluate((id) => window.strategyMapTest.projectProvince(id), polygon.province_id);
   await page.mouse.click(point.x, point.y);
+  // Keep the hover lookup identical for the political and restored frames.
+  await page.mouse.move(0, 0);
   const political = await page.evaluate(({ x, y }) => window.strategyMapTest.readPixel(x, y), point);
   await page.getByRole('button', { name: 'Historical 1440' }).click();
   await expect.poll(() => page.evaluate(() => window.strategyMapTest.readMapMode())).toBe('historical');
@@ -223,6 +259,13 @@ test('historical unknown and coarse entries are explicit while labels and sea pi
     }, entry.province_id);
     await page.mouse.click(point.x, point.y);
     await expect(page.locator(`[data-historical-resolution="${resolution}"]`)).toContainText(expected);
+    const referenceColor = await page.evaluate((id) => window.strategyMapTest.readHistoricalColor(id), entry.province_id);
+    expect(referenceColor).toHaveLength(4);
+    expect(referenceColor[3]).toBe(255);
+    expect(referenceColor).not.toEqual([113, 120, 116, 255]);
+    if (resolution === 'coarse_group' && entry.polity_name) {
+      await expect(page.locator('.map-label', { hasText: entry.polity_name })).toHaveCount(0);
+    }
     const province = (await loadProvinces(page)).find((item) => item.id === entry.province_id);
     const names = await (await page.request.get('/map/western_europe/names.en.json')).json();
     await expect(page.locator('.map-inspector h2')).toHaveText(names[province.name_key]);

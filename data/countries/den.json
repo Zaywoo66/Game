@@ -1,0 +1,37 @@
+{
+  "schema_version": 1,
+  "tag": "den",
+  "name": "Kingdom of Denmark",
+  "color": [
+    188,
+    160,
+    197
+  ],
+  "capital": "k_benhavn",
+  "ai_profile": "balanced",
+  "government": "monarchy",
+  "start": {
+    "ruler": "christopher_iii",
+    "heir": null,
+    "provinces": [
+      "aalborg",
+      "arhus",
+      "esbjerg",
+      "eu_276_171",
+      "flensburg",
+      "frederikshavn",
+      "halmstad",
+      "k_benhavn",
+      "karlskrona",
+      "kristianstad",
+      "odense",
+      "sor",
+      "svendborg",
+      "vejle",
+      "viborg"
+    ],
+    "treasury": 65000,
+    "tax_rate": 220,
+    "monthly_spending": 4500
+  }
+}

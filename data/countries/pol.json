@@ -1,0 +1,39 @@
+{
+  "schema_version": 1,
+  "tag": "pol",
+  "name": "Kingdom of Poland",
+  "color": [
+    211,
+    200,
+    166
+  ],
+  "capital": "krak_w",
+  "ai_profile": "balanced",
+  "government": "monarchy",
+  "start": {
+    "ruler": "wladyslaw_iii",
+    "heir": null,
+    "provinces": [
+      "bydgoszcz",
+      "d",
+      "eu_306_201",
+      "eu_366_231",
+      "ivano_frankivsk",
+      "katowice",
+      "khmelnytskyy",
+      "kielce",
+      "krak_w",
+      "lublin",
+      "lviv",
+      "pozna",
+      "rzesz_w",
+      "ternopil",
+      "uman",
+      "vinnytsya",
+      "warsaw"
+    ],
+    "treasury": 80000,
+    "tax_rate": 230,
+    "monthly_spending": 5000
+  }
+}

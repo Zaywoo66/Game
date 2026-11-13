@@ -31,9 +31,22 @@ interface HostControlsProps {
 
 export function HostControls({ game, pending, error, canSetSpeed = true, send }: HostControlsProps) {
   const clock = game.clock;
+  const localCountry = game.countries.find((country) => country.id === game.local_country_id);
   return (
     <section className="game-clock map-panel" aria-label="Game clock">
-      <time dateTime={clock.date}>{clock.date}</time>
+      <div className="game-clock-heading">
+        <time dateTime={clock.date}>{clock.date}</time>
+        <strong className={clock.paused ? 'game-clock-status is-paused' : 'game-clock-status'}>
+          {clock.paused ? 'Paused' : `Speed ${clock.speed}`}
+        </strong>
+      </div>
+      {localCountry && (
+        <dl className="game-clock-country" aria-label={`${localCountry.name} overview`}>
+          <div><dt>{localCountry.name}</dt><dd>{localCountry.ruler?.name ?? 'No ruler recorded'}</dd></div>
+          <div><dt>Treasury</dt><dd>{fixedText(localCountry.treasury)}</dd></div>
+          <div><dt>Monthly income</dt><dd>{fixedText(localCountry.income)}</dd></div>
+        </dl>
+      )}
       <div className="game-clock-actions">
         <button type="button" disabled={pending}
           onClick={() => void send({ type: 'set_paused', paused: !clock.paused })}>

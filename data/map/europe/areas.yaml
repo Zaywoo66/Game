@@ -15,25 +15,25 @@ areas:
   name: County of Savoy
   region: alpine_europe
   kind: historical_polity
-  source: https://github.com/Seshat-Global-History-Databank/cliopatria/releases/tag/v0.1.3
+  source: https://github.com/Seshat-Global-History-Databank/cliopatria/releases/tag/v0.2.1
 - key: alpine_europe_duchy_of_bavaria
   name_key: area_alpine_europe_duchy_of_bavaria
   name: Duchy of Bavaria
   region: alpine_europe
   kind: historical_polity
-  source: https://github.com/Seshat-Global-History-Databank/cliopatria/releases/tag/v0.1.3
+  source: https://github.com/Seshat-Global-History-Databank/cliopatria/releases/tag/v0.2.1
 - key: alpine_europe_duchy_of_burgundy
   name_key: area_alpine_europe_duchy_of_burgundy
   name: Duchy of Burgundy
   region: alpine_europe
   kind: historical_polity
-  source: https://github.com/Seshat-Global-History-Databank/cliopatria/releases/tag/v0.1.3
+  source: https://github.com/Seshat-Global-History-Databank/cliopatria/releases/tag/v0.2.1
 - key: alpine_europe_duchy_of_milan
   name_key: area_alpine_europe_duchy_of_milan
   name: Duchy of Milan
   region: alpine_europe
   kind: historical_polity
-  source: https://github.com/Seshat-Global-History-Databank/cliopatria/releases/tag/v0.1.3
+  source: https://github.com/Seshat-Global-History-Databank/cliopatria/releases/tag/v0.2.1
 - key: alpine_europe_lake
   name_key: area_alpine_europe_lake
   name: Lake Geneva
@@ -45,19 +45,19 @@ areas:
   name: Republic of Florence
   region: alpine_europe
   kind: historical_polity
-  source: https://github.com/Seshat-Global-History-Databank/cliopatria/releases/tag/v0.1.3
+  source: https://github.com/Seshat-Global-History-Databank/cliopatria/releases/tag/v0.2.1
 - key: alpine_europe_republic_of_venice
   name_key: area_alpine_europe_republic_of_venice
   name: Republic of Venice
   region: alpine_europe
   kind: historical_polity
-  source: https://github.com/Seshat-Global-History-Databank/cliopatria/releases/tag/v0.1.3
+  source: https://github.com/Seshat-Global-History-Databank/cliopatria/releases/tag/v0.2.1
 - key: alpine_europe_swiss_confederation
   name_key: area_alpine_europe_swiss_confederation
   name: Swiss Confederation
   region: alpine_europe
   kind: historical_polity
-  source: https://github.com/Seshat-Global-History-Databank/cliopatria/releases/tag/v0.1.3
+  source: https://github.com/Seshat-Global-History-Databank/cliopatria/releases/tag/v0.2.1
 - key: alpine_europe_unclassified
   name_key: area_alpine_europe_unclassified
   name: Alpine Europe (Unclassified)
@@ -123,7 +123,7 @@ areas:
   name: Duchy of Burgundy
   region: british_and_irish_isles
   kind: historical_polity
-  source: https://github.com/Seshat-Global-History-Databank/cliopatria/releases/tag/v0.1.3
+  source: https://github.com/Seshat-Global-History-Databank/cliopatria/releases/tag/v0.2.1
 - key: british_and_irish_isles_unclassified
   name_key: area_british_and_irish_isles_unclassified
   name: British and Irish Isles (Unclassified)
@@ -369,7 +369,7 @@ areas:
   name: Emirate of Granada
   region: iberia
   kind: historical_polity
-  source: https://github.com/Seshat-Global-History-Databank/cliopatria/releases/tag/v0.1.3
+  source: https://github.com/Seshat-Global-History-Databank/cliopatria/releases/tag/v0.2.1
 - key: imperial_city_augsburg
   name_key: area_imperial_city_augsburg
   name: Imperial City of Augsburg
@@ -537,13 +537,13 @@ areas:
   name: Duchy of Burgundy
   region: northern_continental_europe
   kind: historical_polity
-  source: https://github.com/Seshat-Global-History-Databank/cliopatria/releases/tag/v0.1.3
+  source: https://github.com/Seshat-Global-History-Databank/cliopatria/releases/tag/v0.2.1
 - key: northern_continental_europe_duchy_of_luxembourg
   name_key: area_northern_continental_europe_duchy_of_luxembourg
   name: Duchy of Luxembourg
   region: northern_continental_europe
   kind: historical_polity
-  source: https://github.com/Seshat-Global-History-Databank/cliopatria/releases/tag/v0.1.3
+  source: https://github.com/Seshat-Global-History-Databank/cliopatria/releases/tag/v0.2.1
 - key: northern_continental_europe_unclassified
   name_key: area_northern_continental_europe_unclassified
   name: Northern Continental Europe (Unclassified)
@@ -741,25 +741,25 @@ areas:
   name: County of Armagnac
   region: western_continental_europe
   kind: historical_polity
-  source: https://github.com/Seshat-Global-History-Databank/cliopatria/releases/tag/v0.1.3
+  source: https://github.com/Seshat-Global-History-Databank/cliopatria/releases/tag/v0.2.1
 - key: western_continental_europe_county_of_nevers
   name_key: area_western_continental_europe_county_of_nevers
   name: County of Nevers
   region: western_continental_europe
   kind: historical_polity
-  source: https://github.com/Seshat-Global-History-Databank/cliopatria/releases/tag/v0.1.3
+  source: https://github.com/Seshat-Global-History-Databank/cliopatria/releases/tag/v0.2.1
 - key: western_continental_europe_duchy_of_brittany
   name_key: area_western_continental_europe_duchy_of_brittany
   name: Duchy of Brittany
   region: western_continental_europe
   kind: historical_polity
-  source: https://github.com/Seshat-Global-History-Databank/cliopatria/releases/tag/v0.1.3
+  source: https://github.com/Seshat-Global-History-Databank/cliopatria/releases/tag/v0.2.1
 - key: western_continental_europe_duchy_of_burgundy
   name_key: area_western_continental_europe_duchy_of_burgundy
   name: Duchy of Burgundy
   region: western_continental_europe
   kind: historical_polity
-  source: https://github.com/Seshat-Global-History-Databank/cliopatria/releases/tag/v0.1.3
+  source: https://github.com/Seshat-Global-History-Databank/cliopatria/releases/tag/v0.2.1
 - key: western_continental_europe_unclassified
   name_key: area_western_continental_europe_unclassified
   name: Western Continental Europe (Unclassified)

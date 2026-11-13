@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 150 100" role="img" aria-labelledby="title">
+  <title id="title">Simplified medieval royal arms of Portugal</title>
+  <rect width="150" height="100" fill="#f7f3e8"/>
+  <path fill="#a63335" d="M0 0h150v10H0zM0 90h150v10H0zM0 0h10v100H0zM140 0h10v100h-10z"/>
+  <g fill="#e5be55" stroke="#503b2e" stroke-width="1.5">
+    <path d="M21 8v-4l5-3 5 3v4h-3V5h-4v3zM63 8v-4l5-3 5 3v4h-3V5h-4v3zM105 8v-4l5-3 5 3v4h-3V5h-4v3z"/>
+    <path d="M42 97v-4l5-3 5 3v4h-3v-3h-4v3zM84 97v-4l5-3 5 3v4h-3v-3h-4v3zM126 97v-4l5-3 5 3v4h-3v-3h-4v3z"/>
+  </g>
+  <g fill="#24508b" stroke="#d8d5cc" stroke-width="2">
+    <path d="M66 20h18l-1 15-8 7-8-7zM39 40h18l-1 15-8 7-8-7zM93 40h18l-1 15-8 7-8-7zM66 60h18l-1 15-8 7-8-7zM66 40h18l-1 15-8 7-8-7z"/>
+  </g>
+  <g fill="#f8f5ec">
+    <circle cx="71" cy="28" r="1.5"/><circle cx="79" cy="28" r="1.5"/><circle cx="75" cy="33" r="1.5"/>
+    <circle cx="44" cy="48" r="1.5"/><circle cx="52" cy="48" r="1.5"/><circle cx="48" cy="53" r="1.5"/>
+    <circle cx="98" cy="48" r="1.5"/><circle cx="106" cy="48" r="1.5"/><circle cx="102" cy="53" r="1.5"/>
+    <circle cx="71" cy="68" r="1.5"/><circle cx="79" cy="68" r="1.5"/><circle cx="75" cy="73" r="1.5"/>
+    <circle cx="71" cy="48" r="1.5"/><circle cx="79" cy="48" r="1.5"/><circle cx="75" cy="53" r="1.5"/>
+  </g>
+</svg>

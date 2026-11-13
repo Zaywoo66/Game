@@ -1,18 +1,26 @@
 # M8 Naval
 Docs: ARCHITECTURE.md, MAP_PIPELINE.md
 
-Progress: sea graph and strict v3 port validation are implemented. The first
-fleet/transport slice is in progress. Deterministic naval battles and automatic
-port blockades are implemented; original instanced low-poly ship models are
-implemented in the map view. Attrition, construction and complete AI L3 remain
-open.
+Progress: sea graph and strict v3 port validation are implemented. Fleets have
+deterministic movement, transport, battles, blockades, and monthly at-sea
+attrition (`ceil(ships / 100)`). A stationary fleet is sheltered when its sea
+zone touches an owned port or a port belonging to its side in the same war;
+moving fleets always count as at sea. A sunken fleet also loses its embarked
+army, and insufficient remaining capacity loses the whole army. Original
+instanced low-poly ship models are implemented in the map view. Shipbuilding orders cost 5 treasury units (5,000 raw Fixed), take 30 daily ticks, and are stored in saves/LAN snapshots; capture of the selected port cancels the order without refund. The country military panel exposes construction at owned ports. Complete AI L3 remains open.
 The current 1440 scenario owns no coastal port for France, so its starting
 fleet remains a M11 ownership/content gap rather than an invented harbor.
 
 ## Tasks
 - Sea zones graph, ports linking coast and sea zones, straits as special edges
 - Fleets, transports, embark/disembark, naval battles, blockade, attrition
+- Ship construction at owned ports, validated through host commands
 - Ship models (instanced low-poly)
+
+Monthly attrition is resolved after that day's fleet movement and battles on
+the first Gregorian day of each month. One percent of current ships is lost,
+rounded up. There are no losses while sheltered in port; no extra port/sea
+state is stored.
 
 ## Acceptance
 - Scripted amphibious invasion test passes; blockade closes port income

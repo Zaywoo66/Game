@@ -220,6 +220,8 @@ struct CharacterFile {
     sex: Option<CharacterSexFile>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     spouse: Option<u32>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    birth_precision: Option<BirthPrecisionFile>,
     birth: (u32, u8, u8),
     #[serde(deserialize_with = "required_optional")]
     death: Option<(u32, u8, u8)>,
@@ -236,6 +238,12 @@ enum CharacterSexFile {
     Female,
 }
 
+#[derive(Clone, Copy, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+enum BirthPrecisionFile {
+    Year,
+}
+
 impl CharacterFile {
     fn snapshot(id: CharacterId, character: &CharacterState) -> Self {
         Self {
@@ -249,6 +257,8 @@ impl CharacterFile {
                 strategy_sim::Sex::Female => Some(CharacterSexFile::Female),
             },
             spouse: character.spouse.map(CharacterId::get),
+            birth_precision: (character.birth_precision == strategy_sim::BirthPrecision::Year)
+                .then_some(BirthPrecisionFile::Year),
             birth: character.birth.components(),
             death: character.death.map(Date::components),
             stats: character.stats,
@@ -275,6 +285,10 @@ impl CharacterFile {
                 },
                 spouse: self.spouse.map(CharacterId::new),
                 birth: date(self.birth)?,
+                birth_precision: match self.birth_precision {
+                    None => strategy_sim::BirthPrecision::Day,
+                    Some(BirthPrecisionFile::Year) => strategy_sim::BirthPrecision::Year,
+                },
                 death: self.death.map(date).transpose()?,
                 stats: self.stats,
                 traits: self.traits.into_iter().collect(),

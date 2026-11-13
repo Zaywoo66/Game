@@ -83,6 +83,15 @@ function redChannel(raster: Raster): Uint8Array {
   return bytes;
 }
 
+function packedHeight(samples: Uint16Array): Uint8Array {
+  const bytes = new Uint8Array(samples.length * 2);
+  for (let index = 0; index < samples.length; index++) {
+    bytes[index * 2] = samples[index] >>> 8;
+    bytes[index * 2 + 1] = samples[index] & 0xff;
+  }
+  return bytes;
+}
+
 export function createMapViewer(
   viewport: HTMLElement,
   assets: MapAssets,
@@ -148,7 +157,9 @@ export function createMapViewer(
   const historicalTexture = texture(historicalBytes, lookupWidth, lookupHeight);
   historicalTexture.colorSpace = THREE.SRGBColorSpace;
   const precisionTexture = texture(precisionBytes, lookupWidth, lookupHeight, THREE.RedFormat);
-  const heightTexture = new THREE.DataTexture(assets.heightmap.samples, width, height, THREE.RedFormat, THREE.UnsignedShortType);
+  // WebGL 2 has no normalized R16 texture format. Pack the 16-bit samples into
+  // RG8 so the height field remains lossless with a sized, portable format.
+  const heightTexture = new THREE.DataTexture(packedHeight(assets.heightmap.samples), width, height, THREE.RGFormat);
   heightTexture.magFilter = THREE.NearestFilter;
   heightTexture.minFilter = THREE.NearestFilter;
   heightTexture.generateMipmaps = false;
@@ -213,13 +224,17 @@ export function createMapViewer(
   controls.maxPolarAngle = 0.72;
   controls.enableDamping = true;
   controls.dampingFactor = 0.14;
-  controls.zoomToCursor = false;
+  controls.zoomToCursor = true;
   controls.screenSpacePanning = false;
   controls.mouseButtons = { LEFT: THREE.MOUSE.PAN, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: THREE.MOUSE.ROTATE };
   controls.touches = { ONE: THREE.TOUCH.PAN, TWO: THREE.TOUCH.DOLLY_ROTATE };
   controls.listenToKeyEvents(renderer.domElement);
 
   let fitted = false;
+  const fitZoom = (aspect: number) => Math.min(
+    1,
+    (height * 1.08 * aspect) / width,
+  ) * 0.96;
   function resize() {
     const w = viewport.clientWidth;
     const h = viewport.clientHeight;
@@ -241,7 +256,7 @@ export function createMapViewer(
         distance * Math.cos(tilt),
         distance * Math.sin(tilt),
       ));
-      camera.zoom = manualFrames ? 1 : 1.6;
+      camera.zoom = fitZoom(w / h);
       camera.updateProjectionMatrix();
       fitted = true;
     }
@@ -321,6 +336,23 @@ export function createMapViewer(
     return pickProvinceId(data, width, height, uv.x, uv.y);
   }
 
+  // Resolve raster representatives in one bounded pass. Falling back to a full
+  // raster scan per province made high-zoom labels stall on dense maps.
+  const representativeCandidates = new Map<number, { point: [number, number]; distance: number }>();
+  for (let pixel = 0; pixel < width * height; pixel++) {
+    const offset = pixel * 4;
+    const id = decodeProvinceId(data[offset], data[offset + 1], data[offset + 2]);
+    const province = provinces.get(id);
+    if (!province) continue;
+    const x = pixel % width;
+    const y = Math.floor(pixel / width);
+    if (pickProvinceId(data, width, height, (x + 0.5) / width, (y + 0.5) / height) !== id) continue;
+    const distance = (x - province.centroid[0]) ** 2 + (y - province.centroid[1]) ** 2;
+    const previous = representativeCandidates.get(id);
+    if (!previous || distance < previous.distance) {
+      representativeCandidates.set(id, { point: [x, y], distance });
+    }
+  }
   const representatives = new Map<number, [number, number]>();
   function representative(id: number): [number, number] | null {
     const cached = representatives.get(id);
@@ -328,25 +360,11 @@ export function createMapViewer(
     const province = provinces.get(id);
     if (!province) return null;
     const [centerX, centerY] = province.centroid;
-    if (pickProvinceId(data, width, height, (centerX + 0.5) / width, (centerY + 0.5) / height) === id) {
-      representatives.set(id, province.centroid);
-      return province.centroid;
-    }
-
-    let bestDistance = Number.POSITIVE_INFINITY;
-    let best: [number, number] | null = null;
-    for (let i = 0; i < data.length; i += 4) {
-      if (decodeProvinceId(data[i], data[i + 1], data[i + 2]) !== id) continue;
-      const x = (i / 4) % width;
-      const y = Math.floor(i / 4 / width);
-      const distance = (x - centerX) ** 2 + (y - centerY) ** 2;
-      if (distance < bestDistance) {
-        bestDistance = distance;
-        best = [x, y];
-      }
-    }
-    if (best) representatives.set(id, best);
-    return best;
+    const point = pickProvinceId(data, width, height, (centerX + 0.5) / width, (centerY + 0.5) / height) === id
+      ? province.centroid
+      : representativeCandidates.get(id)?.point ?? null;
+    if (point) representatives.set(id, point);
+    return point;
   }
 
   const anchors = new Map<number, THREE.Vector3>();
@@ -475,6 +493,32 @@ export function createMapViewer(
     uniforms.selectedId.value = id;
     onSelect(id);
   }
+  function doubleClick(event: MouseEvent) {
+    if (targeting) return;
+    const provinceId = pickAt(event.clientX, event.clientY);
+    if (provinceId > 0) focusProvince(provinceId);
+  }
+  function keyDown(event: KeyboardEvent) {
+    if (event.altKey || event.ctrlKey || event.metaKey || event.repeat) return;
+    if (event.code === 'Home') {
+      event.preventDefault();
+      setCameraPreset('whole-region');
+      return;
+    }
+    const directions: Record<string, [number, number]> = {
+      KeyW: [0, -1], ArrowUp: [0, -1],
+      KeyS: [0, 1], ArrowDown: [0, 1],
+      KeyA: [-1, 0], ArrowLeft: [-1, 0],
+      KeyD: [1, 0], ArrowRight: [1, 0],
+    };
+    const direction = directions[event.code];
+    if (!direction) return;
+    event.preventDefault();
+    const distance = Math.max(width, height) * 0.06 / camera.zoom;
+    controls.target.x += direction[0] * distance;
+    controls.target.z += direction[1] * distance;
+    renderFrame(performance.now());
+  }
   function cancelPointer() {
     press = null;
   }
@@ -483,6 +527,8 @@ export function createMapViewer(
   renderer.domElement.addEventListener('pointercancel', cancelPointer);
   renderer.domElement.addEventListener('pointermove', pointerMove);
   renderer.domElement.addEventListener('pointerleave', pointerLeave);
+  renderer.domElement.addEventListener('dblclick', doubleClick);
+  renderer.domElement.addEventListener('keydown', keyDown);
 
   let sample: number[] = [];
   let recording = false;
@@ -537,7 +583,7 @@ export function createMapViewer(
   function setCameraPreset(name: 'whole-region' | 'britain' | 'iberia' | 'province') {
     const london = [...provinces.values()].find((province) => province.key === 'london');
     const presets = {
-      'whole-region': { x: width / 2, z: height / 2, zoom: 1, tilt: 0.12 },
+      'whole-region': { x: width / 2, z: height / 2, zoom: fitZoom(viewport.clientWidth / Math.max(1, viewport.clientHeight)), tilt: 0.12 },
       britain: { x: width * 0.39, z: height * 0.27, zoom: 2.1, tilt: 0.15 },
       iberia: { x: width * 0.38, z: height * 0.72, zoom: 2.1, tilt: 0.15 },
       province: { x: london?.centroid[0] ?? width / 2, z: london?.centroid[1] ?? height / 2, zoom: 4.2, tilt: 0.23 },
@@ -624,6 +670,8 @@ export function createMapViewer(
       renderer.domElement.removeEventListener('pointercancel', cancelPointer);
       renderer.domElement.removeEventListener('pointermove', pointerMove);
       renderer.domElement.removeEventListener('pointerleave', pointerLeave);
+      renderer.domElement.removeEventListener('dblclick', doubleClick);
+      renderer.domElement.removeEventListener('keydown', keyDown);
       renderer.domElement.remove();
       labelLayer.remove();
       armyLayer.dispose();

@@ -12,13 +12,16 @@ Docs: SIM_RULES.md, DATA_FORMATS.md
 
 Royal-marriage mechanics, AI and wire commands have synthetic tests. The full
 player-to-player UI acceptance remains open with the wider M6 diplomacy screen.
-The 1440 content has no eligible female character or modeled prior spouse;
-historical marriage content belongs to M11.
+The 1440 content now includes Elizabeth of Luxembourg as an eligible historical
+female ruler; prior spouse links remain limited to sourced M11 content.
 
 ## AI slice (required)
 Docs: AI.md
 - **AI L2**: AI answers proposals using the same acceptance formula shown to humans, proposes alliances/guarantees/marriages, honors automatic post-war truces, and reacts to threats and broken treaties
-- Acceptance formula returns a list of factors (used by UI tooltip and AI debug panel)
+- Acceptance formula returns a list of factors, now projected in the diplomacy
+  cards for alliance, vassalage and eligible royal-marriage proposals. Negative
+  opinion with a shared stronger neighbor is shown as a 10% chance, not a
+  precomputed random outcome. The host still validates every command.
 - Acceptance add-on: scenario tests — AI accepts a beneficial alliance, rejects while hostile, honors truce
 
 ## Post-war truce visibility slice
@@ -36,7 +39,9 @@ guarantee/vassalage controls. It sends alliance offers, responses, and breaks
 through host-validated commands; the UI changes only on an authoritative
 snapshot or update. The panel also shows legal ruler/heir marriage offers,
 pending marriage proposals, and host-driven accept/reject actions using the
-scenario's adulthood rule. Browser coverage checks both treaty command paths.
+scenario's adulthood rule. AI response forecasts show the same factors used by
+the decision code. Browser coverage checks treaty paths and the 10% forecast;
+the app projection test verifies factors are sent for AI-controlled countries.
 Full two-player UI acceptance remains open.
 
 ## Defensive guarantee slice
@@ -87,5 +92,6 @@ capital. White peace retains the bond. Only the two war leaders negotiate.
 
 AI replies through validated commands. It accepts a legal vassal offer only
 when effective opinion meets `vassal_min_opinion` and the overlord has strictly
-more active soldiers; the current profiles set the threshold to 20 points.
-Proactive AI vassal proposals and the wider diplomacy window remain open.
+more active soldiers; the current profiles set the threshold to 20 points. The
+UI forecasts this response with the same factors. Proactive AI vassal proposals
+and full two-player UI acceptance remain open.

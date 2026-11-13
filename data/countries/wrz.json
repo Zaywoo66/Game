@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "tag": "wrz",
+  "name": "Prince-Bishopric of Würzburg",
+  "color": [
+    118,
+    128,
+    188
+  ],
+  "capital": "wurzburg",
+  "ai_profile": "balanced",
+  "government": "theocracy",
+  "start": {
+    "ruler": null,
+    "heir": null,
+    "provinces": [
+      "coburg",
+      "wurzburg"
+    ],
+    "treasury": 50000,
+    "tax_rate": 220,
+    "monthly_spending": 3500
+  }
+}

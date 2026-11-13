@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "tag": "col",
+  "name": "Archbishopric of Cologne",
+  "color": [
+    118,
+    126,
+    118
+  ],
+  "capital": "cologne",
+  "ai_profile": "balanced",
+  "government": "theocracy",
+  "start": {
+    "ruler": null,
+    "heir": null,
+    "provinces": [
+      "cologne"
+    ],
+    "treasury": 50000,
+    "tax_rate": 220,
+    "monthly_spending": 3500
+  }
+}

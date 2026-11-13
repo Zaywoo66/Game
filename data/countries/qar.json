@@ -1,0 +1,44 @@
+{
+  "schema_version": 1,
+  "tag": "qar",
+  "name": "Qara Qoyunlu",
+  "color": [
+    168,
+    139,
+    198
+  ],
+  "capital": "tabriz",
+  "ai_profile": "balanced",
+  "government": "monarchy",
+  "start": {
+    "ruler": "jahan_shah",
+    "heir": null,
+    "provinces": [
+      "ahar",
+      "al_hasakah",
+      "ardabil",
+      "batman",
+      "bing_l",
+      "diyarbak_r",
+      "erzurum",
+      "eu_546_351",
+      "eu_606_351",
+      "hakk_ri",
+      "irbil",
+      "khvoy",
+      "mahabad",
+      "mosul",
+      "mu",
+      "stepanakert",
+      "tabriz",
+      "urmia",
+      "yeghegnadzor",
+      "yerevan",
+      "zakho",
+      "zanjan"
+    ],
+    "treasury": 80000,
+    "tax_rate": 220,
+    "monthly_spending": 5500
+  }
+}

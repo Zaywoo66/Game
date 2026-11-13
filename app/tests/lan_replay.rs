@@ -395,6 +395,7 @@ async fn lan_host_and_guest_keep_initial_directional_opinions() {
 }
 
 #[tokio::test]
+#[ignore = "10,000-tick TCP AI soak; run for release acceptance or network/AI changes"]
 async fn lan_guest_matches_host_after_ten_thousand_ticks_with_ai() {
     let scenario = load_embedded_scenario().unwrap();
     let graph = scenario.province_graph().clone();

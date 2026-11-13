@@ -33,8 +33,12 @@ per country with their command and reason.
 
 L1 schedules military orders every three ticks and checks war targets when
 that schedule coincides with its 31-tick strategy schedule. It raises at its capital when it has no
-army, compares reachable neighbors' strength, and scores declarations
-with aggression, expansion and caution from its profile. The derived
+army, compares reachable neighbors' expected defensive-coalition strength, and scores declarations
+with aggression, expansion and caution from its profile. A target's estimate
+includes its currently mobilized army or available levy, plus guarantors and
+an overlord that would automatically join under the current rules. Supporters
+already at war, allied to the attacker, or equal to the attacker are excluded.
+Other alliances are not counted because they do not join automatically. The derived
 country RNG contributes a bounded tie-breaking adjustment. At war it
 defends a threatened capital or the war goal, concentrates supplied
 armies, splits oversized armies, and retreats when outnumbered with low
@@ -56,6 +60,10 @@ strictly exceed each party's total; the derived country/tick RNG then gives a
 10% acceptance chance. Without that threat, AI rejects. AI proposes legal
 alliances on a staggered 31-tick cadence. The read-only factor query reports
 opinion, profile minimum, common threat and direct war for human tooltips.
+When a war starts, each leader's peaceful allies receive a 30-day call-to-arms
+offer. An AI answers on its next turn, accepting at or above
+`alliance_min_opinion`; otherwise it rejects. Either response closes any
+competing offer to that country for the same war.
 On its 31-tick diplomacy cadence, an AI can guarantee a non-allied country
 when its opinion meets its profile's alliance minimum and both countries
 border a stronger third country. The AI issues only the validated guarantee
@@ -84,8 +92,9 @@ It accepts a legal offer when effective opinion meets the data profile's
 threshold, otherwise rejects. Human acceptance has no opinion threshold.
 On the same staggered 31-tick L2 cadence, an AI may offer a legal marriage
 to the highest-opinion country; stable character ID order breaks ties. This
-choice uses no random draw. The current 1440 content has no eligible woman,
-so the behavior is covered with a synthetic scenario until M11 content work.
+choice uses no random draw. The 1440 scenario now includes Elizabeth of
+Luxembourg as an eligible female ruler; broader historical spouse links remain
+M11 content work.
 
 Run the same host tick without a window with
 `cargo run --locked -p strategy-app --bin ai-smoke -- 3653 1440 1441 1442`.
@@ -94,7 +103,13 @@ The arguments are the daily tick count followed by one or more seeds.
 At war, the L3 naval planner prefers a legal amphibious order. Otherwise it
 sends an idle uncargoed fleet through the validated `MoveFleet` command toward
 an enemy port it can blockade. A fleet already maintaining a blockade stays
-in its sea zone. The decision log uses `BlockadePort` as its reason code.
+in its sea zone. The profile's `naval` weight controls which deterministic
+planner windows are active: `0` disables naval initiatives and `1000` enables
+all scheduled windows. At intermediate values, the planner acts when
+`(tick + country_id) % 1000 < naval_weight`, so unused windows remain available
+to the military planner. Shipyard checks retain their 31-tick cadence and fleet
+orders their 3-tick cadence. The decision log uses the naval action as its
+reason code.
 
 For yearly multi-seed measurements, run
 `cargo run --locked -p strategy-app --bin ai-soak -- 100 1440 1441 1442 1443 1444`.
@@ -113,20 +128,24 @@ and diplomacy state. Timing varies by host and is excluded from state hashes.
 | Events | on event | pick option by `ai_weight` + profile |
 | Ruler | on trigger | marriages, heirs, regency choices |
 
-The first technology AI slice runs on the first day of each calendar month.
+The M9 technology/idea choice runs on the first day of each calendar month.
 It chooses one affordable technology whose prerequisites are all known, using
 the profile's `tech_branch_weights`; equal scores use ascending technology key.
-It submits `UnlockTechnology` through the same validation as a human. The
-separate M9 needs-aware choice slice will add war/economy factors.
-National ideas compete with technologies for one monthly purchase from the
-shared research stockpile. The profile's `idea_priority` is compared with
-`tech_branch_weights`; equal scores use the ascending idea or technology key.
-The AI submits `UnlockIdea` through the same validation as a human and never
-buys an idea for another country.
+During war, military-branch technologies have double their profile weight. A
+country has an economic need when its current monthly forecast has negative
+net balance (`income - tribute_paid + tribute_received - expenses`) or its
+treasury is below forecast monthly expenses; in that case administration-branch
+technologies have double weight. An idea that adds `army_morale` is doubled
+during war, and one that adds `tax_income` is doubled for economic need. All
+other weights stay at their profile values. The resulting technology and idea
+scores compete for one monthly purchase; equal scores use ascending keys. The
+AI submits `UnlockTechnology` or `UnlockIdea` through the same validation as a
+human and never buys another country's idea.
 Government reforms compete for the same monthly purchase slot using
 `reform_priority`. A reform is available only for the country's government and
 an unchosen tier; the AI chooses the highest `ai_weight` variant, then the
-ascending reform key. These are priorities, not needs-aware strategic weights.
+ascending reform key. Reform priority is not affected by the M9 war/economy
+needs rule.
 
 Each layer scores candidate actions: `score = sum(weight_i * factor_i)` with factors computed from state (strength ratio, distance, opinion, war score, treasury, threats). Highest score above a threshold wins; ties broken by `CountryId`/stable order then RNG.
 

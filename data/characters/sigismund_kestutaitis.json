@@ -1,0 +1,25 @@
+{
+  "schema_version": 2,
+  "key": "sigismund_kestutaitis",
+  "country": "lit",
+  "name": "Sigismund Kęstutaitis",
+  "dynasty": "gediminid",
+  "sex": "male",
+  "birth": [
+    1365,
+    1,
+    1
+  ],
+  "birth_precision": "year",
+  "death": [
+    1440,
+    3,
+    20
+  ],
+  "stats": {
+    "adm": 3,
+    "dip": 3,
+    "mil": 3
+  },
+  "traits": []
+}

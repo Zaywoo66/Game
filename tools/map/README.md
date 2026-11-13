@@ -5,12 +5,17 @@
 Run `python tools/map/fetch_europe.py` only when refreshing the pinned source
 subsets. Build the checked-in source data offline with
 `python tools/map/build_europe.py --region europe`, then run
+`python tools/map/assign_1440_ownership.py --threshold 0.3 --fill-unowned --apply` and
+`python tools/map/color_1440_countries.py --apply` to refresh scenario owners
+and distinct neighbor-aware country colors, then run
 `python -B -m unittest tools/map/tests/test_europe.py` and
 `cargo run --locked -p strategy-data --bin lint-provinces -- data/map/europe/provinces.json`.
 The default UI opens the colored Historical 1440 view. The packaged host
-loads the same Europe graph. New land remains neutral in gameplay pending
-country review. The Europe map preserves western raster pixels and IDs at
-offset `(0, 408)`.
+loads the same Europe graph. The 1440 scenario assigns every land province; low-confidence and
+source-unmatched cells use the documented nearest-owner approximation. The Europe map preserves its version-5 raster and province
+IDs while appending the eastern extension, and still preserves western pixels
+and IDs at offset `(0, 408)`. The build uses the pinned version-5 baseline
+archive so repeated builds produce the same extension.
 
 Install the pinned dependencies using Python 3.12, then build and verify the
 offline Western Europe slice:
@@ -46,12 +51,14 @@ directory by default. The map build itself requires no network access.
   contains settlement names, ranking, population, and point coordinates.
   [Dataset](https://www.naturalearthdata.com/downloads/10m-cultural-vectors/10m-populated-places/)
   · [Terms](https://www.naturalearthdata.com/about/terms-of-use/)
-- Cliopatria v0.1.3, Ed Chalstrey, James Bennett and the Seshat Global History
-  Databank. CC BY 4.0. Polity geometries active in 1440 were selected, clipped
-  and simplified. Their boundaries bias the land Voronoi assignment. The
-  output is a prototype gameplay map and does not assert exact historical
-  ownership. [Source](https://doi.org/10.5281/zenodo.14714684)
-  · [Release](https://github.com/Seshat-Global-History-Databank/cliopatria/tree/v0.1.3)
+- Cliopatria v0.2.1, Ed Chalstrey, James Bennett and the Seshat Global History
+  Databank. CC BY 4.0. Territorial polity geometries active in 1440 are
+  selected, clipped and simplified. Relation overlays are excluded, and the
+  documented 1433 transfer correction relabels western Bavaria-Straubing
+  components as `Burgundian Netherlands`. The output is a prototype gameplay map
+  and does not assert exact historical ownership.
+  [Source](https://doi.org/10.5281/zenodo.14714684)
+  · [Release](https://github.com/Seshat-Global-History-Databank/cliopatria/tree/v0.2.1)
   · [License](https://creativecommons.org/licenses/by/4.0/)
 - ETOPO1 1 Arc-Minute Global Relief Model, NOAA NGDC (Amante and Eakins, 2009).
   Public domain. The NOAA AOML ERDDAP service supplies numeric ice-surface
@@ -85,7 +92,7 @@ the projection and canonical province records, including their hierarchy keys.
 
 Starting ownership uses the highest pixel overlap by Cliopatria polity name
 and applies sourced exceptions in `overrides.yaml`. Provinces outside the six
-scenario countries remain explicitly unowned. `administrative_areas.json`
+the western-slice baseline still marks land outside its six playable countries as unowned; the full-Europe 1440 scenario applies the separate ownership fallback. `administrative_areas.json`
 maps selected settlement cells to sourced historical areas. Unclassified
 areas mark gaps in coverage. Area boundaries follow gameplay cells.
 `areas.yaml` and `regions.yaml` describe the generated hierarchy and

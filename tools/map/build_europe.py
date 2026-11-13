@@ -1,31 +1,38 @@
-"""Build a single Europe raster while preserving every Western Europe pixel and ID."""
+"""Extend the checked-in Europe raster east while preserving all prior IDs."""
 
 import argparse
 from collections import Counter
 from hashlib import sha256
+from io import BytesIO
+import json
 from pathlib import Path
 import re
+from zipfile import ZipFile
 
 import numpy as np
 from PIL import Image
 from rasterio.features import rasterize
 from rasterio.transform import from_bounds
 from scipy import ndimage
+import yaml
 
 from map_common import EDGE_ORDER, ROOT, json_bytes, map_hash, read_json, read_yaml, yaml_bytes
 from topology import raster_contacts, regular_edge
 from polity_evidence import COARSE_GROUPS
 
-BOUNDS = (-13.0, 36.0, 60.0, 72.0)
-WIDTH, HEIGHT = 2336, 1152
+BOUNDS = (-13.0, 36.0, 68.0, 72.0)
+WIDTH, HEIGHT = 2592, 1152
+OLD_WIDTH = 2336
+OLD_MAP_VERSION = 5
 WEST_Y = 408
 WEST_WIDTH, WEST_HEIGHT = 800, 744
 SHAPE = (HEIGHT, WIDTH)
 INPUTS = Path(__file__).resolve().parent / "inputs" / "europe"
+BASELINE = INPUTS / "base_europe_v5.zip"
 WEST = ROOT / "data" / "map" / "western_europe"
 OUTPUT = ROOT / "data" / "map" / "europe"
 PROJECTION = {"pixels_per_degree": 32, "origin": [5344, 576]}
-SOURCE_URL = "https://github.com/Seshat-Global-History-Databank/cliopatria/releases/tag/v0.1.3"
+SOURCE_URL = "https://github.com/Seshat-Global-History-Databank/cliopatria/releases/tag/v0.2.1"
 
 
 def layer(name):
@@ -49,31 +56,45 @@ def western_rect():
 
 
 def build():
-    west = read_json(WEST / "provinces.json")
-    west_records = west["provinces"]
-    old_ids = decode_ids(WEST / "provinces.png")
-    assert old_ids.shape == (WEST_HEIGHT, WEST_WIDTH)
+    with ZipFile(BASELINE) as archive:
+        old_map = json.loads(archive.read("provinces.json"))
+        old_records = old_map["provinces"]
+        old_rgb = np.asarray(
+            Image.open(BytesIO(archive.read("provinces.png"))).convert("RGB"),
+            dtype=np.uint32,
+        )
+        old_ids = (old_rgb[:, :, 0] << 16) | (old_rgb[:, :, 1] << 8) | old_rgb[:, :, 2]
+        old_terrain = np.asarray(Image.open(BytesIO(archive.read("terrain.png"))))
+        old_elevation = np.asarray(Image.open(BytesIO(archive.read("heightmap.png"))))
+        old_rivers = np.asarray(Image.open(BytesIO(archive.read("rivers.png")))) != 0
+        base_names = json.loads(archive.read("names.en.json"))
+        base_areas = yaml.safe_load(archive.read("areas.yaml"))
+        base_regions = yaml.safe_load(archive.read("regions.yaml"))
+    assert old_ids.shape == (HEIGHT, OLD_WIDTH)
+    if old_map["map_version"] != OLD_MAP_VERSION:
+        raise ValueError(
+            f"incremental map extension expects v{OLD_MAP_VERSION}, "
+            f"found v{old_map['map_version']}"
+        )
     transform = from_bounds(*BOUNDS, WIDTH, HEIGHT)
     land = rasterize(((f["geometry"], 1) for f in layer("land")), out_shape=SHAPE,
                      transform=transform, dtype=np.uint8).astype(bool)
     lakes = rasterize(((f["geometry"], 1) for f in layer("lakes")), out_shape=SHAPE,
                       transform=transform, dtype=np.uint8).astype(bool) & land
-    fixed = western_rect()
-    west_terrain = np.asarray(Image.open(WEST / "terrain.png"))
-    land[WEST_Y:, :WEST_WIDTH] = np.isin(west_terrain, (1, 2, 3))
-    lakes[WEST_Y:, :WEST_WIDTH] = west_terrain == 4
+    fixed = np.zeros(SHAPE, dtype=bool)
+    fixed[:, :OLD_WIDTH] = True
+    land[:, :OLD_WIDTH] = np.isin(old_terrain, (1, 2, 3))
+    lakes[:, :OLD_WIDTH] = old_terrain == 4
     sea = ~land & ~lakes
     rivers = rasterize(((f["geometry"], 1) for f in layer("rivers")), out_shape=SHAPE,
                        transform=transform, all_touched=True, dtype=np.uint8).astype(bool) & land
-    rivers[WEST_Y:, :WEST_WIDTH] = np.asarray(Image.open(WEST / "rivers.png")) != 0
-    kinds = {record["id"]: record["kind"] for record in west_records}
-    used_keys = {record["key"] for record in west_records}
-    names = read_json(WEST / "names.en.json")
-    records = {record["id"]: {**record, "centroid": [record["centroid"][0],
-                                                     record["centroid"][1] + WEST_Y]}
-               for record in west_records}
+    rivers[:, :OLD_WIDTH] = old_rivers
+    kinds = {record["id"]: record["kind"] for record in old_records}
+    used_keys = {record["key"] for record in old_records}
+    names = base_names
+    records = {record["id"]: dict(record) for record in old_records}
     ids = np.zeros(SHAPE, dtype=np.uint32)
-    ids[WEST_Y:, :WEST_WIDTH] = old_ids
+    ids[:, :OLD_WIDTH] = old_ids
     next_id = max(records) + 1
     seed_points = {}
 
@@ -114,6 +135,10 @@ def build():
     for place in places:
         name = place["properties"]["name"]
         key = re.sub(r"[^a-z0-9]+", "_", name.lower()).strip("_")
+        if key == "tyumen":
+            # The modern settlement occupies the historical Tura site; keep
+            # the campaign's requested 1440 capital key without duplicating it.
+            key, name = "tura", "Tura (Tyumen)"
         if not key or key[0].isdigit():
             key = "city_" + key
         if key in used_keys:
@@ -139,6 +164,9 @@ def build():
         raise ValueError(f"Europe ID reservation exceeded: {next_id - 1}")
 
     for kind, mask in (("land", land), ("sea", sea), ("lake", lakes)):
+        target = mask & ~fixed
+        if not np.any(target):
+            continue
         seed_mask = np.ones(SHAPE, dtype=bool)
         lookup = np.zeros(SHAPE, dtype=np.uint32)
         for province, (y, x, seed_kind) in seed_points.items():
@@ -148,13 +176,12 @@ def build():
         if np.all(seed_mask):
             raise ValueError(f"no {kind} seeds")
         nearest = ndimage.distance_transform_edt(seed_mask, return_distances=False, return_indices=True)
-        target = mask & ~fixed
         ids[target] = lookup[nearest[0][target], nearest[1][target]]
     if np.any(ids == 0):
         raise ValueError("unassigned Europe pixels")
 
     terrain = np.where(sea, 0, np.where(lakes, 4, 1)).astype(np.uint8)
-    terrain[WEST_Y:, :WEST_WIDTH] = west_terrain
+    terrain[:, :OLD_WIDTH] = old_terrain
     with np.load(INPUTS / "elevation.npz") as relief:
         lat, lon = relief["latitude"], relief["longitude"]
         sample_y = np.interp(72 - (np.arange(HEIGHT) + .5) / 32, lat, np.arange(len(lat)))
@@ -166,7 +193,7 @@ def build():
     elevation = (np.rint(height_m).astype(np.int32) + 32768).astype(np.uint16)
     terrain[land & (height_m >= 350)] = 2
     terrain[land & (height_m >= 1400)] = 3
-    elevation[WEST_Y:, :WEST_WIDTH] = np.asarray(Image.open(WEST / "heightmap.png"))
+    elevation[:, :OLD_WIDTH] = old_elevation
     coordinates = ndimage.center_of_mass(np.ones(SHAPE), ids, list(seed_points))
     for province, center in zip(seed_points, coordinates, strict=True):
         cy, cx = map(lambda value: int(round(value)), center)
@@ -188,7 +215,7 @@ def build():
         a, b = pair
         edges[a].add((b, edge))
         edges[b].add((a, edge))
-    for record in west_records:
+    for record in old_records:
         for sea_id in record["ports"]:
             edges[record["id"]].add((sea_id, "port"))
             edges[sea_id].add((record["id"], "port"))
@@ -198,7 +225,7 @@ def build():
                                for other, edge in sorted(edges[province],
                                                          key=lambda e: (e[0], EDGE_ORDER.index(e[1])))]
     provinces = [records[province] for province in sorted(records)]
-    metadata = {"schema_version": 3, "map_version": 4, "map_hash": map_hash(provinces, projection=PROJECTION),
+    metadata = {"schema_version": 3, "map_version": 6, "map_hash": map_hash(provinces, projection=PROJECTION),
                 "projection": PROJECTION, "provinces": provinces}
     history_features = layer("historical_1440")
     history = rasterize(((f["geometry"], i) for i, f in enumerate(history_features, 1)),
@@ -217,22 +244,29 @@ def build():
                             "polity_name": name,
                             "resolution": "unmatched" if name is None else "coarse_group" if name in COARSE_GROUPS else "polygon",
                             "overlap_pixels": counts[name] if name else 0, "province_pixels": len(values)})
-    evidence = {"schema_version": 1, "map_version": 4, "map_hash": metadata["map_hash"],
+    evidence = {"schema_version": 1, "map_version": 6, "map_hash": metadata["map_hash"],
                 "reference_year": 1440,
-                "source": {"name": "Cliopatria", "release": "v0.1.3", "url": SOURCE_URL,
+                "source": {"name": "Cliopatria", "release": "v0.2.1", "url": SOURCE_URL,
                            "license": "CC BY 4.0", "file": "tools/map/inputs/europe/historical_1440.geojson",
                            "sha256": sha256((INPUTS / "historical_1440.geojson").read_bytes().replace(b"\r\n", b"\n")).hexdigest()},
-                "method": "largest rasterized source-polygon pixel overlap; lexical tie break",
+                "method": "largest rasterized source-polygon pixel overlap; documented Bavaria-to-Burgundian-Netherlands correction; lexical tie break",
                 "assignments": assignments}
-    areas = read_yaml(WEST / "areas.yaml")
-    areas["areas"].extend([
-        {"key": "europe_extension_unclassified", "name_key": "area_europe_extension_unclassified",
-         "name": "Europe extension (unclassified)", "region": "europe_extension", "kind": "unclassified", "source": None},
-        {"key": "europe_extension_water", "name_key": "area_europe_extension_water",
-         "name": "Europe extension waters", "region": "europe_extension", "kind": "water", "source": None},
-    ])
-    regions = read_yaml(WEST / "regions.yaml")
-    regions["regions"].append({"key": "europe_extension", "name_key": "region_europe_extension", "name": "Europe extension"})
+    areas = base_areas
+    area_keys = {area["key"] for area in areas["areas"]}
+    if "europe_extension_unclassified" not in area_keys:
+        areas["areas"].append(
+            {"key": "europe_extension_unclassified", "name_key": "area_europe_extension_unclassified",
+             "name": "Europe extension (unclassified)", "region": "europe_extension", "kind": "unclassified", "source": None}
+        )
+    if "europe_extension_water" not in area_keys:
+        areas["areas"].append(
+            {"key": "europe_extension_water", "name_key": "area_europe_extension_water",
+             "name": "Europe extension waters", "region": "europe_extension", "kind": "water", "source": None}
+        )
+    regions = base_regions
+    region_keys = {region["key"] for region in regions["regions"]}
+    if "europe_extension" not in region_keys:
+        regions["regions"].append({"key": "europe_extension", "name_key": "region_europe_extension", "name": "Europe extension"})
     names.update({"area_europe_extension_unclassified": "Europe extension (unclassified)",
                   "area_europe_extension_water": "Europe extension waters", "region_europe_extension": "Europe extension"})
     OUTPUT.mkdir(parents=True, exist_ok=True)
@@ -253,9 +287,9 @@ def build():
         country = read_json(ROOT / "data" / "countries" / f"{tag}.json")
         owned.update(country["start"]["provinces"])
     neutrals = set(scenario["unowned_provinces"]) - owned
-    western_province_ids = {p["id"] for p in west_records}
+    old_province_ids = {p["id"] for p in old_records}
     neutrals.update(record["key"] for record in provinces
-                    if record["kind"] == "land" and record["id"] not in western_province_ids
+                    if record["kind"] == "land" and record["id"] not in old_province_ids
                     and record["key"] not in owned)
     scenario["unowned_provinces"] = sorted(neutrals)
     scenario_path.write_bytes(json_bytes(scenario, pretty=True))

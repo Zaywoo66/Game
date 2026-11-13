@@ -41,7 +41,7 @@ fn reform_purchase_is_one_per_tier_and_roundtrips() {
         Err(CommandError::Reform(ReformError::TierAlreadyChosen(1)))
     ));
     let bytes = save_game(&state).unwrap();
-    assert!(String::from_utf8_lossy(&bytes).contains("\"schema_version\":14"));
+    assert!(String::from_utf8_lossy(&bytes).contains("\"schema_version\":16"));
     let restored = load_game(&bytes, state.province_graph().clone()).unwrap();
     assert_eq!(state_hash(&state).unwrap(), state_hash(&restored).unwrap());
     assert_eq!(

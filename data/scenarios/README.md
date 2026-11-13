@@ -1,45 +1,39 @@
-# Western Europe, 1440
+# Europe, 1440 (alpha scenario)
 
-The M3 scenario starts on January 1, 1440. It assigns 24 land provinces to
-England, Scotland, France, Castile, Portugal and Aragon. The other 18 land
-provinces are neutral. England is the starting human country in player slot
-1. The five other countries use the balanced or mercantile AI profile.
-Emptying the scenario's `human_slots` object creates an all-AI start.
+The current scenario starts on January 1, 1440 on Europe map version 6. The
+map contains 1,466 provinces, including 1,284 land provinces. Forty-five countries
+and 56 characters are loaded; England is assigned to human slot 1 and the other
+countries are AI-controlled.
 
-This is a coarse playable reconstruction of the M2 map. Province polygons
-do not reproduce political boundaries, and the six playable countries do
-not include every polity in the slice. The English Normandy assignment is
-a coarse approximation. The rest of the French and Iberian allocations
-leave smaller, separate or contested territories neutral where possible.
+All forty-five countries together own all 1,284 land provinces; no land province
+is neutral. Ownership begins with named 1440 source polygons, then applies the
+owner-approved steppe and Scandinavian rules and a deterministic nearest-owner
+fallback for unresolved cells. Coarse HRE cells go only to represented HRE
+members, preserving the Empire as a confederation rather than a unified country.
+The 145 source cells labeled `Novgorod Republic` belong to separate country `nov`.
+Its posadnik Esif Grigorievich uses birth year 1400 as an explicit gameplay
+estimate because the source does not provide a birth date. Other microstates
+absent from the roster and source gaps are gameplay approximations; see
+`data/map/europe/ownership_1440.json` and
+`docs/milestones/M11_content.md` for method and limitations.
 
-The ruler names and lifetimes draw on historical reference works. Where
-only a year was used, the scenario places the birthday on January 1.
-Humphrey of Gloucester serves as England's illustrative starting heir.
-Edward of York and James of Scotland are future characters, so they are
-ineligible at the start. The succession model can diverge from recorded
-history. Traits, ADM/DIP/MIL, fiscal balances, AI profile weights and rules
-are original gameplay values, with no claim to historical measurements.
-
-Historical references:
-
-- [Henry VI, Royal Household](https://www.royal.uk/henry-vi) and
-  [Humphrey of Gloucester, British Library catalogue](https://searcharchives.bl.uk/catalog/040-003481581)
-- [James II, Royal Household](https://www.royal.uk/james-ii-r-1437-1460) and
-  [James III, Royal Household](https://www.royal.uk/james-iii-r-1460-1488)
-- [Charles VII, Bibliothèque nationale de France](https://catalogue.bnf.fr/ark:/12148/cb133203637.public)
-- [Iberian royal dynasties, Real Academia de la Historia](https://www.rah.es/dinastias-reales/) and
-  [John II of Aragon, Historia Hispánica](https://historia-hispanica.rah.es/biografias/25004-juan-ii-de-aragon-y-de-navarra)
-- [Afonso V, Bibliothèque nationale de France](https://gallica.bnf.fr/accueil/fr/html/circulations-luso-mediterraneennes-a-la-renaissance)
-
-The M4 scenario adds a military rules block and seven starting forts, with
-no armies or wars at startup. London and Île-de-France have level 2 forts.
-Aragón, Castile, Lisboa, the Lowlands and Normandy have level 1 forts.
-Fort levels are whole numbers. The movement graph in map version 2 uses
-whole ticks per edge, while military morale and fiscal values use raw
-Fixed thousandths. These values are gameplay tuning for the prototype.
+The scenario begins with nine fort levels across seven provinces, no armies or
+wars, and five two-ship fleets assigned to Aragon, Castile, England, Portugal
+and Scotland. The other forty countries have no starting fleet in this
+snapshot: Archduchy of Austria, Bosnia, Brandenburg, Brittany, Burgundy, House of Bourbon,
+Kingdom of Denmark, Republic of Florence, France, Georgia, Granada, Great Horde,
+Hafsid, Hungary, Kazan, Lithuania, Luxembourg, Milan, Moscow, Naples, Nevers,
+Nogai Horde, Kingdom of Norway, Ottomans, Papal States, Poland, Qara Qoyunlu,
+Savoy, Kingdom of Sweden, Teutonic Order, Timurid Empire, Trebizond, Moldavia,
+Uzbek Khanate, Crimean Khanate, Venice and Karaman.
+All forty-five scenario countries have registered original simplified SVG banners.
+Existing generic event
+and idea systems remain available, while country-specific historical events
+and unique national modifiers are deferred until post-alpha. Some European microstates are represented by the documented nearest-owner
+approximation rather than as separate playable countries.
 
 Validate the scenario and all of its references using:
 
 ```powershell
-cargo run --locked -p strategy-data --bin lint-scenario -- data/scenarios/1440.json data/map/western_europe/provinces.json
+cargo run --locked -p strategy-data --bin lint-scenario -- data/scenarios/1440.json data/map/europe/provinces.json
 ```

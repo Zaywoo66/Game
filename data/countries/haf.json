@@ -1,0 +1,43 @@
+{
+  "schema_version": 1,
+  "tag": "haf",
+  "name": "Hafsid Sultanate",
+  "color": [
+    197,
+    188,
+    160
+  ],
+  "capital": "tunis",
+  "ai_profile": "balanced",
+  "government": "monarchy",
+  "start": {
+    "ruler": "abu_amr_uthman",
+    "heir": null,
+    "provinces": [
+      "algiers",
+      "annaba",
+      "beja_tunisia",
+      "bejaia",
+      "bizerte",
+      "blida",
+      "bordj_bou_arreridj",
+      "bouira",
+      "constantine",
+      "el_kef",
+      "guelma",
+      "jendouba",
+      "jijel",
+      "nabeul",
+      "setif",
+      "siliana",
+      "skikda",
+      "souk_ahras",
+      "tizi_ouzou",
+      "tunis",
+      "zaghouan"
+    ],
+    "treasury": 65000,
+    "tax_rate": 200,
+    "monthly_spending": 4000
+  }
+}

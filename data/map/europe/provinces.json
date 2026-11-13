@@ -1,7 +1,7 @@
 {
   "schema_version": 3,
-  "map_version": 4,
-  "map_hash": "285313966084ca5cc2c29cfdcefe8ebe214ab8b0011aec17754111312f7917bd",
+  "map_version": 6,
+  "map_hash": "3e1fc544b192940b83e19d3741cd9ad9caec49230be4dc3e6b4fc96f0fd213c9",
   "projection": {
     "pixels_per_degree": 32,
     "origin": [
@@ -101,10 +101,10 @@
       "id": 3,
       "key": "barcelona",
       "kind": "land",
-      "terrain": "plains",
+      "terrain": "hills",
       "centroid": [
-        477,
-        973
+        475,
+        970
       ],
       "neighbors": [
         {
@@ -367,7 +367,7 @@
       "terrain": "hills",
       "centroid": [
         389,
-        974
+        973
       ],
       "neighbors": [
         {
@@ -884,7 +884,7 @@
       "kind": "land",
       "terrain": "hills",
       "centroid": [
-        608,
+        607,
         824
       ],
       "neighbors": [
@@ -2091,8 +2091,8 @@
       "kind": "land",
       "terrain": "hills",
       "centroid": [
-        715,
-        744
+        711,
+        745
       ],
       "neighbors": [
         {
@@ -2112,11 +2112,6 @@
         },
         {
           "id": 256,
-          "edge": "normal",
-          "cost": 3
-        },
-        {
-          "id": 258,
           "edge": "normal",
           "cost": 3
         },
@@ -2219,8 +2214,8 @@
       "kind": "land",
       "terrain": "plains",
       "centroid": [
-        512,
-        682
+        514,
+        683
       ],
       "neighbors": [
         {
@@ -2265,7 +2260,7 @@
       "kind": "land",
       "terrain": "plains",
       "centroid": [
-        562,
+        561,
         642
       ],
       "neighbors": [
@@ -2404,7 +2399,7 @@
       "terrain": "plains",
       "centroid": [
         560,
-        660
+        661
       ],
       "neighbors": [
         {
@@ -2628,7 +2623,7 @@
       "kind": "land",
       "terrain": "hills",
       "centroid": [
-        780,
+        786,
         720
       ],
       "neighbors": [
@@ -3412,7 +3407,7 @@
       "kind": "land",
       "terrain": "plains",
       "centroid": [
-        612,
+        611,
         721
       ],
       "neighbors": [
@@ -3574,10 +3569,10 @@
       "id": 82,
       "key": "andorra",
       "kind": "land",
-      "terrain": "hills",
+      "terrain": "mountains",
       "centroid": [
-        453,
-        946
+        455,
+        942
       ],
       "neighbors": [
         {
@@ -3779,7 +3774,7 @@
       "id": 87,
       "key": "basel",
       "kind": "land",
-      "terrain": "plains",
+      "terrain": "hills",
       "centroid": [
         660,
         778
@@ -3792,8 +3787,8 @@
         },
         {
           "id": 123,
-          "edge": "river",
-          "cost": 5
+          "edge": "normal",
+          "cost": 3
         },
         {
           "id": 134,
@@ -3807,8 +3802,8 @@
         },
         {
           "id": 351,
-          "edge": "river",
-          "cost": 5
+          "edge": "normal",
+          "cost": 3
         },
         {
           "id": 352,
@@ -3899,6 +3894,11 @@
         },
         {
           "id": 114,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 120,
           "edge": "normal",
           "cost": 3
         },
@@ -4739,7 +4739,7 @@
       "kind": "land",
       "terrain": "plains",
       "centroid": [
-        776,
+        777,
         843
       ],
       "neighbors": [
@@ -4785,7 +4785,7 @@
       "kind": "land",
       "terrain": "plains",
       "centroid": [
-        558,
+        555,
         699
       ],
       "neighbors": [
@@ -5169,7 +5169,7 @@
       "kind": "land",
       "terrain": "plains",
       "centroid": [
-        609,
+        607,
         752
       ],
       "neighbors": [
@@ -5184,12 +5184,22 @@
           "cost": 3
         },
         {
+          "id": 89,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
           "id": 102,
           "edge": "normal",
           "cost": 3
         },
         {
           "id": 134,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 139,
           "edge": "normal",
           "cost": 3
         },
@@ -5205,11 +5215,6 @@
         },
         {
           "id": 279,
-          "edge": "normal",
-          "cost": 3
-        },
-        {
-          "id": 333,
           "edge": "normal",
           "cost": 3
         },
@@ -5348,8 +5353,13 @@
         },
         {
           "id": 87,
-          "edge": "river",
-          "cost": 5
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 256,
+          "edge": "normal",
+          "cost": 3
         },
         {
           "id": 329,
@@ -5818,7 +5828,7 @@
       "kind": "land",
       "terrain": "hills",
       "centroid": [
-        647,
+        646,
         774
       ],
       "neighbors": [
@@ -5838,7 +5848,7 @@
           "cost": 3
         },
         {
-          "id": 333,
+          "id": 279,
           "edge": "normal",
           "cost": 3
         },
@@ -6049,6 +6059,11 @@
         },
         {
           "id": 111,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 120,
           "edge": "normal",
           "cost": 3
         },
@@ -6350,12 +6365,17 @@
       "kind": "land",
       "terrain": "hills",
       "centroid": [
-        736,
+        737,
         754
       ],
       "neighbors": [
         {
           "id": 47,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 150,
           "edge": "normal",
           "cost": 3
         },
@@ -6366,8 +6386,8 @@
         },
         {
           "id": 338,
-          "edge": "river",
-          "cost": 5
+          "edge": "normal",
+          "cost": 3
         }
       ],
       "ports": [],
@@ -6535,7 +6555,7 @@
       "terrain": "plains",
       "centroid": [
         734,
-        708
+        707
       ],
       "neighbors": [
         {
@@ -6545,6 +6565,11 @@
         },
         {
           "id": 47,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 146,
           "edge": "normal",
           "cost": 3
         },
@@ -6641,8 +6666,8 @@
       "kind": "land",
       "terrain": "hills",
       "centroid": [
-        784,
-        739
+        782,
+        741
       ],
       "neighbors": [
         {
@@ -6667,8 +6692,8 @@
         },
         {
           "id": 695,
-          "edge": "normal",
-          "cost": 3
+          "edge": "river",
+          "cost": 5
         }
       ],
       "ports": [],
@@ -7546,10 +7571,10 @@
       "id": 174,
       "key": "tarragona",
       "kind": "land",
-      "terrain": "plains",
+      "terrain": "hills",
       "centroid": [
         442,
-        978
+        973
       ],
       "neighbors": [
         {
@@ -8937,11 +8962,6 @@
           "id": 264,
           "edge": "river",
           "cost": 5
-        },
-        {
-          "id": 340,
-          "edge": "normal",
-          "cost": 3
         }
       ],
       "ports": [],
@@ -9150,8 +9170,8 @@
       "kind": "land",
       "terrain": "hills",
       "centroid": [
-        791,
-        700
+        792,
+        694
       ],
       "neighbors": [
         {
@@ -10990,6 +11010,11 @@
           "cost": 3
         },
         {
+          "id": 123,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
           "id": 253,
           "edge": "normal",
           "cost": 3
@@ -11062,17 +11087,12 @@
       "kind": "land",
       "terrain": "hills",
       "centroid": [
-        758,
+        759,
         756
       ],
       "neighbors": [
         {
           "id": 27,
-          "edge": "normal",
-          "cost": 3
-        },
-        {
-          "id": 47,
           "edge": "normal",
           "cost": 3
         },
@@ -11430,8 +11450,8 @@
       "kind": "land",
       "terrain": "hills",
       "centroid": [
-        758,
-        723
+        760,
+        722
       ],
       "neighbors": [
         {
@@ -11711,8 +11731,8 @@
       "kind": "land",
       "terrain": "hills",
       "centroid": [
-        496,
-        963
+        493,
+        961
       ],
       "neighbors": [
         {
@@ -11875,7 +11895,7 @@
       "kind": "land",
       "terrain": "plains",
       "centroid": [
-        503,
+        502,
         944
       ],
       "neighbors": [
@@ -12013,8 +12033,8 @@
       "kind": "land",
       "terrain": "hills",
       "centroid": [
-        607,
-        793
+        610,
+        792
       ],
       "neighbors": [
         {
@@ -12033,12 +12053,27 @@
           "cost": 3
         },
         {
+          "id": 134,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
           "id": 148,
           "edge": "normal",
           "cost": 3
         },
         {
+          "id": 285,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
           "id": 333,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 352,
           "edge": "normal",
           "cost": 3
         }
@@ -12131,7 +12166,7 @@
       "kind": "land",
       "terrain": "plains",
       "centroid": [
-        687,
+        686,
         846
       ],
       "neighbors": [
@@ -12294,12 +12329,17 @@
       "kind": "land",
       "terrain": "hills",
       "centroid": [
-        646,
-        795
+        643,
+        794
       ],
       "neighbors": [
         {
           "id": 44,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 279,
           "edge": "normal",
           "cost": 3
         },
@@ -12642,8 +12682,8 @@
       "kind": "land",
       "terrain": "plains",
       "centroid": [
-        419,
-        916
+        420,
+        917
       ],
       "neighbors": [
         {
@@ -13600,7 +13640,7 @@
       "terrain": "plains",
       "centroid": [
         540,
-        691
+        689
       ],
       "neighbors": [
         {
@@ -14295,7 +14335,7 @@
       "kind": "land",
       "terrain": "hills",
       "centroid": [
-        643,
+        644,
         808
       ],
       "neighbors": [
@@ -14387,22 +14427,12 @@
       "kind": "land",
       "terrain": "hills",
       "centroid": [
-        633,
-        790
+        634,
+        801
       ],
       "neighbors": [
         {
-          "id": 120,
-          "edge": "normal",
-          "cost": 3
-        },
-        {
           "id": 121,
-          "edge": "normal",
-          "cost": 3
-        },
-        {
-          "id": 134,
           "edge": "normal",
           "cost": 3
         },
@@ -14420,17 +14450,12 @@
           "id": 331,
           "edge": "normal",
           "cost": 3
-        },
-        {
-          "id": 352,
-          "edge": "normal",
-          "cost": 3
         }
       ],
       "ports": [],
       "development": 0,
       "name_key": "province_neuchatel",
-      "area": "alpine_europe_duchy_of_burgundy"
+      "area": "alpine_europe_unclassified"
     },
     {
       "id": 334,
@@ -14530,7 +14555,7 @@
       "kind": "land",
       "terrain": "mountains",
       "centroid": [
-        659,
+        658,
         824
       ],
       "neighbors": [
@@ -14618,7 +14643,7 @@
       "terrain": "hills",
       "centroid": [
         735,
-        777
+        780
       ],
       "neighbors": [
         {
@@ -14628,8 +14653,8 @@
         },
         {
           "id": 146,
-          "edge": "river",
-          "cost": 5
+          "edge": "normal",
+          "cost": 3
         },
         {
           "id": 158,
@@ -14725,7 +14750,7 @@
       "terrain": "plains",
       "centroid": [
         589,
-        717
+        715
       ],
       "neighbors": [
         {
@@ -14745,11 +14770,6 @@
         },
         {
           "id": 183,
-          "edge": "normal",
-          "cost": 3
-        },
-        {
-          "id": 205,
           "edge": "normal",
           "cost": 3
         },
@@ -15190,7 +15210,7 @@
       "kind": "land",
       "terrain": "hills",
       "centroid": [
-        664,
+        665,
         784
       ],
       "neighbors": [
@@ -15201,8 +15221,8 @@
         },
         {
           "id": 87,
-          "edge": "river",
-          "cost": 5
+          "edge": "normal",
+          "cost": 3
         },
         {
           "id": 123,
@@ -15236,7 +15256,7 @@
       "kind": "land",
       "terrain": "hills",
       "centroid": [
-        647,
+        646,
         787
       ],
       "neighbors": [
@@ -15251,12 +15271,12 @@
           "cost": 3
         },
         {
-          "id": 285,
+          "id": 279,
           "edge": "normal",
           "cost": 3
         },
         {
-          "id": 333,
+          "id": 285,
           "edge": "normal",
           "cost": 3
         },
@@ -15278,7 +15298,7 @@
       "terrain": "mountains",
       "centroid": [
         676,
-        808
+        809
       ],
       "neighbors": [
         {
@@ -19848,6 +19868,11 @@
           "id": 817,
           "edge": "normal",
           "cost": 3
+        },
+        {
+          "id": 1382,
+          "edge": "normal",
+          "cost": 3
         }
       ],
       "ports": [],
@@ -22893,6 +22918,16 @@
           "id": 1139,
           "edge": "normal",
           "cost": 3
+        },
+        {
+          "id": 1361,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1374,
+          "edge": "normal",
+          "cost": 3
         }
       ],
       "ports": [],
@@ -22983,6 +23018,21 @@
         },
         {
           "id": 1097,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1333,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1347,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1366,
           "edge": "normal",
           "cost": 3
         }
@@ -23617,6 +23667,16 @@
         },
         {
           "id": 1202,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1345,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1447,
           "edge": "normal",
           "cost": 3
         }
@@ -25615,6 +25675,11 @@
           "id": 1122,
           "edge": "normal",
           "cost": 3
+        },
+        {
+          "id": 1361,
+          "edge": "normal",
+          "cost": 3
         }
       ],
       "ports": [],
@@ -25945,6 +26010,11 @@
         },
         {
           "id": 807,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1333,
           "edge": "normal",
           "cost": 3
         }
@@ -27199,6 +27269,21 @@
           "id": 1179,
           "edge": "normal",
           "cost": 3
+        },
+        {
+          "id": 1352,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1432,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1440,
+          "edge": "normal",
+          "cost": 3
         }
       ],
       "ports": [],
@@ -27775,6 +27860,16 @@
         },
         {
           "id": 1191,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1444,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1447,
           "edge": "normal",
           "cost": 3
         }
@@ -31405,8 +31500,8 @@
         },
         {
           "id": 152,
-          "edge": "normal",
-          "cost": 3
+          "edge": "river",
+          "cost": 5
         },
         {
           "id": 211,
@@ -37049,6 +37144,11 @@
           "id": 1216,
           "edge": "normal",
           "cost": 3
+        },
+        {
+          "id": 1382,
+          "edge": "normal",
+          "cost": 3
         }
       ],
       "ports": [],
@@ -38286,6 +38386,11 @@
         },
         {
           "id": 1158,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1428,
           "edge": "normal",
           "cost": 3
         }
@@ -40743,6 +40848,16 @@
           "id": 1097,
           "edge": "normal",
           "cost": 3
+        },
+        {
+          "id": 1347,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1375,
+          "edge": "normal",
+          "cost": 3
         }
       ],
       "ports": [],
@@ -42396,6 +42511,11 @@
           "id": 1243,
           "edge": "normal",
           "cost": 3
+        },
+        {
+          "id": 1380,
+          "edge": "normal",
+          "cost": 3
         }
       ],
       "ports": [],
@@ -43367,6 +43487,16 @@
         },
         {
           "id": 1243,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1380,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1388,
           "edge": "normal",
           "cost": 3
         }
@@ -44428,6 +44558,16 @@
           "id": 1011,
           "edge": "normal",
           "cost": 3
+        },
+        {
+          "id": 1353,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1393,
+          "edge": "normal",
+          "cost": 3
         }
       ],
       "ports": [],
@@ -45483,6 +45623,16 @@
           "id": 1035,
           "edge": "normal",
           "cost": 3
+        },
+        {
+          "id": 1353,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1379,
+          "edge": "normal",
+          "cost": 3
         }
       ],
       "ports": [],
@@ -46535,6 +46685,16 @@
         },
         {
           "id": 1060,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1379,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1404,
           "edge": "normal",
           "cost": 3
         }
@@ -47595,6 +47755,16 @@
         },
         {
           "id": 1080,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1375,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1404,
           "edge": "normal",
           "cost": 3
         }
@@ -51081,6 +51251,21 @@
           "id": 846,
           "edge": "normal",
           "cost": 3
+        },
+        {
+          "id": 1367,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1374,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1428,
+          "edge": "normal",
+          "cost": 3
         }
       ],
       "ports": [],
@@ -51938,6 +52123,16 @@
         },
         {
           "id": 846,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1428,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1432,
           "edge": "normal",
           "cost": 3
         }
@@ -52884,6 +53079,21 @@
         },
         {
           "id": 1325,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1440,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1444,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1465,
           "edge": "normal",
           "cost": 3
         }
@@ -53914,6 +54124,11 @@
           "id": 1212,
           "edge": "normal",
           "cost": 3
+        },
+        {
+          "id": 1345,
+          "edge": "normal",
+          "cost": 3
         }
       ],
       "ports": [],
@@ -54319,6 +54534,16 @@
           "id": 1216,
           "edge": "normal",
           "cost": 3
+        },
+        {
+          "id": 1345,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1455,
+          "edge": "normal",
+          "cost": 3
         }
       ],
       "ports": [],
@@ -54466,6 +54691,16 @@
         },
         {
           "id": 1212,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1382,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1457,
           "edge": "normal",
           "cost": 3
         }
@@ -55578,6 +55813,11 @@
         },
         {
           "id": 1242,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1462,
           "edge": "normal",
           "cost": 3
         }
@@ -60144,6 +60384,5610 @@
       "ports": [],
       "development": 0,
       "name_key": "province_lake_107",
+      "area": "europe_extension_water"
+    },
+    {
+      "id": 1333,
+      "key": "yekaterinburg",
+      "kind": "land",
+      "terrain": "plains",
+      "centroid": [
+        2355,
+        489
+      ],
+      "neighbors": [
+        {
+          "id": 508,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 575,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1335,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1360,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1361,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1366,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1368,
+          "edge": "normal",
+          "cost": 3
+        }
+      ],
+      "ports": [],
+      "development": 0,
+      "name_key": "province_yekaterinburg",
+      "area": "europe_extension_unclassified"
+    },
+    {
+      "id": 1334,
+      "key": "samarkand",
+      "kind": "land",
+      "terrain": "hills",
+      "centroid": [
+        2555,
+        1035
+      ],
+      "neighbors": [
+        {
+          "id": 1357,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1358,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1359,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1381,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1453,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1454,
+          "edge": "normal",
+          "cost": 3
+        }
+      ],
+      "ports": [],
+      "development": 0,
+      "name_key": "province_samarkand",
+      "area": "europe_extension_unclassified"
+    },
+    {
+      "id": 1335,
+      "key": "chelyabinsk",
+      "kind": "land",
+      "terrain": "plains",
+      "centroid": [
+        2379,
+        535
+      ],
+      "neighbors": [
+        {
+          "id": 1333,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1360,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1361,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1362,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1420,
+          "edge": "normal",
+          "cost": 3
+        }
+      ],
+      "ports": [],
+      "development": 0,
+      "name_key": "province_chelyabinsk",
+      "area": "europe_extension_unclassified"
+    },
+    {
+      "id": 1336,
+      "key": "tura",
+      "kind": "land",
+      "terrain": "plains",
+      "centroid": [
+        2507,
+        479
+      ],
+      "neighbors": [
+        {
+          "id": 1344,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1363,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1370,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1371,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1417,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1418,
+          "edge": "normal",
+          "cost": 3
+        }
+      ],
+      "ports": [],
+      "development": 0,
+      "name_key": "province_tura",
+      "area": "europe_extension_unclassified"
+    },
+    {
+      "id": 1337,
+      "key": "mazar_i_sharif",
+      "kind": "land",
+      "terrain": "hills",
+      "centroid": [
+        2560,
+        1126
+      ],
+      "neighbors": [
+        {
+          "id": 1357,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1364,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1372,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1381,
+          "edge": "normal",
+          "cost": 3
+        }
+      ],
+      "ports": [],
+      "development": 0,
+      "name_key": "province_mazar_i_sharif",
+      "area": "europe_extension_unclassified"
+    },
+    {
+      "id": 1338,
+      "key": "bukhara",
+      "kind": "land",
+      "terrain": "plains",
+      "centroid": [
+        2474,
+        1028
+      ],
+      "neighbors": [
+        {
+          "id": 1340,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1357,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1359,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1365,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1456,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1459,
+          "edge": "normal",
+          "cost": 3
+        }
+      ],
+      "ports": [],
+      "development": 0,
+      "name_key": "province_bukhara",
+      "area": "europe_extension_unclassified"
+    },
+    {
+      "id": 1339,
+      "key": "qyzylorda",
+      "kind": "land",
+      "terrain": "plains",
+      "centroid": [
+        2510,
+        874
+      ],
+      "neighbors": [
+        {
+          "id": 1373,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1441,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1442,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1443,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1446,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1450,
+          "edge": "normal",
+          "cost": 3
+        }
+      ],
+      "ports": [],
+      "development": 0,
+      "name_key": "province_qyzylorda",
+      "area": "europe_extension_unclassified"
+    },
+    {
+      "id": 1340,
+      "key": "t_rkmenabat",
+      "kind": "land",
+      "terrain": "plains",
+      "centroid": [
+        2448,
+        1050
+      ],
+      "neighbors": [
+        {
+          "id": 1338,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1456,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1458,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1459,
+          "edge": "normal",
+          "cost": 3
+        }
+      ],
+      "ports": [],
+      "development": 0,
+      "name_key": "province_t_rkmenabat",
+      "area": "europe_extension_unclassified"
+    },
+    {
+      "id": 1341,
+      "key": "mary",
+      "kind": "land",
+      "terrain": "plains",
+      "centroid": [
+        2392,
+        1106
+      ],
+      "neighbors": [
+        {
+          "id": 1382,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1457,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1458,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1460,
+          "edge": "normal",
+          "cost": 3
+        }
+      ],
+      "ports": [],
+      "development": 0,
+      "name_key": "province_mary",
+      "area": "europe_extension_unclassified"
+    },
+    {
+      "id": 1342,
+      "key": "rudniy",
+      "kind": "land",
+      "terrain": "plains",
+      "centroid": [
+        2431,
+        606
+      ],
+      "neighbors": [
+        {
+          "id": 1362,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1367,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1378,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1420,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1422,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1425,
+          "edge": "normal",
+          "cost": 3
+        }
+      ],
+      "ports": [],
+      "development": 0,
+      "name_key": "province_rudniy",
+      "area": "europe_extension_unclassified"
+    },
+    {
+      "id": 1343,
+      "key": "vorkuta",
+      "kind": "land",
+      "terrain": "plains",
+      "centroid": [
+        2465,
+        151
+      ],
+      "neighbors": [
+        {
+          "id": 1389,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1390,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1391,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1394,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1395,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1398,
+          "edge": "normal",
+          "cost": 3
+        }
+      ],
+      "ports": [],
+      "development": 0,
+      "name_key": "province_vorkuta",
+      "area": "europe_extension_unclassified"
+    },
+    {
+      "id": 1344,
+      "key": "kurgan",
+      "kind": "land",
+      "terrain": "plains",
+      "centroid": [
+        2511,
+        530
+      ],
+      "neighbors": [
+        {
+          "id": 1336,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1363,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1371,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1376,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1419,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1421,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1423,
+          "edge": "normal",
+          "cost": 3
+        }
+      ],
+      "ports": [],
+      "development": 0,
+      "name_key": "province_kurgan",
+      "area": "europe_extension_unclassified"
+    },
+    {
+      "id": 1345,
+      "key": "urgentch",
+      "kind": "land",
+      "terrain": "plains",
+      "centroid": [
+        2359,
+        977
+      ],
+      "neighbors": [
+        {
+          "id": 522,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1202,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1212,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1447,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1452,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1455,
+          "edge": "normal",
+          "cost": 3
+        }
+      ],
+      "ports": [],
+      "development": 0,
+      "name_key": "province_urgentch",
+      "area": "europe_extension_unclassified"
+    },
+    {
+      "id": 1346,
+      "key": "zhezqazghan",
+      "kind": "land",
+      "terrain": "hills",
+      "centroid": [
+        2574,
+        781
+      ],
+      "neighbors": [
+        {
+          "id": 1436,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1439,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1443,
+          "edge": "normal",
+          "cost": 3
+        }
+      ],
+      "ports": [],
+      "development": 0,
+      "name_key": "province_zhezqazghan",
+      "area": "europe_extension_unclassified"
+    },
+    {
+      "id": 1347,
+      "key": "serov",
+      "kind": "land",
+      "terrain": "plains",
+      "centroid": [
+        2362,
+        399
+      ],
+      "neighbors": [
+        {
+          "id": 508,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 901,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1366,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1375,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1408,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1412,
+          "edge": "normal",
+          "cost": 3
+        }
+      ],
+      "ports": [],
+      "development": 0,
+      "name_key": "province_serov",
+      "area": "europe_extension_unclassified"
+    },
+    {
+      "id": 1348,
+      "key": "arqalyq",
+      "kind": "land",
+      "terrain": "plains",
+      "centroid": [
+        2564,
+        697
+      ],
+      "neighbors": [
+        {
+          "id": 1377,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1427,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1431,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1435,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1436,
+          "edge": "normal",
+          "cost": 3
+        }
+      ],
+      "ports": [],
+      "development": 0,
+      "name_key": "province_arqalyq",
+      "area": "europe_extension_unclassified"
+    },
+    {
+      "id": 1349,
+      "key": "nyagan",
+      "kind": "land",
+      "terrain": "plains",
+      "centroid": [
+        2512,
+        314
+      ],
+      "neighbors": [
+        {
+          "id": 1354,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1402,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1406,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1407,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1409,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1410,
+          "edge": "normal",
+          "cost": 3
+        }
+      ],
+      "ports": [],
+      "development": 0,
+      "name_key": "province_nyagan",
+      "area": "europe_extension_unclassified"
+    },
+    {
+      "id": 1350,
+      "key": "salekhard",
+      "kind": "land",
+      "terrain": "plains",
+      "centroid": [
+        2557,
+        170
+      ],
+      "neighbors": [
+        {
+          "id": 1392,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1395,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1399,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1400,
+          "edge": "normal",
+          "cost": 3
+        }
+      ],
+      "ports": [],
+      "development": 0,
+      "name_key": "province_salekhard",
+      "area": "europe_extension_unclassified"
+    },
+    {
+      "id": 1351,
+      "key": "baykonur",
+      "kind": "land",
+      "terrain": "plains",
+      "centroid": [
+        2438,
+        840
+      ],
+      "neighbors": [
+        {
+          "id": 1355,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1437,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1438,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1441,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1445,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1446,
+          "edge": "normal",
+          "cost": 3
+        }
+      ],
+      "ports": [],
+      "development": 0,
+      "name_key": "province_baykonur",
+      "area": "europe_extension_unclassified"
+    },
+    {
+      "id": 1352,
+      "key": "aral",
+      "kind": "land",
+      "terrain": "plains",
+      "centroid": [
+        2377,
+        797
+      ],
+      "neighbors": [
+        {
+          "id": 602,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1355,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1432,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1437,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1440,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1465,
+          "edge": "normal",
+          "cost": 3
+        }
+      ],
+      "ports": [],
+      "development": 0,
+      "name_key": "province_aral",
+      "area": "europe_extension_unclassified"
+    },
+    {
+      "id": 1353,
+      "key": "inta",
+      "kind": "land",
+      "terrain": "plains",
+      "centroid": [
+        2346,
+        190
+      ],
+      "neighbors": [
+        {
+          "id": 986,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1011,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1379,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1393,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1396,
+          "edge": "normal",
+          "cost": 3
+        }
+      ],
+      "ports": [],
+      "development": 0,
+      "name_key": "province_inta",
+      "area": "europe_extension_unclassified"
+    },
+    {
+      "id": 1354,
+      "key": "igrim",
+      "kind": "land",
+      "terrain": "plains",
+      "centroid": [
+        2474,
+        273
+      ],
+      "neighbors": [
+        {
+          "id": 1349,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1398,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1401,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1402,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1405,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1406,
+          "edge": "normal",
+          "cost": 3
+        }
+      ],
+      "ports": [],
+      "development": 0,
+      "name_key": "province_igrim",
+      "area": "europe_extension_unclassified"
+    },
+    {
+      "id": 1355,
+      "key": "qazaly",
+      "kind": "land",
+      "terrain": "plains",
+      "centroid": [
+        2404,
+        841
+      ],
+      "neighbors": [
+        {
+          "id": 1351,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1352,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1437,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1440,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1444,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1445,
+          "edge": "normal",
+          "cost": 3
+        }
+      ],
+      "ports": [],
+      "development": 0,
+      "name_key": "province_qazaly",
+      "area": "europe_extension_unclassified"
+    },
+    {
+      "id": 1356,
+      "key": "amderma",
+      "kind": "land",
+      "terrain": "plains",
+      "centroid": [
+        2385,
+        82
+      ],
+      "neighbors": [
+        {
+          "id": 1380,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1385,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1388,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1389,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1462,
+          "edge": "normal",
+          "cost": 3
+        }
+      ],
+      "ports": [],
+      "development": 0,
+      "name_key": "province_amderma",
+      "area": "europe_extension_unclassified"
+    },
+    {
+      "id": 1357,
+      "key": "qarshi",
+      "kind": "land",
+      "terrain": "hills",
+      "centroid": [
+        2525,
+        1063
+      ],
+      "neighbors": [
+        {
+          "id": 1334,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1337,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1338,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1359,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1372,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1381,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1459,
+          "edge": "normal",
+          "cost": 3
+        }
+      ],
+      "ports": [],
+      "development": 0,
+      "name_key": "province_qarshi",
+      "area": "europe_extension_unclassified"
+    },
+    {
+      "id": 1358,
+      "key": "jizzax",
+      "kind": "land",
+      "terrain": "hills",
+      "centroid": [
+        2581,
+        1019
+      ],
+      "neighbors": [
+        {
+          "id": 1334,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1381,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1454,
+          "edge": "normal",
+          "cost": 3
+        }
+      ],
+      "ports": [],
+      "development": 0,
+      "name_key": "province_jizzax",
+      "area": "europe_extension_unclassified"
+    },
+    {
+      "id": 1359,
+      "key": "navoi",
+      "kind": "land",
+      "terrain": "hills",
+      "centroid": [
+        2510,
+        1018
+      ],
+      "neighbors": [
+        {
+          "id": 1334,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1338,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1357,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1365,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1453,
+          "edge": "normal",
+          "cost": 3
+        }
+      ],
+      "ports": [],
+      "development": 0,
+      "name_key": "province_navoi",
+      "area": "europe_extension_unclassified"
+    },
+    {
+      "id": 1360,
+      "key": "kamensk_uralskiy",
+      "kind": "land",
+      "terrain": "plains",
+      "centroid": [
+        2401,
+        501
+      ],
+      "neighbors": [
+        {
+          "id": 1333,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1335,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1363,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1368,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1416,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1420,
+          "edge": "normal",
+          "cost": 3
+        }
+      ],
+      "ports": [],
+      "development": 0,
+      "name_key": "province_kamensk_uralskiy",
+      "area": "europe_extension_unclassified"
+    },
+    {
+      "id": 1361,
+      "key": "miass",
+      "kind": "land",
+      "terrain": "plains",
+      "centroid": [
+        2347,
+        545
+      ],
+      "neighbors": [
+        {
+          "id": 506,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 568,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1333,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1335,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1362,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1374,
+          "edge": "normal",
+          "cost": 3
+        }
+      ],
+      "ports": [],
+      "development": 0,
+      "name_key": "province_miass",
+      "area": "europe_extension_unclassified"
+    },
+    {
+      "id": 1362,
+      "key": "troitsk",
+      "kind": "land",
+      "terrain": "plains",
+      "centroid": [
+        2387,
+        577
+      ],
+      "neighbors": [
+        {
+          "id": 1335,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1342,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1361,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1367,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1374,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1420,
+          "edge": "normal",
+          "cost": 3
+        }
+      ],
+      "ports": [],
+      "development": 0,
+      "name_key": "province_troitsk",
+      "area": "europe_extension_unclassified"
+    },
+    {
+      "id": 1363,
+      "key": "shadrinsk",
+      "kind": "land",
+      "terrain": "plains",
+      "centroid": [
+        2453,
+        505
+      ],
+      "neighbors": [
+        {
+          "id": 1336,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1344,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1360,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1376,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1416,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1417,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1420,
+          "edge": "normal",
+          "cost": 3
+        }
+      ],
+      "ports": [],
+      "development": 0,
+      "name_key": "province_shadrinsk",
+      "area": "europe_extension_unclassified"
+    },
+    {
+      "id": 1364,
+      "key": "andkhvoy",
+      "kind": "land",
+      "terrain": "hills",
+      "centroid": [
+        2507,
+        1129
+      ],
+      "neighbors": [
+        {
+          "id": 1337,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1372,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1461,
+          "edge": "normal",
+          "cost": 3
+        }
+      ],
+      "ports": [],
+      "development": 0,
+      "name_key": "province_andkhvoy",
+      "area": "europe_extension_unclassified"
+    },
+    {
+      "id": 1365,
+      "key": "zarafshon",
+      "kind": "land",
+      "terrain": "plains",
+      "centroid": [
+        2469,
+        976
+      ],
+      "neighbors": [
+        {
+          "id": 1338,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1359,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1448,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1449,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1450,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1452,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1453,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1456,
+          "edge": "normal",
+          "cost": 3
+        }
+      ],
+      "ports": [],
+      "development": 0,
+      "name_key": "province_zarafshon",
+      "area": "europe_extension_unclassified"
+    },
+    {
+      "id": 1366,
+      "key": "verkhnyaya_salda",
+      "kind": "land",
+      "terrain": "plains",
+      "centroid": [
+        2358,
+        442
+      ],
+      "neighbors": [
+        {
+          "id": 508,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1333,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1347,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1368,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1412,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1416,
+          "edge": "normal",
+          "cost": 3
+        }
+      ],
+      "ports": [],
+      "development": 0,
+      "name_key": "province_verkhnyaya_salda",
+      "area": "europe_extension_unclassified"
+    },
+    {
+      "id": 1367,
+      "key": "zhetiqara",
+      "kind": "land",
+      "terrain": "plains",
+      "centroid": [
+        2372,
+        638
+      ],
+      "neighbors": [
+        {
+          "id": 1139,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1342,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1362,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1374,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1425,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1428,
+          "edge": "normal",
+          "cost": 3
+        }
+      ],
+      "ports": [],
+      "development": 0,
+      "name_key": "province_zhetiqara",
+      "area": "europe_extension_unclassified"
+    },
+    {
+      "id": 1368,
+      "key": "artemovskiy",
+      "kind": "land",
+      "terrain": "plains",
+      "centroid": [
+        2392,
+        464
+      ],
+      "neighbors": [
+        {
+          "id": 1333,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1360,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1366,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1416,
+          "edge": "normal",
+          "cost": 3
+        }
+      ],
+      "ports": [],
+      "development": 0,
+      "name_key": "province_artemovskiy",
+      "area": "europe_extension_unclassified"
+    },
+    {
+      "id": 1369,
+      "key": "uray",
+      "kind": "land",
+      "terrain": "plains",
+      "centroid": [
+        2489,
+        379
+      ],
+      "neighbors": [
+        {
+          "id": 1409,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1410,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1413,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1414,
+          "edge": "normal",
+          "cost": 3
+        }
+      ],
+      "ports": [],
+      "development": 0,
+      "name_key": "province_uray",
+      "area": "europe_extension_unclassified"
+    },
+    {
+      "id": 1370,
+      "key": "tavda",
+      "kind": "land",
+      "terrain": "plains",
+      "centroid": [
+        2507,
+        442
+      ],
+      "neighbors": [
+        {
+          "id": 1336,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1413,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1414,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1417,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1418,
+          "edge": "normal",
+          "cost": 3
+        }
+      ],
+      "ports": [],
+      "development": 0,
+      "name_key": "province_tavda",
+      "area": "europe_extension_unclassified"
+    },
+    {
+      "id": 1371,
+      "key": "yalutorovsk",
+      "kind": "land",
+      "terrain": "plains",
+      "centroid": [
+        2536,
+        492
+      ],
+      "neighbors": [
+        {
+          "id": 1336,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1344,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1418,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1419,
+          "edge": "normal",
+          "cost": 3
+        }
+      ],
+      "ports": [],
+      "development": 0,
+      "name_key": "province_yalutorovsk",
+      "area": "europe_extension_unclassified"
+    },
+    {
+      "id": 1372,
+      "key": "atamyrat",
+      "kind": "land",
+      "terrain": "plains",
+      "centroid": [
+        2508,
+        1093
+      ],
+      "neighbors": [
+        {
+          "id": 1337,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1357,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1364,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1459,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1461,
+          "edge": "normal",
+          "cost": 3
+        }
+      ],
+      "ports": [],
+      "development": 0,
+      "name_key": "province_atamyrat",
+      "area": "europe_extension_unclassified"
+    },
+    {
+      "id": 1373,
+      "key": "shieli",
+      "kind": "land",
+      "terrain": "plains",
+      "centroid": [
+        2558,
+        888
+      ],
+      "neighbors": [
+        {
+          "id": 1339,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1443,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1450,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1451,
+          "edge": "normal",
+          "cost": 3
+        }
+      ],
+      "ports": [],
+      "development": 0,
+      "name_key": "province_shieli",
+      "area": "europe_extension_unclassified"
+    },
+    {
+      "id": 1374,
+      "key": "kartaly",
+      "kind": "land",
+      "terrain": "plains",
+      "centroid": [
+        2354,
+        603
+      ],
+      "neighbors": [
+        {
+          "id": 506,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1139,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1361,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1362,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1367,
+          "edge": "normal",
+          "cost": 3
+        }
+      ],
+      "ports": [],
+      "development": 0,
+      "name_key": "province_kartaly",
+      "area": "europe_extension_unclassified"
+    },
+    {
+      "id": 1375,
+      "key": "ivdel",
+      "kind": "land",
+      "terrain": "plains",
+      "centroid": [
+        2357,
+        356
+      ],
+      "neighbors": [
+        {
+          "id": 901,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1060,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1347,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1404,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1408,
+          "edge": "normal",
+          "cost": 3
+        }
+      ],
+      "ports": [],
+      "development": 0,
+      "name_key": "province_ivdel",
+      "area": "europe_extension_unclassified"
+    },
+    {
+      "id": 1376,
+      "key": "kurtamysh",
+      "kind": "land",
+      "terrain": "plains",
+      "centroid": [
+        2475,
+        550
+      ],
+      "neighbors": [
+        {
+          "id": 1344,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1363,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1420,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1422,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1423,
+          "edge": "normal",
+          "cost": 3
+        }
+      ],
+      "ports": [],
+      "development": 0,
+      "name_key": "province_kurtamysh",
+      "area": "europe_extension_unclassified"
+    },
+    {
+      "id": 1377,
+      "key": "derzhavinsk",
+      "kind": "land",
+      "terrain": "plains",
+      "centroid": [
+        2538,
+        667
+      ],
+      "neighbors": [
+        {
+          "id": 1348,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1426,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1427,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1431,
+          "edge": "normal",
+          "cost": 3
+        }
+      ],
+      "ports": [],
+      "development": 0,
+      "name_key": "province_derzhavinsk",
+      "area": "europe_extension_unclassified"
+    },
+    {
+      "id": 1378,
+      "key": "qusmuryn",
+      "kind": "land",
+      "terrain": "plains",
+      "centroid": [
+        2479,
+        632
+      ],
+      "neighbors": [
+        {
+          "id": 1342,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1422,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1423,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1425,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1426,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1430,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1464,
+          "edge": "normal",
+          "cost": 3
+        }
+      ],
+      "ports": [],
+      "development": 0,
+      "name_key": "province_qusmuryn",
+      "area": "europe_extension_unclassified"
+    },
+    {
+      "id": 1379,
+      "key": "saranpaul",
+      "kind": "land",
+      "terrain": "plains",
+      "centroid": [
+        2363,
+        253
+      ],
+      "neighbors": [
+        {
+          "id": 1011,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1035,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1353,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1396,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1397,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1401,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1404,
+          "edge": "normal",
+          "cost": 3
+        }
+      ],
+      "ports": [],
+      "development": 0,
+      "name_key": "province_saranpaul",
+      "area": "europe_extension_unclassified"
+    },
+    {
+      "id": 1380,
+      "key": "varnek",
+      "kind": "land",
+      "terrain": "plains",
+      "centroid": [
+        2351,
+        77
+      ],
+      "neighbors": [
+        {
+          "id": 939,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 962,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1356,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1388,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1462,
+          "edge": "normal",
+          "cost": 3
+        }
+      ],
+      "ports": [],
+      "development": 0,
+      "name_key": "province_varnek",
+      "area": "europe_extension_unclassified"
+    },
+    {
+      "id": 1381,
+      "key": "denow",
+      "kind": "land",
+      "terrain": "hills",
+      "centroid": [
+        2575,
+        1080
+      ],
+      "neighbors": [
+        {
+          "id": 1334,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1337,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1357,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1358,
+          "edge": "normal",
+          "cost": 3
+        }
+      ],
+      "ports": [],
+      "development": 0,
+      "name_key": "province_denow",
+      "area": "europe_extension_unclassified"
+    },
+    {
+      "id": 1382,
+      "key": "tejen",
+      "kind": "land",
+      "terrain": "plains",
+      "centroid": [
+        2354,
+        1120
+      ],
+      "neighbors": [
+        {
+          "id": 441,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 817,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1216,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1341,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1457,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1460,
+          "edge": "normal",
+          "cost": 3
+        }
+      ],
+      "ports": [],
+      "development": 0,
+      "name_key": "province_tejen",
+      "area": "europe_extension_unclassified"
+    },
+    {
+      "id": 1383,
+      "key": "turgay",
+      "kind": "land",
+      "terrain": "plains",
+      "centroid": [
+        2446,
+        715
+      ],
+      "neighbors": [
+        {
+          "id": 1429,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1430,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1433,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1434,
+          "edge": "normal",
+          "cost": 3
+        }
+      ],
+      "ports": [],
+      "development": 0,
+      "name_key": "province_turgay",
+      "area": "europe_extension_unclassified"
+    },
+    {
+      "id": 1384,
+      "key": "eu_801_006",
+      "kind": "land",
+      "terrain": "plains",
+      "centroid": [
+        2574,
+        31
+      ],
+      "neighbors": [
+        {
+          "id": 1387,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1463,
+          "edge": "normal",
+          "cost": 3
+        }
+      ],
+      "ports": [],
+      "development": 0,
+      "name_key": "province_eu_801_006",
+      "area": "europe_extension_unclassified"
+    },
+    {
+      "id": 1385,
+      "key": "eu_756_021",
+      "kind": "land",
+      "terrain": "plains",
+      "centroid": [
+        2423,
+        83
+      ],
+      "neighbors": [
+        {
+          "id": 1356,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1386,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1389,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1462,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1463,
+          "edge": "normal",
+          "cost": 3
+        }
+      ],
+      "ports": [],
+      "development": 0,
+      "name_key": "province_eu_756_021",
+      "area": "europe_extension_unclassified"
+    },
+    {
+      "id": 1386,
+      "key": "eu_771_021",
+      "kind": "land",
+      "terrain": "plains",
+      "centroid": [
+        2466,
+        88
+      ],
+      "neighbors": [
+        {
+          "id": 1385,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1389,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1390,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1391,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1463,
+          "edge": "normal",
+          "cost": 3
+        }
+      ],
+      "ports": [],
+      "development": 0,
+      "name_key": "province_eu_771_021",
+      "area": "europe_extension_unclassified"
+    },
+    {
+      "id": 1387,
+      "key": "eu_801_021",
+      "kind": "land",
+      "terrain": "plains",
+      "centroid": [
+        2576,
+        62
+      ],
+      "neighbors": [
+        {
+          "id": 1384,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1463,
+          "edge": "normal",
+          "cost": 3
+        }
+      ],
+      "ports": [],
+      "development": 0,
+      "name_key": "province_eu_801_021",
+      "area": "europe_extension_unclassified"
+    },
+    {
+      "id": 1388,
+      "key": "eu_741_036",
+      "kind": "land",
+      "terrain": "plains",
+      "centroid": [
+        2368,
+        119
+      ],
+      "neighbors": [
+        {
+          "id": 962,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1356,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1380,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1389,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1393,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1462,
+          "edge": "normal",
+          "cost": 3
+        }
+      ],
+      "ports": [],
+      "development": 0,
+      "name_key": "province_eu_741_036",
+      "area": "europe_extension_unclassified"
+    },
+    {
+      "id": 1389,
+      "key": "eu_756_036",
+      "kind": "land",
+      "terrain": "plains",
+      "centroid": [
+        2420,
+        117
+      ],
+      "neighbors": [
+        {
+          "id": 1343,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1356,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1385,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1386,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1388,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1390,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1394,
+          "edge": "normal",
+          "cost": 3
+        }
+      ],
+      "ports": [],
+      "development": 0,
+      "name_key": "province_eu_756_036",
+      "area": "europe_extension_unclassified"
+    },
+    {
+      "id": 1390,
+      "key": "eu_771_036",
+      "kind": "land",
+      "terrain": "plains",
+      "centroid": [
+        2470,
+        114
+      ],
+      "neighbors": [
+        {
+          "id": 1343,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1386,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1389,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1391,
+          "edge": "normal",
+          "cost": 3
+        }
+      ],
+      "ports": [],
+      "development": 0,
+      "name_key": "province_eu_771_036",
+      "area": "europe_extension_unclassified"
+    },
+    {
+      "id": 1391,
+      "key": "eu_786_036",
+      "kind": "land",
+      "terrain": "plains",
+      "centroid": [
+        2516,
+        116
+      ],
+      "neighbors": [
+        {
+          "id": 1343,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1386,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1390,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1392,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1395,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1463,
+          "edge": "normal",
+          "cost": 3
+        }
+      ],
+      "ports": [],
+      "development": 0,
+      "name_key": "province_eu_786_036",
+      "area": "europe_extension_unclassified"
+    },
+    {
+      "id": 1392,
+      "key": "eu_801_036",
+      "kind": "land",
+      "terrain": "plains",
+      "centroid": [
+        2566,
+        126
+      ],
+      "neighbors": [
+        {
+          "id": 1350,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1391,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1463,
+          "edge": "normal",
+          "cost": 3
+        }
+      ],
+      "ports": [],
+      "development": 0,
+      "name_key": "province_eu_801_036",
+      "area": "europe_extension_unclassified"
+    },
+    {
+      "id": 1393,
+      "key": "eu_741_051",
+      "kind": "land",
+      "terrain": "plains",
+      "centroid": [
+        2371,
+        162
+      ],
+      "neighbors": [
+        {
+          "id": 986,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1353,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1388,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1394,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1396,
+          "edge": "normal",
+          "cost": 3
+        }
+      ],
+      "ports": [],
+      "development": 0,
+      "name_key": "province_eu_741_051",
+      "area": "europe_extension_unclassified"
+    },
+    {
+      "id": 1394,
+      "key": "eu_756_051",
+      "kind": "land",
+      "terrain": "plains",
+      "centroid": [
+        2421,
+        166
+      ],
+      "neighbors": [
+        {
+          "id": 1343,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1389,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1393,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1397,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1398,
+          "edge": "normal",
+          "cost": 3
+        }
+      ],
+      "ports": [],
+      "development": 0,
+      "name_key": "province_eu_756_051",
+      "area": "europe_extension_unclassified"
+    },
+    {
+      "id": 1395,
+      "key": "eu_786_051",
+      "kind": "land",
+      "terrain": "plains",
+      "centroid": [
+        2511,
+        164
+      ],
+      "neighbors": [
+        {
+          "id": 1343,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1350,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1391,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1398,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1399,
+          "edge": "normal",
+          "cost": 3
+        }
+      ],
+      "ports": [],
+      "development": 0,
+      "name_key": "province_eu_786_051",
+      "area": "europe_extension_unclassified"
+    },
+    {
+      "id": 1396,
+      "key": "eu_741_066",
+      "kind": "land",
+      "terrain": "hills",
+      "centroid": [
+        2374,
+        211
+      ],
+      "neighbors": [
+        {
+          "id": 1353,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1379,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1393,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1397,
+          "edge": "normal",
+          "cost": 3
+        }
+      ],
+      "ports": [],
+      "development": 0,
+      "name_key": "province_eu_741_066",
+      "area": "europe_extension_unclassified"
+    },
+    {
+      "id": 1397,
+      "key": "eu_756_066",
+      "kind": "land",
+      "terrain": "plains",
+      "centroid": [
+        2421,
+        212
+      ],
+      "neighbors": [
+        {
+          "id": 1379,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1394,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1396,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1398,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1401,
+          "edge": "normal",
+          "cost": 3
+        }
+      ],
+      "ports": [],
+      "development": 0,
+      "name_key": "province_eu_756_066",
+      "area": "europe_extension_unclassified"
+    },
+    {
+      "id": 1398,
+      "key": "eu_771_066",
+      "kind": "land",
+      "terrain": "plains",
+      "centroid": [
+        2468,
+        212
+      ],
+      "neighbors": [
+        {
+          "id": 1343,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1354,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1394,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1395,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1397,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1399,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1401,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1402,
+          "edge": "normal",
+          "cost": 3
+        }
+      ],
+      "ports": [],
+      "development": 0,
+      "name_key": "province_eu_771_066",
+      "area": "europe_extension_unclassified"
+    },
+    {
+      "id": 1399,
+      "key": "eu_786_066",
+      "kind": "land",
+      "terrain": "plains",
+      "centroid": [
+        2516,
+        213
+      ],
+      "neighbors": [
+        {
+          "id": 1350,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1395,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1398,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1400,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1402,
+          "edge": "normal",
+          "cost": 3
+        }
+      ],
+      "ports": [],
+      "development": 0,
+      "name_key": "province_eu_786_066",
+      "area": "europe_extension_unclassified"
+    },
+    {
+      "id": 1400,
+      "key": "eu_801_066",
+      "kind": "land",
+      "terrain": "plains",
+      "centroid": [
+        2568,
+        212
+      ],
+      "neighbors": [
+        {
+          "id": 1350,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1399,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1403,
+          "edge": "normal",
+          "cost": 3
+        }
+      ],
+      "ports": [],
+      "development": 0,
+      "name_key": "province_eu_801_066",
+      "area": "europe_extension_unclassified"
+    },
+    {
+      "id": 1401,
+      "key": "eu_756_081",
+      "kind": "land",
+      "terrain": "plains",
+      "centroid": [
+        2422,
+        260
+      ],
+      "neighbors": [
+        {
+          "id": 1354,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1379,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1397,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1398,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1404,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1405,
+          "edge": "normal",
+          "cost": 3
+        }
+      ],
+      "ports": [],
+      "development": 0,
+      "name_key": "province_eu_756_081",
+      "area": "europe_extension_unclassified"
+    },
+    {
+      "id": 1402,
+      "key": "eu_786_081",
+      "kind": "land",
+      "terrain": "plains",
+      "centroid": [
+        2517,
+        260
+      ],
+      "neighbors": [
+        {
+          "id": 1349,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1354,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1398,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1399,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1403,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1407,
+          "edge": "normal",
+          "cost": 3
+        }
+      ],
+      "ports": [],
+      "development": 0,
+      "name_key": "province_eu_786_081",
+      "area": "europe_extension_unclassified"
+    },
+    {
+      "id": 1403,
+      "key": "eu_801_081",
+      "kind": "land",
+      "terrain": "plains",
+      "centroid": [
+        2566,
+        260
+      ],
+      "neighbors": [
+        {
+          "id": 1400,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1402,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1407,
+          "edge": "normal",
+          "cost": 3
+        }
+      ],
+      "ports": [],
+      "development": 0,
+      "name_key": "province_eu_801_081",
+      "area": "europe_extension_unclassified"
+    },
+    {
+      "id": 1404,
+      "key": "eu_741_096",
+      "kind": "land",
+      "terrain": "plains",
+      "centroid": [
+        2368,
+        307
+      ],
+      "neighbors": [
+        {
+          "id": 1035,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1060,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1375,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1379,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1401,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1405,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1408,
+          "edge": "normal",
+          "cost": 3
+        }
+      ],
+      "ports": [],
+      "development": 0,
+      "name_key": "province_eu_741_096",
+      "area": "europe_extension_unclassified"
+    },
+    {
+      "id": 1405,
+      "key": "eu_756_096",
+      "kind": "land",
+      "terrain": "plains",
+      "centroid": [
+        2420,
+        308
+      ],
+      "neighbors": [
+        {
+          "id": 1354,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1401,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1404,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1406,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1408,
+          "edge": "normal",
+          "cost": 3
+        }
+      ],
+      "ports": [],
+      "development": 0,
+      "name_key": "province_eu_756_096",
+      "area": "europe_extension_unclassified"
+    },
+    {
+      "id": 1406,
+      "key": "eu_771_096",
+      "kind": "land",
+      "terrain": "plains",
+      "centroid": [
+        2465,
+        312
+      ],
+      "neighbors": [
+        {
+          "id": 1349,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1354,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1405,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1409,
+          "edge": "normal",
+          "cost": 3
+        }
+      ],
+      "ports": [],
+      "development": 0,
+      "name_key": "province_eu_771_096",
+      "area": "europe_extension_unclassified"
+    },
+    {
+      "id": 1407,
+      "key": "eu_801_096",
+      "kind": "land",
+      "terrain": "plains",
+      "centroid": [
+        2564,
+        308
+      ],
+      "neighbors": [
+        {
+          "id": 1349,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1402,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1403,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1410,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1411,
+          "edge": "normal",
+          "cost": 3
+        }
+      ],
+      "ports": [],
+      "development": 0,
+      "name_key": "province_eu_801_096",
+      "area": "europe_extension_unclassified"
+    },
+    {
+      "id": 1408,
+      "key": "eu_756_111",
+      "kind": "land",
+      "terrain": "plains",
+      "centroid": [
+        2415,
+        357
+      ],
+      "neighbors": [
+        {
+          "id": 1347,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1375,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1404,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1405,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1409,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1412,
+          "edge": "normal",
+          "cost": 3
+        }
+      ],
+      "ports": [],
+      "development": 0,
+      "name_key": "province_eu_756_111",
+      "area": "europe_extension_unclassified"
+    },
+    {
+      "id": 1409,
+      "key": "eu_771_111",
+      "kind": "land",
+      "terrain": "plains",
+      "centroid": [
+        2465,
+        354
+      ],
+      "neighbors": [
+        {
+          "id": 1349,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1369,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1406,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1408,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1410,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1413,
+          "edge": "normal",
+          "cost": 3
+        }
+      ],
+      "ports": [],
+      "development": 0,
+      "name_key": "province_eu_771_111",
+      "area": "europe_extension_unclassified"
+    },
+    {
+      "id": 1410,
+      "key": "eu_786_111",
+      "kind": "land",
+      "terrain": "plains",
+      "centroid": [
+        2520,
+        356
+      ],
+      "neighbors": [
+        {
+          "id": 1349,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1369,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1407,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1409,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1411,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1414,
+          "edge": "normal",
+          "cost": 3
+        }
+      ],
+      "ports": [],
+      "development": 0,
+      "name_key": "province_eu_786_111",
+      "area": "europe_extension_unclassified"
+    },
+    {
+      "id": 1411,
+      "key": "eu_801_111",
+      "kind": "land",
+      "terrain": "plains",
+      "centroid": [
+        2566,
+        356
+      ],
+      "neighbors": [
+        {
+          "id": 1407,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1410,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1415,
+          "edge": "normal",
+          "cost": 3
+        }
+      ],
+      "ports": [],
+      "development": 0,
+      "name_key": "province_eu_801_111",
+      "area": "europe_extension_unclassified"
+    },
+    {
+      "id": 1412,
+      "key": "eu_756_126",
+      "kind": "land",
+      "terrain": "plains",
+      "centroid": [
+        2416,
+        405
+      ],
+      "neighbors": [
+        {
+          "id": 1347,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1366,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1408,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1413,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1416,
+          "edge": "normal",
+          "cost": 3
+        }
+      ],
+      "ports": [],
+      "development": 0,
+      "name_key": "province_eu_756_126",
+      "area": "europe_extension_unclassified"
+    },
+    {
+      "id": 1413,
+      "key": "eu_771_126",
+      "kind": "land",
+      "terrain": "plains",
+      "centroid": [
+        2466,
+        407
+      ],
+      "neighbors": [
+        {
+          "id": 1369,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1370,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1409,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1412,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1414,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1417,
+          "edge": "normal",
+          "cost": 3
+        }
+      ],
+      "ports": [],
+      "development": 0,
+      "name_key": "province_eu_771_126",
+      "area": "europe_extension_unclassified"
+    },
+    {
+      "id": 1414,
+      "key": "eu_786_126",
+      "kind": "land",
+      "terrain": "plains",
+      "centroid": [
+        2520,
+        405
+      ],
+      "neighbors": [
+        {
+          "id": 1369,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1370,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1410,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1413,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1415,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1418,
+          "edge": "normal",
+          "cost": 3
+        }
+      ],
+      "ports": [],
+      "development": 0,
+      "name_key": "province_eu_786_126",
+      "area": "europe_extension_unclassified"
+    },
+    {
+      "id": 1415,
+      "key": "eu_801_126",
+      "kind": "land",
+      "terrain": "plains",
+      "centroid": [
+        2566,
+        404
+      ],
+      "neighbors": [
+        {
+          "id": 1411,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1414,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1418,
+          "edge": "normal",
+          "cost": 3
+        }
+      ],
+      "ports": [],
+      "development": 0,
+      "name_key": "province_eu_801_126",
+      "area": "europe_extension_unclassified"
+    },
+    {
+      "id": 1416,
+      "key": "eu_756_141",
+      "kind": "land",
+      "terrain": "plains",
+      "centroid": [
+        2423,
+        451
+      ],
+      "neighbors": [
+        {
+          "id": 1360,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1363,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1366,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1368,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1412,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1417,
+          "edge": "normal",
+          "cost": 3
+        }
+      ],
+      "ports": [],
+      "development": 0,
+      "name_key": "province_eu_756_141",
+      "area": "europe_extension_unclassified"
+    },
+    {
+      "id": 1417,
+      "key": "eu_771_141",
+      "kind": "land",
+      "terrain": "plains",
+      "centroid": [
+        2466,
+        455
+      ],
+      "neighbors": [
+        {
+          "id": 1336,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1363,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1370,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1413,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1416,
+          "edge": "normal",
+          "cost": 3
+        }
+      ],
+      "ports": [],
+      "development": 0,
+      "name_key": "province_eu_771_141",
+      "area": "europe_extension_unclassified"
+    },
+    {
+      "id": 1418,
+      "key": "eu_801_141",
+      "kind": "land",
+      "terrain": "plains",
+      "centroid": [
+        2565,
+        451
+      ],
+      "neighbors": [
+        {
+          "id": 1336,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1370,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1371,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1414,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1415,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1419,
+          "edge": "normal",
+          "cost": 3
+        }
+      ],
+      "ports": [],
+      "development": 0,
+      "name_key": "province_eu_801_141",
+      "area": "europe_extension_unclassified"
+    },
+    {
+      "id": 1419,
+      "key": "eu_801_156",
+      "kind": "land",
+      "terrain": "plains",
+      "centroid": [
+        2570,
+        502
+      ],
+      "neighbors": [
+        {
+          "id": 1344,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1371,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1418,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1421,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1464,
+          "edge": "normal",
+          "cost": 3
+        }
+      ],
+      "ports": [],
+      "development": 0,
+      "name_key": "province_eu_801_156",
+      "area": "europe_extension_unclassified"
+    },
+    {
+      "id": 1420,
+      "key": "eu_756_171",
+      "kind": "land",
+      "terrain": "plains",
+      "centroid": [
+        2424,
+        550
+      ],
+      "neighbors": [
+        {
+          "id": 1335,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1342,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1360,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1362,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1363,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1376,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1422,
+          "edge": "normal",
+          "cost": 3
+        }
+      ],
+      "ports": [],
+      "development": 0,
+      "name_key": "province_eu_756_171",
+      "area": "europe_extension_unclassified"
+    },
+    {
+      "id": 1421,
+      "key": "eu_801_171",
+      "kind": "land",
+      "terrain": "plains",
+      "centroid": [
+        2563,
+        549
+      ],
+      "neighbors": [
+        {
+          "id": 1344,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1419,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1423,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1424,
+          "edge": "normal",
+          "cost": 3
+        }
+      ],
+      "ports": [],
+      "development": 0,
+      "name_key": "province_eu_801_171",
+      "area": "europe_extension_unclassified"
+    },
+    {
+      "id": 1422,
+      "key": "eu_771_186",
+      "kind": "land",
+      "terrain": "plains",
+      "centroid": [
+        2468,
+        590
+      ],
+      "neighbors": [
+        {
+          "id": 1342,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1376,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1378,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1420,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1423,
+          "edge": "normal",
+          "cost": 3
+        }
+      ],
+      "ports": [],
+      "development": 0,
+      "name_key": "province_eu_771_186",
+      "area": "europe_extension_unclassified"
+    },
+    {
+      "id": 1423,
+      "key": "eu_786_186",
+      "kind": "land",
+      "terrain": "plains",
+      "centroid": [
+        2518,
+        591
+      ],
+      "neighbors": [
+        {
+          "id": 1344,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1376,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1378,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1421,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1422,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1424,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1426,
+          "edge": "normal",
+          "cost": 3
+        }
+      ],
+      "ports": [],
+      "development": 0,
+      "name_key": "province_eu_786_186",
+      "area": "europe_extension_unclassified"
+    },
+    {
+      "id": 1424,
+      "key": "eu_801_186",
+      "kind": "land",
+      "terrain": "plains",
+      "centroid": [
+        2566,
+        596
+      ],
+      "neighbors": [
+        {
+          "id": 1421,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1423,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1427,
+          "edge": "normal",
+          "cost": 3
+        }
+      ],
+      "ports": [],
+      "development": 0,
+      "name_key": "province_eu_801_186",
+      "area": "europe_extension_unclassified"
+    },
+    {
+      "id": 1425,
+      "key": "eu_756_201",
+      "kind": "land",
+      "terrain": "plains",
+      "centroid": [
+        2422,
+        647
+      ],
+      "neighbors": [
+        {
+          "id": 1342,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1367,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1378,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1428,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1429,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1430,
+          "edge": "normal",
+          "cost": 3
+        }
+      ],
+      "ports": [],
+      "development": 0,
+      "name_key": "province_eu_756_201",
+      "area": "europe_extension_unclassified"
+    },
+    {
+      "id": 1426,
+      "key": "eu_786_201",
+      "kind": "land",
+      "terrain": "plains",
+      "centroid": [
+        2515,
+        644
+      ],
+      "neighbors": [
+        {
+          "id": 1377,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1378,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1423,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1427,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1430,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1431,
+          "edge": "normal",
+          "cost": 3
+        }
+      ],
+      "ports": [],
+      "development": 0,
+      "name_key": "province_eu_786_201",
+      "area": "europe_extension_unclassified"
+    },
+    {
+      "id": 1427,
+      "key": "eu_801_201",
+      "kind": "land",
+      "terrain": "plains",
+      "centroid": [
+        2569,
+        644
+      ],
+      "neighbors": [
+        {
+          "id": 1348,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1377,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1424,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1426,
+          "edge": "normal",
+          "cost": 3
+        }
+      ],
+      "ports": [],
+      "development": 0,
+      "name_key": "province_eu_801_201",
+      "area": "europe_extension_unclassified"
+    },
+    {
+      "id": 1428,
+      "key": "eu_741_216",
+      "kind": "land",
+      "terrain": "plains",
+      "centroid": [
+        2366,
+        689
+      ],
+      "neighbors": [
+        {
+          "id": 846,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1139,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1158,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1367,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1425,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1429,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1432,
+          "edge": "normal",
+          "cost": 3
+        }
+      ],
+      "ports": [],
+      "development": 0,
+      "name_key": "province_eu_741_216",
+      "area": "europe_extension_unclassified"
+    },
+    {
+      "id": 1429,
+      "key": "eu_756_216",
+      "kind": "land",
+      "terrain": "plains",
+      "centroid": [
+        2418,
+        690
+      ],
+      "neighbors": [
+        {
+          "id": 1383,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1425,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1428,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1430,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1433,
+          "edge": "normal",
+          "cost": 3
+        }
+      ],
+      "ports": [],
+      "development": 0,
+      "name_key": "province_eu_756_216",
+      "area": "europe_extension_unclassified"
+    },
+    {
+      "id": 1430,
+      "key": "eu_771_216",
+      "kind": "land",
+      "terrain": "plains",
+      "centroid": [
+        2470,
+        685
+      ],
+      "neighbors": [
+        {
+          "id": 1378,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1383,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1425,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1426,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1429,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1431,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1434,
+          "edge": "normal",
+          "cost": 3
+        }
+      ],
+      "ports": [],
+      "development": 0,
+      "name_key": "province_eu_771_216",
+      "area": "europe_extension_unclassified"
+    },
+    {
+      "id": 1431,
+      "key": "eu_786_216",
+      "kind": "land",
+      "terrain": "plains",
+      "centroid": [
+        2512,
+        694
+      ],
+      "neighbors": [
+        {
+          "id": 1348,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1377,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1426,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1430,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1435,
+          "edge": "normal",
+          "cost": 3
+        }
+      ],
+      "ports": [],
+      "development": 0,
+      "name_key": "province_eu_786_216",
+      "area": "europe_extension_unclassified"
+    },
+    {
+      "id": 1432,
+      "key": "eu_741_231",
+      "kind": "land",
+      "terrain": "plains",
+      "centroid": [
+        2365,
+        747
+      ],
+      "neighbors": [
+        {
+          "id": 602,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1158,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1352,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1428,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1433,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1437,
+          "edge": "normal",
+          "cost": 3
+        }
+      ],
+      "ports": [],
+      "development": 0,
+      "name_key": "province_eu_741_231",
+      "area": "europe_extension_unclassified"
+    },
+    {
+      "id": 1433,
+      "key": "eu_756_231",
+      "kind": "land",
+      "terrain": "plains",
+      "centroid": [
+        2419,
+        742
+      ],
+      "neighbors": [
+        {
+          "id": 1383,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1429,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1432,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1434,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1437,
+          "edge": "normal",
+          "cost": 3
+        }
+      ],
+      "ports": [],
+      "development": 0,
+      "name_key": "province_eu_756_231",
+      "area": "europe_extension_unclassified"
+    },
+    {
+      "id": 1434,
+      "key": "eu_771_231",
+      "kind": "land",
+      "terrain": "plains",
+      "centroid": [
+        2471,
+        743
+      ],
+      "neighbors": [
+        {
+          "id": 1383,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1430,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1433,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1435,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1438,
+          "edge": "normal",
+          "cost": 3
+        }
+      ],
+      "ports": [],
+      "development": 0,
+      "name_key": "province_eu_771_231",
+      "area": "europe_extension_unclassified"
+    },
+    {
+      "id": 1435,
+      "key": "eu_786_231",
+      "kind": "land",
+      "terrain": "plains",
+      "centroid": [
+        2516,
+        741
+      ],
+      "neighbors": [
+        {
+          "id": 1348,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1431,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1434,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1436,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1439,
+          "edge": "normal",
+          "cost": 3
+        }
+      ],
+      "ports": [],
+      "development": 0,
+      "name_key": "province_eu_786_231",
+      "area": "europe_extension_unclassified"
+    },
+    {
+      "id": 1436,
+      "key": "eu_801_231",
+      "kind": "land",
+      "terrain": "hills",
+      "centroid": [
+        2565,
+        740
+      ],
+      "neighbors": [
+        {
+          "id": 1346,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1348,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1435,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1439,
+          "edge": "normal",
+          "cost": 3
+        }
+      ],
+      "ports": [],
+      "development": 0,
+      "name_key": "province_eu_801_231",
+      "area": "europe_extension_unclassified"
+    },
+    {
+      "id": 1437,
+      "key": "eu_756_246",
+      "kind": "land",
+      "terrain": "plains",
+      "centroid": [
+        2422,
+        787
+      ],
+      "neighbors": [
+        {
+          "id": 1351,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1352,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1355,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1432,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1433,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1438,
+          "edge": "normal",
+          "cost": 3
+        }
+      ],
+      "ports": [],
+      "development": 0,
+      "name_key": "province_eu_756_246",
+      "area": "europe_extension_unclassified"
+    },
+    {
+      "id": 1438,
+      "key": "eu_771_246",
+      "kind": "land",
+      "terrain": "plains",
+      "centroid": [
+        2469,
+        788
+      ],
+      "neighbors": [
+        {
+          "id": 1351,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1434,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1437,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1439,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1441,
+          "edge": "normal",
+          "cost": 3
+        }
+      ],
+      "ports": [],
+      "development": 0,
+      "name_key": "province_eu_771_246",
+      "area": "europe_extension_unclassified"
+    },
+    {
+      "id": 1439,
+      "key": "eu_786_246",
+      "kind": "land",
+      "terrain": "plains",
+      "centroid": [
+        2521,
+        789
+      ],
+      "neighbors": [
+        {
+          "id": 1346,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1435,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1436,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1438,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1442,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1443,
+          "edge": "normal",
+          "cost": 3
+        }
+      ],
+      "ports": [],
+      "development": 0,
+      "name_key": "province_eu_786_246",
+      "area": "europe_extension_unclassified"
+    },
+    {
+      "id": 1440,
+      "key": "eu_741_261",
+      "kind": "land",
+      "terrain": "plains",
+      "centroid": [
+        2359,
+        837
+      ],
+      "neighbors": [
+        {
+          "id": 602,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1179,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1352,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1355,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1444,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1465,
+          "edge": "normal",
+          "cost": 3
+        }
+      ],
+      "ports": [],
+      "development": 0,
+      "name_key": "province_eu_741_261",
+      "area": "europe_extension_unclassified"
+    },
+    {
+      "id": 1441,
+      "key": "eu_771_261",
+      "kind": "land",
+      "terrain": "plains",
+      "centroid": [
+        2472,
+        835
+      ],
+      "neighbors": [
+        {
+          "id": 1339,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1351,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1438,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1442,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1446,
+          "edge": "normal",
+          "cost": 3
+        }
+      ],
+      "ports": [],
+      "development": 0,
+      "name_key": "province_eu_771_261",
+      "area": "europe_extension_unclassified"
+    },
+    {
+      "id": 1442,
+      "key": "eu_786_261",
+      "kind": "land",
+      "terrain": "plains",
+      "centroid": [
+        2517,
+        833
+      ],
+      "neighbors": [
+        {
+          "id": 1339,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1439,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1441,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1443,
+          "edge": "normal",
+          "cost": 3
+        }
+      ],
+      "ports": [],
+      "development": 0,
+      "name_key": "province_eu_786_261",
+      "area": "europe_extension_unclassified"
+    },
+    {
+      "id": 1443,
+      "key": "eu_801_261",
+      "kind": "land",
+      "terrain": "plains",
+      "centroid": [
+        2566,
+        835
+      ],
+      "neighbors": [
+        {
+          "id": 1339,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1346,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1373,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1439,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1442,
+          "edge": "normal",
+          "cost": 3
+        }
+      ],
+      "ports": [],
+      "development": 0,
+      "name_key": "province_eu_801_261",
+      "area": "europe_extension_unclassified"
+    },
+    {
+      "id": 1444,
+      "key": "eu_741_276",
+      "kind": "land",
+      "terrain": "plains",
+      "centroid": [
+        2366,
+        885
+      ],
+      "neighbors": [
+        {
+          "id": 615,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1179,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1355,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1440,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1445,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1447,
+          "edge": "normal",
+          "cost": 3
+        }
+      ],
+      "ports": [],
+      "development": 0,
+      "name_key": "province_eu_741_276",
+      "area": "europe_extension_unclassified"
+    },
+    {
+      "id": 1445,
+      "key": "eu_756_276",
+      "kind": "land",
+      "terrain": "plains",
+      "centroid": [
+        2420,
+        886
+      ],
+      "neighbors": [
+        {
+          "id": 1351,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1355,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1444,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1446,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1448,
+          "edge": "normal",
+          "cost": 3
+        }
+      ],
+      "ports": [],
+      "development": 0,
+      "name_key": "province_eu_756_276",
+      "area": "europe_extension_unclassified"
+    },
+    {
+      "id": 1446,
+      "key": "eu_771_276",
+      "kind": "land",
+      "terrain": "plains",
+      "centroid": [
+        2468,
+        886
+      ],
+      "neighbors": [
+        {
+          "id": 1339,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1351,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1441,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1445,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1449,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1450,
+          "edge": "normal",
+          "cost": 3
+        }
+      ],
+      "ports": [],
+      "development": 0,
+      "name_key": "province_eu_771_276",
+      "area": "europe_extension_unclassified"
+    },
+    {
+      "id": 1447,
+      "key": "eu_741_291",
+      "kind": "land",
+      "terrain": "plains",
+      "centroid": [
+        2368,
+        931
+      ],
+      "neighbors": [
+        {
+          "id": 522,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 615,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1345,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1444,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1448,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1452,
+          "edge": "normal",
+          "cost": 3
+        }
+      ],
+      "ports": [],
+      "development": 0,
+      "name_key": "province_eu_741_291",
+      "area": "europe_extension_unclassified"
+    },
+    {
+      "id": 1448,
+      "key": "eu_756_291",
+      "kind": "land",
+      "terrain": "plains",
+      "centroid": [
+        2420,
+        932
+      ],
+      "neighbors": [
+        {
+          "id": 1365,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1445,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1447,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1449,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1452,
+          "edge": "normal",
+          "cost": 3
+        }
+      ],
+      "ports": [],
+      "development": 0,
+      "name_key": "province_eu_756_291",
+      "area": "europe_extension_unclassified"
+    },
+    {
+      "id": 1449,
+      "key": "eu_771_291",
+      "kind": "land",
+      "terrain": "plains",
+      "centroid": [
+        2468,
+        931
+      ],
+      "neighbors": [
+        {
+          "id": 1365,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1446,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1448,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1450,
+          "edge": "normal",
+          "cost": 3
+        }
+      ],
+      "ports": [],
+      "development": 0,
+      "name_key": "province_eu_771_291",
+      "area": "europe_extension_unclassified"
+    },
+    {
+      "id": 1450,
+      "key": "eu_786_291",
+      "kind": "land",
+      "terrain": "plains",
+      "centroid": [
+        2516,
+        930
+      ],
+      "neighbors": [
+        {
+          "id": 1339,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1365,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1373,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1446,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1449,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1451,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1453,
+          "edge": "normal",
+          "cost": 3
+        }
+      ],
+      "ports": [],
+      "development": 0,
+      "name_key": "province_eu_786_291",
+      "area": "europe_extension_unclassified"
+    },
+    {
+      "id": 1451,
+      "key": "eu_801_291",
+      "kind": "land",
+      "terrain": "plains",
+      "centroid": [
+        2567,
+        932
+      ],
+      "neighbors": [
+        {
+          "id": 1373,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1450,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1454,
+          "edge": "normal",
+          "cost": 3
+        }
+      ],
+      "ports": [],
+      "development": 0,
+      "name_key": "province_eu_801_291",
+      "area": "europe_extension_unclassified"
+    },
+    {
+      "id": 1452,
+      "key": "eu_756_306",
+      "kind": "land",
+      "terrain": "plains",
+      "centroid": [
+        2417,
+        981
+      ],
+      "neighbors": [
+        {
+          "id": 1345,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1365,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1447,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1448,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1455,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1456,
+          "edge": "normal",
+          "cost": 3
+        }
+      ],
+      "ports": [],
+      "development": 0,
+      "name_key": "province_eu_756_306",
+      "area": "europe_extension_unclassified"
+    },
+    {
+      "id": 1453,
+      "key": "eu_786_306",
+      "kind": "land",
+      "terrain": "plains",
+      "centroid": [
+        2518,
+        979
+      ],
+      "neighbors": [
+        {
+          "id": 1334,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1359,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1365,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1450,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1454,
+          "edge": "normal",
+          "cost": 3
+        }
+      ],
+      "ports": [],
+      "development": 0,
+      "name_key": "province_eu_786_306",
+      "area": "europe_extension_unclassified"
+    },
+    {
+      "id": 1454,
+      "key": "eu_801_306",
+      "kind": "land",
+      "terrain": "plains",
+      "centroid": [
+        2565,
+        979
+      ],
+      "neighbors": [
+        {
+          "id": 1334,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1358,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1451,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1453,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1466,
+          "edge": "normal",
+          "cost": 3
+        }
+      ],
+      "ports": [],
+      "development": 0,
+      "name_key": "province_eu_801_306",
+      "area": "europe_extension_unclassified"
+    },
+    {
+      "id": 1455,
+      "key": "eu_741_321",
+      "kind": "land",
+      "terrain": "plains",
+      "centroid": [
+        2367,
+        1027
+      ],
+      "neighbors": [
+        {
+          "id": 1212,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1345,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1452,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1456,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1457,
+          "edge": "normal",
+          "cost": 3
+        }
+      ],
+      "ports": [],
+      "development": 0,
+      "name_key": "province_eu_741_321",
+      "area": "europe_extension_unclassified"
+    },
+    {
+      "id": 1456,
+      "key": "eu_756_321",
+      "kind": "land",
+      "terrain": "plains",
+      "centroid": [
+        2420,
+        1026
+      ],
+      "neighbors": [
+        {
+          "id": 1338,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1340,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1365,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1452,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1455,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1458,
+          "edge": "normal",
+          "cost": 3
+        }
+      ],
+      "ports": [],
+      "development": 0,
+      "name_key": "province_eu_756_321",
+      "area": "europe_extension_unclassified"
+    },
+    {
+      "id": 1457,
+      "key": "eu_741_336",
+      "kind": "land",
+      "terrain": "plains",
+      "centroid": [
+        2367,
+        1070
+      ],
+      "neighbors": [
+        {
+          "id": 1216,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1341,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1382,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1455,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1458,
+          "edge": "normal",
+          "cost": 3
+        }
+      ],
+      "ports": [],
+      "development": 0,
+      "name_key": "province_eu_741_336",
+      "area": "europe_extension_unclassified"
+    },
+    {
+      "id": 1458,
+      "key": "eu_756_336",
+      "kind": "land",
+      "terrain": "plains",
+      "centroid": [
+        2421,
+        1076
+      ],
+      "neighbors": [
+        {
+          "id": 1340,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1341,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1456,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1457,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1459,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1460,
+          "edge": "normal",
+          "cost": 3
+        }
+      ],
+      "ports": [],
+      "development": 0,
+      "name_key": "province_eu_756_336",
+      "area": "europe_extension_unclassified"
+    },
+    {
+      "id": 1459,
+      "key": "eu_771_336",
+      "kind": "land",
+      "terrain": "plains",
+      "centroid": [
+        2468,
+        1079
+      ],
+      "neighbors": [
+        {
+          "id": 1338,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1340,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1357,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1372,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1458,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1461,
+          "edge": "normal",
+          "cost": 3
+        }
+      ],
+      "ports": [],
+      "development": 0,
+      "name_key": "province_eu_771_336",
+      "area": "europe_extension_unclassified"
+    },
+    {
+      "id": 1460,
+      "key": "eu_756_351",
+      "kind": "land",
+      "terrain": "hills",
+      "centroid": [
+        2418,
+        1130
+      ],
+      "neighbors": [
+        {
+          "id": 1341,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1382,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1458,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1461,
+          "edge": "normal",
+          "cost": 3
+        }
+      ],
+      "ports": [],
+      "development": 0,
+      "name_key": "province_eu_756_351",
+      "area": "europe_extension_unclassified"
+    },
+    {
+      "id": 1461,
+      "key": "eu_771_351",
+      "kind": "land",
+      "terrain": "hills",
+      "centroid": [
+        2464,
+        1127
+      ],
+      "neighbors": [
+        {
+          "id": 1364,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1372,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1459,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1460,
+          "edge": "normal",
+          "cost": 3
+        }
+      ],
+      "ports": [],
+      "development": 0,
+      "name_key": "province_eu_771_351",
+      "area": "europe_extension_unclassified"
+    },
+    {
+      "id": 1462,
+      "key": "sea_0032_2384",
+      "kind": "sea",
+      "terrain": "sea",
+      "centroid": [
+        2386,
+        39
+      ],
+      "neighbors": [
+        {
+          "id": 1243,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1356,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1380,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1385,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1388,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1463,
+          "edge": "normal",
+          "cost": 3
+        }
+      ],
+      "ports": [],
+      "development": 0,
+      "name_key": "province_sea_0032_2384",
+      "area": "europe_extension_water"
+    },
+    {
+      "id": 1463,
+      "key": "sea_0032_2496",
+      "kind": "sea",
+      "terrain": "sea",
+      "centroid": [
+        2513,
+        46
+      ],
+      "neighbors": [
+        {
+          "id": 1384,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1385,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1386,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1387,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1391,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1392,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1462,
+          "edge": "normal",
+          "cost": 3
+        }
+      ],
+      "ports": [],
+      "development": 0,
+      "name_key": "province_sea_0032_2496",
+      "area": "europe_extension_water"
+    },
+    {
+      "id": 1464,
+      "key": "lake_002",
+      "kind": "lake",
+      "terrain": "lake",
+      "centroid": [
+        2491,
+        617
+      ],
+      "neighbors": [
+        {
+          "id": 1378,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1419,
+          "edge": "normal",
+          "cost": 3
+        }
+      ],
+      "ports": [],
+      "development": 0,
+      "name_key": "province_lake_002",
+      "area": "europe_extension_water"
+    },
+    {
+      "id": 1465,
+      "key": "lake_003",
+      "kind": "lake",
+      "terrain": "lake",
+      "centroid": [
+        2358,
+        817
+      ],
+      "neighbors": [
+        {
+          "id": 1179,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1352,
+          "edge": "normal",
+          "cost": 3
+        },
+        {
+          "id": 1440,
+          "edge": "normal",
+          "cost": 3
+        }
+      ],
+      "ports": [],
+      "development": 0,
+      "name_key": "province_lake_003",
+      "area": "europe_extension_water"
+    },
+    {
+      "id": 1466,
+      "key": "lake_005",
+      "kind": "lake",
+      "terrain": "lake",
+      "centroid": [
+        2591,
+        985
+      ],
+      "neighbors": [
+        {
+          "id": 1454,
+          "edge": "normal",
+          "cost": 3
+        }
+      ],
+      "ports": [],
+      "development": 0,
+      "name_key": "province_lake_005",
       "area": "europe_extension_water"
     }
   ]

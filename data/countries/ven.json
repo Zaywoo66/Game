@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "tag": "ven",
+  "name": "Republic of Venice",
+  "color": [
+    191,
+    145,
+    99
+  ],
+  "capital": "venice",
+  "ai_profile": "balanced",
+  "government": "republic",
+  "start": {
+    "ruler": "francesco_foscari",
+    "heir": null,
+    "provinces": [
+      "bergamo",
+      "ermoupoli",
+      "pula",
+      "udine",
+      "venice",
+      "verona"
+    ],
+    "treasury": 80000,
+    "tax_rate": 200,
+    "monthly_spending": 5000
+  }
+}

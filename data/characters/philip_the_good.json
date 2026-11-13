@@ -1,0 +1,20 @@
+{
+  "schema_version": 2,
+  "key": "philip_the_good",
+  "country": "bur",
+  "name": "Philip the Good",
+  "dynasty": "valois_burgundy",
+  "sex": "male",
+  "spouse": "isabella_of_portugal",
+  "birth": [
+    1396,
+    7,
+    31
+  ],
+  "stats": {
+    "adm": 4,
+    "dip": 4,
+    "mil": 3
+  },
+  "traits": []
+}

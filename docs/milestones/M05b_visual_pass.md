@@ -26,11 +26,18 @@ Why: M2-M5 acceptance was technical only. Later systems (diplomacy, naval, AI) a
 - Tooltips on numbers show modifier breakdowns.
 - Works at 1280x720 and 1920x1080.
 
+### Interaction progress
+- Camera keyboard pan (WASD/arrows), Home framing, double-click province focus,
+  and cursor-centered wheel zoom are implemented. Remaining 5b.7 controls,
+  order feedback, notifications, settings, and session acceptance are open.
+
 ## Acceptance (evidence required)
 - Add a dev command capturing screenshots at named camera presets (whole region, Britain close-up, Iberian coast, single province close-up) at 1080p. PR must attach them; the owner reviews. No screenshots = not accepted.
 - Owner checklist: no void/skewed plane, no visible water tiling, readable borders, no raw keys in UI, panels do not hide the map center.
-- 60 FPS at 1080p on target hardware at the new density; RAM logged.
+- 60 FPS at 1080p on target hardware at the new density; RAM logged once after
+  the final map density/rendering pass and before release. Repeat only if map
+  density or rendering changes; unrelated mechanics edits do not trigger it.
 - Existing tests and AI smoke test still pass.
 
 ## Suggested task split (one PR each)
-5b.1 docs patch; 5b.2 map rebuild + ownership; 5b.3 movement calibration + tick, snapshot and delta measurements; 5b.4 camera/water/borders/terrain + native 1080p FPS/RAM after the visual changes; 5b.5 labels, map modes, unit markers, hover/selection feedback; 5b.6 UI layout, UI_STYLE.md, localization of displayed keys.
+5b.1 docs patch; 5b.2 map rebuild + ownership; 5b.3 movement calibration + tick, snapshot and delta measurements; 5b.4 camera/water/borders/terrain + native 1080p FPS/RAM after the visual changes; 5b.5 labels, map modes, unit markers, hover/selection feedback; 5b.6 UI layout, UI_STYLE.md, localization of displayed keys; 5b.7 interaction layer; 5b.8 war/peace and playable-session acceptance.

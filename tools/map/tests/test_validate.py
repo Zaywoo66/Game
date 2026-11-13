@@ -10,6 +10,7 @@ import numpy as np
 from PIL import Image
 from rasterio.features import rasterize
 from rasterio.transform import from_bounds
+from shapely.geometry import Point, shape
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
@@ -61,7 +62,7 @@ class MapValidationTests(unittest.TestCase):
         self.assertEqual({entry["province_key"] for entry in assignments if entry["resolution"] == "unmatched"}, {
             "cork", "galway", "sligo", "lisburn", "killarney", "tralee", "omagh", "shannon", "donegal",
         })
-        self.assertEqual(sum(entry["polity_name"] == "Holy Roman Empire Minor States" for entry in assignments), 67)
+        self.assertEqual(sum(entry["polity_name"] == "Holy Roman Empire Minor States" for entry in assignments), 69)
         self.assertTrue(all(entry["resolution"] == "coarse_group" for entry in assignments
                             if entry["polity_name"] == "Holy Roman Empire Minor States"))
 
@@ -76,6 +77,18 @@ class MapValidationTests(unittest.TestCase):
         expected = build_evidence(ids, history, features, self.metadata["provinces"],
                                   self.metadata["map_version"], self.metadata["map_hash"])
         self.assertEqual(read_json(self.directory / "polities_1440.json"), expected)
+
+    def test_bavaria_polygon_does_not_extend_into_holland(self):
+        features = read_json(INPUTS / "historical_1440.geojson")["features"]
+        bavaria = [shape(feature["geometry"]) for feature in features
+                   if feature["properties"]["name"] == "Duchy of Bavaria"]
+        self.assertTrue(bavaria)
+        self.assertTrue(any(polygon.covers(Point(11.576, 48.137)) for polygon in bavaria))
+        self.assertFalse(any(polygon.covers(Point(4.895, 52.373)) for polygon in bavaria))
+        burgundian_netherlands = [shape(feature["geometry"]) for feature in features
+                                  if feature["properties"]["name"] == "Burgundian Netherlands"]
+        self.assertTrue(any(polygon.covers(Point(4.895, 52.373)) for polygon in burgundian_netherlands))
+        self.assertTrue(any(polygon.covers(Point(4.300, 52.080)) for polygon in burgundian_netherlands))
 
     def test_polity_evidence_rejects_wrong_map_identity(self):
         path = self.directory / "polities_1440.json"

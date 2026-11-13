@@ -5,9 +5,9 @@ use std::{
 
 use strategy_sim::{
     AiProfileKey, AiThresholds, AiWeights, Army, ArmyId, Command, CommandActor, CommandError,
-    Controller, CountryId, CountryPolity, CountryState, Date, DiplomacyError, EconomyState,
-    EdgeKind, FiscalAiProfile, Fixed, GameState, MapIdentity, ModKey, ModifierStore, Opinion,
-    PlayerId, PolityRules, PolityState, Province, ProvinceEdge, ProvinceGraph, ProvinceId,
+    Controller, CountryId, CountryPolity, CountryState, Date, DiplomacyError, DiplomacyState,
+    EconomyState, EdgeKind, FiscalAiProfile, Fixed, GameState, MapIdentity, ModKey, ModifierStore,
+    Opinion, PlayerId, PolityRules, PolityState, Province, ProvinceEdge, ProvinceGraph, ProvinceId,
     ProvinceKind, SimTime, Speed, StateChange, SuccessionState, TickReport, War, WarError, WarId,
     WarRules, WarSide, WarState,
 };
@@ -475,6 +475,126 @@ fn alliance_rejection_and_expiry_are_deterministic() {
         ),
         Err(CommandError::Diplomacy(DiplomacyError::NoOffer))
     );
+}
+
+#[test]
+fn call_to_arms_invites_both_sides_and_accepting_one_closes_the_other() {
+    let mut state = setup_guarantee_four(|_| {})
+        .with_diplomacy(DiplomacyState {
+            alliances: BTreeSet::from([(A, C), (B, C)]),
+            ..DiplomacyState::default()
+        })
+        .unwrap();
+    apply(
+        &mut state,
+        HOST,
+        Command::DeclareWar {
+            country: A,
+            defender: B,
+            goal: province(5),
+        },
+    );
+
+    let diplomacy = state.diplomacy().unwrap();
+    let incoming: Vec<_> = diplomacy.call_to_arms_offers_to(C).collect();
+    assert_eq!(incoming.len(), 2);
+    assert_eq!(incoming[0].expires_at, Date::new(1440, 1, 31).unwrap());
+    assert_eq!(incoming[0].side, WarSide::Attacker);
+    assert_eq!(incoming[1].side, WarSide::Defender);
+
+    apply(
+        &mut state,
+        CommandActor::Host(PlayerId::new(3)),
+        Command::AcceptCallToArms {
+            country: C,
+            war: WAR,
+            from: A,
+        },
+    );
+    assert!(state
+        .diplomacy()
+        .unwrap()
+        .call_to_arms_offers_to(C)
+        .next()
+        .is_none());
+    assert_eq!(
+        state.war_state().unwrap().wars[&WAR].side(C),
+        Some(WarSide::Attacker)
+    );
+}
+
+#[test]
+fn call_to_arms_offer_expires_after_thirty_game_days() {
+    let mut state = setup_guarantee_four(|_| {})
+        .with_diplomacy(DiplomacyState {
+            alliances: BTreeSet::from([(A, C)]),
+            ..DiplomacyState::default()
+        })
+        .unwrap();
+    apply(
+        &mut state,
+        HOST,
+        Command::DeclareWar {
+            country: A,
+            defender: B,
+            goal: province(5),
+        },
+    );
+    for _ in 0..30 {
+        day(&mut state);
+    }
+    assert!(state
+        .diplomacy()
+        .unwrap()
+        .call_to_arms_offers_to(C)
+        .next()
+        .is_none());
+    assert_eq!(
+        state.validate_command(
+            CommandActor::Host(PlayerId::new(3)),
+            &Command::AcceptCallToArms {
+                country: C,
+                war: WAR,
+                from: A,
+            }
+        ),
+        Err(CommandError::Diplomacy(DiplomacyError::NoCallToArmsOffer))
+    );
+}
+
+#[test]
+fn rejecting_one_call_to_arms_invitation_closes_the_competing_invitation() {
+    let mut state = setup_guarantee_four(|_| {})
+        .with_diplomacy(DiplomacyState {
+            alliances: BTreeSet::from([(A, C), (B, C)]),
+            ..DiplomacyState::default()
+        })
+        .unwrap();
+    apply(
+        &mut state,
+        HOST,
+        Command::DeclareWar {
+            country: A,
+            defender: B,
+            goal: province(5),
+        },
+    );
+    apply(
+        &mut state,
+        CommandActor::Host(PlayerId::new(3)),
+        Command::RejectCallToArms {
+            country: C,
+            war: WAR,
+            from: A,
+        },
+    );
+    assert!(state
+        .diplomacy()
+        .unwrap()
+        .call_to_arms_offers_to(C)
+        .next()
+        .is_none());
+    assert_eq!(state.war_state().unwrap().wars[&WAR].side(C), None);
 }
 
 #[test]

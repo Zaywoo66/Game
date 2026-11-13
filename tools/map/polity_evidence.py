@@ -43,12 +43,12 @@ def build_evidence(ids, history, features, provinces, map_version, map_hash):
         "reference_year": 1440,
         "source": {
             "name": "Cliopatria",
-            "release": "v0.1.3",
+            "release": "v0.2.1",
             "url": HISTORY_SOURCE,
             "license": "CC BY 4.0",
             "file": "tools/map/inputs/western_europe/historical_1440.geojson",
             "sha256": source_digest(),
         },
-        "method": "largest rasterized source-polygon pixel overlap; lexical tie break",
+        "method": "largest rasterized source-polygon pixel overlap; documented Bavaria-to-Burgundian-Netherlands correction; lexical tie break",
         "assignments": assignments,
     }

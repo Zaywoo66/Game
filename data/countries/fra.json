@@ -3,9 +3,9 @@
   "tag": "fra",
   "name": "Kingdom of France",
   "color": [
-    65,
-    108,
-    179
+    191,
+    191,
+    99
   ],
   "capital": "paris",
   "ai_profile": "balanced",
@@ -20,6 +20,7 @@
       "grenoble",
       "la_rochelle",
       "le_havre",
+      "marseille",
       "melun",
       "montpellier",
       "nimes",

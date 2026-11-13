@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "tag": "gra",
+  "name": "Emirate of Granada",
+  "color": [
+    160,
+    188,
+    197
+  ],
+  "capital": "granada",
+  "ai_profile": "balanced",
+  "government": "monarchy",
+  "start": {
+    "ruler": "muhammad_ix_granada",
+    "heir": null,
+    "provinces": [
+      "algeciras",
+      "almeria",
+      "gibraltar",
+      "granada",
+      "malaga",
+      "marbella"
+    ],
+    "treasury": 70000,
+    "tax_rate": 230,
+    "monthly_spending": 5000
+  }
+}

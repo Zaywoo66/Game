@@ -2,7 +2,8 @@ use std::collections::BTreeMap;
 
 use serde::{Deserialize, Serialize};
 use strategy_sim::{
-    ArmyId, CountryId, EdgeKind, Fleet, FleetId, FleetMovement, NavyState, ProvinceEdge, ProvinceId,
+    ArmyId, CountryId, EdgeKind, Fleet, FleetId, FleetMovement, NavyState, ProvinceEdge,
+    ProvinceId, ShipBuildOrder,
 };
 
 use super::{require_sorted, required_optional, SaveError};
@@ -13,6 +14,8 @@ use crate::provinces::EdgeKindDef;
 pub(super) struct NavyStateFile {
     fleets: Vec<FleetFile>,
     next_fleet_id: u32,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    shipyards: Vec<ShipyardFile>,
 }
 
 impl From<&NavyState> for NavyStateFile {
@@ -24,6 +27,16 @@ impl From<&NavyState> for NavyStateFile {
                 .map(|(&id, fleet)| FleetFile::snapshot(id, fleet))
                 .collect(),
             next_fleet_id: state.next_fleet_id,
+            shipyards: state
+                .shipyards
+                .iter()
+                .map(|(&port, order)| ShipyardFile {
+                    port: port.get(),
+                    country: order.country.get(),
+                    sea: order.sea.get(),
+                    days_remaining: order.days_remaining,
+                })
+                .collect(),
         }
     }
 }
@@ -31,6 +44,7 @@ impl From<&NavyState> for NavyStateFile {
 impl NavyStateFile {
     pub(super) fn restore(self) -> Result<NavyState, SaveError> {
         require_sorted(&self.fleets, "fleets", |fleet| fleet.id)?;
+        require_sorted(&self.shipyards, "shipyards", |order| order.port)?;
         Ok(NavyState {
             fleets: self
                 .fleets
@@ -38,8 +52,31 @@ impl NavyStateFile {
                 .map(FleetFile::restore)
                 .collect::<BTreeMap<_, _>>(),
             next_fleet_id: self.next_fleet_id,
+            shipyards: self
+                .shipyards
+                .into_iter()
+                .map(|order| {
+                    (
+                        ProvinceId::new(order.port),
+                        ShipBuildOrder {
+                            country: CountryId::new(order.country),
+                            sea: ProvinceId::new(order.sea),
+                            days_remaining: order.days_remaining,
+                        },
+                    )
+                })
+                .collect(),
         })
     }
+}
+
+#[derive(Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct ShipyardFile {
+    port: u32,
+    country: u32,
+    sea: u32,
+    days_remaining: u8,
 }
 
 #[derive(Serialize, Deserialize)]

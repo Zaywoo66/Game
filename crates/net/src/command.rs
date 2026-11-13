@@ -56,6 +56,11 @@ pub enum PlayerCommand {
         fleet: u32,
         destination: u32,
     },
+    BuildShip {
+        country: u32,
+        port: u32,
+        sea: u32,
+    },
     EmbarkArmy {
         country: u32,
         army: u32,
@@ -87,6 +92,16 @@ pub enum PlayerCommand {
     AcceptPeace {
         country: u32,
         war: u32,
+    },
+    AcceptCallToArms {
+        country: u32,
+        war: u32,
+        from: u32,
+    },
+    RejectCallToArms {
+        country: u32,
+        war: u32,
+        from: u32,
     },
     OfferAlliance {
         country: u32,
@@ -268,6 +283,11 @@ impl From<&Command> for PlayerCommand {
                 fleet: fleet.get(),
                 destination: destination.get(),
             },
+            Command::BuildShip { country, port, sea } => Self::BuildShip {
+                country: country.get(),
+                port: port.get(),
+                sea: sea.get(),
+            },
             Command::EmbarkArmy {
                 country,
                 army,
@@ -319,6 +339,16 @@ impl From<&Command> for PlayerCommand {
             Command::AcceptPeace { country, war } => Self::AcceptPeace {
                 country: country.get(),
                 war: war.get(),
+            },
+            Command::AcceptCallToArms { country, war, from } => Self::AcceptCallToArms {
+                country: country.get(),
+                war: war.get(),
+                from: from.get(),
+            },
+            Command::RejectCallToArms { country, war, from } => Self::RejectCallToArms {
+                country: country.get(),
+                war: war.get(),
+                from: from.get(),
             },
             Command::OfferAlliance { country, toward } => Self::OfferAlliance {
                 country: country.get(),
@@ -500,6 +530,11 @@ impl TryFrom<PlayerCommand> for Command {
                 fleet: FleetId::new(fleet),
                 destination: ProvinceId::new(destination),
             },
+            PlayerCommand::BuildShip { country, port, sea } => Self::BuildShip {
+                country: CountryId::new(country),
+                port: ProvinceId::new(port),
+                sea: ProvinceId::new(sea),
+            },
             PlayerCommand::EmbarkArmy {
                 country,
                 army,
@@ -551,6 +586,16 @@ impl TryFrom<PlayerCommand> for Command {
             PlayerCommand::AcceptPeace { country, war } => Self::AcceptPeace {
                 country: CountryId::new(country),
                 war: WarId::new(war),
+            },
+            PlayerCommand::AcceptCallToArms { country, war, from } => Self::AcceptCallToArms {
+                country: CountryId::new(country),
+                war: WarId::new(war),
+                from: CountryId::new(from),
+            },
+            PlayerCommand::RejectCallToArms { country, war, from } => Self::RejectCallToArms {
+                country: CountryId::new(country),
+                war: WarId::new(war),
+                from: CountryId::new(from),
             },
             PlayerCommand::OfferAlliance { country, toward } => Self::OfferAlliance {
                 country: CountryId::new(country),

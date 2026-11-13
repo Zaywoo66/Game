@@ -1,8 +1,0 @@
-schema_version: 1
-country: lit
-ideas:
-  - key: lithuanian_horsemen
-    name: lithuanian_horsemen
-    unlock: {country_has_tech: professional_officers}
-    modifiers:
-      - {key: army_morale, value: 100, kind: multiplicative}

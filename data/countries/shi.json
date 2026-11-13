@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "tag": "shi",
+  "name": "Shirvan",
+  "color": [
+    188,
+    197,
+    160
+  ],
+  "capital": "baku",
+  "ai_profile": "balanced",
+  "government": "monarchy",
+  "start": {
+    "ruler": "khalilullah_i",
+    "heir": null,
+    "provinces": [
+      "baku",
+      "derbent",
+      "eu_606_321",
+      "eu_621_306",
+      "irvan",
+      "saki"
+    ],
+    "treasury": 50000,
+    "tax_rate": 190,
+    "monthly_spending": 3500
+  }
+}

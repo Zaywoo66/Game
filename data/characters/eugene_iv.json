@@ -1,0 +1,13 @@
+{
+  "schema_version": 2,
+  "key": "eugene_iv",
+  "country": "pap",
+  "name": "Pope Eugene IV",
+  "dynasty": "condulmer",
+  "sex": "male",
+  "birth": [1383, 1, 1],
+  "birth_precision": "year",
+  "death": [1447, 2, 23],
+  "stats": {"adm": 3, "dip": 3, "mil": 3},
+  "traits": []
+}

@@ -7,6 +7,8 @@ use crate::{
 
 /// One transport ship carries this many whole soldiers. The ship type is fixed in M8.2.
 pub const SHIP_CAPACITY: u32 = 1_000;
+pub const SHIP_BUILD_COST_RAW: i64 = 5_000;
+pub const SHIP_BUILD_DAYS: u8 = 30;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Fleet {
@@ -29,6 +31,15 @@ pub struct FleetMovement {
 pub struct NavyState {
     pub fleets: BTreeMap<FleetId, Fleet>,
     pub next_fleet_id: u32,
+    pub shipyards: BTreeMap<ProvinceId, ShipBuildOrder>,
+}
+
+/// One ship under construction at an owned port.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ShipBuildOrder {
+    pub country: CountryId,
+    pub sea: ProvinceId,
+    pub days_remaining: u8,
 }
 
 /// The result of one deterministic battle in one sea zone on one day.
@@ -41,6 +52,12 @@ pub struct NavalBattle {
     pub defender_losses: u64,
     pub changed_fleets: Vec<FleetId>,
     pub lost_armies: Vec<ArmyId>,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct FleetAttrition {
+    pub fleet: FleetId,
+    pub lost_army: Option<ArmyId>,
 }
 
 impl Default for NavyState {
@@ -70,6 +87,9 @@ pub enum NavyError {
     InvalidPort(ProvinceId),
     NotAtWar,
     HostileFleet(FleetId),
+    ShipyardOccupied(ProvinceId),
+    InvalidShipyard(ProvinceId),
+    InsufficientFunds,
 }
 
 impl NavyState {
@@ -77,7 +97,60 @@ impl NavyState {
         Self {
             fleets: BTreeMap::new(),
             next_fleet_id: 1,
+            shipyards: BTreeMap::new(),
         }
+    }
+
+    pub(crate) fn enqueue_ship(&mut self, port: ProvinceId, order: ShipBuildOrder) {
+        self.shipyards.insert(port, order);
+    }
+
+    /// Advances projects one game day and returns completed fleets and canceled projects.
+    pub(crate) fn advance_shipyards(
+        &mut self,
+        owner_of: impl Fn(ProvinceId) -> Option<CountryId>,
+    ) -> (Vec<(ProvinceId, FleetId)>, Vec<ProvinceId>) {
+        let mut completed = Vec::new();
+        let mut cancelled = Vec::new();
+        let ports: Vec<_> = self.shipyards.keys().copied().collect();
+        for port in ports {
+            let country = self.shipyards.get(&port).expect("port collected").country;
+            if owner_of(port) != Some(country) {
+                self.shipyards.remove(&port);
+                cancelled.push(port);
+                continue;
+            }
+            let completed_order = {
+                let order = self.shipyards.get_mut(&port).expect("port collected");
+                order.days_remaining = order.days_remaining.saturating_sub(1);
+                (order.days_remaining == 0).then(|| order.clone())
+            };
+            let Some(order) = completed_order else {
+                continue;
+            };
+            let Some(next_id) = self.next_fleet_id.checked_add(1) else {
+                self.shipyards
+                    .get_mut(&port)
+                    .expect("order retained")
+                    .days_remaining = 1;
+                continue;
+            };
+            self.shipyards.remove(&port);
+            let fleet_id = FleetId::new(self.next_fleet_id);
+            self.next_fleet_id = next_id;
+            self.fleets.insert(
+                fleet_id,
+                Fleet {
+                    country: order.country,
+                    sea: order.sea,
+                    ships: 1,
+                    movement: None,
+                    cargo: None,
+                },
+            );
+            completed.push((port, fleet_id));
+        }
+        (completed, cancelled)
     }
 
     /// Checks scenario/save topology and stable identifiers before accepting state.
@@ -143,6 +216,22 @@ impl NavyState {
                 }
             }
         }
+        for (&port, order) in &self.shipyards {
+            if !countries.contains(&order.country) {
+                return Err(NavyError::UnknownCountry(order.country));
+            }
+            let valid_port = graph.get(port).is_some_and(|province| {
+                province.kind == ProvinceKind::Land
+                    && province.ports.contains(&order.sea)
+                    && province
+                        .neighbors
+                        .iter()
+                        .any(|edge| edge.to == order.sea && edge.kind == EdgeKind::Port)
+            });
+            if !valid_port || order.days_remaining == 0 || order.days_remaining > SHIP_BUILD_DAYS {
+                return Err(NavyError::InvalidShipyard(port));
+            }
+        }
         if self.next_fleet_id == 0 || self.next_fleet_id <= last_id {
             return Err(NavyError::InvalidFleetIdSequence);
         }
@@ -197,6 +286,51 @@ impl NavyState {
             }
         }
         previous
+    }
+
+    /// Applies monthly at-sea losses after movement and battles. A stationary
+    /// fleet in a sea zone adjacent to an accessible port is sheltered.
+    pub(crate) fn apply_monthly_attrition(
+        &mut self,
+        graph: &ProvinceGraph,
+        sheltered_ports: &BTreeSet<(CountryId, ProvinceId)>,
+        mut army_strength: impl FnMut(ArmyId) -> Option<u32>,
+    ) -> Vec<FleetAttrition> {
+        let mut changed = Vec::new();
+        let ids: Vec<_> = self.fleets.keys().copied().collect();
+        for id in ids {
+            let fleet = self.fleets.get_mut(&id).expect("fleet ID came from map");
+            let sheltered = fleet.movement.is_none()
+                && graph.neighbors(fleet.sea).is_some_and(|edges| {
+                    edges.iter().any(|edge| {
+                        edge.kind == EdgeKind::Port
+                            && sheltered_ports.contains(&(fleet.country, edge.to))
+                    })
+                });
+            if sheltered {
+                continue;
+            }
+
+            fleet.ships -= fleet.ships.div_ceil(100);
+            let capacity_loss = fleet.cargo.filter(|army| {
+                army_strength(*army).is_none_or(|soldiers| {
+                    u64::from(soldiers) > u64::from(fleet.ships) * u64::from(SHIP_CAPACITY)
+                })
+            });
+            let destroyed = fleet.ships == 0;
+            let lost_army = capacity_loss.or_else(|| destroyed.then_some(fleet.cargo).flatten());
+            if lost_army.is_some() {
+                fleet.cargo = None;
+            }
+            if destroyed {
+                self.fleets.remove(&id);
+            }
+            changed.push(FleetAttrition {
+                fleet: id,
+                lost_army,
+            });
+        }
+        changed
     }
 
     /// Resolves at most one battle for each contested zone and war, in sorted

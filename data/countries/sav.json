@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "tag": "sav",
+  "name": "County of Savoy",
+  "color": [
+    198,
+    139,
+    139
+  ],
+  "capital": "annecy",
+  "ai_profile": "balanced",
+  "government": "monarchy",
+  "start": {
+    "ruler": "amadeus_viii_savoy",
+    "heir": null,
+    "provinces": [
+      "annecy",
+      "aosta",
+      "geneva",
+      "lausanne",
+      "monaco",
+      "nice"
+    ],
+    "treasury": 60000,
+    "tax_rate": 220,
+    "monthly_spending": 4000
+  }
+}

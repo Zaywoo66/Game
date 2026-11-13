@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "tag": "bos",
+  "name": "Kingdom of Bosnia",
+  "color": [
+    139,
+    168,
+    198
+  ],
+  "capital": "sarajevo",
+  "ai_profile": "balanced",
+  "government": "monarchy",
+  "start": {
+    "ruler": "tvrtko_ii_bosnia",
+    "heir": null,
+    "provinces": [
+      "a_ak",
+      "banja_luka",
+      "dubrovnik",
+      "eu_321_276",
+      "podgorica",
+      "sarajevo",
+      "split"
+    ],
+    "treasury": 55000,
+    "tax_rate": 220,
+    "monthly_spending": 4000
+  }
+}

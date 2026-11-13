@@ -19,7 +19,9 @@ mod time;
 mod trigger;
 mod war;
 
-pub use diplomacy::{AllianceOffer, DiplomacyError, DiplomacyState, MarriageError, MarriageOffer};
+pub use diplomacy::{
+    AllianceOffer, CallToArmsOffer, DiplomacyError, DiplomacyState, MarriageError, MarriageOffer,
+};
 pub use effect::{Effect, EffectError, PreparedModifier};
 pub use events::{
     event_rng, ConditionalAiWeight, EventDefinition, EventError, EventOption, EventState,
@@ -31,12 +33,15 @@ pub use modifiers::{
     effective_value, ModKey, Modifier, ModifierInsertError, ModifierKind, ModifierSourceId,
     ModifierStore,
 };
-pub use navy::{Fleet, FleetMovement, NavalBattle, NavyError, NavyState, SHIP_CAPACITY};
+pub use navy::{
+    Fleet, FleetMovement, NavalBattle, NavyError, NavyState, ShipBuildOrder, SHIP_BUILD_COST_RAW,
+    SHIP_BUILD_DAYS, SHIP_CAPACITY,
+};
 pub use opinion::{Opinion, OpinionError, OpinionStateError};
 pub use polity::{
-    AiThresholds, AiWeights, CharacterState, CharacterStats, CountryPolity, EconomyState,
-    FiscalAiProfile, FiscalError, FiscalPolicy, MonthlyBudget, PolityError, PolityRules,
-    PolityState, PolityTickFailure, Sex, SuccessionState,
+    AiThresholds, AiWeights, BirthPrecision, CharacterState, CharacterStats, CountryPolity,
+    EconomyState, FiscalAiProfile, FiscalError, FiscalPolicy, MonthlyBudget, PolityError,
+    PolityRules, PolityState, PolityTickFailure, Sex, SuccessionState,
 };
 pub use province_graph::{
     EdgeKind, MapIdentity, MapIdentityMismatch, Province, ProvinceEdge, ProvinceGraph,

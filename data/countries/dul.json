@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "tag": "dul",
+  "name": "Beylik of Dulkadir",
+  "color": [
+    161,
+    185,
+    197
+  ],
+  "capital": "malatya",
+  "ai_profile": "balanced",
+  "government": "monarchy",
+  "start": {
+    "ruler": null,
+    "heir": null,
+    "provinces": [
+      "kahramanmara",
+      "malatya"
+    ],
+    "treasury": 50000,
+    "tax_rate": 220,
+    "monthly_spending": 3500
+  }
+}

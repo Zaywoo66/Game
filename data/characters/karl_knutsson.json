@@ -1,0 +1,25 @@
+{
+  "schema_version": 2,
+  "key": "karl_knutsson",
+  "country": "swe",
+  "name": "Karl Knutsson Bonde",
+  "dynasty": "bonde",
+  "sex": "male",
+  "birth": [
+    1408,
+    1,
+    1
+  ],
+  "birth_precision": "year",
+  "death": [
+    1470,
+    5,
+    15
+  ],
+  "stats": {
+    "adm": 3,
+    "dip": 3,
+    "mil": 4
+  },
+  "traits": []
+}

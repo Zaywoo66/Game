@@ -1,0 +1,12 @@
+{
+  "schema_version": 2,
+  "key": "francesco_foscari",
+  "country": "ven",
+  "name": "Francesco Foscari",
+  "dynasty": "foscari",
+  "sex": "male",
+  "birth": [1373, 6, 19],
+  "death": [1457, 11, 1],
+  "stats": {"adm": 3, "dip": 3, "mil": 3},
+  "traits": []
+}

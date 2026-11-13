@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "tag": "lux",
+  "name": "Duchy of Luxembourg",
+  "color": [
+    198,
+    139,
+    168
+  ],
+  "capital": "luxembourg",
+  "ai_profile": "balanced",
+  "government": "monarchy",
+  "start": {
+    "ruler": "elisabeth_of_gorlitz",
+    "heir": null,
+    "provinces": [
+      "arlon",
+      "bonn",
+      "diekirch",
+      "grevenmacher",
+      "luxembourg",
+      "wuppertal"
+    ],
+    "treasury": 50000,
+    "tax_rate": 220,
+    "monthly_spending": 3500
+  }
+}

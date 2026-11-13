@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 120" role="img" aria-label="Original Ottoman red banner with abstract tughra-inspired emblem">
+  <rect width="180" height="120" fill="#8b2635"/>
+  <g fill="none" stroke="#e5c276" stroke-width="4" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M51 78c13-25 26-42 42-45 13-2 22 8 22 20 0 10-7 17-16 17-7 0-12-5-12-11 0-5 3-8 7-9"/>
+    <path d="M59 83c20 5 43 4 64-1 10-3 17-7 22-13M65 91c23 5 48 3 66-2M73 99c17 2 35 1 51-3"/>
+    <path d="M75 47c-8 5-12 12-12 21M85 34V18M96 33V14M107 36V20"/>
+    <path d="M48 80c4 7 9 11 16 14M121 78c5 3 10 5 16 5"/>
+  </g>
+</svg>

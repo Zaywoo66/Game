@@ -94,6 +94,21 @@ export interface FleetView {
   progress: number;
 }
 
+export interface ShipyardView {
+  port_province_id: number;
+  sea_province_id: number;
+  country_id: number;
+  days_remaining: number;
+}
+
+export interface CallToArmsOfferView {
+  war_id: number;
+  from_id: number;
+  toward_id: number;
+  side: 'attacker' | 'defender';
+  expires_at: string;
+}
+
 export interface WarView {
   id: number;
   attacker_id: number;
@@ -130,6 +145,18 @@ export interface AiLogEntry {
   score: number | null;
 }
 
+export interface ProposalAcceptancePreview {
+  outcome: string;
+  factors: { key: string; value: number }[];
+}
+
+export interface CountryAcceptancePreview {
+  country_id: number;
+  alliance: ProposalAcceptancePreview;
+  vassalage: ProposalAcceptancePreview;
+  marriage: ProposalAcceptancePreview | null;
+}
+
 export interface EventView {
   country_id: number;
   key: string;
@@ -144,6 +171,7 @@ export interface GameSnapshot {
   clock: ClockView;
   local_country_id: number | null;
   countries: CountryView[];
+  acceptance_previews?: CountryAcceptancePreview[];
   technologies?: TechnologyView[];
   ideas?: IdeaView[];
   reforms?: ReformView[];
@@ -159,11 +187,13 @@ export interface GameSnapshot {
   blockaded_ports?: number[];
   vassals: { subject_id: number; overlord_id: number }[];
   vassal_offers: { overlord_id: number; subject_id: number; expires_at: string }[];
+  call_to_arms_offers?: CallToArmsOfferView[];
   owners: { province_id: number; country_id: number }[];
   max_tax_rate: number;
   max_monthly_spending: string;
   armies?: ArmyView[];
   fleets?: FleetView[];
+  shipyards?: ShipyardView[];
   wars?: WarView[];
   sieges?: SiegeView[];
   forts?: { province_id: number; level: number }[];
@@ -176,6 +206,7 @@ interface GameUpdate {
   sequence: number;
   clock: ClockView;
   countries: CountryView[];
+  acceptance_previews?: CountryAcceptancePreview[];
   pending_events?: EventView[] | null;
   guarantees: { guarantor_id: number; protected_id: number }[];
   alliances?: { a_id: number; b_id: number }[];
@@ -188,9 +219,11 @@ interface GameUpdate {
   blockaded_ports?: number[];
   vassals: { subject_id: number; overlord_id: number }[];
   vassal_offers: { overlord_id: number; subject_id: number; expires_at: string }[];
+  call_to_arms_offers?: CallToArmsOfferView[];
   armies?: ArmyView[];
   removed_armies?: number[];
   fleets?: FleetView[];
+  shipyards?: ShipyardView[];
   removed_fleets?: number[];
   wars?: WarView[];
   removed_wars?: number[];
@@ -207,9 +240,11 @@ export type GameCommand =
   | { type: 'split_army'; country_id: number; army_id: number; soldiers: number }
   | { type: 'move_army' | 'retreat_army'; country_id: number; army_id: number; destination: number }
   | { type: 'move_fleet'; country_id: number; fleet_id: number; destination: number }
+  | { type: 'build_ship'; country_id: number; port_id: number; sea_id: number }
   | { type: 'embark_army'; country_id: number; army_id: number; fleet_id: number }
   | { type: 'disembark_army'; country_id: number; fleet_id: number; destination: number }
   | { type: 'declare_war'; country_id: number; defender_id: number; goal_province_id: number }
+  | { type: 'accept_call_to_arms' | 'reject_call_to_arms'; country_id: number; war_id: number; from_id: number }
   | { type: 'declare_independence'; country_id: number }
   | { type: 'offer_peace'; country_id: number; war_id: number; cede_goal: boolean }
   | { type: 'accept_peace'; country_id: number; war_id: number }
@@ -303,6 +338,7 @@ function applyUpdate(snapshot: GameSnapshot, update: GameUpdate): GameSnapshot {
       known_reforms: country.known_reforms ?? [],
       chosen_reform_tiers: country.chosen_reform_tiers ?? [],
     })) ?? snapshot.countries,
+    acceptance_previews: update.acceptance_previews ?? snapshot.acceptance_previews ?? [],
     pending_events: update.pending_events ?? snapshot.pending_events,
     guarantees: update.guarantees ?? snapshot.guarantees,
     alliances: update.alliances ?? snapshot.alliances ?? [],
@@ -314,9 +350,11 @@ function applyUpdate(snapshot: GameSnapshot, update: GameUpdate): GameSnapshot {
     blockaded_ports: update.blockaded_ports ?? snapshot.blockaded_ports,
     vassals: update.vassals ?? snapshot.vassals,
     vassal_offers: update.vassal_offers ?? snapshot.vassal_offers,
+    call_to_arms_offers: update.call_to_arms_offers ?? snapshot.call_to_arms_offers ?? [],
     owners,
     armies: updateRows(snapshot.armies, update.armies, update.removed_armies),
     fleets: updateRows(snapshot.fleets, update.fleets, update.removed_fleets),
+    shipyards: update.shipyards ?? snapshot.shipyards ?? [],
     wars: updateRows(snapshot.wars, update.wars, update.removed_wars),
     sieges: update.sieges ?? snapshot.sieges,
   };

@@ -1,0 +1,13 @@
+{
+  "schema_version": 2,
+  "key": "paul_von_rusdorf",
+  "country": "teu",
+  "name": "Paul von Rusdorf",
+  "dynasty": "rusdorf",
+  "sex": "male",
+  "birth": [1385, 1, 1],
+  "birth_precision": "year",
+  "death": [1441, 1, 9],
+  "stats": {"adm": 3, "dip": 3, "mil": 3},
+  "traits": []
+}

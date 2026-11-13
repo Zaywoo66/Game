@@ -1,0 +1,12 @@
+{
+  "schema_version": 2,
+  "key": "charles_i_bourbon",
+  "country": "bou",
+  "name": "Charles I de Bourbon",
+  "dynasty": "bourbon",
+  "sex": "male",
+  "birth": [1401, 1, 1],
+  "birth_precision": "year",
+  "stats": {"adm": 3, "dip": 3, "mil": 3},
+  "traits": []
+}

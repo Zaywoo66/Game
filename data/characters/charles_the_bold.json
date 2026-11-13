@@ -1,0 +1,19 @@
+{
+  "schema_version": 2,
+  "key": "charles_the_bold",
+  "country": "bur",
+  "name": "Charles the Bold",
+  "dynasty": "valois_burgundy",
+  "sex": "male",
+  "birth": [
+    1433,
+    11,
+    10
+  ],
+  "stats": {
+    "adm": 3,
+    "dip": 3,
+    "mil": 4
+  },
+  "traits": []
+}

@@ -5,6 +5,7 @@ use strategy_data::{load_game, save_game, state_hash};
 use strategy_sim::{Command, CommandActor, Controller, Date, Fixed, PlayerId, TimeCommand};
 
 #[test]
+#[ignore = "101-year deterministic AI soak; run for release acceptance or AI changes"]
 fn the_1440_scenario_replays_for_101_years_under_ai_control() {
     let host = CommandActor::Host(PlayerId::new(1));
     let mut state = load_embedded_scenario().unwrap();

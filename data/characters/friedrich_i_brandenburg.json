@@ -1,0 +1,13 @@
+{
+  "schema_version": 2,
+  "key": "friedrich_i_brandenburg",
+  "country": "bra",
+  "name": "Friedrich I",
+  "dynasty": "hohenzollern",
+  "sex": "male",
+  "birth": [1371, 1, 1],
+  "birth_precision": "year",
+  "death": [1440, 9, 20],
+  "stats": {"adm": 3, "dip": 3, "mil": 3},
+  "traits": []
+}

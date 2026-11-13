@@ -7,10 +7,10 @@ Host-authoritative. Host runs sim. Client sends `Command`s, receives `Delta`s an
 `tokio` + TCP with Postcard 1.1.3 payloads and a big-endian unsigned 32-bit
 length prefix. Client frames are bounded to 64 KiB and server frames to
 8 MiB. Readers run dedicated tasks so cancellation cannot consume part of
-the next frame. The handshake validates protocol version 11 and both map
+the next frame. The handshake validates protocol version 15 and both map
 identity fields before accepting a guest.
 
-## Messages (v11)
+## Messages (v15)
 - Client->Host: `Hello{version,name,map_version,map_hash,resume}`, `Confirm{resume}`, `Command{seq,command}`, `PauseRequest{seq,paused}`, `Ping{nonce}`, `Pong{nonce}`, `Resync`. Commands include validated alliance and royal-marriage actions, `ChooseEvent{country,key,option}`, and `UnlockIdea{country,key}`.
 - Host->Client: `Welcome{player_id}`, `Snapshot{state}` (join/resync), `Delta{tick,changes}`, `CommandRejected{seq,reason}`, `Checksum{tick,hash}`, `Pause{bool}`, `Speed{n}`, `Ping{nonce}`, `Pong{nonce}`.
 - Either human player can pause or resume. Only the host sets speed (D2).
@@ -45,6 +45,9 @@ identity fields before accepting a guest.
   selected tiers, permanent modifier sources, and shared source counters.
   Clients receive authoritative research-point and reform updates; clients
   never apply a reform locally.
+- V13 adds BuildShip{country,port,sea} and save schema v15 shipyard orders. An order spends 5 treasury units (5,000 raw Fixed) immediately and creates one ship in the selected adjacent sea zone after 30 game days. The port must be owned at order time; capture before completion cancels without refund.
+- V14 carries year-precision historical birth dates in save schema v16; old clients are rejected so age and succession calculations use the same precision.
+- V15 carries `AcceptCallToArms` and `RejectCallToArms` and save schema v17 call-to-arms offers. When war is declared, both leaders invite their peaceful allies; offers expire after 30 game days. AI uses `alliance_min_opinion`; a human invitation remains pending until answered. Either answer closes any competing offer to that country for the same war.
 - See [LAN_ACCEPTANCE.md](LAN_ACCEPTANCE.md) for the two-PC checklist and `--lan-log` mode.
 - Welcome includes a private 128-bit resume token. The guest confirms it
   after parsing its first snapshot. A disconnected, unconfirmed handshake
@@ -86,7 +89,10 @@ after a transient connection loss. Closing and reopening the guest app
 requires recreating the room. A reconnecting guest receives a full snapshot.
 
 ## Tests
-Loopback integration tests: host + 1 client in one process, scripted commands, assert identical hashes after 10k ticks.
+Loopback tests cover host/client authority, checksum, resync, reconnect and
+scripted commands in the default suite. The 10,000-tick AI replay is marked
+ignored and run only for release acceptance or changes to the network/AI
+replay path; see GIT_WORKFLOW.md for the command.
 
 ## Lobby and controllers
 - The host chooses which countries are human-controlled. All others use AI. Only the host runs AI.
@@ -94,3 +100,5 @@ Loopback integration tests: host + 1 client in one process, scripted commands, a
 - When a player disconnects, their country is held for a grace period. The host may then enable temporary AI. Reconnecting restores human control (D8).
 - Balanced, cautious and aggressive presets load tuning from
   `data/ai/lan_presets.json`. Country weights remain scenario data.
+
+- V13 adds `BuildShip{country,port,sea}` and save schema v15 shipyard orders. An order spends 5 treasury units (5,000 raw Fixed) immediately and creates one ship at the selected adjacent sea zone after 30 game days. The port must be owned by the ordering country; capture before completion cancels without refund.

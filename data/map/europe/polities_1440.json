@@ -1,17 +1,17 @@
 {
   "schema_version": 1,
-  "map_version": 4,
-  "map_hash": "285313966084ca5cc2c29cfdcefe8ebe214ab8b0011aec17754111312f7917bd",
+  "map_version": 6,
+  "map_hash": "3e1fc544b192940b83e19d3741cd9ad9caec49230be4dc3e6b4fc96f0fd213c9",
   "reference_year": 1440,
   "source": {
     "name": "Cliopatria",
-    "release": "v0.1.3",
-    "url": "https://github.com/Seshat-Global-History-Databank/cliopatria/releases/tag/v0.1.3",
+    "release": "v0.2.1",
+    "url": "https://github.com/Seshat-Global-History-Databank/cliopatria/releases/tag/v0.2.1",
     "license": "CC BY 4.0",
     "file": "tools/map/inputs/europe/historical_1440.geojson",
-    "sha256": "371147989871cf0678eb91213449f575229894a1fdd4cb6d88b0f75c681992e5"
+    "sha256": "8ca26363283525718ed3f1969920f403991ca22b97f35adba2cfd305852021f5"
   },
-  "method": "largest rasterized source-polygon pixel overlap; lexical tie break",
+  "method": "largest rasterized source-polygon pixel overlap; documented Bavaria-to-Burgundian-Netherlands correction; lexical tie break",
   "assignments": [
     {
       "province_id": 1,
@@ -34,8 +34,8 @@
       "province_key": "barcelona",
       "polity_name": "Crown of Aragon",
       "resolution": "polygon",
-      "overlap_pixels": 355,
-      "province_pixels": 384
+      "overlap_pixels": 458,
+      "province_pixels": 487
     },
     {
       "province_id": 4,
@@ -82,8 +82,8 @@
       "province_key": "zaragoza",
       "polity_name": "Crown of Aragon",
       "resolution": "polygon",
-      "overlap_pixels": 3541,
-      "province_pixels": 3548
+      "overlap_pixels": 3630,
+      "province_pixels": 3637
     },
     {
       "province_id": 10,
@@ -122,8 +122,8 @@
       "province_key": "rouen",
       "polity_name": "Kingdom of France",
       "resolution": "polygon",
-      "overlap_pixels": 1132,
-      "province_pixels": 1199
+      "overlap_pixels": 1134,
+      "province_pixels": 1203
     },
     {
       "province_id": 15,
@@ -170,16 +170,16 @@
       "province_key": "geneva",
       "polity_name": "County of Savoy",
       "resolution": "polygon",
-      "overlap_pixels": 484,
-      "province_pixels": 513
+      "overlap_pixels": 482,
+      "province_pixels": 502
     },
     {
       "province_id": 21,
       "province_key": "amsterdam",
-      "polity_name": "Duchy of Bavaria",
+      "polity_name": "Burgundian Netherlands",
       "resolution": "polygon",
-      "overlap_pixels": 253,
-      "province_pixels": 371
+      "overlap_pixels": 252,
+      "province_pixels": 370
     },
     {
       "province_id": 22,
@@ -218,16 +218,16 @@
       "province_key": "brussels",
       "polity_name": "Duchy of Burgundy",
       "resolution": "polygon",
-      "overlap_pixels": 285,
-      "province_pixels": 285
+      "overlap_pixels": 286,
+      "province_pixels": 286
     },
     {
       "province_id": 27,
       "province_key": "munich",
       "polity_name": "Duchy of Bavaria",
       "resolution": "polygon",
-      "overlap_pixels": 943,
-      "province_pixels": 943
+      "overlap_pixels": 940,
+      "province_pixels": 940
     },
     {
       "province_id": 28,
@@ -250,7 +250,7 @@
       "province_key": "tunis",
       "polity_name": "Hafsid Dynasty",
       "resolution": "polygon",
-      "overlap_pixels": 295,
+      "overlap_pixels": 298,
       "province_pixels": 312
     },
     {
@@ -258,8 +258,8 @@
       "province_key": "lyon",
       "polity_name": "House of Bourbon",
       "resolution": "polygon",
-      "overlap_pixels": 205,
-      "province_pixels": 477
+      "overlap_pixels": 203,
+      "province_pixels": 473
     },
     {
       "province_id": 32,
@@ -304,7 +304,7 @@
     {
       "province_id": 37,
       "province_key": "the_hague",
-      "polity_name": "Duchy of Bavaria",
+      "polity_name": "Burgundian Netherlands",
       "resolution": "polygon",
       "overlap_pixels": 121,
       "province_pixels": 121
@@ -322,8 +322,8 @@
       "province_key": "bordeaux",
       "polity_name": "Kingdom of England",
       "resolution": "polygon",
-      "overlap_pixels": 1560,
-      "province_pixels": 1842
+      "overlap_pixels": 1564,
+      "province_pixels": 1849
     },
     {
       "province_id": 40,
@@ -338,7 +338,7 @@
       "province_key": "annaba",
       "polity_name": "Hafsid Dynasty",
       "resolution": "polygon",
-      "overlap_pixels": 253,
+      "overlap_pixels": 255,
       "province_pixels": 268
     },
     {
@@ -370,8 +370,8 @@
       "province_key": "le_havre",
       "polity_name": "Kingdom of France",
       "resolution": "polygon",
-      "overlap_pixels": 163,
-      "province_pixels": 176
+      "overlap_pixels": 152,
+      "province_pixels": 170
     },
     {
       "province_id": 46,
@@ -386,8 +386,8 @@
       "province_key": "stuttgart",
       "polity_name": "Holy Roman Empire Minor States",
       "resolution": "coarse_group",
-      "overlap_pixels": 1175,
-      "province_pixels": 1233
+      "overlap_pixels": 993,
+      "province_pixels": 1056
     },
     {
       "province_id": 48,
@@ -395,7 +395,7 @@
       "polity_name": "Holy Roman Empire Minor States",
       "resolution": "coarse_group",
       "overlap_pixels": 240,
-      "province_pixels": 356
+      "province_pixels": 347
     },
     {
       "province_id": 49,
@@ -410,13 +410,13 @@
       "province_key": "lille",
       "polity_name": "Duchy of Burgundy",
       "resolution": "polygon",
-      "overlap_pixels": 585,
-      "province_pixels": 585
+      "overlap_pixels": 635,
+      "province_pixels": 635
     },
     {
       "province_id": 51,
       "province_key": "rotterdam",
-      "polity_name": "Duchy of Bavaria",
+      "polity_name": "Burgundian Netherlands",
       "resolution": "polygon",
       "overlap_pixels": 204,
       "province_pixels": 204
@@ -434,16 +434,16 @@
       "province_key": "nice",
       "polity_name": "County of Savoy",
       "resolution": "polygon",
-      "overlap_pixels": 321,
-      "province_pixels": 821
+      "overlap_pixels": 322,
+      "province_pixels": 813
     },
     {
       "province_id": 54,
       "province_key": "antwerpen",
       "polity_name": "Duchy of Burgundy",
       "resolution": "polygon",
-      "overlap_pixels": 597,
-      "province_pixels": 604
+      "overlap_pixels": 594,
+      "province_pixels": 601
     },
     {
       "province_id": 55,
@@ -466,8 +466,8 @@
       "province_key": "toulouse",
       "polity_name": "Kingdom of France",
       "resolution": "polygon",
-      "overlap_pixels": 1852,
-      "province_pixels": 2254
+      "overlap_pixels": 1833,
+      "province_pixels": 2239
     },
     {
       "province_id": 58,
@@ -482,8 +482,8 @@
       "province_key": "nurnberg",
       "polity_name": "Electorate of Trier",
       "resolution": "polygon",
-      "overlap_pixels": 385,
-      "province_pixels": 496
+      "overlap_pixels": 697,
+      "province_pixels": 769
     },
     {
       "province_id": 60,
@@ -514,8 +514,8 @@
       "province_key": "strasbourg",
       "polity_name": "Holy Roman Empire Minor States",
       "resolution": "coarse_group",
-      "overlap_pixels": 1000,
-      "province_pixels": 1017
+      "overlap_pixels": 984,
+      "province_pixels": 997
     },
     {
       "province_id": 64,
@@ -538,7 +538,7 @@
       "province_key": "palma",
       "polity_name": "Crown of Aragon",
       "resolution": "polygon",
-      "overlap_pixels": 521,
+      "overlap_pixels": 524,
       "province_pixels": 541
     },
     {
@@ -562,15 +562,15 @@
       "province_key": "pamplona",
       "polity_name": "Crown of Aragon",
       "resolution": "polygon",
-      "overlap_pixels": 1493,
-      "province_pixels": 1508
+      "overlap_pixels": 1474,
+      "province_pixels": 1493
     },
     {
       "province_id": 70,
       "province_key": "arhus",
       "polity_name": "Kalmar Union",
       "resolution": "coarse_group",
-      "overlap_pixels": 528,
+      "overlap_pixels": 523,
       "province_pixels": 548
     },
     {
@@ -602,8 +602,8 @@
       "province_key": "limoges",
       "polity_name": "County of Touraine",
       "resolution": "polygon",
-      "overlap_pixels": 1114,
-      "province_pixels": 1251
+      "overlap_pixels": 1133,
+      "province_pixels": 1273
     },
     {
       "province_id": 75,
@@ -634,8 +634,8 @@
       "province_key": "luxembourg",
       "polity_name": "Duchy of Luxembourg",
       "resolution": "polygon",
-      "overlap_pixels": 202,
-      "province_pixels": 223
+      "overlap_pixels": 205,
+      "province_pixels": 236
     },
     {
       "province_id": 79,
@@ -666,16 +666,16 @@
       "province_key": "andorra",
       "polity_name": "Crown of Aragon",
       "resolution": "polygon",
-      "overlap_pixels": 1571,
-      "province_pixels": 1998
+      "overlap_pixels": 795,
+      "province_pixels": 1174
     },
     {
       "province_id": 83,
       "province_key": "monaco",
       "polity_name": "County of Savoy",
       "resolution": "polygon",
-      "overlap_pixels": 266,
-      "province_pixels": 641
+      "overlap_pixels": 244,
+      "province_pixels": 642
     },
     {
       "province_id": 84,
@@ -706,8 +706,8 @@
       "province_key": "basel",
       "polity_name": "Holy Roman Empire Minor States",
       "resolution": "coarse_group",
-      "overlap_pixels": 103,
-      "province_pixels": 103
+      "overlap_pixels": 101,
+      "province_pixels": 101
     },
     {
       "province_id": 88,
@@ -722,8 +722,8 @@
       "province_key": "saarbrucken",
       "polity_name": "Holy Roman Empire Minor States",
       "resolution": "coarse_group",
-      "overlap_pixels": 327,
-      "province_pixels": 720
+      "overlap_pixels": 346,
+      "province_pixels": 752
     },
     {
       "province_id": 90,
@@ -810,7 +810,7 @@
       "province_key": "nantes",
       "polity_name": "Duchy of Brittany",
       "resolution": "polygon",
-      "overlap_pixels": 600,
+      "overlap_pixels": 616,
       "province_pixels": 746
     },
     {
@@ -826,7 +826,7 @@
       "province_key": "metz",
       "polity_name": "Holy Roman Empire Minor States",
       "resolution": "coarse_group",
-      "overlap_pixels": 286,
+      "overlap_pixels": 287,
       "province_pixels": 327
     },
     {
@@ -866,7 +866,7 @@
       "province_key": "toulon",
       "polity_name": "House of Valois-Anjou",
       "resolution": "polygon",
-      "overlap_pixels": 622,
+      "overlap_pixels": 616,
       "province_pixels": 688
     },
     {
@@ -880,7 +880,7 @@
     {
       "province_id": 109,
       "province_key": "haarlem",
-      "polity_name": "Duchy of Bavaria",
+      "polity_name": "Burgundian Netherlands",
       "resolution": "polygon",
       "overlap_pixels": 178,
       "province_pixels": 184
@@ -890,16 +890,16 @@
       "province_key": "verona",
       "polity_name": "Republic of Venice",
       "resolution": "polygon",
-      "overlap_pixels": 1284,
-      "province_pixels": 1292
+      "overlap_pixels": 1266,
+      "province_pixels": 1274
     },
     {
       "province_id": 111,
       "province_key": "charleroi",
-      "polity_name": "Duchy of Bavaria",
-      "resolution": "polygon",
-      "overlap_pixels": 168,
-      "province_pixels": 319
+      "polity_name": "Holy Roman Empire Minor States",
+      "resolution": "coarse_group",
+      "overlap_pixels": 216,
+      "province_pixels": 431
     },
     {
       "province_id": 112,
@@ -930,7 +930,7 @@
       "province_key": "kingston_upon_hull",
       "polity_name": "Kingdom of England",
       "resolution": "polygon",
-      "overlap_pixels": 487,
+      "overlap_pixels": 486,
       "province_pixels": 493
     },
     {
@@ -938,7 +938,7 @@
       "province_key": "cagliari",
       "polity_name": "Crown of Aragon",
       "resolution": "polygon",
-      "overlap_pixels": 1120,
+      "overlap_pixels": 1129,
       "province_pixels": 1130
     },
     {
@@ -970,32 +970,32 @@
       "province_key": "nancy",
       "polity_name": "House of Valois-Anjou",
       "resolution": "polygon",
-      "overlap_pixels": 1376,
-      "province_pixels": 1678
+      "overlap_pixels": 1455,
+      "province_pixels": 1752
     },
     {
       "province_id": 121,
       "province_key": "lausanne",
       "polity_name": "County of Savoy",
       "resolution": "polygon",
-      "overlap_pixels": 300,
-      "province_pixels": 306
+      "overlap_pixels": 319,
+      "province_pixels": 319
     },
     {
       "province_id": 122,
       "province_key": "saint_etienne",
       "polity_name": "House of Bourbon",
       "resolution": "polygon",
-      "overlap_pixels": 809,
-      "province_pixels": 992
+      "overlap_pixels": 806,
+      "province_pixels": 989
     },
     {
       "province_id": 123,
       "province_key": "freiburg",
       "polity_name": "House of Habsburg",
       "resolution": "polygon",
-      "overlap_pixels": 338,
-      "province_pixels": 338
+      "overlap_pixels": 355,
+      "province_pixels": 355
     },
     {
       "province_id": 124,
@@ -1010,7 +1010,7 @@
       "province_key": "tours",
       "polity_name": "Kingdom of France",
       "resolution": "polygon",
-      "overlap_pixels": 578,
+      "overlap_pixels": 584,
       "province_pixels": 742
     },
     {
@@ -1082,8 +1082,8 @@
       "province_key": "mulhouse",
       "polity_name": "House of Habsburg",
       "resolution": "polygon",
-      "overlap_pixels": 307,
-      "province_pixels": 341
+      "overlap_pixels": 325,
+      "province_pixels": 379
     },
     {
       "province_id": 135,
@@ -1098,7 +1098,7 @@
       "province_key": "pisa",
       "polity_name": "Holy Roman Empire Minor States",
       "resolution": "coarse_group",
-      "overlap_pixels": 196,
+      "overlap_pixels": 192,
       "province_pixels": 419
     },
     {
@@ -1114,16 +1114,16 @@
       "province_key": "bergamo",
       "polity_name": "Republic of Venice",
       "resolution": "polygon",
-      "overlap_pixels": 736,
-      "province_pixels": 759
+      "overlap_pixels": 737,
+      "province_pixels": 760
     },
     {
       "province_id": 139,
       "province_key": "reims",
       "polity_name": "Kingdom of France",
       "resolution": "polygon",
-      "overlap_pixels": 1946,
-      "province_pixels": 2139
+      "overlap_pixels": 1894,
+      "province_pixels": 2095
     },
     {
       "province_id": 140,
@@ -1146,8 +1146,8 @@
       "province_key": "caen",
       "polity_name": "Kingdom of England",
       "resolution": "polygon",
-      "overlap_pixels": 1102,
-      "province_pixels": 1421
+      "overlap_pixels": 1104,
+      "province_pixels": 1423
     },
     {
       "province_id": 143,
@@ -1178,8 +1178,8 @@
       "province_key": "ulm",
       "polity_name": "Holy Roman Empire Minor States",
       "resolution": "coarse_group",
-      "overlap_pixels": 215,
-      "province_pixels": 345
+      "overlap_pixels": 637,
+      "province_pixels": 800
     },
     {
       "province_id": 147,
@@ -1210,8 +1210,8 @@
       "province_key": "wurzburg",
       "polity_name": "Holy Roman Empire Minor States",
       "resolution": "coarse_group",
-      "overlap_pixels": 1560,
-      "province_pixels": 1570
+      "overlap_pixels": 1542,
+      "province_pixels": 1552
     },
     {
       "province_id": 151,
@@ -1227,7 +1227,7 @@
       "polity_name": "Duchy of Bavaria",
       "resolution": "polygon",
       "overlap_pixels": 534,
-      "province_pixels": 706
+      "province_pixels": 542
     },
     {
       "province_id": 153,
@@ -1274,8 +1274,8 @@
       "province_key": "innsbruck",
       "polity_name": "House of Habsburg",
       "resolution": "polygon",
-      "overlap_pixels": 917,
-      "province_pixels": 1004
+      "overlap_pixels": 916,
+      "province_pixels": 1007
     },
     {
       "province_id": 159,
@@ -1402,8 +1402,8 @@
       "province_key": "tarragona",
       "polity_name": "Crown of Aragon",
       "resolution": "polygon",
-      "overlap_pixels": 1291,
-      "province_pixels": 1389
+      "overlap_pixels": 1678,
+      "province_pixels": 1776
     },
     {
       "province_id": 175,
@@ -1458,8 +1458,8 @@
       "province_key": "trento",
       "polity_name": "Holy Roman Empire Minor States",
       "resolution": "coarse_group",
-      "overlap_pixels": 882,
-      "province_pixels": 933
+      "overlap_pixels": 899,
+      "province_pixels": 950
     },
     {
       "province_id": 182,
@@ -1474,16 +1474,16 @@
       "province_key": "namur",
       "polity_name": "Duchy of Burgundy",
       "resolution": "polygon",
-      "overlap_pixels": 477,
-      "province_pixels": 622
+      "overlap_pixels": 458,
+      "province_pixels": 612
     },
     {
       "province_id": 184,
       "province_key": "lugano",
       "polity_name": "Duchy of Milan",
       "resolution": "polygon",
-      "overlap_pixels": 275,
-      "province_pixels": 275
+      "overlap_pixels": 276,
+      "province_pixels": 276
     },
     {
       "province_id": 185,
@@ -1634,7 +1634,7 @@
       "province_key": "scarborough",
       "polity_name": "Kingdom of England",
       "resolution": "polygon",
-      "overlap_pixels": 225,
+      "overlap_pixels": 216,
       "province_pixels": 231
     },
     {
@@ -1650,8 +1650,8 @@
       "province_key": "troyes",
       "polity_name": "Kingdom of France",
       "resolution": "polygon",
-      "overlap_pixels": 1607,
-      "province_pixels": 1640
+      "overlap_pixels": 1609,
+      "province_pixels": 1636
     },
     {
       "province_id": 206,
@@ -1682,7 +1682,7 @@
       "province_key": "beja_tunisia",
       "polity_name": "Hafsid Dynasty",
       "resolution": "polygon",
-      "overlap_pixels": 496,
+      "overlap_pixels": 502,
       "province_pixels": 527
     },
     {
@@ -1698,16 +1698,16 @@
       "province_key": "hof",
       "polity_name": "Holy Roman Empire Minor States",
       "resolution": "coarse_group",
-      "overlap_pixels": 241,
-      "province_pixels": 561
+      "overlap_pixels": 236,
+      "province_pixels": 366
     },
     {
       "province_id": 212,
       "province_key": "brive",
       "polity_name": "County of P\u00e9rigord",
       "resolution": "polygon",
-      "overlap_pixels": 1729,
-      "province_pixels": 1930
+      "overlap_pixels": 1707,
+      "province_pixels": 1908
     },
     {
       "province_id": 213,
@@ -1722,7 +1722,7 @@
       "province_key": "siena",
       "polity_name": "Holy Roman Empire Minor States",
       "resolution": "coarse_group",
-      "overlap_pixels": 778,
+      "overlap_pixels": 772,
       "province_pixels": 820
     },
     {
@@ -1746,15 +1746,15 @@
       "province_key": "nevers",
       "polity_name": "County of Nevers",
       "resolution": "polygon",
-      "overlap_pixels": 928,
-      "province_pixels": 928
+      "overlap_pixels": 924,
+      "province_pixels": 924
     },
     {
       "province_id": 218,
       "province_key": "olbia",
       "polity_name": "Crown of Aragon",
       "resolution": "polygon",
-      "overlap_pixels": 675,
+      "overlap_pixels": 673,
       "province_pixels": 675
     },
     {
@@ -1770,8 +1770,8 @@
       "province_key": "vichy",
       "polity_name": "House of Bourbon",
       "resolution": "polygon",
-      "overlap_pixels": 975,
-      "province_pixels": 975
+      "overlap_pixels": 979,
+      "province_pixels": 979
     },
     {
       "province_id": 221,
@@ -1802,7 +1802,7 @@
       "province_key": "bastia",
       "polity_name": "Crown of Aragon",
       "resolution": "polygon",
-      "overlap_pixels": 345,
+      "overlap_pixels": 350,
       "province_pixels": 350
     },
     {
@@ -1810,7 +1810,7 @@
       "province_key": "perth",
       "polity_name": "Kingdom of Scotland",
       "resolution": "polygon",
-      "overlap_pixels": 861,
+      "overlap_pixels": 857,
       "province_pixels": 871
     },
     {
@@ -1818,7 +1818,7 @@
       "province_key": "dundalk",
       "polity_name": "Kingdom of England",
       "resolution": "polygon",
-      "overlap_pixels": 90,
+      "overlap_pixels": 96,
       "province_pixels": 262
     },
     {
@@ -1842,15 +1842,15 @@
       "province_key": "vaduz",
       "polity_name": "Holy Roman Empire Minor States",
       "resolution": "coarse_group",
-      "overlap_pixels": 133,
-      "province_pixels": 144
+      "overlap_pixels": 135,
+      "province_pixels": 145
     },
     {
       "province_id": 230,
       "province_key": "douglas",
       "polity_name": "Kingdom of England",
       "resolution": "polygon",
-      "overlap_pixels": 147,
+      "overlap_pixels": 82,
       "province_pixels": 169
     },
     {
@@ -1882,7 +1882,7 @@
       "province_key": "kilkenny",
       "polity_name": "Earldom of Desmond",
       "resolution": "polygon",
-      "overlap_pixels": 603,
+      "overlap_pixels": 607,
       "province_pixels": 1082
     },
     {
@@ -1922,7 +1922,7 @@
       "province_key": "kirkwall",
       "polity_name": "Kalmar Union",
       "resolution": "coarse_group",
-      "overlap_pixels": 89,
+      "overlap_pixels": 88,
       "province_pixels": 109
     },
     {
@@ -2018,15 +2018,15 @@
       "province_key": "gent",
       "polity_name": "Duchy of Burgundy",
       "resolution": "polygon",
-      "overlap_pixels": 393,
-      "province_pixels": 393
+      "overlap_pixels": 406,
+      "province_pixels": 406
     },
     {
       "province_id": 252,
       "province_key": "bournemouth",
       "polity_name": "Kingdom of England",
       "resolution": "polygon",
-      "overlap_pixels": 357,
+      "overlap_pixels": 352,
       "province_pixels": 364
     },
     {
@@ -2058,8 +2058,8 @@
       "province_key": "karlsruhe",
       "polity_name": "Holy Roman Empire Minor States",
       "resolution": "coarse_group",
-      "overlap_pixels": 528,
-      "province_pixels": 910
+      "overlap_pixels": 529,
+      "province_pixels": 897
     },
     {
       "province_id": 257,
@@ -2074,15 +2074,15 @@
       "province_key": "augsburg",
       "polity_name": "Duchy of Bavaria",
       "resolution": "polygon",
-      "overlap_pixels": 1029,
-      "province_pixels": 1113
+      "overlap_pixels": 1025,
+      "province_pixels": 1043
     },
     {
       "province_id": 259,
       "province_key": "gijon",
       "polity_name": "Crown of Castile",
       "resolution": "polygon",
-      "overlap_pixels": 304,
+      "overlap_pixels": 300,
       "province_pixels": 380
     },
     {
@@ -2138,8 +2138,8 @@
       "province_key": "furth",
       "polity_name": "Electorate of Brandenburg",
       "resolution": "polygon",
-      "overlap_pixels": 406,
-      "province_pixels": 570
+      "overlap_pixels": 436,
+      "province_pixels": 656
     },
     {
       "province_id": 267,
@@ -2186,8 +2186,8 @@
       "province_key": "mataro",
       "polity_name": "Crown of Aragon",
       "resolution": "polygon",
-      "overlap_pixels": 490,
-      "province_pixels": 543
+      "overlap_pixels": 585,
+      "province_pixels": 638
     },
     {
       "province_id": 273,
@@ -2210,24 +2210,24 @@
       "province_key": "aix_en_provence",
       "polity_name": "House of Valois-Anjou",
       "resolution": "polygon",
-      "overlap_pixels": 1225,
-      "province_pixels": 1234
+      "overlap_pixels": 1229,
+      "province_pixels": 1238
     },
     {
       "province_id": 276,
       "province_key": "perpignan",
       "polity_name": "Crown of Aragon",
       "resolution": "polygon",
-      "overlap_pixels": 689,
-      "province_pixels": 780
+      "overlap_pixels": 754,
+      "province_pixels": 845
     },
     {
       "province_id": 277,
       "province_key": "biarritz",
       "polity_name": "Kingdom of England",
       "resolution": "polygon",
-      "overlap_pixels": 633,
-      "province_pixels": 788
+      "overlap_pixels": 669,
+      "province_pixels": 796
     },
     {
       "province_id": 278,
@@ -2242,8 +2242,8 @@
       "province_key": "besancon",
       "polity_name": "Duchy of Burgundy",
       "resolution": "polygon",
-      "overlap_pixels": 1529,
-      "province_pixels": 1599
+      "overlap_pixels": 1759,
+      "province_pixels": 1829
     },
     {
       "province_id": 280,
@@ -2266,15 +2266,15 @@
       "province_key": "novara",
       "polity_name": "Duchy of Milan",
       "resolution": "polygon",
-      "overlap_pixels": 458,
-      "province_pixels": 632
+      "overlap_pixels": 461,
+      "province_pixels": 635
     },
     {
       "province_id": 283,
       "province_key": "chester",
       "polity_name": "Kingdom of England",
       "resolution": "polygon",
-      "overlap_pixels": 1372,
+      "overlap_pixels": 1378,
       "province_pixels": 1385
     },
     {
@@ -2290,8 +2290,8 @@
       "province_key": "biel",
       "polity_name": "Swiss Confederation",
       "resolution": "polygon",
-      "overlap_pixels": 97,
-      "province_pixels": 97
+      "overlap_pixels": 128,
+      "province_pixels": 137
     },
     {
       "province_id": 286,
@@ -2306,8 +2306,8 @@
       "province_key": "roanne",
       "polity_name": "Duchy of Burgundy",
       "resolution": "polygon",
-      "overlap_pixels": 740,
-      "province_pixels": 751
+      "overlap_pixels": 747,
+      "province_pixels": 758
     },
     {
       "province_id": 288,
@@ -2323,7 +2323,7 @@
       "polity_name": "Duchy of Milan",
       "resolution": "polygon",
       "overlap_pixels": 462,
-      "province_pixels": 698
+      "province_pixels": 699
     },
     {
       "province_id": 290,
@@ -2354,8 +2354,8 @@
       "province_key": "tarbes",
       "polity_name": "County of Armagnac",
       "resolution": "polygon",
-      "overlap_pixels": 715,
-      "province_pixels": 1773
+      "overlap_pixels": 710,
+      "province_pixels": 1873
     },
     {
       "province_id": 294,
@@ -2386,8 +2386,8 @@
       "province_key": "chur",
       "polity_name": "Holy Roman Empire Minor States",
       "resolution": "coarse_group",
-      "overlap_pixels": 786,
-      "province_pixels": 841
+      "overlap_pixels": 770,
+      "province_pixels": 825
     },
     {
       "province_id": 298,
@@ -2426,7 +2426,7 @@
       "province_key": "fort_william",
       "polity_name": "Kingdom of Scotland",
       "resolution": "polygon",
-      "overlap_pixels": 2530,
+      "overlap_pixels": 2529,
       "province_pixels": 2642
     },
     {
@@ -2498,8 +2498,8 @@
       "province_key": "s_hertogenbosch",
       "polity_name": "Duchy of Burgundy",
       "resolution": "polygon",
-      "overlap_pixels": 259,
-      "province_pixels": 307
+      "overlap_pixels": 263,
+      "province_pixels": 311
     },
     {
       "province_id": 312,
@@ -2528,17 +2528,17 @@
     {
       "province_id": 315,
       "province_key": "mons",
-      "polity_name": "Duchy of Bavaria",
+      "polity_name": "Burgundian Netherlands",
       "resolution": "polygon",
-      "overlap_pixels": 256,
-      "province_pixels": 463
+      "overlap_pixels": 242,
+      "province_pixels": 335
     },
     {
       "province_id": 316,
       "province_key": "saint_gallen",
       "polity_name": "Holy Roman Empire Minor States",
       "resolution": "coarse_group",
-      "overlap_pixels": 255,
+      "overlap_pixels": 258,
       "province_pixels": 268
     },
     {
@@ -2594,13 +2594,13 @@
       "province_key": "vejle",
       "polity_name": "Kalmar Union",
       "resolution": "coarse_group",
-      "overlap_pixels": 614,
+      "overlap_pixels": 615,
       "province_pixels": 626
     },
     {
       "province_id": 324,
       "province_key": "middelburg",
-      "polity_name": "Duchy of Bavaria",
+      "polity_name": "Burgundian Netherlands",
       "resolution": "polygon",
       "overlap_pixels": 70,
       "province_pixels": 104
@@ -2626,7 +2626,7 @@
       "province_key": "braganca",
       "polity_name": "Kingdom of Portugal",
       "resolution": "polygon",
-      "overlap_pixels": 650,
+      "overlap_pixels": 664,
       "province_pixels": 972
     },
     {
@@ -2634,16 +2634,16 @@
       "province_key": "aosta",
       "polity_name": "County of Savoy",
       "resolution": "polygon",
-      "overlap_pixels": 1431,
-      "province_pixels": 1471
+      "overlap_pixels": 1436,
+      "province_pixels": 1479
     },
     {
       "province_id": 329,
       "province_key": "schaffhausen",
       "polity_name": "Holy Roman Empire Minor States",
       "resolution": "coarse_group",
-      "overlap_pixels": 432,
-      "province_pixels": 459
+      "overlap_pixels": 443,
+      "province_pixels": 456
     },
     {
       "province_id": 330,
@@ -2658,8 +2658,8 @@
       "province_key": "fribourg",
       "polity_name": "Holy Roman Empire Minor States",
       "resolution": "coarse_group",
-      "overlap_pixels": 167,
-      "province_pixels": 167
+      "overlap_pixels": 174,
+      "province_pixels": 174
     },
     {
       "province_id": 332,
@@ -2672,10 +2672,10 @@
     {
       "province_id": 333,
       "province_key": "neuchatel",
-      "polity_name": "Duchy of Burgundy",
-      "resolution": "polygon",
-      "overlap_pixels": 303,
-      "province_pixels": 462
+      "polity_name": "Holy Roman Empire Minor States",
+      "resolution": "coarse_group",
+      "overlap_pixels": 126,
+      "province_pixels": 141
     },
     {
       "province_id": 334,
@@ -2698,8 +2698,8 @@
       "province_key": "sion",
       "polity_name": "Holy Roman Empire Minor States",
       "resolution": "coarse_group",
-      "overlap_pixels": 585,
-      "province_pixels": 585
+      "overlap_pixels": 578,
+      "province_pixels": 578
     },
     {
       "province_id": 337,
@@ -2714,8 +2714,8 @@
       "province_key": "bregenz",
       "polity_name": "Holy Roman Empire Minor States",
       "resolution": "coarse_group",
-      "overlap_pixels": 902,
-      "province_pixels": 993
+      "overlap_pixels": 723,
+      "province_pixels": 802
     },
     {
       "province_id": 339,
@@ -2730,8 +2730,8 @@
       "province_key": "arlon",
       "polity_name": "Duchy of Luxembourg",
       "resolution": "polygon",
-      "overlap_pixels": 661,
-      "province_pixels": 1204
+      "overlap_pixels": 679,
+      "province_pixels": 1120
     },
     {
       "province_id": 341,
@@ -2746,8 +2746,8 @@
       "province_key": "frauenfeld",
       "polity_name": "Holy Roman Empire Minor States",
       "resolution": "coarse_group",
-      "overlap_pixels": 162,
-      "province_pixels": 226
+      "overlap_pixels": 172,
+      "province_pixels": 229
     },
     {
       "province_id": 343,
@@ -2770,8 +2770,8 @@
       "province_key": "bellinzona",
       "polity_name": "Duchy of Milan",
       "resolution": "polygon",
-      "overlap_pixels": 637,
-      "province_pixels": 639
+      "overlap_pixels": 652,
+      "province_pixels": 655
     },
     {
       "province_id": 346,
@@ -2802,8 +2802,8 @@
       "province_key": "solothurn",
       "polity_name": "Holy Roman Empire Minor States",
       "resolution": "coarse_group",
-      "overlap_pixels": 63,
-      "province_pixels": 63
+      "overlap_pixels": 64,
+      "province_pixels": 64
     },
     {
       "province_id": 350,
@@ -2818,8 +2818,8 @@
       "province_key": "liestal",
       "polity_name": "House of Habsburg",
       "resolution": "polygon",
-      "overlap_pixels": 72,
-      "province_pixels": 72
+      "overlap_pixels": 66,
+      "province_pixels": 66
     },
     {
       "province_id": 352,
@@ -2827,7 +2827,7 @@
       "polity_name": "Holy Roman Empire Minor States",
       "resolution": "coarse_group",
       "overlap_pixels": 115,
-      "province_pixels": 115
+      "province_pixels": 131
     },
     {
       "province_id": 353,
@@ -2835,7 +2835,7 @@
       "polity_name": "Swiss Confederation",
       "resolution": "polygon",
       "overlap_pixels": 227,
-      "province_pixels": 283
+      "province_pixels": 287
     },
     {
       "province_id": 354,
@@ -2874,7 +2874,7 @@
       "province_key": "muineachan",
       "polity_name": "Kingdom of England",
       "resolution": "polygon",
-      "overlap_pixels": 26,
+      "overlap_pixels": 19,
       "province_pixels": 769
     },
     {
@@ -2890,7 +2890,7 @@
       "province_key": "appenzell",
       "polity_name": "Holy Roman Empire Minor States",
       "resolution": "coarse_group",
-      "overlap_pixels": 184,
+      "overlap_pixels": 183,
       "province_pixels": 185
     },
     {
@@ -2898,7 +2898,7 @@
       "province_key": "ros_comain",
       "polity_name": "Earldom of Desmond",
       "resolution": "polygon",
-      "overlap_pixels": 28,
+      "overlap_pixels": 27,
       "province_pixels": 1063
     },
     {
@@ -2906,8 +2906,8 @@
       "province_key": "grevenmacher",
       "polity_name": "Holy Roman Empire Minor States",
       "resolution": "coarse_group",
-      "overlap_pixels": 446,
-      "province_pixels": 545
+      "overlap_pixels": 430,
+      "province_pixels": 533
     },
     {
       "province_id": 430,
@@ -2938,7 +2938,7 @@
       "province_key": "berlin",
       "polity_name": "Electorate of Brandenburg",
       "resolution": "polygon",
-      "overlap_pixels": 1249,
+      "overlap_pixels": 1237,
       "province_pixels": 1690
     },
     {
@@ -2946,7 +2946,7 @@
       "province_key": "athens",
       "polity_name": "Crown of Aragon",
       "resolution": "polygon",
-      "overlap_pixels": 584,
+      "overlap_pixels": 580,
       "province_pixels": 1267
     },
     {
@@ -2954,7 +2954,7 @@
       "province_key": "kyiv",
       "polity_name": "Grand Duchy of Lithuania",
       "resolution": "polygon",
-      "overlap_pixels": 1671,
+      "overlap_pixels": 1676,
       "province_pixels": 1676
     },
     {
@@ -2978,7 +2978,7 @@
       "province_key": "st_petersburg",
       "polity_name": "Novgorod Republic",
       "resolution": "polygon",
-      "overlap_pixels": 892,
+      "overlap_pixels": 1339,
       "province_pixels": 1381
     },
     {
@@ -2986,7 +2986,7 @@
       "province_key": "ankara",
       "polity_name": "Ottoman Empire",
       "resolution": "polygon",
-      "overlap_pixels": 1297,
+      "overlap_pixels": 1291,
       "province_pixels": 2693
     },
     {
@@ -3194,7 +3194,7 @@
       "province_key": "riga",
       "polity_name": "Livonian Conference",
       "resolution": "polygon",
-      "overlap_pixels": 1294,
+      "overlap_pixels": 1297,
       "province_pixels": 1297
     },
     {
@@ -3242,7 +3242,7 @@
       "province_key": "sevastopol",
       "polity_name": "Blue Horde",
       "resolution": "polygon",
-      "overlap_pixels": 598,
+      "overlap_pixels": 601,
       "province_pixels": 912
     },
     {
@@ -3322,7 +3322,7 @@
       "province_key": "adana",
       "polity_name": "Ramadanid Emirate",
       "resolution": "polygon",
-      "overlap_pixels": 1295,
+      "overlap_pixels": 1288,
       "province_pixels": 1466
     },
     {
@@ -3330,7 +3330,7 @@
       "province_key": "rostov",
       "polity_name": "Golden Horde",
       "resolution": "polygon",
-      "overlap_pixels": 1752,
+      "overlap_pixels": 1740,
       "province_pixels": 1857
     },
     {
@@ -3338,7 +3338,7 @@
       "province_key": "dnipro",
       "polity_name": "Golden Horde",
       "resolution": "polygon",
-      "overlap_pixels": 2082,
+      "overlap_pixels": 2088,
       "province_pixels": 2294
     },
     {
@@ -3410,7 +3410,7 @@
       "province_key": "catania",
       "polity_name": "Crown of Aragon",
       "resolution": "polygon",
-      "overlap_pixels": 1309,
+      "overlap_pixels": 1320,
       "province_pixels": 1587
     },
     {
@@ -3434,7 +3434,7 @@
       "province_key": "dresden",
       "polity_name": "House of Ascania",
       "resolution": "polygon",
-      "overlap_pixels": 975,
+      "overlap_pixels": 973,
       "province_pixels": 1442
     },
     {
@@ -3442,7 +3442,7 @@
       "province_key": "samsun",
       "polity_name": "Beylik of Isfendiyar",
       "resolution": "polygon",
-      "overlap_pixels": 636,
+      "overlap_pixels": 640,
       "province_pixels": 1360
     },
     {
@@ -3554,7 +3554,7 @@
       "province_key": "sochi",
       "polity_name": "Kingdom of Georgia",
       "resolution": "polygon",
-      "overlap_pixels": 327,
+      "overlap_pixels": 328,
       "province_pixels": 602
     },
     {
@@ -3626,7 +3626,7 @@
       "province_key": "petrozavodsk",
       "polity_name": "Novgorod Republic",
       "resolution": "polygon",
-      "overlap_pixels": 1226,
+      "overlap_pixels": 1705,
       "province_pixels": 1705
     },
     {
@@ -3714,7 +3714,7 @@
       "province_key": "lule",
       "polity_name": "Kalmar Union",
       "resolution": "coarse_group",
-      "overlap_pixels": 1171,
+      "overlap_pixels": 1176,
       "province_pixels": 1185
     },
     {
@@ -3746,7 +3746,7 @@
       "province_key": "antalya",
       "polity_name": "Ottoman Empire",
       "resolution": "polygon",
-      "overlap_pixels": 1025,
+      "overlap_pixels": 940,
       "province_pixels": 1195
     },
     {
@@ -4050,7 +4050,7 @@
       "province_key": "patra",
       "polity_name": "Byzantine Empire",
       "resolution": "polygon",
-      "overlap_pixels": 679,
+      "overlap_pixels": 700,
       "province_pixels": 1635
     },
     {
@@ -4162,7 +4162,7 @@
       "province_key": "sukhumi",
       "polity_name": "Kingdom of Georgia",
       "resolution": "polygon",
-      "overlap_pixels": 882,
+      "overlap_pixels": 889,
       "province_pixels": 1549
     },
     {
@@ -4314,7 +4314,7 @@
       "province_key": "onega",
       "polity_name": "Novgorod Republic",
       "resolution": "polygon",
-      "overlap_pixels": 2533,
+      "overlap_pixels": 2532,
       "province_pixels": 2546
     },
     {
@@ -4322,7 +4322,7 @@
       "province_key": "kemi",
       "polity_name": "Kalmar Union",
       "resolution": "coarse_group",
-      "overlap_pixels": 1050,
+      "overlap_pixels": 1051,
       "province_pixels": 1077
     },
     {
@@ -4346,7 +4346,7 @@
       "province_key": "narvik",
       "polity_name": "Kalmar Union",
       "resolution": "coarse_group",
-      "overlap_pixels": 1543,
+      "overlap_pixels": 1565,
       "province_pixels": 1578
     },
     {
@@ -4394,7 +4394,7 @@
       "province_key": "muynoq",
       "polity_name": "Timurid Empire",
       "resolution": "polygon",
-      "overlap_pixels": 466,
+      "overlap_pixels": 469,
       "province_pixels": 2236
     },
     {
@@ -4418,7 +4418,7 @@
       "province_key": "lerwick",
       "polity_name": "Kalmar Union",
       "resolution": "coarse_group",
-      "overlap_pixels": 176,
+      "overlap_pixels": 169,
       "province_pixels": 207
     },
     {
@@ -4498,7 +4498,7 @@
       "province_key": "chernobyl",
       "polity_name": "Grand Duchy of Lithuania",
       "resolution": "polygon",
-      "overlap_pixels": 1476,
+      "overlap_pixels": 1482,
       "province_pixels": 1482
     },
     {
@@ -4530,7 +4530,7 @@
       "province_key": "pozna",
       "polity_name": "Kingdom of Poland",
       "resolution": "polygon",
-      "overlap_pixels": 1887,
+      "overlap_pixels": 1886,
       "province_pixels": 1918
     },
     {
@@ -4538,7 +4538,7 @@
       "province_key": "leipzig",
       "polity_name": "House of Ascania",
       "resolution": "polygon",
-      "overlap_pixels": 1538,
+      "overlap_pixels": 1527,
       "province_pixels": 2077
     },
     {
@@ -4682,7 +4682,7 @@
       "province_key": "kherson",
       "polity_name": "Golden Horde",
       "resolution": "polygon",
-      "overlap_pixels": 1837,
+      "overlap_pixels": 1827,
       "province_pixels": 2059
     },
     {
@@ -4818,7 +4818,7 @@
       "province_key": "bal_kesir",
       "polity_name": "Ottoman Empire",
       "resolution": "polygon",
-      "overlap_pixels": 2165,
+      "overlap_pixels": 2164,
       "province_pixels": 2187
     },
     {
@@ -4954,7 +4954,7 @@
       "province_key": "split",
       "polity_name": "Kingdom of Bosnia",
       "resolution": "polygon",
-      "overlap_pixels": 426,
+      "overlap_pixels": 416,
       "province_pixels": 982
     },
     {
@@ -5042,7 +5042,7 @@
       "province_key": "pizen",
       "polity_name": "Kingdom of Bohemia",
       "resolution": "polygon",
-      "overlap_pixels": 1735,
+      "overlap_pixels": 1729,
       "province_pixels": 1820
     },
     {
@@ -5106,7 +5106,7 @@
       "province_key": "ordu",
       "polity_name": "Ottoman Empire",
       "resolution": "polygon",
-      "overlap_pixels": 495,
+      "overlap_pixels": 491,
       "province_pixels": 1032
     },
     {
@@ -5122,7 +5122,7 @@
       "province_key": "kerch",
       "polity_name": "Blue Horde",
       "resolution": "polygon",
-      "overlap_pixels": 220,
+      "overlap_pixels": 230,
       "province_pixels": 507
     },
     {
@@ -5186,7 +5186,7 @@
       "province_key": "ravenna",
       "polity_name": "Papal States",
       "resolution": "polygon",
-      "overlap_pixels": 371,
+      "overlap_pixels": 366,
       "province_pixels": 547
     },
     {
@@ -5234,7 +5234,7 @@
       "province_key": "larissa",
       "polity_name": "Ottoman Empire",
       "resolution": "polygon",
-      "overlap_pixels": 1447,
+      "overlap_pixels": 1448,
       "province_pixels": 1837
     },
     {
@@ -5274,7 +5274,7 @@
       "province_key": "tekirda",
       "polity_name": "Ottoman Empire",
       "resolution": "polygon",
-      "overlap_pixels": 1027,
+      "overlap_pixels": 1025,
       "province_pixels": 1163
     },
     {
@@ -5530,7 +5530,7 @@
       "province_key": "izmayil",
       "polity_name": "Principality of Moldavia",
       "resolution": "polygon",
-      "overlap_pixels": 1088,
+      "overlap_pixels": 1099,
       "province_pixels": 1992
     },
     {
@@ -5818,7 +5818,7 @@
       "province_key": "passau",
       "polity_name": "Duchy of Bavaria",
       "resolution": "polygon",
-      "overlap_pixels": 588,
+      "overlap_pixels": 594,
       "province_pixels": 1165
     },
     {
@@ -5882,7 +5882,7 @@
       "province_key": "volkhov",
       "polity_name": "Novgorod Republic",
       "resolution": "polygon",
-      "overlap_pixels": 1447,
+      "overlap_pixels": 1466,
       "province_pixels": 1466
     },
     {
@@ -5914,7 +5914,7 @@
       "province_key": "dzhankoy",
       "polity_name": "Blue Horde",
       "resolution": "polygon",
-      "overlap_pixels": 1339,
+      "overlap_pixels": 1342,
       "province_pixels": 2231
     },
     {
@@ -6018,7 +6018,7 @@
       "province_key": "dubrovnik",
       "polity_name": "Kingdom of Bosnia",
       "resolution": "polygon",
-      "overlap_pixels": 547,
+      "overlap_pixels": 555,
       "province_pixels": 906
     },
     {
@@ -6074,7 +6074,7 @@
       "province_key": "segezha",
       "polity_name": "Novgorod Republic",
       "resolution": "polygon",
-      "overlap_pixels": 1815,
+      "overlap_pixels": 2051,
       "province_pixels": 2051
     },
     {
@@ -6226,7 +6226,7 @@
       "province_key": "ermoupoli",
       "polity_name": "Republic of Venice",
       "resolution": "polygon",
-      "overlap_pixels": 83,
+      "overlap_pixels": 89,
       "province_pixels": 234
     },
     {
@@ -6442,7 +6442,7 @@
       "province_key": "iauliai",
       "polity_name": "Grand Duchy of Lithuania",
       "resolution": "polygon",
-      "overlap_pixels": 1303,
+      "overlap_pixels": 1295,
       "province_pixels": 1632
     },
     {
@@ -6482,15 +6482,15 @@
       "province_key": "paneve_ys",
       "polity_name": "Grand Duchy of Lithuania",
       "resolution": "polygon",
-      "overlap_pixels": 1127,
+      "overlap_pixels": 1132,
       "province_pixels": 1165
     },
     {
       "province_id": 877,
       "province_key": "udine",
-      "polity_name": "House of Habsburg",
+      "polity_name": "Republic of Venice",
       "resolution": "polygon",
-      "overlap_pixels": 755,
+      "overlap_pixels": 796,
       "province_pixels": 1778
     },
     {
@@ -6626,7 +6626,7 @@
       "province_key": "alexandroupoli",
       "polity_name": "Ottoman Empire",
       "resolution": "polygon",
-      "overlap_pixels": 611,
+      "overlap_pixels": 613,
       "province_pixels": 739
     },
     {
@@ -6714,7 +6714,7 @@
       "province_key": "finnsnes",
       "polity_name": "Kalmar Union",
       "resolution": "coarse_group",
-      "overlap_pixels": 1049,
+      "overlap_pixels": 1051,
       "province_pixels": 1072
     },
     {
@@ -6802,7 +6802,7 @@
       "province_key": "kouvola",
       "polity_name": "Kalmar Union",
       "resolution": "coarse_group",
-      "overlap_pixels": 1237,
+      "overlap_pixels": 1241,
       "province_pixels": 1264
     },
     {
@@ -6882,7 +6882,7 @@
       "province_key": "eu_381_006",
       "polity_name": "Kalmar Union",
       "resolution": "coarse_group",
-      "overlap_pixels": 590,
+      "overlap_pixels": 589,
       "province_pixels": 600
     },
     {
@@ -6994,7 +6994,7 @@
       "province_key": "eu_261_036",
       "polity_name": "Kalmar Union",
       "resolution": "coarse_group",
-      "overlap_pixels": 101,
+      "overlap_pixels": 95,
       "province_pixels": 140
     },
     {
@@ -7658,7 +7658,7 @@
       "province_key": "eu_501_081",
       "polity_name": "Novgorod Republic",
       "resolution": "polygon",
-      "overlap_pixels": 1067,
+      "overlap_pixels": 1066,
       "province_pixels": 1072
     },
     {
@@ -7770,7 +7770,7 @@
       "province_key": "eu_231_096",
       "polity_name": "Kalmar Union",
       "resolution": "coarse_group",
-      "overlap_pixels": 1869,
+      "overlap_pixels": 1875,
       "province_pixels": 1875
     },
     {
@@ -7818,7 +7818,7 @@
       "province_key": "eu_441_096",
       "polity_name": "Novgorod Republic",
       "resolution": "polygon",
-      "overlap_pixels": 2126,
+      "overlap_pixels": 2127,
       "province_pixels": 2127
     },
     {
@@ -7834,7 +7834,7 @@
       "province_key": "eu_486_096",
       "polity_name": "Novgorod Republic",
       "resolution": "polygon",
-      "overlap_pixels": 1125,
+      "overlap_pixels": 1600,
       "province_pixels": 1600
     },
     {
@@ -7986,7 +7986,7 @@
       "province_key": "eu_426_111",
       "polity_name": "Novgorod Republic",
       "resolution": "polygon",
-      "overlap_pixels": 683,
+      "overlap_pixels": 875,
       "province_pixels": 1394
     },
     {
@@ -7994,7 +7994,7 @@
       "province_key": "eu_441_111",
       "polity_name": "Novgorod Republic",
       "resolution": "polygon",
-      "overlap_pixels": 89,
+      "overlap_pixels": 172,
       "province_pixels": 172
     },
     {
@@ -8018,7 +8018,7 @@
       "province_key": "eu_486_111",
       "polity_name": "Novgorod Republic",
       "resolution": "polygon",
-      "overlap_pixels": 1195,
+      "overlap_pixels": 1314,
       "province_pixels": 1642
     },
     {
@@ -8162,7 +8162,7 @@
       "province_key": "eu_351_126",
       "polity_name": "Livonian Conference",
       "resolution": "polygon",
-      "overlap_pixels": 516,
+      "overlap_pixels": 506,
       "province_pixels": 554
     },
     {
@@ -8218,7 +8218,7 @@
       "province_key": "eu_606_126",
       "polity_name": "Grand Principality of Moscow",
       "resolution": "polygon",
-      "overlap_pixels": 1198,
+      "overlap_pixels": 1190,
       "province_pixels": 2272
     },
     {
@@ -8346,7 +8346,7 @@
       "province_key": "eu_381_156",
       "polity_name": "Livonian Conference",
       "resolution": "polygon",
-      "overlap_pixels": 1501,
+      "overlap_pixels": 1494,
       "province_pixels": 2089
     },
     {
@@ -8402,7 +8402,7 @@
       "province_key": "eu_276_171",
       "polity_name": "Kalmar Union",
       "resolution": "coarse_group",
-      "overlap_pixels": 70,
+      "overlap_pixels": 67,
       "province_pixels": 80
     },
     {
@@ -8466,7 +8466,7 @@
       "province_key": "eu_321_186",
       "polity_name": "Teutonic Order",
       "resolution": "polygon",
-      "overlap_pixels": 1153,
+      "overlap_pixels": 1146,
       "province_pixels": 1835
     },
     {
@@ -8954,7 +8954,7 @@
       "province_key": "eu_666_276",
       "polity_name": "Timurid Empire",
       "resolution": "polygon",
-      "overlap_pixels": 2070,
+      "overlap_pixels": 2281,
       "province_pixels": 2333
     },
     {
@@ -9002,7 +9002,7 @@
       "province_key": "eu_711_291",
       "polity_name": "Timurid Empire",
       "resolution": "polygon",
-      "overlap_pixels": 2011,
+      "overlap_pixels": 2010,
       "province_pixels": 2015
     },
     {
@@ -9034,7 +9034,7 @@
       "province_key": "eu_516_306",
       "polity_name": "Empire of Trebizond",
       "resolution": "polygon",
-      "overlap_pixels": 653,
+      "overlap_pixels": 655,
       "province_pixels": 834
     },
     {
@@ -9178,7 +9178,7 @@
       "province_key": "eu_336_336",
       "polity_name": "Despotate of Epirus",
       "resolution": "polygon",
-      "overlap_pixels": 231,
+      "overlap_pixels": 228,
       "province_pixels": 302
     },
     {
@@ -9252,6 +9252,1038 @@
       "resolution": "polygon",
       "overlap_pixels": 2433,
       "province_pixels": 2433
+    },
+    {
+      "province_id": 1333,
+      "province_key": "yekaterinburg",
+      "polity_name": "Khanate of Sibir",
+      "resolution": "polygon",
+      "overlap_pixels": 1867,
+      "province_pixels": 1867
+    },
+    {
+      "province_id": 1334,
+      "province_key": "samarkand",
+      "polity_name": "Timurid Empire",
+      "resolution": "polygon",
+      "overlap_pixels": 2051,
+      "province_pixels": 2051
+    },
+    {
+      "province_id": 1335,
+      "province_key": "chelyabinsk",
+      "polity_name": "Khanate of Sibir",
+      "resolution": "polygon",
+      "overlap_pixels": 1682,
+      "province_pixels": 1682
+    },
+    {
+      "province_id": 1336,
+      "province_key": "tura",
+      "polity_name": "Khanate of Sibir",
+      "resolution": "polygon",
+      "overlap_pixels": 1743,
+      "province_pixels": 1743
+    },
+    {
+      "province_id": 1337,
+      "province_key": "mazar_i_sharif",
+      "polity_name": "Timurid Empire",
+      "resolution": "polygon",
+      "overlap_pixels": 3092,
+      "province_pixels": 3092
+    },
+    {
+      "province_id": 1338,
+      "province_key": "bukhara",
+      "polity_name": "Timurid Empire",
+      "resolution": "polygon",
+      "overlap_pixels": 1858,
+      "province_pixels": 1858
+    },
+    {
+      "province_id": 1339,
+      "province_key": "qyzylorda",
+      "polity_name": "Timurid Empire",
+      "resolution": "polygon",
+      "overlap_pixels": 1690,
+      "province_pixels": 2027
+    },
+    {
+      "province_id": 1340,
+      "province_key": "t_rkmenabat",
+      "polity_name": "Timurid Empire",
+      "resolution": "polygon",
+      "overlap_pixels": 1252,
+      "province_pixels": 1252
+    },
+    {
+      "province_id": 1341,
+      "province_key": "mary",
+      "polity_name": "Timurid Empire",
+      "resolution": "polygon",
+      "overlap_pixels": 1557,
+      "province_pixels": 1557
+    },
+    {
+      "province_id": 1342,
+      "province_key": "rudniy",
+      "polity_name": "Khanate of Sibir",
+      "resolution": "polygon",
+      "overlap_pixels": 2193,
+      "province_pixels": 2193
+    },
+    {
+      "province_id": 1343,
+      "province_key": "vorkuta",
+      "polity_name": "Novgorod Republic",
+      "resolution": "polygon",
+      "overlap_pixels": 2199,
+      "province_pixels": 2199
+    },
+    {
+      "province_id": 1344,
+      "province_key": "kurgan",
+      "polity_name": "Khanate of Sibir",
+      "resolution": "polygon",
+      "overlap_pixels": 2465,
+      "province_pixels": 2465
+    },
+    {
+      "province_id": 1345,
+      "province_key": "urgentch",
+      "polity_name": "Timurid Empire",
+      "resolution": "polygon",
+      "overlap_pixels": 2599,
+      "province_pixels": 2599
+    },
+    {
+      "province_id": 1346,
+      "province_key": "zhezqazghan",
+      "polity_name": "Khanate of Sibir",
+      "resolution": "polygon",
+      "overlap_pixels": 1853,
+      "province_pixels": 1853
+    },
+    {
+      "province_id": 1347,
+      "province_key": "serov",
+      "polity_name": "Khanate of Sibir",
+      "resolution": "polygon",
+      "overlap_pixels": 2265,
+      "province_pixels": 2265
+    },
+    {
+      "province_id": 1348,
+      "province_key": "arqalyq",
+      "polity_name": "Khanate of Sibir",
+      "resolution": "polygon",
+      "overlap_pixels": 2299,
+      "province_pixels": 2299
+    },
+    {
+      "province_id": 1349,
+      "province_key": "nyagan",
+      "polity_name": "Khanate of Sibir",
+      "resolution": "polygon",
+      "overlap_pixels": 2172,
+      "province_pixels": 2172
+    },
+    {
+      "province_id": 1350,
+      "province_key": "salekhard",
+      "polity_name": "Khanate of Sibir",
+      "resolution": "polygon",
+      "overlap_pixels": 1759,
+      "province_pixels": 2501
+    },
+    {
+      "province_id": 1351,
+      "province_key": "baykonur",
+      "polity_name": "Timurid Empire",
+      "resolution": "polygon",
+      "overlap_pixels": 1440,
+      "province_pixels": 1654
+    },
+    {
+      "province_id": 1352,
+      "province_key": "aral",
+      "polity_name": "Khanate of Sibir",
+      "resolution": "polygon",
+      "overlap_pixels": 1735,
+      "province_pixels": 2427
+    },
+    {
+      "province_id": 1353,
+      "province_key": "inta",
+      "polity_name": "Novgorod Republic",
+      "resolution": "polygon",
+      "overlap_pixels": 1182,
+      "province_pixels": 1182
+    },
+    {
+      "province_id": 1354,
+      "province_key": "igrim",
+      "polity_name": "Khanate of Sibir",
+      "resolution": "polygon",
+      "overlap_pixels": 1382,
+      "province_pixels": 2144
+    },
+    {
+      "province_id": 1355,
+      "province_key": "qazaly",
+      "polity_name": "Timurid Empire",
+      "resolution": "polygon",
+      "overlap_pixels": 1457,
+      "province_pixels": 1491
+    },
+    {
+      "province_id": 1356,
+      "province_key": "amderma",
+      "polity_name": "Novgorod Republic",
+      "resolution": "polygon",
+      "overlap_pixels": 969,
+      "province_pixels": 969
+    },
+    {
+      "province_id": 1357,
+      "province_key": "qarshi",
+      "polity_name": "Timurid Empire",
+      "resolution": "polygon",
+      "overlap_pixels": 2221,
+      "province_pixels": 2221
+    },
+    {
+      "province_id": 1358,
+      "province_key": "jizzax",
+      "polity_name": "Timurid Empire",
+      "resolution": "polygon",
+      "overlap_pixels": 1026,
+      "province_pixels": 1026
+    },
+    {
+      "province_id": 1359,
+      "province_key": "navoi",
+      "polity_name": "Timurid Empire",
+      "resolution": "polygon",
+      "overlap_pixels": 1756,
+      "province_pixels": 1756
+    },
+    {
+      "province_id": 1360,
+      "province_key": "kamensk_uralskiy",
+      "polity_name": "Khanate of Sibir",
+      "resolution": "polygon",
+      "overlap_pixels": 1847,
+      "province_pixels": 1847
+    },
+    {
+      "province_id": 1361,
+      "province_key": "miass",
+      "polity_name": "Khanate of Sibir",
+      "resolution": "polygon",
+      "overlap_pixels": 1164,
+      "province_pixels": 1448
+    },
+    {
+      "province_id": 1362,
+      "province_key": "troitsk",
+      "polity_name": "Khanate of Sibir",
+      "resolution": "polygon",
+      "overlap_pixels": 1373,
+      "province_pixels": 2085
+    },
+    {
+      "province_id": 1363,
+      "province_key": "shadrinsk",
+      "polity_name": "Khanate of Sibir",
+      "resolution": "polygon",
+      "overlap_pixels": 2687,
+      "province_pixels": 2687
+    },
+    {
+      "province_id": 1364,
+      "province_key": "andkhvoy",
+      "polity_name": "Timurid Empire",
+      "resolution": "polygon",
+      "overlap_pixels": 2017,
+      "province_pixels": 2017
+    },
+    {
+      "province_id": 1365,
+      "province_key": "zarafshon",
+      "polity_name": "Timurid Empire",
+      "resolution": "polygon",
+      "overlap_pixels": 2359,
+      "province_pixels": 2359
+    },
+    {
+      "province_id": 1366,
+      "province_key": "verkhnyaya_salda",
+      "polity_name": "Khanate of Sibir",
+      "resolution": "polygon",
+      "overlap_pixels": 1979,
+      "province_pixels": 1979
+    },
+    {
+      "province_id": 1367,
+      "province_key": "zhetiqara",
+      "polity_name": "Khanate of Sibir",
+      "resolution": "polygon",
+      "overlap_pixels": 2661,
+      "province_pixels": 2661
+    },
+    {
+      "province_id": 1368,
+      "province_key": "artemovskiy",
+      "polity_name": "Khanate of Sibir",
+      "resolution": "polygon",
+      "overlap_pixels": 1465,
+      "province_pixels": 1465
+    },
+    {
+      "province_id": 1369,
+      "province_key": "uray",
+      "polity_name": "Khanate of Sibir",
+      "resolution": "polygon",
+      "overlap_pixels": 1153,
+      "province_pixels": 1153
+    },
+    {
+      "province_id": 1370,
+      "province_key": "tavda",
+      "polity_name": "Khanate of Sibir",
+      "resolution": "polygon",
+      "overlap_pixels": 1688,
+      "province_pixels": 1688
+    },
+    {
+      "province_id": 1371,
+      "province_key": "yalutorovsk",
+      "polity_name": "Khanate of Sibir",
+      "resolution": "polygon",
+      "overlap_pixels": 1424,
+      "province_pixels": 1424
+    },
+    {
+      "province_id": 1372,
+      "province_key": "atamyrat",
+      "polity_name": "Timurid Empire",
+      "resolution": "polygon",
+      "overlap_pixels": 1683,
+      "province_pixels": 1683
+    },
+    {
+      "province_id": 1373,
+      "province_key": "shieli",
+      "polity_name": "Timurid Empire",
+      "resolution": "polygon",
+      "overlap_pixels": 1497,
+      "province_pixels": 2785
+    },
+    {
+      "province_id": 1374,
+      "province_key": "kartaly",
+      "polity_name": "Khanate of Sibir",
+      "resolution": "polygon",
+      "overlap_pixels": 793,
+      "province_pixels": 2006
+    },
+    {
+      "province_id": 1375,
+      "province_key": "ivdel",
+      "polity_name": "Novgorod Republic",
+      "resolution": "polygon",
+      "overlap_pixels": 1977,
+      "province_pixels": 2112
+    },
+    {
+      "province_id": 1376,
+      "province_key": "kurtamysh",
+      "polity_name": "Khanate of Sibir",
+      "resolution": "polygon",
+      "overlap_pixels": 2140,
+      "province_pixels": 2140
+    },
+    {
+      "province_id": 1377,
+      "province_key": "derzhavinsk",
+      "polity_name": "Khanate of Sibir",
+      "resolution": "polygon",
+      "overlap_pixels": 1133,
+      "province_pixels": 1133
+    },
+    {
+      "province_id": 1378,
+      "province_key": "qusmuryn",
+      "polity_name": "Khanate of Sibir",
+      "resolution": "polygon",
+      "overlap_pixels": 1959,
+      "province_pixels": 1959
+    },
+    {
+      "province_id": 1379,
+      "province_key": "saranpaul",
+      "polity_name": "Novgorod Republic",
+      "resolution": "polygon",
+      "overlap_pixels": 2837,
+      "province_pixels": 2837
+    },
+    {
+      "province_id": 1380,
+      "province_key": "varnek",
+      "polity_name": "Novgorod Republic",
+      "resolution": "polygon",
+      "overlap_pixels": 431,
+      "province_pixels": 440
+    },
+    {
+      "province_id": 1381,
+      "province_key": "denow",
+      "polity_name": "Timurid Empire",
+      "resolution": "polygon",
+      "overlap_pixels": 1762,
+      "province_pixels": 1762
+    },
+    {
+      "province_id": 1382,
+      "province_key": "tejen",
+      "polity_name": "Timurid Empire",
+      "resolution": "polygon",
+      "overlap_pixels": 2578,
+      "province_pixels": 2578
+    },
+    {
+      "province_id": 1383,
+      "province_key": "turgay",
+      "polity_name": "Khanate of Sibir",
+      "resolution": "polygon",
+      "overlap_pixels": 1155,
+      "province_pixels": 1155
+    },
+    {
+      "province_id": 1384,
+      "province_key": "eu_801_006",
+      "polity_name": "Khanate of Sibir",
+      "resolution": "polygon",
+      "overlap_pixels": 898,
+      "province_pixels": 911
+    },
+    {
+      "province_id": 1385,
+      "province_key": "eu_756_021",
+      "polity_name": "Novgorod Republic",
+      "resolution": "polygon",
+      "overlap_pixels": 849,
+      "province_pixels": 849
+    },
+    {
+      "province_id": 1386,
+      "province_key": "eu_771_021",
+      "polity_name": "Novgorod Republic",
+      "resolution": "polygon",
+      "overlap_pixels": 955,
+      "province_pixels": 955
+    },
+    {
+      "province_id": 1387,
+      "province_key": "eu_801_021",
+      "polity_name": "Khanate of Sibir",
+      "resolution": "polygon",
+      "overlap_pixels": 957,
+      "province_pixels": 997
+    },
+    {
+      "province_id": 1388,
+      "province_key": "eu_741_036",
+      "polity_name": "Novgorod Republic",
+      "resolution": "polygon",
+      "overlap_pixels": 2596,
+      "province_pixels": 2597
+    },
+    {
+      "province_id": 1389,
+      "province_key": "eu_756_036",
+      "polity_name": "Novgorod Republic",
+      "resolution": "polygon",
+      "overlap_pixels": 2122,
+      "province_pixels": 2122
+    },
+    {
+      "province_id": 1390,
+      "province_key": "eu_771_036",
+      "polity_name": "Novgorod Republic",
+      "resolution": "polygon",
+      "overlap_pixels": 1599,
+      "province_pixels": 1599
+    },
+    {
+      "province_id": 1391,
+      "province_key": "eu_786_036",
+      "polity_name": "Novgorod Republic",
+      "resolution": "polygon",
+      "overlap_pixels": 2320,
+      "province_pixels": 2320
+    },
+    {
+      "province_id": 1392,
+      "province_key": "eu_801_036",
+      "polity_name": "Novgorod Republic",
+      "resolution": "polygon",
+      "overlap_pixels": 1821,
+      "province_pixels": 2242
+    },
+    {
+      "province_id": 1393,
+      "province_key": "eu_741_051",
+      "polity_name": "Novgorod Republic",
+      "resolution": "polygon",
+      "overlap_pixels": 2368,
+      "province_pixels": 2368
+    },
+    {
+      "province_id": 1394,
+      "province_key": "eu_756_051",
+      "polity_name": "Novgorod Republic",
+      "resolution": "polygon",
+      "overlap_pixels": 2351,
+      "province_pixels": 2351
+    },
+    {
+      "province_id": 1395,
+      "province_key": "eu_786_051",
+      "polity_name": "Novgorod Republic",
+      "resolution": "polygon",
+      "overlap_pixels": 2158,
+      "province_pixels": 2158
+    },
+    {
+      "province_id": 1396,
+      "province_key": "eu_741_066",
+      "polity_name": "Novgorod Republic",
+      "resolution": "polygon",
+      "overlap_pixels": 1849,
+      "province_pixels": 1849
+    },
+    {
+      "province_id": 1397,
+      "province_key": "eu_756_066",
+      "polity_name": "Novgorod Republic",
+      "resolution": "polygon",
+      "overlap_pixels": 2302,
+      "province_pixels": 2302
+    },
+    {
+      "province_id": 1398,
+      "province_key": "eu_771_066",
+      "polity_name": "Novgorod Republic",
+      "resolution": "polygon",
+      "overlap_pixels": 2794,
+      "province_pixels": 3092
+    },
+    {
+      "province_id": 1399,
+      "province_key": "eu_786_066",
+      "polity_name": "Khanate of Sibir",
+      "resolution": "polygon",
+      "overlap_pixels": 1647,
+      "province_pixels": 2218
+    },
+    {
+      "province_id": 1400,
+      "province_key": "eu_801_066",
+      "polity_name": "Khanate of Sibir",
+      "resolution": "polygon",
+      "overlap_pixels": 2457,
+      "province_pixels": 2457
+    },
+    {
+      "province_id": 1401,
+      "province_key": "eu_756_081",
+      "polity_name": "Novgorod Republic",
+      "resolution": "polygon",
+      "overlap_pixels": 2757,
+      "province_pixels": 2757
+    },
+    {
+      "province_id": 1402,
+      "province_key": "eu_786_081",
+      "polity_name": "Khanate of Sibir",
+      "resolution": "polygon",
+      "overlap_pixels": 2444,
+      "province_pixels": 2444
+    },
+    {
+      "province_id": 1403,
+      "province_key": "eu_801_081",
+      "polity_name": "Khanate of Sibir",
+      "resolution": "polygon",
+      "overlap_pixels": 2448,
+      "province_pixels": 2448
+    },
+    {
+      "province_id": 1404,
+      "province_key": "eu_741_096",
+      "polity_name": "Novgorod Republic",
+      "resolution": "polygon",
+      "overlap_pixels": 3454,
+      "province_pixels": 3454
+    },
+    {
+      "province_id": 1405,
+      "province_key": "eu_756_096",
+      "polity_name": "Novgorod Republic",
+      "resolution": "polygon",
+      "overlap_pixels": 2304,
+      "province_pixels": 2304
+    },
+    {
+      "province_id": 1406,
+      "province_key": "eu_771_096",
+      "polity_name": "Novgorod Republic",
+      "resolution": "polygon",
+      "overlap_pixels": 999,
+      "province_pixels": 1723
+    },
+    {
+      "province_id": 1407,
+      "province_key": "eu_801_096",
+      "polity_name": "Khanate of Sibir",
+      "resolution": "polygon",
+      "overlap_pixels": 2655,
+      "province_pixels": 2655
+    },
+    {
+      "province_id": 1408,
+      "province_key": "eu_756_111",
+      "polity_name": "Novgorod Republic",
+      "resolution": "polygon",
+      "overlap_pixels": 1524,
+      "province_pixels": 2791
+    },
+    {
+      "province_id": 1409,
+      "province_key": "eu_771_111",
+      "polity_name": "Khanate of Sibir",
+      "resolution": "polygon",
+      "overlap_pixels": 1838,
+      "province_pixels": 1899
+    },
+    {
+      "province_id": 1410,
+      "province_key": "eu_786_111",
+      "polity_name": "Khanate of Sibir",
+      "resolution": "polygon",
+      "overlap_pixels": 1952,
+      "province_pixels": 1952
+    },
+    {
+      "province_id": 1411,
+      "province_key": "eu_801_111",
+      "polity_name": "Khanate of Sibir",
+      "resolution": "polygon",
+      "overlap_pixels": 2448,
+      "province_pixels": 2448
+    },
+    {
+      "province_id": 1412,
+      "province_key": "eu_756_126",
+      "polity_name": "Khanate of Sibir",
+      "resolution": "polygon",
+      "overlap_pixels": 2768,
+      "province_pixels": 2768
+    },
+    {
+      "province_id": 1413,
+      "province_key": "eu_771_126",
+      "polity_name": "Khanate of Sibir",
+      "resolution": "polygon",
+      "overlap_pixels": 1937,
+      "province_pixels": 1937
+    },
+    {
+      "province_id": 1414,
+      "province_key": "eu_786_126",
+      "polity_name": "Khanate of Sibir",
+      "resolution": "polygon",
+      "overlap_pixels": 2001,
+      "province_pixels": 2001
+    },
+    {
+      "province_id": 1415,
+      "province_key": "eu_801_126",
+      "polity_name": "Khanate of Sibir",
+      "resolution": "polygon",
+      "overlap_pixels": 2448,
+      "province_pixels": 2448
+    },
+    {
+      "province_id": 1416,
+      "province_key": "eu_756_141",
+      "polity_name": "Khanate of Sibir",
+      "resolution": "polygon",
+      "overlap_pixels": 2122,
+      "province_pixels": 2122
+    },
+    {
+      "province_id": 1417,
+      "province_key": "eu_771_141",
+      "polity_name": "Khanate of Sibir",
+      "resolution": "polygon",
+      "overlap_pixels": 2154,
+      "province_pixels": 2154
+    },
+    {
+      "province_id": 1418,
+      "province_key": "eu_801_141",
+      "polity_name": "Khanate of Sibir",
+      "resolution": "polygon",
+      "overlap_pixels": 2514,
+      "province_pixels": 2514
+    },
+    {
+      "province_id": 1419,
+      "province_key": "eu_801_156",
+      "polity_name": "Khanate of Sibir",
+      "resolution": "polygon",
+      "overlap_pixels": 2032,
+      "province_pixels": 2032
+    },
+    {
+      "province_id": 1420,
+      "province_key": "eu_756_171",
+      "polity_name": "Khanate of Sibir",
+      "resolution": "polygon",
+      "overlap_pixels": 2315,
+      "province_pixels": 2315
+    },
+    {
+      "province_id": 1421,
+      "province_key": "eu_801_171",
+      "polity_name": "Khanate of Sibir",
+      "resolution": "polygon",
+      "overlap_pixels": 2736,
+      "province_pixels": 2736
+    },
+    {
+      "province_id": 1422,
+      "province_key": "eu_771_186",
+      "polity_name": "Khanate of Sibir",
+      "resolution": "polygon",
+      "overlap_pixels": 1807,
+      "province_pixels": 1807
+    },
+    {
+      "province_id": 1423,
+      "province_key": "eu_786_186",
+      "polity_name": "Khanate of Sibir",
+      "resolution": "polygon",
+      "overlap_pixels": 2533,
+      "province_pixels": 2533
+    },
+    {
+      "province_id": 1424,
+      "province_key": "eu_801_186",
+      "polity_name": "Khanate of Sibir",
+      "resolution": "polygon",
+      "overlap_pixels": 2448,
+      "province_pixels": 2448
+    },
+    {
+      "province_id": 1425,
+      "province_key": "eu_756_201",
+      "polity_name": "Khanate of Sibir",
+      "resolution": "polygon",
+      "overlap_pixels": 2423,
+      "province_pixels": 2423
+    },
+    {
+      "province_id": 1426,
+      "province_key": "eu_786_201",
+      "polity_name": "Khanate of Sibir",
+      "resolution": "polygon",
+      "overlap_pixels": 1840,
+      "province_pixels": 1840
+    },
+    {
+      "province_id": 1427,
+      "province_key": "eu_801_201",
+      "polity_name": "Khanate of Sibir",
+      "resolution": "polygon",
+      "overlap_pixels": 2315,
+      "province_pixels": 2315
+    },
+    {
+      "province_id": 1428,
+      "province_key": "eu_741_216",
+      "polity_name": "Khanate of Sibir",
+      "resolution": "polygon",
+      "overlap_pixels": 3308,
+      "province_pixels": 3308
+    },
+    {
+      "province_id": 1429,
+      "province_key": "eu_756_216",
+      "polity_name": "Khanate of Sibir",
+      "resolution": "polygon",
+      "overlap_pixels": 2018,
+      "province_pixels": 2018
+    },
+    {
+      "province_id": 1430,
+      "province_key": "eu_771_216",
+      "polity_name": "Khanate of Sibir",
+      "resolution": "polygon",
+      "overlap_pixels": 2388,
+      "province_pixels": 2388
+    },
+    {
+      "province_id": 1431,
+      "province_key": "eu_786_216",
+      "polity_name": "Khanate of Sibir",
+      "resolution": "polygon",
+      "overlap_pixels": 1842,
+      "province_pixels": 1842
+    },
+    {
+      "province_id": 1432,
+      "province_key": "eu_741_231",
+      "polity_name": "Khanate of Sibir",
+      "resolution": "polygon",
+      "overlap_pixels": 3658,
+      "province_pixels": 3658
+    },
+    {
+      "province_id": 1433,
+      "province_key": "eu_756_231",
+      "polity_name": "Khanate of Sibir",
+      "resolution": "polygon",
+      "overlap_pixels": 2062,
+      "province_pixels": 2062
+    },
+    {
+      "province_id": 1434,
+      "province_key": "eu_771_231",
+      "polity_name": "Khanate of Sibir",
+      "resolution": "polygon",
+      "overlap_pixels": 2017,
+      "province_pixels": 2017
+    },
+    {
+      "province_id": 1435,
+      "province_key": "eu_786_231",
+      "polity_name": "Khanate of Sibir",
+      "resolution": "polygon",
+      "overlap_pixels": 2288,
+      "province_pixels": 2288
+    },
+    {
+      "province_id": 1436,
+      "province_key": "eu_801_231",
+      "polity_name": "Khanate of Sibir",
+      "resolution": "polygon",
+      "overlap_pixels": 2250,
+      "province_pixels": 2250
+    },
+    {
+      "province_id": 1437,
+      "province_key": "eu_756_246",
+      "polity_name": "Khanate of Sibir",
+      "resolution": "polygon",
+      "overlap_pixels": 2147,
+      "province_pixels": 2162
+    },
+    {
+      "province_id": 1438,
+      "province_key": "eu_771_246",
+      "polity_name": "Khanate of Sibir",
+      "resolution": "polygon",
+      "overlap_pixels": 2296,
+      "province_pixels": 2296
+    },
+    {
+      "province_id": 1439,
+      "province_key": "eu_786_246",
+      "polity_name": "Khanate of Sibir",
+      "resolution": "polygon",
+      "overlap_pixels": 2698,
+      "province_pixels": 2698
+    },
+    {
+      "province_id": 1440,
+      "province_key": "eu_741_261",
+      "polity_name": "Timurid Empire",
+      "resolution": "polygon",
+      "overlap_pixels": 261,
+      "province_pixels": 2235
+    },
+    {
+      "province_id": 1441,
+      "province_key": "eu_771_261",
+      "polity_name": "Khanate of Sibir",
+      "resolution": "polygon",
+      "overlap_pixels": 999,
+      "province_pixels": 1831
+    },
+    {
+      "province_id": 1442,
+      "province_key": "eu_786_261",
+      "polity_name": "Khanate of Sibir",
+      "resolution": "polygon",
+      "overlap_pixels": 1972,
+      "province_pixels": 1972
+    },
+    {
+      "province_id": 1443,
+      "province_key": "eu_801_261",
+      "polity_name": "Khanate of Sibir",
+      "resolution": "polygon",
+      "overlap_pixels": 3040,
+      "province_pixels": 3040
+    },
+    {
+      "province_id": 1444,
+      "province_key": "eu_741_276",
+      "polity_name": "Timurid Empire",
+      "resolution": "polygon",
+      "overlap_pixels": 1470,
+      "province_pixels": 2891
+    },
+    {
+      "province_id": 1445,
+      "province_key": "eu_756_276",
+      "polity_name": "Timurid Empire",
+      "resolution": "polygon",
+      "overlap_pixels": 2173,
+      "province_pixels": 2173
+    },
+    {
+      "province_id": 1446,
+      "province_key": "eu_771_276",
+      "polity_name": "Timurid Empire",
+      "resolution": "polygon",
+      "overlap_pixels": 2194,
+      "province_pixels": 2194
+    },
+    {
+      "province_id": 1447,
+      "province_key": "eu_741_291",
+      "polity_name": "Timurid Empire",
+      "resolution": "polygon",
+      "overlap_pixels": 2702,
+      "province_pixels": 2728
+    },
+    {
+      "province_id": 1448,
+      "province_key": "eu_756_291",
+      "polity_name": "Timurid Empire",
+      "resolution": "polygon",
+      "overlap_pixels": 2299,
+      "province_pixels": 2299
+    },
+    {
+      "province_id": 1449,
+      "province_key": "eu_771_291",
+      "polity_name": "Timurid Empire",
+      "resolution": "polygon",
+      "overlap_pixels": 2113,
+      "province_pixels": 2113
+    },
+    {
+      "province_id": 1450,
+      "province_key": "eu_786_291",
+      "polity_name": "Timurid Empire",
+      "resolution": "polygon",
+      "overlap_pixels": 2482,
+      "province_pixels": 2482
+    },
+    {
+      "province_id": 1451,
+      "province_key": "eu_801_291",
+      "polity_name": "Timurid Empire",
+      "resolution": "polygon",
+      "overlap_pixels": 2434,
+      "province_pixels": 2434
+    },
+    {
+      "province_id": 1452,
+      "province_key": "eu_756_306",
+      "polity_name": "Timurid Empire",
+      "resolution": "polygon",
+      "overlap_pixels": 2697,
+      "province_pixels": 2697
+    },
+    {
+      "province_id": 1453,
+      "province_key": "eu_786_306",
+      "polity_name": "Timurid Empire",
+      "resolution": "polygon",
+      "overlap_pixels": 2117,
+      "province_pixels": 2117
+    },
+    {
+      "province_id": 1454,
+      "province_key": "eu_801_306",
+      "polity_name": "Timurid Empire",
+      "resolution": "polygon",
+      "overlap_pixels": 2311,
+      "province_pixels": 2311
+    },
+    {
+      "province_id": 1455,
+      "province_key": "eu_741_321",
+      "polity_name": "Timurid Empire",
+      "resolution": "polygon",
+      "overlap_pixels": 3115,
+      "province_pixels": 3115
+    },
+    {
+      "province_id": 1456,
+      "province_key": "eu_756_321",
+      "polity_name": "Timurid Empire",
+      "resolution": "polygon",
+      "overlap_pixels": 2170,
+      "province_pixels": 2170
+    },
+    {
+      "province_id": 1457,
+      "province_key": "eu_741_336",
+      "polity_name": "Timurid Empire",
+      "resolution": "polygon",
+      "overlap_pixels": 2074,
+      "province_pixels": 2074
+    },
+    {
+      "province_id": 1458,
+      "province_key": "eu_756_336",
+      "polity_name": "Timurid Empire",
+      "resolution": "polygon",
+      "overlap_pixels": 1824,
+      "province_pixels": 1824
+    },
+    {
+      "province_id": 1459,
+      "province_key": "eu_771_336",
+      "polity_name": "Timurid Empire",
+      "resolution": "polygon",
+      "overlap_pixels": 1673,
+      "province_pixels": 1673
+    },
+    {
+      "province_id": 1460,
+      "province_key": "eu_756_351",
+      "polity_name": "Timurid Empire",
+      "resolution": "polygon",
+      "overlap_pixels": 2542,
+      "province_pixels": 2542
+    },
+    {
+      "province_id": 1461,
+      "province_key": "eu_771_351",
+      "polity_name": "Timurid Empire",
+      "resolution": "polygon",
+      "overlap_pixels": 1987,
+      "province_pixels": 1987
     }
   ]
 }

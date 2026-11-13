@@ -1,0 +1,19 @@
+{
+  "schema_version": 2,
+  "key": "cosimo_de_medici",
+  "country": "flo",
+  "name": "Cosimo de’ Medici",
+  "dynasty": "medici",
+  "sex": "male",
+  "birth": [
+    1389,
+    4,
+    10
+  ],
+  "stats": {
+    "adm": 4,
+    "dip": 4,
+    "mil": 2
+  },
+  "traits": []
+}

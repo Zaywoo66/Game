@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "tag": "bit",
+  "name": "Emirate of Bitlis",
+  "color": [
+    118,
+    180,
+    172
+  ],
+  "capital": "van",
+  "ai_profile": "balanced",
+  "government": "monarchy",
+  "start": {
+    "ruler": null,
+    "heir": null,
+    "provinces": [
+      "a_r",
+      "van"
+    ],
+    "treasury": 50000,
+    "tax_rate": 220,
+    "monthly_spending": 3500
+  }
+}

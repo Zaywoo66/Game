@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "tag": "wal",
+  "name": "Principality of Wallachia",
+  "color": [
+    200,
+    166,
+    211
+  ],
+  "capital": "pite_ti",
+  "ai_profile": "balanced",
+  "government": "monarchy",
+  "start": {
+    "ruler": "vlad_ii_dracul",
+    "heir": null,
+    "provinces": [
+      "alexandria",
+      "bucharest",
+      "buz_u",
+      "craiova",
+      "drobeta_turnu_severin",
+      "pite_ti"
+    ],
+    "treasury": 50000,
+    "tax_rate": 200,
+    "monthly_spending": 3500
+  }
+}

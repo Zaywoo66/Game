@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "tag": "tve",
+  "name": "Principality of Tver",
+  "color": [
+    118,
+    190,
+    138
+  ],
+  "capital": "tver",
+  "ai_profile": "balanced",
+  "government": "monarchy",
+  "start": {
+    "ruler": null,
+    "heir": null,
+    "provinces": [
+      "kimry",
+      "tver"
+    ],
+    "treasury": 50000,
+    "tax_rate": 220,
+    "monthly_spending": 3500
+  }
+}

@@ -1,0 +1,47 @@
+{
+  "schema_version": 1,
+  "tag": "mos",
+  "name": "Grand Principality of Moscow",
+  "color": [
+    211,
+    166,
+    200
+  ],
+  "capital": "moscow",
+  "ai_profile": "balanced",
+  "government": "monarchy",
+  "start": {
+    "ruler": "vasily_ii",
+    "heir": null,
+    "provinces": [
+      "bezhetsk",
+      "bugrino",
+      "buy",
+      "eu_501_111",
+      "eu_546_126",
+      "eu_546_156",
+      "eu_561_111",
+      "eu_561_126",
+      "eu_561_141",
+      "eu_576_111",
+      "eu_576_126",
+      "eu_576_141",
+      "eu_591_126",
+      "eu_606_126",
+      "eu_621_126",
+      "ivanovo",
+      "kotelnich",
+      "moscow",
+      "nizhny_novgorod",
+      "noginsk",
+      "sharya",
+      "torzhok",
+      "vichuga",
+      "vladimir",
+      "vologda"
+    ],
+    "treasury": 80000,
+    "tax_rate": 200,
+    "monthly_spending": 5000
+  }
+}

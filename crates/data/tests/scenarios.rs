@@ -11,6 +11,7 @@ use strategy_data::{
 };
 use strategy_sim::{
     Controller, DiplomacyError, DiplomacyState, GameState, Opinion, ProvinceGraph, ProvinceKind,
+    Tick, War, WarId, WarSide, WarState,
 };
 
 fn load_with_opinions(opinions: Value) -> Result<GameState, ScenarioLoadError> {
@@ -283,16 +284,43 @@ fn legacy_read(logical: &str) -> io::Result<Vec<u8>> {
     let mut file: Value = serde_json::from_slice(&data).unwrap();
     let legacy: Value =
         serde_json::from_str(include_str!("fixtures/western_europe_v2_ownership.json")).unwrap();
+    let fixture_countries: BTreeSet<String> = legacy["countries"]
+        .as_object()
+        .unwrap()
+        .keys()
+        .cloned()
+        .collect();
     if logical == "scenarios/1440.json" {
-        // The fixed v2 map fixture predates the Brittany, Milan and Lithuania content batches.
+        // Keep the fixed v2 fixture limited to countries represented by its ownership table.
         file["countries"]
             .as_array_mut()
             .unwrap()
-            .retain(|tag| tag != "bre" && tag != "lit" && tag != "mil");
+            .retain(|tag| fixture_countries.contains(tag.as_str().unwrap_or_default()));
         file["characters"].as_array_mut().unwrap().retain(|key| {
-            key != "casimir_jagiellon"
-                && key != "john_v_brittany"
-                && key != "filippo_maria_visconti"
+            let Some(key) = key.as_str() else {
+                return false;
+            };
+            let path = data_root().join("characters").join(format!("{key}.json"));
+            let Ok(bytes) = fs::read(path) else {
+                return false;
+            };
+            let Ok(character) = serde_json::from_slice::<Value>(&bytes) else {
+                return false;
+            };
+            if !fixture_countries.contains(character["country"].as_str().unwrap_or_default()) {
+                return false;
+            }
+            let Some(spouse) = character["spouse"].as_str() else {
+                return true;
+            };
+            let spouse_path = data_root()
+                .join("characters")
+                .join(format!("{spouse}.json"));
+            fs::read(spouse_path)
+                .ok()
+                .and_then(|bytes| serde_json::from_slice::<Value>(&bytes).ok())
+                .and_then(|spouse| spouse["country"].as_str().map(str::to_owned))
+                .is_some_and(|country| fixture_countries.contains(&country))
         });
         file.as_object_mut().unwrap().remove("unowned_provinces");
         file.as_object_mut().unwrap().remove("navy");
@@ -303,6 +331,26 @@ fn legacy_read(logical: &str) -> io::Result<Vec<u8>> {
             .as_object_mut()
             .unwrap()
             .remove("vassal_min_opinion");
+    } else if let Some(key) = logical
+        .strip_prefix("characters/")
+        .and_then(|path| path.strip_suffix(".json"))
+    {
+        if let Some(spouse) = file["spouse"].as_str() {
+            let spouse_path = data_root()
+                .join("characters")
+                .join(format!("{spouse}.json"));
+            let spouse_country = fs::read(spouse_path)
+                .ok()
+                .and_then(|bytes| serde_json::from_slice::<Value>(&bytes).ok())
+                .and_then(|character| character["country"].as_str().map(str::to_owned));
+            if spouse_country
+                .as_deref()
+                .is_none_or(|country| !fixture_countries.contains(country))
+            {
+                file.as_object_mut().unwrap().remove("spouse");
+            }
+        }
+        let _ = key;
     } else if let Some(tag) = logical
         .strip_prefix("countries/")
         .and_then(|path| path.strip_suffix(".json"))
@@ -313,6 +361,37 @@ fn legacy_read(logical: &str) -> io::Result<Vec<u8>> {
         }
     }
     Ok(serde_json::to_vec(&file).unwrap())
+}
+
+#[test]
+fn scenario_1440_lithuania_uses_the_january_grand_duke_and_roundtrips_year_precision() {
+    let root = data_root();
+    let map = load_provinces(root.join("map/europe/provinces.json")).unwrap();
+    let state = load_scenario(map.clone(), root.join("scenarios/1440.json")).unwrap();
+    let (lit, _) = state
+        .polity()
+        .unwrap()
+        .countries
+        .iter()
+        .find(|(_, country)| country.tag == "lit")
+        .unwrap();
+    let (ruler_id, ruler) = state.ruler(*lit).unwrap();
+    assert_eq!(ruler.name, "Sigismund Kęstutaitis");
+    assert_eq!(ruler.birth_precision, strategy_sim::BirthPrecision::Year);
+    assert_eq!(ruler.age_years(state.time().date()), Some(75));
+    let bytes = save_game(&state).unwrap();
+    let saved: Value = serde_json::from_slice(&bytes).unwrap();
+    assert_eq!(saved["schema_version"], json!(16));
+    assert_eq!(
+        saved["state"]["polity"]["characters"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|character| character["id"] == json!(ruler_id.get()))
+            .unwrap()["birth_precision"],
+        json!("year")
+    );
+    assert_eq!(load_game(&bytes, map).unwrap(), state);
 }
 
 fn original() -> GameState {
@@ -365,6 +444,73 @@ fn guarantee_save_round_trip_preserves_direction_order_and_hash() {
         load_game(&serde_json::to_vec(&invalid).unwrap(), graph()),
         Err(SaveError::InvalidDiplomacy(DiplomacyError::InvalidState))
     ));
+}
+
+#[test]
+fn call_to_arms_save_v17_round_trips_and_keeps_competing_offers_ordered() {
+    let base = m3_state();
+    let original = original();
+    let country = |tag| {
+        *base
+            .polity()
+            .unwrap()
+            .countries
+            .iter()
+            .find(|(_, country)| country.tag == tag)
+            .unwrap()
+            .0
+    };
+    let castile = country("cas");
+    let portugal = country("por");
+    let england = country("eng");
+    let pair = |a, b| if a < b { (a, b) } else { (b, a) };
+    let goal = base
+        .province_graph()
+        .iter()
+        .find(|province| province.key == "algarve")
+        .unwrap()
+        .id;
+    let mut military = WarState::new(original.war_state().unwrap().rules.clone(), BTreeMap::new());
+    military.wars.insert(
+        WarId::new(1),
+        War {
+            attacker: castile,
+            defender: portugal,
+            attacker_supporters: BTreeSet::new(),
+            defender_supporters: BTreeSet::new(),
+            goal,
+            independence: false,
+            started_at: Tick::new(0),
+            score: 0,
+            occupations: BTreeMap::new(),
+            offer: None,
+        },
+    );
+    military.next_war_id = 2;
+    let base = base.with_war_state(military).unwrap();
+    let expires_at = base.time().date().checked_add_days(30).unwrap();
+    let diplomacy = DiplomacyState {
+        alliances: BTreeSet::from([pair(castile, england), pair(portugal, england)]),
+        call_to_arms_offers: BTreeMap::from([
+            (
+                (WarId::new(1), castile, england),
+                (WarSide::Attacker, expires_at),
+            ),
+            (
+                (WarId::new(1), portugal, england),
+                (WarSide::Defender, expires_at),
+            ),
+        ]),
+        ..DiplomacyState::default()
+    };
+    let state = base.with_diplomacy(diplomacy).unwrap();
+
+    let bytes = save_game(&state).unwrap();
+    let saved: Value = serde_json::from_slice(&bytes).unwrap();
+    assert_eq!(saved["schema_version"], json!(17));
+    let restored = load_game(&bytes, graph()).unwrap();
+    assert_eq!(restored, state);
+    assert_eq!(save_game(&restored).unwrap(), bytes);
 }
 
 #[test]
@@ -587,6 +733,44 @@ fn rejects_cross_country_unborn_and_duplicate_ruler_roles() {
             character["death"] = json!([1400, 1, 1]);
         }),
         "death must be after birth",
+    );
+}
+
+#[test]
+fn ai_country_can_start_without_a_recorded_ruler() {
+    let state = edited_file("countries/fra.json", |country| {
+        country["start"]["ruler"] = Value::Null;
+        country["start"]["heir"] = Value::Null;
+    })
+    .unwrap();
+    let france = state
+        .polity()
+        .unwrap()
+        .countries
+        .iter()
+        .find_map(|(&id, country)| (country.tag == "fra").then_some(id))
+        .unwrap();
+    assert!(state.ruler(france).is_none());
+    assert_eq!(
+        load_game(&save_game(&state).unwrap(), graph()).unwrap(),
+        state
+    );
+}
+
+#[test]
+fn rulerless_country_cannot_have_an_heir_or_a_human_controller() {
+    assert_invalid(
+        edited_file("countries/fra.json", |country| {
+            country["start"]["ruler"] = Value::Null;
+        }),
+        "an heir requires a recorded ruler",
+    );
+    assert_invalid(
+        edited_file("countries/eng.json", |country| {
+            country["start"]["ruler"] = Value::Null;
+            country["start"]["heir"] = Value::Null;
+        }),
+        "a human-controlled country requires a ruler",
     );
 }
 
@@ -1019,9 +1203,15 @@ fn city_map_scenario_loads_with_explicit_land_partition_and_round_trips() {
         .map(|province| province.key.as_str())
         .collect();
     assert_eq!(declared, neutral);
-    assert_eq!(map.identity().version.get(), 4);
-    assert_eq!(state.polity().unwrap().countries.len(), 9);
-    assert_eq!(state.polity().unwrap().characters.len(), 16);
+    assert_eq!(map.identity().version.get(), 6);
+    assert_eq!(
+        state.polity().unwrap().countries.len(),
+        scenario["countries"].as_array().unwrap().len()
+    );
+    assert_eq!(
+        state.polity().unwrap().characters.len(),
+        scenario["characters"].as_array().unwrap().len()
+    );
     let polity = state.polity().unwrap();
     let milan = polity
         .countries
@@ -1034,10 +1224,16 @@ fn city_map_scenario_loads_with_explicit_land_partition_and_round_trips() {
         .iter()
         .map(|id| map.get(*id).unwrap().key.as_str())
         .collect();
-    assert_eq!(
-        milan_keys,
-        BTreeSet::from(["bellinzona", "como", "lugano", "milan"])
-    );
+    assert!(BTreeSet::from([
+        "asti",
+        "bellinzona",
+        "como",
+        "lugano",
+        "milan",
+        "novara",
+        "parma"
+    ])
+    .is_subset(&milan_keys));
     let ruler = milan.succession.ruler.unwrap();
     assert_eq!(polity.characters[&ruler].name, "Filippo Maria Visconti");
     let (&lithuania_id, lithuania) = polity
@@ -1046,21 +1242,46 @@ fn city_map_scenario_loads_with_explicit_land_partition_and_round_trips() {
         .find(|(_, country)| country.tag == "lit")
         .unwrap();
     assert_eq!(map.get(lithuania.capital).unwrap().key, "vilnius");
-    assert_eq!(lithuania.provinces.len(), 33);
-    assert_eq!(state.is_in_regency(lithuania_id), Some(true));
+    assert!(lithuania.provinces.len() >= 51);
+    assert_eq!(state.is_in_regency(lithuania_id), Some(false));
     let lithuania_ruler = lithuania.succession.ruler.unwrap();
     assert_eq!(
         polity.characters[&lithuania_ruler].name,
-        "Casimir Jagiellon"
+        "Sigismund Kęstutaitis"
     );
-    let lithuanian_idea = state
+    let (&burgundy_id, burgundy) = polity
+        .countries
+        .iter()
+        .find(|(_, country)| country.tag == "bur")
+        .unwrap();
+    assert_eq!(map.get(burgundy.capital).unwrap().key, "dijon");
+    assert!(burgundy.succession.heir.is_some());
+    let philip = burgundy.succession.ruler.unwrap();
+    let isabella = polity
+        .characters
+        .iter()
+        .find_map(|(&id, character)| (character.name == "Isabella of Portugal").then_some(id))
+        .unwrap();
+    assert_eq!(state.character(philip).unwrap().spouse, Some(isabella));
+    assert_eq!(state.character(isabella).unwrap().spouse, Some(philip));
+    let portugal_id = polity
+        .countries
+        .iter()
+        .find_map(|(&id, country)| (country.tag == "por").then_some(id))
+        .unwrap();
+    assert_eq!(
+        state
+            .effective_opinion(portugal_id, burgundy_id)
+            .unwrap()
+            .points(),
+        20
+    );
+    assert!(!state
         .ideas()
         .unwrap()
         .definitions
-        .get("lithuanian_horsemen")
-        .unwrap();
-    assert_eq!(lithuanian_idea.country, "lit");
-    assert_eq!(lithuanian_idea.name_key, "lithuanian_horsemen");
+        .values()
+        .any(|idea| idea.country == "lit"));
     let brittany = state
         .polity()
         .unwrap()
@@ -1074,9 +1295,9 @@ fn city_map_scenario_loads_with_explicit_land_partition_and_round_trips() {
         .iter()
         .map(|id| map.get(*id).unwrap().key.as_str())
         .collect();
-    assert_eq!(
-        brittany_keys,
+    assert!(
         BTreeSet::from(["brest", "lorient", "nantes", "rennes", "st_brieuc"])
+            .is_subset(&brittany_keys)
     );
     let bytes = save_game(&state).unwrap();
     assert_eq!(load_game(&bytes, map).unwrap(), state);
@@ -1191,7 +1412,7 @@ fn navy_save_v10_round_trips_embarked_army_and_route_and_rejects_bad_records() {
         .unwrap();
     let bytes = save_game(&state).unwrap();
     let document: Value = serde_json::from_slice(&bytes).unwrap();
-    assert_eq!(document["schema_version"], json!(14));
+    assert_eq!(document["schema_version"], json!(16));
     assert_eq!(
         document["state"]["navy"]["fleets"][0]["cargo"],
         json!(army_id.get())

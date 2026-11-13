@@ -3,9 +3,9 @@
   "tag": "sco",
   "name": "Kingdom of Scotland",
   "color": [
-    120,
-    99,
-    177
+    197,
+    169,
+    160
   ],
   "capital": "edinburgh",
   "ai_profile": "balanced",
@@ -15,7 +15,6 @@
     "provinces": [
       "aberdeen",
       "ayr",
-      "belfast",
       "dumfries",
       "dundee",
       "edinburgh",
@@ -23,7 +22,6 @@
       "glasgow",
       "greenock",
       "inverness",
-      "londonderry_derry",
       "perth",
       "wick"
     ],

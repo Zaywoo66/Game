@@ -1,0 +1,12 @@
+{
+  "schema_version": 2,
+  "key": "ladislaus_posthumous",
+  "country": "hun",
+  "name": "Ladislaus the Posthumous",
+  "dynasty": "habsburg",
+  "sex": "male",
+  "birth": [1440, 2, 22],
+  "death": [1457, 11, 23],
+  "stats": {"adm": 2, "dip": 2, "mil": 2},
+  "traits": []
+}

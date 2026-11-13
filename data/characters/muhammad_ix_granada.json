@@ -1,0 +1,12 @@
+{
+  "schema_version": 2,
+  "key": "muhammad_ix_granada",
+  "country": "gra",
+  "name": "Muhammad IX",
+  "dynasty": "nasrid",
+  "sex": "male",
+  "birth": [1384, 1, 1],
+  "birth_precision": "year",
+  "stats": {"adm": 3, "dip": 3, "mil": 3},
+  "traits": []
+}

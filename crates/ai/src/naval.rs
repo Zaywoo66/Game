@@ -1,11 +1,12 @@
 use strategy_sim::{
     Command, CommandActor, CountryId, CountryPolity, EdgeKind, Fleet, GameState, NavyState,
-    ProvinceGraph, ProvinceId, War, WarSide,
+    ProvinceGraph, ProvinceId, War, WarSide, SHIP_CAPACITY,
 };
 
 use crate::{NavalReason, Reason};
 
 const ORDER_PERIOD: u64 = 3;
+const SHIPYARD_PERIOD: u64 = 31;
 
 /// L3 navy planner prefers an amphibious objective, then an unopposed port
 /// blockade. Every order passes through the normal command validator.
@@ -13,8 +14,54 @@ pub(super) fn decide(
     state: &GameState,
     country: CountryId,
     nation: &CountryPolity,
+    profile: &strategy_sim::FiscalAiProfile,
 ) -> Option<(Command, Reason)> {
-    if (state.time().tick().get() + u64::from(country.get())) % ORDER_PERIOD != 0 {
+    let naval_weight = profile.weights.naval;
+    if naval_weight_allows(state.time().tick().get(), country, naval_weight)
+        && (state.time().tick().get() + u64::from(country.get())) % SHIPYARD_PERIOD == 0
+    {
+        state.polity()?;
+        let navy = state.navy()?;
+        let land_soldiers: u64 = state
+            .war_state()?
+            .armies
+            .values()
+            .filter(|army| army.country == country && army.movement.is_none())
+            .map(|army| u64::from(army.soldiers))
+            .sum();
+        let fleet_ships: u64 = navy
+            .fleets
+            .values()
+            .filter(|fleet| fleet.country == country)
+            .map(|fleet| u64::from(fleet.ships))
+            .sum();
+        let needed_ships = land_soldiers.div_ceil(u64::from(SHIP_CAPACITY));
+        if fleet_ships < needed_ships
+            && !navy.shipyards.values().any(|yard| yard.country == country)
+        {
+            for &port_id in &nation.provinces {
+                let Some(port) = state.province_graph().get(port_id) else {
+                    continue;
+                };
+                for &sea in &port.ports {
+                    let command = Command::BuildShip {
+                        country,
+                        port: port_id,
+                        sea,
+                    };
+                    if state
+                        .validate_command(CommandActor::Ai(country), &command)
+                        .is_ok()
+                    {
+                        return Some((command, Reason::Naval(NavalReason::BuildShip)));
+                    }
+                }
+            }
+        }
+    }
+    if !naval_weight_allows(state.time().tick().get(), country, naval_weight)
+        || (state.time().tick().get() + u64::from(country.get())) % ORDER_PERIOD != 0
+    {
         return None;
     }
     let military = state.war_state()?;
@@ -26,6 +73,10 @@ pub(super) fn decide(
         }
     }
     decide_blockade(state, country, war, navy)
+}
+
+fn naval_weight_allows(tick: u64, country: CountryId, weight: u16) -> bool {
+    u64::from(weight) > tick.wrapping_add(u64::from(country.get())) % 1000
 }
 
 fn decide_transport(
@@ -226,6 +277,15 @@ mod tests {
     };
 
     #[test]
+    fn naval_weight_scales_the_deterministic_planning_window() {
+        let country = CountryId::new(4);
+        assert!(!naval_weight_allows(0, country, 0));
+        assert!(naval_weight_allows(0, country, 400));
+        assert!(!naval_weight_allows(800, country, 400));
+        assert!(naval_weight_allows(800, country, 1000));
+    }
+
+    #[test]
     fn ai_avoids_equal_or_stronger_wartime_fleet_on_its_sea_route() {
         let province = |id, target| Province {
             id: ProvinceId::new(id),
@@ -281,6 +341,7 @@ mod tests {
                 (FleetId::new(2), enemy.clone()),
             ]),
             next_fleet_id: 3,
+            shipyards: BTreeMap::new(),
         };
         assert!(!route_is_safe(
             &graph,
@@ -355,6 +416,20 @@ mod tests {
             economy: EconomyState::default(),
             succession: SuccessionState::default(),
         };
+        let naval_profile = FiscalAiProfile {
+            idea_priority: 0,
+            reform_priority: 0,
+            weights: AiWeights {
+                naval: 1000,
+                ..AiWeights::default()
+            },
+            thresholds: AiThresholds::default(),
+            preferred_tax_rate: Fixed::ZERO,
+            preferred_monthly_spending: Fixed::ZERO,
+            tech_branch_weights: BTreeMap::new(),
+        };
+        let mut zero_naval_profile = naval_profile.clone();
+        zero_naval_profile.weights.naval = 0;
         let polity = PolityState {
             rules: PolityRules {
                 adulthood_years: 18,
@@ -370,18 +445,10 @@ mod tests {
                 (b, nation("second", 5, &[2, 5])),
             ]),
             characters: BTreeMap::new(),
-            ai_profiles: BTreeMap::from([(
-                "test_profile".into(),
-                FiscalAiProfile {
-                    idea_priority: 0,
-                    reform_priority: 0,
-                    weights: AiWeights::default(),
-                    thresholds: AiThresholds::default(),
-                    preferred_tax_rate: Fixed::ZERO,
-                    preferred_monthly_spending: Fixed::ZERO,
-                    tech_branch_weights: BTreeMap::new(),
-                },
-            )]),
+            ai_profiles: BTreeMap::from([
+                ("test_profile".into(), naval_profile),
+                ("no_navy".into(), zero_naval_profile),
+            ]),
         };
         let mut wars = WarState::new(
             WarRules {
@@ -434,6 +501,7 @@ mod tests {
                 },
             )]),
             next_fleet_id: 2,
+            shipyards: BTreeMap::new(),
         };
         let mut state = GameState::new(
             SimTime::new(Date::new(1440, 1, 1).unwrap(), Speed::One, false),
@@ -468,6 +536,21 @@ mod tests {
         .unwrap()
         .with_navy(navy)
         .unwrap();
+        let mut low_naval_state = state.clone();
+        low_naval_state
+            .apply(
+                CommandActor::Host(PlayerId::new(1)),
+                &Command::SetController {
+                    country: b,
+                    controller: Controller::Ai(AiProfileKey::new("no_navy")),
+                },
+            )
+            .unwrap();
+        let mut low_naval_context = crate::AiContext::new(&low_naval_state, b);
+        assert!(crate::decide(&low_naval_state, b, &mut low_naval_context)
+            .iter()
+            .all(|(_, reason)| !matches!(reason, Reason::Naval(_))));
+
         let mut context = crate::AiContext::new(&state, b);
         let (command, reason) = crate::decide(&state, b, &mut context)
             .into_iter()

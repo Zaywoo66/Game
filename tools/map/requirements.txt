@@ -4,3 +4,4 @@ rasterio==1.4.3
 scipy==1.15.3
 Shapely==2.1.1
 PyYAML==6.0.3
+pyshp==2.3.1

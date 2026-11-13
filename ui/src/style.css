@@ -29,9 +29,9 @@ p { font-size: 14px; color: #a8b6cf; }
 .map-viewport canvas:focus-visible { outline: 2px solid #e1c48c; outline-offset: -3px; }
 .map-label-layer { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
 .map-hover-tooltip { position: fixed; z-index: 12; max-width: 220px; padding: 6px 9px; border: 1px solid #8c9d91; border-radius: 4px; background: #142329f2; color: #f5ebd5; font: 13px/1.25 system-ui, sans-serif; box-shadow: 0 3px 10px #07141b99; pointer-events: none; }
-.map-label { position: absolute; transform: translate(-50%, -50%); color: #fff5d6; font: 600 13px/1.2 system-ui, sans-serif; white-space: nowrap; text-shadow: 0 1px 3px #07141b, 0 0 5px #07141b; }
-.map-label[data-kind='country'] { font-size: 17px; letter-spacing: .04em; }
-.map-label--capital { color: #f9d98f; }
+.map-label { position: absolute; transform: translate(-50%, -50%); color: #28271f; font: 600 13px/1.2 Georgia, 'Times New Roman', serif; white-space: nowrap; text-shadow: 0 0 2px #d8cda8, 1px 1px 1px #d8cda8; }
+.map-label[data-kind='country'] { font-size: 15px; letter-spacing: .12em; text-transform: uppercase; }
+.map-label--capital { color: #3b2a1c; }
 .map-army-overlay { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
 .map-army-badge { position: absolute; z-index: 2; transform: translate(-50%, -135%); padding: 3px 6px; border: 1px solid #c7b88d; border-radius: 5px; background: #142329ed; color: #fdf2d8; white-space: nowrap; font: 700 12px/1 system-ui, sans-serif; text-shadow: 0 1px #000; box-shadow: 0 2px 5px #0008; }
 .map-army-badge[data-selected='true'] { border-color: #ffdf80; background: #564723; }
@@ -79,7 +79,7 @@ p { font-size: 14px; color: #a8b6cf; }
 .map-inspector { bottom: 18px; right: 18px; min-width: min(220px, calc(100% - 36px)); }
 .map-status { top: 50%; left: 50%; width: max-content; transform: translate(-50%, -50%); }
 
-.game-clock { top: 18px; right: 18px; width: min(280px, calc(100% - 36px)); pointer-events: auto; }
+.game-clock { top: 18px; right: 18px; width: min(360px, calc(100% - 36px)); pointer-events: auto; }
 .event-backdrop { position: absolute; z-index: 8; inset: 0; display: grid; place-items: center; padding: 18px; box-sizing: border-box; background: #07141b99; }
 .event-popup { box-sizing: border-box; width: min(480px, 100%); max-height: 100%; overflow: auto; padding: 24px; border: 1px solid #c4aa73; border-radius: 6px; background: #142329; color: #f5ebd5; box-shadow: 0 10px 35px #0009; }
 .event-popup h2 { margin: 0 0 12px; font: 500 25px Georgia, serif; }
@@ -92,7 +92,14 @@ p { font-size: 14px; color: #a8b6cf; }
 .event-options button:focus-visible { outline: 2px solid #e1c48c; outline-offset: 2px; }
 .event-options button:disabled { cursor: default; opacity: .6; }
 .event-popup .game-error { margin-top: 12px; color: #f0b28a; }
+.game-clock-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
 .game-clock time { display: block; margin-bottom: 7px; color: #f5ebd5; font-variant-numeric: tabular-nums; }
+.game-clock-status { color: #c5d2ca; font-size: 12px; letter-spacing: .06em; text-transform: uppercase; }
+.game-clock-status.is-paused { color: #f0b28a; }
+.game-clock-country { display: grid; grid-template-columns: minmax(100px, 1.2fr) 1fr 1fr; gap: 8px; margin: 0 0 9px; }
+.game-clock-country div { min-width: 0; }
+.game-clock-country dt { color: #9db0aa; font-size: 11px; }
+.game-clock-country dd { margin: 2px 0 0; overflow: hidden; color: #f5ebd5; font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
 .game-clock-actions { display: flex; align-items: center; gap: 12px; }
 .game-clock-actions label { display: flex; align-items: center; gap: 6px; }
 .map-inspector--host {
@@ -139,8 +146,8 @@ p { font-size: 14px; color: #a8b6cf; }
 .character-panel .character-name { color: #f5ebd5; }
 .map-panel .game-error, .map-panel .game-regency { margin-top: 6px; color: #f0b28a; }
 
-.inspector-tabs { display: flex; gap: 6px; margin-top: 9px; }
-.inspector-tabs button { flex: 1; }
+.inspector-tabs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; margin-top: 9px; }
+.inspector-tabs button { min-width: 0; padding: 5px 4px; font-size: 12px; line-height: 1.2; overflow-wrap: anywhere; }
 .inspector-tabs button[aria-pressed="true"] { border-color: #e1c48c; color: #ffe2a0; }
 .military-panel { margin-top: 11px; padding-top: 8px; border-top: 1px solid #78918d55; }
 .military-panel h3, .military-panel h4 { margin: 7px 0 4px; color: #f5ebd5; }

@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "tag": "geo",
+  "name": "Kingdom of Georgia",
+  "color": [
+    99,
+    191,
+    191
+  ],
+  "capital": "tbilisi",
+  "ai_profile": "balanced",
+  "government": "monarchy",
+  "start": {
+    "ruler": "alexander_i_georgia",
+    "heir": null,
+    "provinces": [
+      "apsheronsk",
+      "batumi",
+      "ganca",
+      "grozny",
+      "ijevan",
+      "kars",
+      "kislovodsk",
+      "krasnodar",
+      "kutaisi",
+      "makhachkala",
+      "nalchik",
+      "sochi",
+      "sukhumi",
+      "tbilisi",
+      "tskhinvali",
+      "vladikavkaz"
+    ],
+    "treasury": 50000,
+    "tax_rate": 200,
+    "monthly_spending": 3000
+  }
+}

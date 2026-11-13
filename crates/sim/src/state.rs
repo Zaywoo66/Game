@@ -6,7 +6,10 @@ use crate::war::{MilitaryAction, MilitaryBonuses, MilitaryOrder};
 use crate::{
     Army, ArmyId, MilitaryTickFailure, MovementLeg, Siege, War, WarError, WarId, WarState,
 };
-use crate::{Fleet, FleetId, FleetMovement, NavyError, NavyState, ProvinceEdge};
+use crate::{
+    Fleet, FleetId, FleetMovement, NavyError, NavyState, ProvinceEdge, ShipBuildOrder,
+    SHIP_BUILD_COST_RAW, SHIP_BUILD_DAYS,
+};
 
 use crate::{
     CharacterId, CharacterState, CountryId, CountryPolity, Date, DiplomacyError, DiplomacyState,
@@ -100,6 +103,11 @@ pub enum Command {
         fleet: FleetId,
         destination: ProvinceId,
     },
+    BuildShip {
+        country: CountryId,
+        port: ProvinceId,
+        sea: ProvinceId,
+    },
     EmbarkArmy {
         country: CountryId,
         army: ArmyId,
@@ -127,6 +135,16 @@ pub enum Command {
         country: CountryId,
         war: WarId,
         cede_goal: bool,
+    },
+    AcceptCallToArms {
+        country: CountryId,
+        war: WarId,
+        from: CountryId,
+    },
+    RejectCallToArms {
+        country: CountryId,
+        war: WarId,
+        from: CountryId,
     },
     AcceptPeace {
         country: CountryId,
@@ -297,6 +315,10 @@ pub enum StateChange {
         fleet: FleetId,
         state: Option<Fleet>,
     },
+    ShipyardChanged {
+        port: ProvinceId,
+        state: Option<ShipBuildOrder>,
+    },
     NavalBattleResolved(crate::NavalBattle),
     WarChanged {
         war: WarId,
@@ -366,6 +388,8 @@ pub enum StateChange {
         overlord: CountryId,
         subject: CountryId,
     },
+    CallToArmsOffered(crate::CallToArmsOffer),
+    CallToArmsOfferRemoved(crate::CallToArmsOffer),
     VassalageChanged {
         overlord: CountryId,
         subject: CountryId,
@@ -542,7 +566,9 @@ enum PreparedCommand<'a> {
         Vec<(CountryId, CountryId)>,
         Option<(CountryId, CountryId)>,
     ),
+    CallToArms(WarId, CountryId, CountryId, crate::WarSide, bool),
     MoveFleet(FleetId, Vec<ProvinceEdge>),
+    BuildShip(CountryId, ProvinceId, ProvinceId),
     Embark(ArmyId, FleetId),
     Disembark(ArmyId, FleetId, ProvinceId),
     Diplomacy(DiplomacyAction),
@@ -849,6 +875,27 @@ impl GameState {
                 {
                     return Err(DiplomacyError::InvalidState);
                 }
+            }
+        }
+        for (&(war_id, from, toward), &(side, expires_at)) in &diplomacy.call_to_arms_offers {
+            let Some(war) = self
+                .war_state
+                .as_ref()
+                .and_then(|military| military.wars.get(&war_id))
+            else {
+                return Err(DiplomacyError::InvalidState);
+            };
+            if !war.is_leader(from)
+                || war.side(from) != Some(side)
+                || war.side(toward).is_some()
+                || self
+                    .war_state
+                    .as_ref()
+                    .is_some_and(|military| military.war_for(toward).is_some())
+                || !diplomacy.allied(from, toward)
+                || expires_at <= self.time.date()
+            {
+                return Err(DiplomacyError::InvalidState);
             }
         }
         self.diplomacy = Some(diplomacy);
@@ -1509,6 +1556,40 @@ impl GameState {
         self.blockaded_ports().contains(&province)
     }
 
+    fn naval_sheltered_ports(&self) -> BTreeSet<(CountryId, ProvinceId)> {
+        let (Some(polity), Some(navy)) = (self.polity(), self.navy()) else {
+            return BTreeSet::new();
+        };
+        let fleet_countries: BTreeSet<_> =
+            navy.fleets.values().map(|fleet| fleet.country).collect();
+        let mut sheltered = BTreeSet::new();
+        for fleet_country in fleet_countries {
+            let fleet_war = self
+                .war_state()
+                .and_then(|wars| wars.war_for(fleet_country));
+            let fleet_side = fleet_war.and_then(|(_, war)| war.side(fleet_country));
+            for (&port_country, nation) in &polity.countries {
+                let port_is_accessible = fleet_country == port_country
+                    || fleet_war.is_some_and(|(_, war)| {
+                        fleet_side.is_some_and(|side| war.side(port_country) == Some(side))
+                    });
+                if !port_is_accessible {
+                    continue;
+                }
+                for &province in &nation.provinces {
+                    if self
+                        .province_graph
+                        .get(province)
+                        .is_some_and(|land| !land.ports.is_empty())
+                    {
+                        sheltered.insert((fleet_country, province));
+                    }
+                }
+            }
+        }
+        sheltered
+    }
+
     pub fn is_in_regency(&self, country: CountryId) -> Option<bool> {
         self.polity()?.is_in_regency(country, self.time.date())
     }
@@ -1645,6 +1726,10 @@ impl GameState {
                 }
             }
             PreparedCommand::Military(action, failed_guarantees, failed_vassal) => {
+                let announced_war = match &action {
+                    MilitaryAction::Declare(id, war) => Some((*id, war.clone())),
+                    _ => None,
+                };
                 let independence_won = match &action {
                     MilitaryAction::Accept(id, _) => self
                         .war_state
@@ -1656,6 +1741,48 @@ impl GameState {
                         .map(|war| (war.attacker, war.defender)),
                     _ => None,
                 };
+                let call_offers = announced_war
+                    .as_ref()
+                    .map_or_else(Vec::new, |(war_id, war)| {
+                        let Some(expires_at) = self.time.date().checked_add_days(30) else {
+                            return Vec::new();
+                        };
+                        let Some(diplomacy) = self.diplomacy.as_ref() else {
+                            return Vec::new();
+                        };
+                        let mut offers = Vec::new();
+                        for (leader, side) in [
+                            (war.attacker, crate::WarSide::Attacker),
+                            (war.defender, crate::WarSide::Defender),
+                        ] {
+                            for &(a, b) in &diplomacy.alliances {
+                                let toward = if a == leader {
+                                    b
+                                } else if b == leader {
+                                    a
+                                } else {
+                                    continue;
+                                };
+                                if toward != war.attacker
+                                    && toward != war.defender
+                                    && war.side(toward).is_none()
+                                    && self
+                                        .war_state
+                                        .as_ref()
+                                        .is_none_or(|state| state.war_for(toward).is_none())
+                                {
+                                    offers.push(crate::CallToArmsOffer {
+                                        war: *war_id,
+                                        from: leader,
+                                        toward,
+                                        side,
+                                        expires_at,
+                                    });
+                                }
+                            }
+                        }
+                        offers
+                    });
                 let war_state = self.war_state.as_mut().expect("military state validated");
                 let polity = self.polity.as_mut().expect("polity validated");
                 delta.changes.extend(war_state.apply(polity, action));
@@ -1712,7 +1839,78 @@ impl GameState {
                         active: false,
                     });
                 }
+                for offer in call_offers {
+                    self.diplomacy
+                        .as_mut()
+                        .expect("war declaration has diplomacy state")
+                        .call_to_arms_offers
+                        .insert(
+                            (offer.war, offer.from, offer.toward),
+                            (offer.side, offer.expires_at),
+                        );
+                    delta.changes.push(StateChange::CallToArmsOffered(offer));
+                }
+                if let Some(war_id) = delta.changes.iter().find_map(|change| match change {
+                    StateChange::PeaceConcluded { war, .. } => Some(*war),
+                    _ => None,
+                }) {
+                    if let Some(diplomacy) = &mut self.diplomacy {
+                        for offer in diplomacy.remove_call_to_arms_for_war(war_id) {
+                            delta
+                                .changes
+                                .push(StateChange::CallToArmsOfferRemoved(offer));
+                        }
+                    }
+                }
                 self.sync_war_flags();
+            }
+            PreparedCommand::CallToArms(war_id, country, _from, side, accept) => {
+                let diplomacy = self.diplomacy.as_mut().expect("offer validated");
+                // Any answer closes competing invitations to this country for
+                // this war, including the offer from the opposite leader.
+                let answered: Vec<_> = diplomacy
+                    .call_to_arms_offers
+                    .iter()
+                    .filter_map(|(&(war, inviter, invitee), &(offer_side, expires_at))| {
+                        (war == war_id && invitee == country).then_some(crate::CallToArmsOffer {
+                            war,
+                            from: inviter,
+                            toward: invitee,
+                            side: offer_side,
+                            expires_at,
+                        })
+                    })
+                    .collect();
+                for offer in &answered {
+                    diplomacy
+                        .call_to_arms_offers
+                        .remove(&(offer.war, offer.from, offer.toward));
+                    delta
+                        .changes
+                        .push(StateChange::CallToArmsOfferRemoved(*offer));
+                }
+                if accept {
+                    let war = self
+                        .war_state
+                        .as_mut()
+                        .expect("validated war")
+                        .wars
+                        .get_mut(&war_id)
+                        .expect("validated war");
+                    match side {
+                        crate::WarSide::Attacker => {
+                            war.attacker_supporters.insert(country);
+                        }
+                        crate::WarSide::Defender => {
+                            war.defender_supporters.insert(country);
+                        }
+                    }
+                    delta.changes.push(StateChange::WarChanged {
+                        war: war_id,
+                        state: Some(war.clone()),
+                    });
+                    self.sync_war_flags();
+                }
             }
             PreparedCommand::MoveFleet(id, route) => {
                 let navy = self.navy.as_mut().expect("navy state validated");
@@ -1724,6 +1922,35 @@ impl GameState {
                 delta.changes.push(StateChange::FleetChanged {
                     fleet: id,
                     state: Some(fleet.clone()),
+                });
+            }
+            PreparedCommand::BuildShip(country, port, sea) => {
+                let navy = self.navy.as_mut().expect("navy state validated");
+                let order = ShipBuildOrder {
+                    country,
+                    sea,
+                    days_remaining: SHIP_BUILD_DAYS,
+                };
+                navy.enqueue_ship(port, order.clone());
+                let economy = &mut self
+                    .polity
+                    .as_mut()
+                    .expect("polity validated")
+                    .countries
+                    .get_mut(&country)
+                    .expect("country validated")
+                    .economy;
+                economy.treasury = economy
+                    .treasury
+                    .checked_sub(Fixed::from_raw(SHIP_BUILD_COST_RAW))
+                    .expect("build cost validated");
+                delta.changes.push(StateChange::ShipyardChanged {
+                    port,
+                    state: Some(order),
+                });
+                delta.changes.push(StateChange::EconomyChanged {
+                    country,
+                    economy: *economy,
                 });
             }
             PreparedCommand::Embark(army_id, fleet_id) => {
@@ -1789,6 +2016,30 @@ impl GameState {
                         let pair = crate::diplomacy::pair(a, b);
                         diplomacy.alliances.remove(&pair);
                         diplomacy.cooldowns.insert(pair, until);
+                        let broken_promises: Vec<_> = diplomacy
+                            .call_to_arms_offers
+                            .iter()
+                            .filter_map(|(&(war, from, toward), &(side, expires_at))| {
+                                ((from == a && toward == b) || (from == b && toward == a))
+                                    .then_some(crate::CallToArmsOffer {
+                                        war,
+                                        from,
+                                        toward,
+                                        side,
+                                        expires_at,
+                                    })
+                            })
+                            .collect();
+                        for offer in broken_promises {
+                            diplomacy.call_to_arms_offers.remove(&(
+                                offer.war,
+                                offer.from,
+                                offer.toward,
+                            ));
+                            delta
+                                .changes
+                                .push(StateChange::CallToArmsOfferRemoved(offer));
+                        }
                         delta.changes.push(StateChange::AllianceChanged {
                             a: pair.0,
                             b: pair.1,
@@ -2182,6 +2433,43 @@ impl GameState {
                     .map(|route| PreparedCommand::MoveFleet(*fleet, route))
                     .map_err(CommandError::Navy)
             }
+            Command::BuildShip { country, port, sea } => {
+                let polity = self.authorized_polity(actor, *country)?;
+                let navy = self
+                    .navy()
+                    .ok_or(CommandError::Navy(NavyError::Unavailable))?;
+                if self.owner_of_province(*port) != Some(*country)
+                    || self.province_graph.get(*port).is_none_or(|province| {
+                        province.kind != crate::ProvinceKind::Land
+                            || !province.ports.contains(sea)
+                            || !province
+                                .neighbors
+                                .iter()
+                                .any(|edge| edge.to == *sea && edge.kind == EdgeKind::Port)
+                    })
+                {
+                    return Err(CommandError::Navy(NavyError::InvalidShipyard(*port)));
+                }
+                if self
+                    .province_graph
+                    .get(*sea)
+                    .is_none_or(|p| p.kind != crate::ProvinceKind::Sea)
+                {
+                    return Err(CommandError::Navy(NavyError::InvalidSea(*sea)));
+                }
+                if navy.shipyards.contains_key(port) {
+                    return Err(CommandError::Navy(NavyError::ShipyardOccupied(*port)));
+                }
+                if polity.countries[country].economy.treasury.raw() < SHIP_BUILD_COST_RAW {
+                    return Err(CommandError::Navy(NavyError::InsufficientFunds));
+                }
+                polity.countries[country]
+                    .economy
+                    .treasury
+                    .checked_sub(Fixed::from_raw(SHIP_BUILD_COST_RAW))
+                    .ok_or(CommandError::Navy(NavyError::InsufficientFunds))?;
+                Ok(PreparedCommand::BuildShip(*country, *port, *sea))
+            }
             Command::EmbarkArmy {
                 country,
                 army,
@@ -2203,7 +2491,7 @@ impl GameState {
                 country,
                 defender,
                 goal,
-            } => self.prepare_military(actor, *country, MilitaryOrder::Declare(*defender, *goal)),
+            } => self.prepare_declare_war(actor, *country, *defender, *goal),
             Command::DeclareIndependence { country } => self.prepare_independence(actor, *country),
             Command::OfferPeace {
                 country,
@@ -2212,6 +2500,12 @@ impl GameState {
             } => self.prepare_military(actor, *country, MilitaryOrder::Offer(*war, *cede_goal)),
             Command::AcceptPeace { country, war } => {
                 self.prepare_military(actor, *country, MilitaryOrder::Accept(*war))
+            }
+            Command::AcceptCallToArms { country, war, from } => {
+                self.prepare_call_to_arms(actor, *country, *war, *from, true)
+            }
+            Command::RejectCallToArms { country, war, from } => {
+                self.prepare_call_to_arms(actor, *country, *war, *from, false)
             }
             Command::OfferAlliance { country, toward } => {
                 self.prepare_diplomacy(actor, *country, *toward, 0)
@@ -2563,6 +2857,78 @@ impl GameState {
             }
         };
         Ok(PreparedCommand::Marriage(action))
+    }
+
+    fn prepare_call_to_arms(
+        &self,
+        actor: CommandActor,
+        country: CountryId,
+        war_id: WarId,
+        from: CountryId,
+        accept: bool,
+    ) -> Result<PreparedCommand<'static>, CommandError> {
+        self.authorized_polity(actor, country)?;
+        let diplomacy = self
+            .diplomacy
+            .as_ref()
+            .ok_or(CommandError::Diplomacy(DiplomacyError::NoCallToArmsOffer))?;
+        let offer = diplomacy
+            .call_to_arms_offer(war_id, from, country)
+            .filter(|offer| offer.expires_at > self.time.date())
+            .ok_or(CommandError::Diplomacy(DiplomacyError::NoCallToArmsOffer))?;
+        let war_state = self
+            .war_state
+            .as_ref()
+            .ok_or(CommandError::War(WarError::Unavailable))?;
+        let war = war_state
+            .wars
+            .get(&war_id)
+            .ok_or(CommandError::Diplomacy(DiplomacyError::NoCallToArmsOffer))?;
+        if !war.is_leader(from)
+            || war.side(from) != Some(offer.side)
+            || war.side(country).is_some()
+            || war_state.war_for(country).is_some()
+            || !diplomacy.allied(from, country)
+        {
+            return Err(CommandError::Diplomacy(DiplomacyError::NoCallToArmsOffer));
+        }
+        Ok(PreparedCommand::CallToArms(
+            war_id, country, from, offer.side, accept,
+        ))
+    }
+
+    fn prepare_declare_war(
+        &self,
+        actor: CommandActor,
+        country: CountryId,
+        defender: CountryId,
+        goal: ProvinceId,
+    ) -> Result<PreparedCommand<'static>, CommandError> {
+        let prepared =
+            self.prepare_military(actor, country, MilitaryOrder::Declare(defender, goal))?;
+        let may_invite_allies = self.diplomacy.as_ref().is_some_and(|diplomacy| {
+            diplomacy.alliances.iter().any(|&(a, b)| {
+                let ally = if a == country || a == defender {
+                    Some(b)
+                } else if b == country || b == defender {
+                    Some(a)
+                } else {
+                    None
+                };
+                ally.is_some_and(|ally| {
+                    ally != country
+                        && ally != defender
+                        && self
+                            .war_state
+                            .as_ref()
+                            .is_none_or(|military| military.war_for(ally).is_none())
+                })
+            })
+        });
+        if may_invite_allies && self.time.date().checked_add_days(30).is_none() {
+            return Err(CommandError::Diplomacy(DiplomacyError::DateOverflow));
+        }
+        Ok(prepared)
     }
 
     fn prepare_diplomacy(
@@ -3142,6 +3508,12 @@ impl GameState {
                         subject: offer.toward,
                     });
             }
+            for offer in diplomacy.expire_call_to_arms(self.time.date()) {
+                report
+                    .delta
+                    .changes
+                    .push(StateChange::CallToArmsOfferRemoved(offer));
+            }
             if let Some(polity) = &self.polity {
                 for offer in diplomacy.expire_marriages(self.time.date(), &polity.characters) {
                     report
@@ -3155,7 +3527,93 @@ impl GameState {
             }
         }
         self.advance_military(&mut report);
+        let invalid_call_offers = self
+            .diplomacy
+            .as_ref()
+            .into_iter()
+            .flat_map(|diplomacy| {
+                diplomacy
+                    .call_to_arms_offers
+                    .iter()
+                    .filter_map(|(&(war_id, from, toward), &(side, expires_at))| {
+                        let valid = self.war_state.as_ref().is_some_and(|military| {
+                            military.wars.get(&war_id).is_some_and(|war| {
+                                war.is_leader(from)
+                                    && war.side(from) == Some(side)
+                                    && war.side(toward).is_none()
+                                    && military.war_for(toward).is_none()
+                            })
+                        }) && diplomacy.allied(from, toward)
+                            && expires_at > self.time.date();
+                        (!valid).then_some(crate::CallToArmsOffer {
+                            war: war_id,
+                            from,
+                            toward,
+                            side,
+                            expires_at,
+                        })
+                    })
+                    .collect::<Vec<_>>()
+            })
+            .collect::<Vec<_>>();
+        if let Some(diplomacy) = &mut self.diplomacy {
+            for offer in invalid_call_offers {
+                diplomacy
+                    .call_to_arms_offers
+                    .remove(&(offer.war, offer.from, offer.toward));
+                report
+                    .delta
+                    .changes
+                    .push(StateChange::CallToArmsOfferRemoved(offer));
+            }
+        }
+        let naval_month_start = self.time.date().components().2 == 1;
+        let sheltered_ports = if naval_month_start {
+            self.naval_sheltered_ports()
+        } else {
+            BTreeSet::new()
+        };
+        let army_strength: BTreeMap<_, _> = self
+            .war_state
+            .as_ref()
+            .map(|war| {
+                war.armies
+                    .iter()
+                    .map(|(&id, army)| (id, army.soldiers))
+                    .collect()
+            })
+            .unwrap_or_default();
+        let province_owners: BTreeMap<_, _> = self
+            .polity()
+            .into_iter()
+            .flat_map(|polity| {
+                polity.countries.iter().flat_map(|(&country, data)| {
+                    data.provinces
+                        .iter()
+                        .copied()
+                        .map(move |province| (province, country))
+                })
+            })
+            .collect();
         if let Some(navy) = &mut self.navy {
+            let (completed_shipyards, cancelled_shipyards) =
+                navy.advance_shipyards(|port| province_owners.get(&port).copied());
+            for port in cancelled_shipyards {
+                report
+                    .delta
+                    .changes
+                    .push(StateChange::ShipyardChanged { port, state: None });
+            }
+            for (port, fleet) in completed_shipyards {
+                report
+                    .delta
+                    .changes
+                    .push(StateChange::ShipyardChanged { port, state: None });
+                report.delta.changes.push(StateChange::FleetChanged {
+                    fleet,
+                    state: navy.fleets.get(&fleet).cloned(),
+                });
+            }
             let previous = navy.advance();
             let battles = navy.resolve_battles(
                 &self.province_graph,
@@ -3185,6 +3643,24 @@ impl GameState {
                     .delta
                     .changes
                     .push(StateChange::NavalBattleResolved(battle));
+            }
+            if naval_month_start {
+                for attrition in
+                    navy.apply_monthly_attrition(&self.province_graph, &sheltered_ports, |army| {
+                        army_strength.get(&army).copied()
+                    })
+                {
+                    changed.insert(attrition.fleet);
+                    if let Some(army) = attrition.lost_army {
+                        if let Some(war) = &mut self.war_state {
+                            war.armies.remove(&army);
+                        }
+                        report
+                            .delta
+                            .changes
+                            .push(StateChange::ArmyChanged { army, state: None });
+                    }
+                }
             }
             for id in changed {
                 report.delta.changes.push(StateChange::FleetChanged {

@@ -692,6 +692,7 @@ fn character(country: CountryId, dynasty: &str, birth: Date) -> CharacterState {
         country,
         dynasty: dynasty.to_owned(),
         birth,
+        birth_precision: strategy_sim::BirthPrecision::Day,
         death: None,
         stats: CharacterStats {
             adm: 2,
@@ -701,6 +702,20 @@ fn character(country: CountryId, dynasty: &str, birth: Date) -> CharacterState {
         traits: BTreeSet::new(),
         modifiers: ModifierStore::default(),
     }
+}
+
+#[test]
+fn year_precision_uses_year_boundaries_without_claiming_a_day() {
+    let mut ruler = character(
+        CountryId::new(1),
+        "test_dynasty",
+        Date::new(1365, 1, 1).unwrap(),
+    );
+    ruler.birth_precision = strategy_sim::BirthPrecision::Year;
+    assert_eq!(ruler.age_years(Date::new(1440, 1, 1).unwrap()), Some(75));
+    assert_eq!(ruler.age_years(Date::new(1440, 12, 31).unwrap()), Some(75));
+    ruler.birth_precision = strategy_sim::BirthPrecision::Day;
+    assert_eq!(ruler.age_years(Date::new(1440, 1, 1).unwrap()), Some(75));
 }
 
 fn country(tag: &str, capital: ProvinceId, ruler: CharacterId) -> CountryPolity {

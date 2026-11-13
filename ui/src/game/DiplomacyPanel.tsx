@@ -1,4 +1,4 @@
-import { GameCommand, GameSnapshot } from './host';
+import { CountryAcceptancePreview, GameCommand, GameSnapshot, ProposalAcceptancePreview } from './host';
 
 interface DiplomacyPanelProps {
   game: GameSnapshot;
@@ -14,6 +14,22 @@ function pairMatches(a: number, b: number, x: number, y: number): boolean {
   return (a === x && b === y) || (a === y && b === x);
 }
 
+function previewText(preview: ProposalAcceptancePreview): string {
+  const labels: Record<string, string> = {
+    opinion: 'opinion',
+    effective_opinion: 'effective opinion',
+    profile_minimum: 'AI threshold',
+    common_stronger_neighbor: 'shared stronger neighbor',
+    direct_war: 'direct war',
+    negative_opinion_accept_percent: 'acceptance chance (%)',
+    overlord_soldiers: 'overlord soldiers',
+    subject_soldiers: 'subject soldiers',
+    legal_pair: 'legal marriage pair',
+  };
+  const factors = preview.factors.map(({ key, value }) => `${labels[key] ?? key}: ${value}`).join(' · ');
+  return `${preview.outcome}${factors ? ` (${factors})` : ''}`;
+}
+
 export function DiplomacyPanel({ game, pending, send }: DiplomacyPanelProps) {
   const local = game.local_country_id;
   if (local === null) {
@@ -24,6 +40,7 @@ export function DiplomacyPanel({ game, pending, send }: DiplomacyPanelProps) {
 
   const incoming = (game.alliance_offers ?? []).filter((offer) => offer.toward_id === local);
   const outgoing = (game.alliance_offers ?? []).filter((offer) => offer.from_id === local);
+  const callToArms = (game.call_to_arms_offers ?? []).filter((offer) => offer.toward_id === local);
   const marriageOffers = game.marriage_offers ?? [];
   const incomingMarriages = marriageOffers.filter((offer) => offer.toward_country_id === local);
   const ownCountry = nameOf(game, local);
@@ -67,7 +84,22 @@ export function DiplomacyPanel({ game, pending, send }: DiplomacyPanelProps) {
 
   return <section className="diplomacy-panel" aria-label="Diplomacy">
     <h2>Diplomacy</h2>
-    <p>Playing as {ownCountry}. Treaty decisions are validated by the host and shared with both players.</p>
+    <p>Playing as {ownCountry}. Treaty decisions are validated by the host and shared with both players.
+      AI forecasts below apply if a legal offer is sent; the host remains authoritative.</p>
+
+    {callToArms.length > 0 && <section aria-label="Calls to arms">
+      <h3>Calls to arms</h3>
+      <ul>{callToArms.map((offer) => <li key={`${offer.war_id}:${offer.from_id}`}>
+        <span>{nameOf(game, offer.from_id)} invites you to join on the {offer.side} side of War {offer.war_id}
+          {' '}· expires {offer.expires_at}</span>
+        <button type="button" disabled={pending} onClick={() => void send({
+          type: 'accept_call_to_arms', country_id: local, war_id: offer.war_id, from_id: offer.from_id,
+        })}>Join war</button>
+        <button type="button" disabled={pending} onClick={() => void send({
+          type: 'reject_call_to_arms', country_id: local, war_id: offer.war_id, from_id: offer.from_id,
+        })}>Decline</button>
+      </li>)}</ul>
+    </section>}
 
     {incoming.length > 0 && <section aria-label="Incoming alliance proposals">
       <h3>Incoming alliance proposals</h3>
@@ -124,6 +156,9 @@ export function DiplomacyPanel({ game, pending, send }: DiplomacyPanelProps) {
           (row) => row.overlord_id === local && row.subject_id === country.id,
         );
         const pair = marriagePair(country.id);
+        const acceptancePreview: CountryAcceptancePreview | undefined = game.acceptance_previews?.find(
+          (preview) => preview.country_id === country.id,
+        );
         const marriagePending = marriageOffers.some((offer) => pairMatches(
           offer.from_country_id, offer.toward_country_id, local, country.id,
         ));
@@ -186,6 +221,11 @@ export function DiplomacyPanel({ game, pending, send }: DiplomacyPanelProps) {
                 toward_id: country.id, partner_id: pair.partner.id,
               })}>{marriagePending ? 'Marriage proposal pending' : 'Offer royal marriage'}</button>
           </div>
+          {acceptancePreview && <p className="diplomacy-acceptance-preview" aria-label="AI acceptance preview">
+            Alliance: {previewText(acceptancePreview.alliance)}<br />
+            Vassalage: {previewText(acceptancePreview.vassalage)}
+            {acceptancePreview.marriage && <><br />Marriage: {previewText(acceptancePreview.marriage)}</>}
+          </p>}
         </article>;
       })}
     </div>

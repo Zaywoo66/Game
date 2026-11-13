@@ -56,6 +56,37 @@ pub(super) fn decide(
     let actor = CommandActor::Ai(country);
     if let Some(offer) = state
         .diplomacy()
+        .and_then(|d| d.call_to_arms_offers_to(country).next())
+    {
+        let opinion = state
+            .opinion(country, offer.from)
+            .map_or(0, |opinion| i32::from(opinion.points()));
+        let accepts = opinion >= profile.thresholds.alliance_min_opinion;
+        let command = if accepts {
+            Command::AcceptCallToArms {
+                country,
+                war: offer.war,
+                from: offer.from,
+            }
+        } else {
+            Command::RejectCallToArms {
+                country,
+                war: offer.war,
+                from: offer.from,
+            }
+        };
+        let reason = if accepts {
+            Reason::CallToArmsAccepted
+        } else {
+            Reason::CallToArmsRejected
+        };
+        return state
+            .validate_command(actor, &command)
+            .is_ok()
+            .then_some((command, reason));
+    }
+    if let Some(offer) = state
+        .diplomacy()
         .and_then(|d| d.vassal_offers_to(country).next())
     {
         let factors = vassal_acceptance_factors(state, offer.from, country, profile);
