@@ -94,6 +94,30 @@ test('country labels stay clear of map controls and panels', async ({ page }) =>
   expect(overlaps).toEqual([]);
 });
 
+test('overview map uses compact controls and army markers at a laptop viewport', async ({ page }) => {
+  await page.setViewportSize({ width: 1100, height: 768 });
+  const london = (await loadProvinces(page)).find(({ key }) => key === 'london');
+  expect(london).toBeTruthy();
+  await page.evaluate((provinceId) => {
+    const map = window.strategyMapTest;
+    map.setCameraPreset('whole-region');
+    map.setArmies([{ id: 909, province: provinceId, destination: null,
+      progress: 0, color: '#526f9b', soldiers: 1200 }]);
+    map.renderFrame();
+  }, london.id);
+  const viewport = page.locator('[data-map-viewport]');
+  await expect(viewport).toHaveAttribute('data-map-scale', 'overview');
+  const headerWidth = await page.locator('.map-header').evaluate((element) =>
+    Number.parseFloat(getComputedStyle(element).width));
+  expect(headerWidth).toBeLessThanOrEqual(430);
+  const badge = page.locator('.map-army-badge[data-army-id="909"]');
+  await expect(badge).toBeVisible();
+  await expect(badge.locator('.map-army-strength')).toBeHidden();
+  expect(await badge.evaluate((element) => Number.parseFloat(getComputedStyle(element).width)))
+    .toBeLessThanOrEqual(20);
+  await expect(badge).toHaveAttribute('aria-label', 'Army 909, 1,200 soldiers');
+});
+
 test('owner recoloring changes the rendered province in place', async ({ page }) => {
   await page.getByRole('button', { name: 'Game political' }).click();
   const land = (await loadProvinces(page)).filter(({ kind }) => kind === 'land');

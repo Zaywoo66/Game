@@ -120,6 +120,12 @@ export function createFleetLayer(
         badge.type = 'button';
         badge.className = 'map-fleet-badge';
         badge.dataset.fleetId = String(marker.id);
+        const icon = document.createElement('span');
+        icon.className = 'map-fleet-icon';
+        icon.textContent = '⚓';
+        const strength = document.createElement('span');
+        strength.className = 'map-fleet-strength';
+        badge.append(icon, strength);
         badge.addEventListener('click', () => {
           selected = marker.id;
           update(performance.now());
@@ -128,7 +134,8 @@ export function createFleetLayer(
         overlay.appendChild(badge);
         badges.set(marker.id, badge);
       }
-      badge.textContent = `⚓ ${marker.ships.toLocaleString('en-US')}`;
+      const strength = badge.querySelector('.map-fleet-strength');
+      if (strength) strength.textContent = marker.ships.toLocaleString('en-US');
       badge.setAttribute('aria-label', `Fleet ${marker.id}, ${marker.ships} ships`);
       badge.title = `Fleet ${marker.id} · ${marker.ships.toLocaleString('en-US')} ships`;
       badge.style.setProperty('--fleet-color', /^#[a-f\d]{6}$/i.test(marker.color) ? marker.color : '#ffffff');
