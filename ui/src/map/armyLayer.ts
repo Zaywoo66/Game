@@ -153,10 +153,19 @@ export function createArmyLayer(
         badge = document.createElement('span');
         badge.className = 'map-army-badge';
         badge.dataset.armyId = String(marker.id);
+        const icon = document.createElement('span');
+        icon.className = 'map-army-icon';
+        icon.textContent = '⚔';
+        const strength = document.createElement('span');
+        strength.className = 'map-army-strength';
+        badge.append(icon, strength);
         overlay.appendChild(badge);
         badges.set(marker.id, badge);
       }
-      badge.textContent = `⚔ ${marker.soldiers.toLocaleString('en-US')}`;
+      const strength = badge.querySelector('.map-army-strength');
+      if (strength) strength.textContent = marker.soldiers.toLocaleString('en-US');
+      badge.setAttribute('aria-label', `Army ${marker.id}, ${marker.soldiers.toLocaleString('en-US')} soldiers`);
+      badge.title = `Army ${marker.id} · ${marker.soldiers.toLocaleString('en-US')} soldiers`;
     }
     if (ids.length > 0) loadModel();
     rebuildInstances();

@@ -30,6 +30,11 @@ Why: M2-M5 acceptance was technical only. Later systems (diplomacy, naval, AI) a
 - Camera keyboard pan (WASD/arrows), Home framing, double-click province focus,
   and cursor-centered wheel zoom are implemented. Remaining 5b.7 controls,
   order feedback, notifications, settings, and session acceptance are open.
+- The map UI now constrains its header and inspector on laptop-sized windows and
+  reduces army/fleet badges to compact icons at overview zoom while retaining
+  full strength text for screen readers and tooltips. A 1100×768 browser check
+  covers these responsive rules; owner review and native target-hardware review
+  remain required.
 
 ## Acceptance (evidence required)
 - Add a dev command capturing screenshots at named camera presets (whole region, Britain close-up, Iberian coast, single province close-up) at 1080p. PR must attach them; the owner reviews. No screenshots = not accepted.

@@ -32,8 +32,11 @@ p { font-size: 14px; color: #a8b6cf; }
 .map-label { position: absolute; transform: translate(-50%, -50%); color: #28271f; font: 600 13px/1.2 Georgia, 'Times New Roman', serif; white-space: nowrap; text-shadow: 0 0 2px #d8cda8, 1px 1px 1px #d8cda8; }
 .map-label[data-kind='country'] { font-size: 15px; letter-spacing: .12em; text-transform: uppercase; }
 .map-label--capital { color: #3b2a1c; }
+.map-viewport[data-map-scale='overview'] .map-label[data-kind='country'] { font-size: 11px; letter-spacing: .04em; }
+.map-viewport[data-map-scale='regional'] .map-label[data-kind='country'] { font-size: 13px; letter-spacing: .07em; }
 .map-army-overlay { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
 .map-army-badge { position: absolute; z-index: 2; transform: translate(-50%, -135%); padding: 3px 6px; border: 1px solid #c7b88d; border-radius: 5px; background: #142329ed; color: #fdf2d8; white-space: nowrap; font: 700 12px/1 system-ui, sans-serif; text-shadow: 0 1px #000; box-shadow: 0 2px 5px #0008; }
+.map-army-icon, .map-fleet-icon { display: inline-block; }
 .map-army-badge[data-selected='true'] { border-color: #ffdf80; background: #564723; }
 .map-army-path { position: absolute; height: 0; border-top: 2px dashed #ffd778; opacity: .85; transform-origin: left center; }
 .map-army-path::after { content: ''; position: absolute; right: -1px; top: -5px; border-left: 7px solid #ffd778; border-top: 4px solid transparent; border-bottom: 4px solid transparent; }
@@ -41,6 +44,15 @@ p { font-size: 14px; color: #a8b6cf; }
 .map-fleet-badge { position: absolute; z-index: 3; transform: translate(-50%, -160%); padding: 4px 7px; border: 2px solid var(--fleet-color); border-radius: 999px; background: #14313beF; color: #fdf2d8; white-space: nowrap; font: 700 12px/1 system-ui, sans-serif; text-shadow: 0 1px #000; box-shadow: 0 2px 6px #0009; pointer-events: auto; cursor: pointer; }
 .map-fleet-badge[data-selected='true'] { outline: 2px solid #ffe2a0; outline-offset: 2px; background: #564723; }
 .map-fleet-badge:focus-visible { outline: 2px solid #fff2bd; outline-offset: 3px; }
+.map-viewport[data-map-scale='overview'] .map-army-badge,
+.map-viewport[data-map-scale='overview'] .map-fleet-badge {
+  width: 20px; height: 20px; box-sizing: border-box; display: inline-flex;
+  align-items: center; justify-content: center; padding: 0; border-radius: 50%; font-size: 11px;
+}
+.map-viewport[data-map-scale='overview'] .map-army-strength,
+.map-viewport[data-map-scale='overview'] .map-fleet-strength { display: none; }
+.map-viewport[data-map-scale='regional'] .map-army-badge,
+.map-viewport[data-map-scale='regional'] .map-fleet-badge { padding: 2px 4px; font-size: 10px; }
 .map-fleet-path { position: absolute; z-index: 2; height: 0; border-top: 2px dashed #8ee2e0; opacity: .9; transform-origin: left center; pointer-events: none; }
 .map-fleet-path::after { content: ''; position: absolute; right: -1px; top: -5px; border-left: 7px solid #8ee2e0; border-top: 4px solid transparent; border-bottom: 4px solid transparent; }
 .military-panel [data-selected='true'] { border-color: #e1c48c; background: #20363a; }
@@ -63,7 +75,7 @@ p { font-size: 14px; color: #a8b6cf; }
 .map-panel h1 { font-size: 26px; }
 .map-panel h2 { font-size: 21px; }
 .map-panel p { color: #c5d2ca; line-height: 1.4; }
-.map-header { top: 18px; left: 18px; }
+.map-header { top: 18px; left: 18px; width: min(520px, calc(100% - 36px)); max-height: min(42vh, 390px); overflow: auto; }
 .map-header a { color: #e1c48c; font-size: 13px; pointer-events: auto; }
 .map-header > a { display: inline-block; margin-top: 8px; }
 .map-header :is(a, summary):focus-visible { outline: 2px solid #e1c48c; outline-offset: 3px; }
@@ -104,7 +116,7 @@ p { font-size: 14px; color: #a8b6cf; }
 .game-clock-actions label { display: flex; align-items: center; gap: 6px; }
 .map-inspector--host {
   width: min(330px, calc(100% - 36px));
-  max-height: calc(100% - 143px);
+  max-height: min(58vh, 560px);
   overflow: auto;
   pointer-events: auto;
   color-scheme: dark;
@@ -272,4 +284,11 @@ p { font-size: 14px; color: #a8b6cf; }
 
 @media (max-width: 580px) {
   .lan-layout { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 1200px), (max-height: 800px) {
+  .map-header { width: min(430px, calc(100% - 36px)); max-height: min(34vh, 260px); padding: 9px 11px; }
+  .map-panel h1 { font-size: 21px; }
+  .map-header .map-mode-note, .map-header .map-sources { display: none; }
+  .map-inspector--host { width: min(300px, calc(100% - 36px)); max-height: min(48vh, 360px); }
 }

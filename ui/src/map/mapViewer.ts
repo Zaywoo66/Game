@@ -551,6 +551,8 @@ export function createMapViewer(
   const start = performance.now();
   function renderFrame(now: number) {
     controls.update();
+    const mapScale = camera.zoom < 1.1 ? 'overview' : camera.zoom < 2.2 ? 'regional' : 'local';
+    if (viewport.dataset.mapScale !== mapScale) viewport.dataset.mapScale = mapScale;
     const halfWidth = (camera.right - camera.left) / (2 * camera.zoom);
     const halfHeight = (camera.top - camera.bottom) / (2 * camera.zoom);
     const horizontalPan = Math.max(0, width / 2 - halfWidth * 0.7);
