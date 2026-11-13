@@ -13,10 +13,7 @@ fn host_ai_resolves_pending_event_by_legal_command() {
     .unwrap();
     event.trigger = Trigger::All(Vec::new());
     event.mean_time_to_happen = NonZeroU64::new(1);
-    let graph = parse_provinces(include_bytes!(
-        "../../data/map/western_europe/provinces.json"
-    ))
-    .unwrap();
+    let graph = parse_provinces(include_bytes!("../../data/map/europe/provinces.json")).unwrap();
     let scenario =
         std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../data/scenarios/1440.json");
     let mut state = load_scenario(graph, scenario)
@@ -38,7 +35,9 @@ fn host_ai_resolves_pending_event_by_legal_command() {
         .contains_key(&(*country, "harvest_festival".into()))));
     let snapshot = save_game(&state).unwrap();
     let version: serde_json::Value = serde_json::from_slice(&snapshot).unwrap();
-    assert_eq!(version["schema_version"], 11);
+    // The 1440 scenario includes year-precision historical births, introduced
+    // with save schema v16; this event-only state has no v17 call-to-arms data.
+    assert_eq!(version["schema_version"], 16);
     assert_eq!(
         load_game(&snapshot, state.province_graph().clone()).unwrap(),
         state
@@ -65,7 +64,15 @@ fn host_ai_resolves_pending_event_by_legal_command() {
 fn embedded_scenario_contains_production_events() {
     let state = load_embedded_scenario().unwrap();
     let events = state.events().unwrap();
-    for key in ["court_auditors", "frontier_patrol", "harvest_surplus"] {
+    assert_eq!(events.definitions.len(), 20);
+    for key in [
+        "court_auditors",
+        "frontier_patrol",
+        "harvest_surplus",
+        "market_charter",
+        "veteran_captains",
+        "storehouse_audit",
+    ] {
         assert!(events.definitions.contains_key(key), "missing {key}");
     }
 }

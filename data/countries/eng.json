@@ -3,9 +3,9 @@
   "tag": "eng",
   "name": "Kingdom of England",
   "color": [
-    161,
-    59,
-    73
+    99,
+    191,
+    145
   ],
   "capital": "london",
   "ai_profile": "balanced",
@@ -28,6 +28,7 @@
       "carlisle",
       "cherbourg",
       "chester",
+      "cork",
       "coventry",
       "douglas",
       "dover",
@@ -35,10 +36,15 @@
       "dublin",
       "dundalk",
       "exeter",
+      "galway",
       "ipswich",
+      "kilkenny",
+      "killarney",
       "kingston_upon_hull",
+      "le_mans",
       "leeds",
       "leicester",
+      "limerick",
       "liverpool",
       "london",
       "luton",
@@ -54,18 +60,24 @@
       "plymouth",
       "portsmouth",
       "reading",
+      "ros_comain",
       "rouen",
       "scarborough",
+      "shannon",
       "sheffield",
+      "sligo",
       "southampton",
       "southend_on_sea",
       "stoke",
       "sunderland",
       "swansea",
+      "tralee",
+      "waterford",
       "york"
     ],
     "treasury": 120000,
     "tax_rate": 250,
     "monthly_spending": 12500
-  }
+  },
+  "government": "monarchy"
 }

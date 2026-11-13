@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "tag": "bre",
+  "name": "Duchy of Brittany",
+  "color": [
+    177,
+    166,
+    211
+  ],
+  "capital": "nantes",
+  "ai_profile": "balanced",
+  "start": {
+    "ruler": "john_v_brittany",
+    "heir": null,
+    "provinces": [
+      "angers",
+      "brest",
+      "lorient",
+      "nantes",
+      "rennes",
+      "st_brieuc"
+    ],
+    "treasury": 50000,
+    "tax_rate": 230,
+    "monthly_spending": 4500
+  },
+  "government": "monarchy"
+}

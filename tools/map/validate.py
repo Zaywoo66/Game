@@ -253,13 +253,13 @@ def validate_polity_evidence(directory, records, pixels, map_version, map_digest
     source = evidence["source"]
     require(isinstance(source, dict) and set(source) == {"name", "release", "url", "license", "file", "sha256"},
             "polities_1440.json: invalid source provenance")
-    require(source["name"] == "Cliopatria" and source["release"] == "v0.1.3"
+    require(source["name"] == "Cliopatria" and source["release"] == "v0.2.1"
             and source["license"] == "CC BY 4.0"
             and source["file"] == "tools/map/inputs/western_europe/historical_1440.geojson"
             and source["sha256"] == source_digest(),
             "polities_1440.json: source provenance mismatch")
-    require(source["url"] == "https://github.com/Seshat-Global-History-Databank/cliopatria/releases/tag/v0.1.3"
-            and evidence["method"] == "largest rasterized source-polygon pixel overlap; lexical tie break",
+    require(source["url"] == "https://github.com/Seshat-Global-History-Databank/cliopatria/releases/tag/v0.2.1"
+            and evidence["method"] == "largest rasterized source-polygon pixel overlap; documented Bavaria-to-Burgundian-Netherlands correction; lexical tie break",
             "polities_1440.json: method or source URL mismatch")
     source_names = {feature["properties"]["name"] for feature in read_json(SOURCE_FILE)["features"]}
     assignments = evidence["assignments"]

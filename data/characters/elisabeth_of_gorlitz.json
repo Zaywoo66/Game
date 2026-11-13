@@ -1,0 +1,11 @@
+{
+  "schema_version": 2,
+  "key": "elisabeth_of_gorlitz",
+  "country": "lux",
+  "name": "Elisabeth of Görlitz",
+  "dynasty": "luxembourg",
+  "sex": "female",
+  "birth": [1390, 11, 7],
+  "stats": {"adm": 3, "dip": 3, "mil": 2},
+  "traits": []
+}

@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 150 100" role="img" aria-labelledby="title">
+  <title id="title">Saint George cross banner of England</title>
+  <rect width="150" height="100" fill="#f8f5ec"/>
+  <path fill="#b33138" d="M58 0h34v33h58v34H92v33H58V67H0V33h58z"/>
+  <rect x="2" y="2" width="146" height="96" fill="none" stroke="#493a2c" stroke-width="4"/>
+</svg>

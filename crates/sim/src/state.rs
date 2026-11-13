@@ -1,20 +1,25 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use crate::modifiers::effective_value_from;
+use crate::province_graph::is_content_key;
 use crate::war::{MilitaryAction, MilitaryBonuses, MilitaryOrder};
 use crate::{
     Army, ArmyId, MilitaryTickFailure, MovementLeg, Siege, War, WarError, WarId, WarState,
 };
-use crate::{Fleet, FleetId, FleetMovement, NavyError, NavyState, ProvinceEdge};
+use crate::{
+    Fleet, FleetId, FleetMovement, NavyError, NavyState, ProvinceEdge, ShipBuildOrder,
+    SHIP_BUILD_COST_RAW, SHIP_BUILD_DAYS,
+};
 
 use crate::{
     CharacterId, CharacterState, CountryId, CountryPolity, Date, DiplomacyError, DiplomacyState,
     EconomyState, EdgeKind, Effect, EffectError, EventDefinition, EventError, EventState,
-    FiscalError, FiscalPolicy, Fixed, MapIdentity, MarriageError, ModKey, Modifier,
-    ModifierInsertError, ModifierSourceId, ModifierStore, Opinion, OpinionStateError, PlayerId,
-    PolityError, PolityState, PolityTickFailure, PreparedModifier, ProvinceGraph, ProvinceId,
-    SeededRng, Sex, SimTime, Speed, SuccessionState, TechnologyDefinition, TechnologyError,
-    TechnologyState, Tick, TimeActor, TimeCommand, TimeError, TriggerView,
+    FiscalError, FiscalPolicy, Fixed, IdeaDefinition, IdeaError, IdeaState, MapIdentity,
+    MarriageError, ModKey, Modifier, ModifierInsertError, ModifierSourceId, ModifierStore, Opinion,
+    OpinionStateError, PlayerId, PolityError, PolityState, PolityTickFailure, PreparedModifier,
+    ProvinceGraph, ProvinceId, ReformDefinition, ReformError, ReformState, SeededRng, Sex, SimTime,
+    Speed, SuccessionState, TechnologyDefinition, TechnologyError, TechnologyState, Tick,
+    TimeActor, TimeCommand, TimeError, Trigger, TriggerView, IDEA_COST, REFORM_COST,
 };
 
 /// Reference to a scenario's data-driven AI profile.
@@ -98,6 +103,11 @@ pub enum Command {
         fleet: FleetId,
         destination: ProvinceId,
     },
+    BuildShip {
+        country: CountryId,
+        port: ProvinceId,
+        sea: ProvinceId,
+    },
     EmbarkArmy {
         country: CountryId,
         army: ArmyId,
@@ -118,10 +128,23 @@ pub enum Command {
         defender: CountryId,
         goal: ProvinceId,
     },
+    DeclareIndependence {
+        country: CountryId,
+    },
     OfferPeace {
         country: CountryId,
         war: WarId,
         cede_goal: bool,
+    },
+    AcceptCallToArms {
+        country: CountryId,
+        war: WarId,
+        from: CountryId,
+    },
+    RejectCallToArms {
+        country: CountryId,
+        war: WarId,
+        from: CountryId,
     },
     AcceptPeace {
         country: CountryId,
@@ -152,6 +175,14 @@ pub enum Command {
         country: CountryId,
         key: String,
     },
+    UnlockIdea {
+        country: CountryId,
+        key: String,
+    },
+    UnlockReform {
+        country: CountryId,
+        key: String,
+    },
     OfferRoyalMarriage {
         country: CountryId,
         character: CharacterId,
@@ -178,6 +209,22 @@ pub enum Command {
         country: CountryId,
         protected: CountryId,
     },
+    OfferVassalage {
+        country: CountryId,
+        toward: CountryId,
+    },
+    AcceptVassalage {
+        country: CountryId,
+        from: CountryId,
+    },
+    RejectVassalage {
+        country: CountryId,
+        from: CountryId,
+    },
+    ReleaseVassal {
+        country: CountryId,
+        subject: CountryId,
+    },
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -194,6 +241,8 @@ pub enum CommandError {
     Diplomacy(DiplomacyError),
     Event(EventError),
     Technology(TechnologyError),
+    Idea(IdeaError),
+    Reform(ReformError),
     Marriage(MarriageError),
     InvalidHeir {
         country: CountryId,
@@ -230,6 +279,17 @@ pub enum StateChange {
         key: String,
         source: ModifierSourceId,
     },
+    IdeaUnlocked {
+        country: CountryId,
+        key: String,
+        source: ModifierSourceId,
+    },
+    ReformUnlocked {
+        country: CountryId,
+        key: String,
+        tier: u16,
+        source: ModifierSourceId,
+    },
     FiscalPolicyChanged {
         country: CountryId,
         policy: FiscalPolicy,
@@ -255,10 +315,11 @@ pub enum StateChange {
         fleet: FleetId,
         state: Option<Fleet>,
     },
-    FleetBlocked {
-        fleet: FleetId,
-        by: FleetId,
+    ShipyardChanged {
+        port: ProvinceId,
+        state: Option<ShipBuildOrder>,
     },
+    NavalBattleResolved(crate::NavalBattle),
     WarChanged {
         war: WarId,
         state: Option<War>,
@@ -316,6 +377,22 @@ pub enum StateChange {
     GuaranteeChanged {
         guarantor: CountryId,
         protected: CountryId,
+        active: bool,
+    },
+    VassalageOffered {
+        overlord: CountryId,
+        subject: CountryId,
+        expires_at: Date,
+    },
+    VassalageOfferRemoved {
+        overlord: CountryId,
+        subject: CountryId,
+    },
+    CallToArmsOffered(crate::CallToArmsOffer),
+    CallToArmsOfferRemoved(crate::CallToArmsOffer),
+    VassalageChanged {
+        overlord: CountryId,
+        subject: CountryId,
         active: bool,
     },
     OpinionChanged {
@@ -472,6 +549,8 @@ pub struct GameState {
     diplomacy: Option<DiplomacyState>,
     events: Option<EventState>,
     technology: Option<TechnologyState>,
+    ideas: Option<IdeaState>,
+    reforms: Option<ReformState>,
     polity: Option<PolityState>,
     war_state: Option<WarState>,
     navy: Option<NavyState>,
@@ -482,8 +561,14 @@ enum PreparedCommand<'a> {
     SetController(CountryId, &'a Controller),
     SetFiscalPolicy(CountryId, FiscalPolicy),
     NominateHeir(CountryId, Option<CharacterId>),
-    Military(MilitaryAction, Vec<(CountryId, CountryId)>),
+    Military(
+        MilitaryAction,
+        Vec<(CountryId, CountryId)>,
+        Option<(CountryId, CountryId)>,
+    ),
+    CallToArms(WarId, CountryId, CountryId, crate::WarSide, bool),
     MoveFleet(FleetId, Vec<ProvinceEdge>),
+    BuildShip(CountryId, ProvinceId, ProvinceId),
     Embark(ArmyId, FleetId),
     Disembark(ArmyId, FleetId, ProvinceId),
     Diplomacy(DiplomacyAction),
@@ -495,6 +580,8 @@ enum PreparedCommand<'a> {
     ),
     Marriage(MarriageAction),
     UnlockTechnology(CountryId, &'a str, ModifierSourceId, Vec<Modifier>),
+    UnlockIdea(CountryId, &'a str, ModifierSourceId, Vec<Modifier>),
+    UnlockReform(CountryId, &'a str, u16, ModifierSourceId, Vec<Modifier>),
 }
 
 enum DiplomacyAction {
@@ -504,6 +591,10 @@ enum DiplomacyAction {
     Break(CountryId, CountryId, Date),
     Guarantee(CountryId, CountryId),
     RevokeGuarantee(CountryId, CountryId),
+    OfferVassalage(CountryId, CountryId, Date),
+    AcceptVassalage(CountryId, CountryId),
+    RejectVassalage(CountryId, CountryId),
+    ReleaseVassal(CountryId, CountryId),
 }
 
 enum MarriageAction {
@@ -580,6 +671,8 @@ impl GameState {
             diplomacy: None,
             events: None,
             technology: None,
+            ideas: None,
+            reforms: None,
             polity: None,
             war_state: None,
             navy: None,
@@ -759,6 +852,13 @@ impl GameState {
         {
             return Err(DiplomacyError::DirectWar);
         }
+        if self.war_state.as_ref().is_some_and(|military| {
+            military.wars.values().any(|war| {
+                war.independence && diplomacy.overlord_of(war.attacker) != Some(war.defender)
+            })
+        }) {
+            return Err(DiplomacyError::InvalidState);
+        }
         if !diplomacy.marriage_offers.is_empty() {
             let Some(polity) = &self.polity else {
                 return Err(DiplomacyError::InvalidState);
@@ -775,6 +875,27 @@ impl GameState {
                 {
                     return Err(DiplomacyError::InvalidState);
                 }
+            }
+        }
+        for (&(war_id, from, toward), &(side, expires_at)) in &diplomacy.call_to_arms_offers {
+            let Some(war) = self
+                .war_state
+                .as_ref()
+                .and_then(|military| military.wars.get(&war_id))
+            else {
+                return Err(DiplomacyError::InvalidState);
+            };
+            if !war.is_leader(from)
+                || war.side(from) != Some(side)
+                || war.side(toward).is_some()
+                || self
+                    .war_state
+                    .as_ref()
+                    .is_some_and(|military| military.war_for(toward).is_some())
+                || !diplomacy.allied(from, toward)
+                || expires_at <= self.time.date()
+            {
+                return Err(DiplomacyError::InvalidState);
             }
         }
         self.diplomacy = Some(diplomacy);
@@ -796,7 +917,18 @@ impl GameState {
         let highest_source = self.highest_modifier_source();
         let next = highest_source
             .checked_add(1)
-            .ok_or(EventError::ModifierSourceExhausted)?;
+            .ok_or(EventError::ModifierSourceExhausted)?
+            .max(
+                self.technology
+                    .as_ref()
+                    .map_or(1, |state| state.next_source_id),
+            )
+            .max(self.ideas.as_ref().map_or(1, |state| state.next_source_id))
+            .max(
+                self.reforms
+                    .as_ref()
+                    .map_or(1, |state| state.next_source_id),
+            );
         self.events = Some(EventState::new(definitions, next)?);
         Ok(self)
     }
@@ -835,6 +967,12 @@ impl GameState {
                 self.events
                     .as_ref()
                     .map_or(1, |events| events.next_source_id),
+            )
+            .max(self.ideas.as_ref().map_or(1, |state| state.next_source_id))
+            .max(
+                self.reforms
+                    .as_ref()
+                    .map_or(1, |state| state.next_source_id),
             );
         let technology = TechnologyState::new(definitions, self.countries.keys().copied(), next)?;
         if let Some(polity) = &self.polity {
@@ -938,6 +1076,276 @@ impl GameState {
 
     pub fn research_points(&self, country: CountryId) -> Option<u32> {
         self.technology.as_ref()?.points.get(&country).copied()
+    }
+
+    /// Attaches the validated national-idea catalog to a game with research points.
+    pub fn with_ideas(
+        mut self,
+        definitions: BTreeMap<String, IdeaDefinition>,
+    ) -> Result<Self, IdeaError> {
+        if self.ideas.is_some() {
+            return Err(IdeaError::AlreadyConfigured);
+        }
+        if definitions.is_empty() {
+            return Err(IdeaError::EmptyCatalog);
+        }
+        if self.technology.is_none() || self.polity.is_none() {
+            return Err(IdeaError::InvalidDefinition(
+                "research and polity are required".into(),
+            ));
+        }
+        let polity = self.polity.as_ref().expect("checked polity");
+        fn valid_trigger(trigger: &Trigger, tech: &TechnologyState) -> bool {
+            match trigger {
+                Trigger::All(children) | Trigger::Any(children) => {
+                    children.iter().all(|child| valid_trigger(child, tech))
+                }
+                Trigger::Not(child) => valid_trigger(child, tech),
+                Trigger::CountryHasTech(key) => tech.definitions.contains_key(key),
+                Trigger::AtWar(_) => true,
+            }
+        }
+        let technology = self.technology.as_ref().expect("checked research");
+        for (key, idea) in &definitions {
+            if key != &idea.key
+                || !is_content_key(key)
+                || !is_content_key(&idea.name_key)
+                || idea.modifiers.is_empty()
+                || !polity
+                    .countries
+                    .values()
+                    .any(|country| country.tag == idea.country)
+                || !valid_trigger(&idea.unlock, technology)
+                || idea.modifiers.iter().any(|modifier| {
+                    let Effect::AddModifier {
+                        key, duration_days, ..
+                    } = modifier;
+                    !is_content_key(key.as_str())
+                        || duration_days.is_some()
+                        || modifier.prepare(ModifierSourceId::new(1), 0).is_err()
+                })
+            {
+                return Err(IdeaError::InvalidDefinition(key.clone()));
+            }
+        }
+        let next = self
+            .highest_modifier_source()
+            .checked_add(1)
+            .ok_or(IdeaError::ModifierSourceExhausted)?
+            .max(
+                self.technology
+                    .as_ref()
+                    .expect("checked research")
+                    .next_source_id,
+            )
+            .max(
+                self.events
+                    .as_ref()
+                    .map_or(1, |events| events.next_source_id),
+            )
+            .max(
+                self.reforms
+                    .as_ref()
+                    .map_or(1, |state| state.next_source_id),
+            );
+        self.ideas = Some(IdeaState {
+            definitions,
+            sources: BTreeMap::new(),
+            next_source_id: next,
+        });
+        Ok(self)
+    }
+
+    pub fn ideas(&self) -> Option<&IdeaState> {
+        self.ideas.as_ref()
+    }
+
+    /// Restores purchased ideas and checks their modifier sources against the catalog.
+    pub fn with_idea_state(mut self, ideas: IdeaState) -> Result<Self, IdeaError> {
+        let definitions = ideas.definitions.clone();
+        self = self.with_ideas(definitions)?;
+        let mut unique = BTreeSet::new();
+        for ((country, key), source) in &ideas.sources {
+            let Some(idea) = ideas.definitions.get(key) else {
+                return Err(IdeaError::InvalidSavedState);
+            };
+            let Some(polity) = self.polity.as_ref().and_then(|p| p.countries.get(country)) else {
+                return Err(IdeaError::InvalidSavedState);
+            };
+            if idea.country != polity.tag
+                || source.get() == 0
+                || source.get() >= ideas.next_source_id
+                || !unique.insert(*source)
+            {
+                return Err(IdeaError::InvalidSavedState);
+            }
+            let expected = idea
+                .modifiers
+                .iter()
+                .map(|effect| {
+                    effect
+                        .prepare(*source, self.time.tick().get())
+                        .ok()
+                        .map(|grant| grant.modifier)
+                })
+                .collect::<Option<Vec<_>>>();
+            if expected.as_deref()
+                != self.countries[country]
+                    .modifiers
+                    .sources()
+                    .find(|(id, _, _)| id == source)
+                    .and_then(|(_, expiry, modifiers)| expiry.is_none().then_some(modifiers))
+            {
+                return Err(IdeaError::InvalidSavedState);
+            }
+        }
+        if ideas.next_source_id
+            < self
+                .ideas
+                .as_ref()
+                .expect("configured ideas")
+                .next_source_id
+        {
+            return Err(IdeaError::InvalidSavedState);
+        }
+        self.ideas = Some(ideas);
+        Ok(self)
+    }
+
+    /// Installs the validated government reform catalog.
+    pub fn with_reforms(
+        mut self,
+        definitions: BTreeMap<String, ReformDefinition>,
+    ) -> Result<Self, ReformError> {
+        if self.reforms.is_some() {
+            return Err(ReformError::AlreadyConfigured);
+        }
+        if definitions.is_empty() {
+            return Err(ReformError::EmptyCatalog);
+        }
+        let Some(polity) = &self.polity else {
+            return Err(ReformError::InvalidDefinition("polity is required".into()));
+        };
+        let governments: BTreeSet<_> = polity
+            .countries
+            .values()
+            .map(|country| country.government.as_str())
+            .collect();
+        for (key, definition) in &definitions {
+            if key != &definition.key
+                || !is_content_key(key)
+                || !is_content_key(&definition.government)
+                || !governments.contains(definition.government.as_str())
+                || definition.tier == 0
+                || definition.ai_weight > 1000
+                || definition.effects.is_empty()
+                || definition.effects.iter().any(|effect| {
+                    let Effect::AddModifier {
+                        key, duration_days, ..
+                    } = effect;
+                    !is_content_key(key.as_str())
+                        || duration_days.is_some()
+                        || effect.prepare(ModifierSourceId::new(1), 0).is_err()
+                })
+            {
+                return Err(ReformError::InvalidDefinition(key.clone()));
+            }
+        }
+        if polity
+            .ai_profiles
+            .values()
+            .any(|profile| profile.reform_priority > 1000)
+        {
+            return Err(ReformError::InvalidDefinition(
+                "AI reform_priority must be 0..=1000".into(),
+            ));
+        }
+        let next_source_id = self
+            .highest_modifier_source()
+            .checked_add(1)
+            .ok_or(ReformError::ModifierSourceExhausted)?
+            .max(
+                self.technology
+                    .as_ref()
+                    .map_or(1, |state| state.next_source_id),
+            )
+            .max(self.ideas.as_ref().map_or(1, |state| state.next_source_id))
+            .max(self.events.as_ref().map_or(1, |state| state.next_source_id))
+            .max(
+                self.reforms
+                    .as_ref()
+                    .map_or(1, |state| state.next_source_id),
+            );
+        self.reforms = Some(ReformState {
+            definitions,
+            choices: BTreeMap::new(),
+            sources: BTreeMap::new(),
+            next_source_id,
+        });
+        Ok(self)
+    }
+
+    pub fn reforms(&self) -> Option<&ReformState> {
+        self.reforms.as_ref()
+    }
+
+    /// Restores selected reforms and validates their permanent modifier sources.
+    pub fn with_reform_state(mut self, mut reforms: ReformState) -> Result<Self, ReformError> {
+        self = self.with_reforms(reforms.definitions.clone())?;
+        let mut source_ids = BTreeSet::new();
+        for ((country, key), source) in &reforms.sources {
+            let Some(definition) = reforms.definitions.get(key) else {
+                return Err(ReformError::InvalidSavedState);
+            };
+            let Some(polity) = self
+                .polity
+                .as_ref()
+                .and_then(|polity| polity.countries.get(country))
+            else {
+                return Err(ReformError::InvalidSavedState);
+            };
+            if definition.government != polity.government
+                || source.get() == 0
+                || source.get() >= reforms.next_source_id
+                || !source_ids.insert(*source)
+                || reforms
+                    .choices
+                    .insert((*country, definition.tier), key.clone())
+                    .is_some()
+            {
+                return Err(ReformError::InvalidSavedState);
+            }
+            let expected = definition
+                .effects
+                .iter()
+                .map(|effect| {
+                    effect
+                        .prepare(*source, self.time.tick().get())
+                        .ok()
+                        .map(|g| g.modifier)
+                })
+                .collect::<Option<Vec<_>>>();
+            if expected.as_deref()
+                != self.countries[country]
+                    .modifiers
+                    .sources()
+                    .find(|(id, _, _)| id == source)
+                    .and_then(|(_, expiry, modifiers)| expiry.is_none().then_some(modifiers))
+            {
+                return Err(ReformError::InvalidSavedState);
+            }
+        }
+        if reforms.next_source_id
+            < self
+                .reforms
+                .as_ref()
+                .expect("installed catalog")
+                .next_source_id
+        {
+            return Err(ReformError::InvalidSavedState);
+        }
+        self.reforms = Some(reforms);
+        Ok(self)
     }
 
     fn highest_modifier_source(&self) -> u32 {
@@ -1101,6 +1509,87 @@ impl GameState {
             .find_map(|(&country, state)| state.provinces.contains(&province).then_some(country))
     }
 
+    /// Returns port provinces whose taxable development is closed by an
+    /// unopposed enemy fleet in an adjacent sea zone. This is derived from
+    /// current fleets and wars, so the blockade lifts immediately on relief.
+    pub fn blockaded_ports(&self) -> BTreeSet<ProvinceId> {
+        let (Some(polity), Some(wars), Some(navy)) = (self.polity(), self.war_state(), self.navy())
+        else {
+            return BTreeSet::new();
+        };
+        let mut blocked = BTreeSet::new();
+        for (&country, nation) in &polity.countries {
+            let Some((_, war)) = wars.war_for(country) else {
+                continue;
+            };
+            let Some(side) = war.side(country) else {
+                continue;
+            };
+            for &id in &nation.provinces {
+                let Some(port) = self.province_graph.get(id) else {
+                    continue;
+                };
+                if port.kind != crate::ProvinceKind::Land {
+                    continue;
+                }
+                for &sea in &port.ports {
+                    let mut hostile = false;
+                    let mut defended = false;
+                    for fleet in navy.fleets.values().filter(|fleet| fleet.sea == sea) {
+                        if war.side(fleet.country) == Some(side) {
+                            defended = true;
+                        } else if war.opposed(country, fleet.country) {
+                            hostile = true;
+                        }
+                    }
+                    if hostile && !defended {
+                        blocked.insert(id);
+                        break;
+                    }
+                }
+            }
+        }
+        blocked
+    }
+
+    pub fn is_port_blockaded(&self, province: ProvinceId) -> bool {
+        self.blockaded_ports().contains(&province)
+    }
+
+    fn naval_sheltered_ports(&self) -> BTreeSet<(CountryId, ProvinceId)> {
+        let (Some(polity), Some(navy)) = (self.polity(), self.navy()) else {
+            return BTreeSet::new();
+        };
+        let fleet_countries: BTreeSet<_> =
+            navy.fleets.values().map(|fleet| fleet.country).collect();
+        let mut sheltered = BTreeSet::new();
+        for fleet_country in fleet_countries {
+            let fleet_war = self
+                .war_state()
+                .and_then(|wars| wars.war_for(fleet_country));
+            let fleet_side = fleet_war.and_then(|(_, war)| war.side(fleet_country));
+            for (&port_country, nation) in &polity.countries {
+                let port_is_accessible = fleet_country == port_country
+                    || fleet_war.is_some_and(|(_, war)| {
+                        fleet_side.is_some_and(|side| war.side(port_country) == Some(side))
+                    });
+                if !port_is_accessible {
+                    continue;
+                }
+                for &province in &nation.provinces {
+                    if self
+                        .province_graph
+                        .get(province)
+                        .is_some_and(|land| !land.ports.is_empty())
+                    {
+                        sheltered.insert((fleet_country, province));
+                    }
+                }
+            }
+        }
+        sheltered
+    }
+
     pub fn is_in_regency(&self, country: CountryId) -> Option<bool> {
         self.polity()?.is_in_regency(country, self.time.date())
     }
@@ -1120,19 +1609,22 @@ impl GameState {
         country: CountryId,
         policy: FiscalPolicy,
     ) -> Result<EconomyState, CommandError> {
-        let base = self
-            .country(country)
+        self.country(country)
             .ok_or(CommandError::UnknownCountry(country))?;
         let polity = self.polity().ok_or(CommandError::PolityUnavailable)?;
-        let state = &polity.countries[&country];
+        let blockaded_ports = self.blockaded_ports();
         polity
             .forecast(
                 country,
-                state,
                 self.time.date(),
                 &self.province_graph,
-                base.modifiers(),
+                &blockaded_ports,
                 policy,
+                &self.countries,
+                &self
+                    .diplomacy
+                    .as_ref()
+                    .map_or_else(BTreeMap::new, |state| state.vassals.clone()),
             )
             .map_err(CommandError::Fiscal)
     }
@@ -1233,13 +1725,70 @@ impl GameState {
                     });
                 }
             }
-            PreparedCommand::Military(action, failed_guarantees) => {
+            PreparedCommand::Military(action, failed_guarantees, failed_vassal) => {
+                let announced_war = match &action {
+                    MilitaryAction::Declare(id, war) => Some((*id, war.clone())),
+                    _ => None,
+                };
+                let independence_won = match &action {
+                    MilitaryAction::Accept(id, _) => self
+                        .war_state
+                        .as_ref()
+                        .and_then(|military| military.wars.get(id))
+                        .filter(|war| {
+                            war.independence && war.offer.is_some_and(|offer| offer.cede_goal)
+                        })
+                        .map(|war| (war.attacker, war.defender)),
+                    _ => None,
+                };
+                let call_offers = announced_war
+                    .as_ref()
+                    .map_or_else(Vec::new, |(war_id, war)| {
+                        let Some(expires_at) = self.time.date().checked_add_days(30) else {
+                            return Vec::new();
+                        };
+                        let Some(diplomacy) = self.diplomacy.as_ref() else {
+                            return Vec::new();
+                        };
+                        let mut offers = Vec::new();
+                        for (leader, side) in [
+                            (war.attacker, crate::WarSide::Attacker),
+                            (war.defender, crate::WarSide::Defender),
+                        ] {
+                            for &(a, b) in &diplomacy.alliances {
+                                let toward = if a == leader {
+                                    b
+                                } else if b == leader {
+                                    a
+                                } else {
+                                    continue;
+                                };
+                                if toward != war.attacker
+                                    && toward != war.defender
+                                    && war.side(toward).is_none()
+                                    && self
+                                        .war_state
+                                        .as_ref()
+                                        .is_none_or(|state| state.war_for(toward).is_none())
+                                {
+                                    offers.push(crate::CallToArmsOffer {
+                                        war: *war_id,
+                                        from: leader,
+                                        toward,
+                                        side,
+                                        expires_at,
+                                    });
+                                }
+                            }
+                        }
+                        offers
+                    });
                 let war_state = self.war_state.as_mut().expect("military state validated");
                 let polity = self.polity.as_mut().expect("polity validated");
                 delta.changes.extend(war_state.apply(polity, action));
                 if !failed_guarantees.is_empty() {
                     let diplomacy = self.diplomacy.as_mut().expect("guarantees validated");
-                    for (guarantor, protected) in failed_guarantees {
+                    for (guarantor, protected) in failed_guarantees.iter().copied() {
                         diplomacy.guarantees.remove(&(guarantor, protected));
                         delta.changes.push(StateChange::GuaranteeChanged {
                             guarantor,
@@ -1260,7 +1809,108 @@ impl GameState {
                         });
                     }
                 }
+                if let Some((subject, overlord)) = failed_vassal {
+                    // One broken defensive promise costs 25, even if the same
+                    // overlord also held a guarantee that has just expired.
+                    if !failed_guarantees.contains(&(overlord, subject)) {
+                        let opinion = self
+                            .opinions
+                            .get(&(subject, overlord))
+                            .copied()
+                            .unwrap_or(Opinion::NEUTRAL)
+                            .adjusted(-25);
+                        self.opinions.insert((subject, overlord), opinion);
+                        delta.changes.push(StateChange::OpinionChanged {
+                            from: subject,
+                            toward: overlord,
+                            opinion,
+                        });
+                    }
+                }
+                if let Some((subject, overlord)) = independence_won {
+                    self.diplomacy
+                        .as_mut()
+                        .expect("independence bond validated")
+                        .vassals
+                        .remove(&subject);
+                    delta.changes.push(StateChange::VassalageChanged {
+                        overlord,
+                        subject,
+                        active: false,
+                    });
+                }
+                for offer in call_offers {
+                    self.diplomacy
+                        .as_mut()
+                        .expect("war declaration has diplomacy state")
+                        .call_to_arms_offers
+                        .insert(
+                            (offer.war, offer.from, offer.toward),
+                            (offer.side, offer.expires_at),
+                        );
+                    delta.changes.push(StateChange::CallToArmsOffered(offer));
+                }
+                if let Some(war_id) = delta.changes.iter().find_map(|change| match change {
+                    StateChange::PeaceConcluded { war, .. } => Some(*war),
+                    _ => None,
+                }) {
+                    if let Some(diplomacy) = &mut self.diplomacy {
+                        for offer in diplomacy.remove_call_to_arms_for_war(war_id) {
+                            delta
+                                .changes
+                                .push(StateChange::CallToArmsOfferRemoved(offer));
+                        }
+                    }
+                }
                 self.sync_war_flags();
+            }
+            PreparedCommand::CallToArms(war_id, country, _from, side, accept) => {
+                let diplomacy = self.diplomacy.as_mut().expect("offer validated");
+                // Any answer closes competing invitations to this country for
+                // this war, including the offer from the opposite leader.
+                let answered: Vec<_> = diplomacy
+                    .call_to_arms_offers
+                    .iter()
+                    .filter_map(|(&(war, inviter, invitee), &(offer_side, expires_at))| {
+                        (war == war_id && invitee == country).then_some(crate::CallToArmsOffer {
+                            war,
+                            from: inviter,
+                            toward: invitee,
+                            side: offer_side,
+                            expires_at,
+                        })
+                    })
+                    .collect();
+                for offer in &answered {
+                    diplomacy
+                        .call_to_arms_offers
+                        .remove(&(offer.war, offer.from, offer.toward));
+                    delta
+                        .changes
+                        .push(StateChange::CallToArmsOfferRemoved(*offer));
+                }
+                if accept {
+                    let war = self
+                        .war_state
+                        .as_mut()
+                        .expect("validated war")
+                        .wars
+                        .get_mut(&war_id)
+                        .expect("validated war");
+                    match side {
+                        crate::WarSide::Attacker => {
+                            war.attacker_supporters.insert(country);
+                        }
+                        crate::WarSide::Defender => {
+                            war.defender_supporters.insert(country);
+                        }
+                    }
+                    delta.changes.push(StateChange::WarChanged {
+                        war: war_id,
+                        state: Some(war.clone()),
+                    });
+                    self.sync_war_flags();
+                }
             }
             PreparedCommand::MoveFleet(id, route) => {
                 let navy = self.navy.as_mut().expect("navy state validated");
@@ -1272,6 +1922,35 @@ impl GameState {
                 delta.changes.push(StateChange::FleetChanged {
                     fleet: id,
                     state: Some(fleet.clone()),
+                });
+            }
+            PreparedCommand::BuildShip(country, port, sea) => {
+                let navy = self.navy.as_mut().expect("navy state validated");
+                let order = ShipBuildOrder {
+                    country,
+                    sea,
+                    days_remaining: SHIP_BUILD_DAYS,
+                };
+                navy.enqueue_ship(port, order.clone());
+                let economy = &mut self
+                    .polity
+                    .as_mut()
+                    .expect("polity validated")
+                    .countries
+                    .get_mut(&country)
+                    .expect("country validated")
+                    .economy;
+                economy.treasury = economy
+                    .treasury
+                    .checked_sub(Fixed::from_raw(SHIP_BUILD_COST_RAW))
+                    .expect("build cost validated");
+                delta.changes.push(StateChange::ShipyardChanged {
+                    port,
+                    state: Some(order),
+                });
+                delta.changes.push(StateChange::EconomyChanged {
+                    country,
+                    economy: *economy,
                 });
             }
             PreparedCommand::Embark(army_id, fleet_id) => {
@@ -1337,6 +2016,30 @@ impl GameState {
                         let pair = crate::diplomacy::pair(a, b);
                         diplomacy.alliances.remove(&pair);
                         diplomacy.cooldowns.insert(pair, until);
+                        let broken_promises: Vec<_> = diplomacy
+                            .call_to_arms_offers
+                            .iter()
+                            .filter_map(|(&(war, from, toward), &(side, expires_at))| {
+                                ((from == a && toward == b) || (from == b && toward == a))
+                                    .then_some(crate::CallToArmsOffer {
+                                        war,
+                                        from,
+                                        toward,
+                                        side,
+                                        expires_at,
+                                    })
+                            })
+                            .collect();
+                        for offer in broken_promises {
+                            diplomacy.call_to_arms_offers.remove(&(
+                                offer.war,
+                                offer.from,
+                                offer.toward,
+                            ));
+                            delta
+                                .changes
+                                .push(StateChange::CallToArmsOfferRemoved(offer));
+                        }
                         delta.changes.push(StateChange::AllianceChanged {
                             a: pair.0,
                             b: pair.1,
@@ -1385,6 +2088,53 @@ impl GameState {
                             opinion,
                         });
                     }
+                    DiplomacyAction::OfferVassalage(overlord, subject, expires_at) => {
+                        diplomacy
+                            .vassal_offers
+                            .insert((overlord, subject), expires_at);
+                        delta.changes.push(StateChange::VassalageOffered {
+                            overlord,
+                            subject,
+                            expires_at,
+                        });
+                    }
+                    DiplomacyAction::AcceptVassalage(overlord, subject) => {
+                        let invalidated: Vec<_> = diplomacy
+                            .vassal_offers
+                            .keys()
+                            .copied()
+                            .filter(|&(from, toward)| {
+                                from == subject || toward == subject || toward == overlord
+                            })
+                            .collect();
+                        for (from, toward) in invalidated {
+                            diplomacy.vassal_offers.remove(&(from, toward));
+                            delta.changes.push(StateChange::VassalageOfferRemoved {
+                                overlord: from,
+                                subject: toward,
+                            });
+                        }
+                        diplomacy.vassals.insert(subject, overlord);
+                        delta.changes.push(StateChange::VassalageChanged {
+                            overlord,
+                            subject,
+                            active: true,
+                        });
+                    }
+                    DiplomacyAction::RejectVassalage(overlord, subject) => {
+                        diplomacy.vassal_offers.remove(&(overlord, subject));
+                        delta
+                            .changes
+                            .push(StateChange::VassalageOfferRemoved { overlord, subject });
+                    }
+                    DiplomacyAction::ReleaseVassal(overlord, subject) => {
+                        diplomacy.vassals.remove(&subject);
+                        delta.changes.push(StateChange::VassalageChanged {
+                            overlord,
+                            subject,
+                            active: false,
+                        });
+                    }
                 }
             }
             PreparedCommand::ChooseEvent(country, key, option, prepared) => {
@@ -1404,6 +2154,16 @@ impl GameState {
                     .as_mut()
                     .expect("validated event state")
                     .resolve(country, key, self.time.tick(), used);
+                let next_source_id = self.events.as_ref().expect("event state").next_source_id;
+                if let Some(technology) = &mut self.technology {
+                    technology.next_source_id = technology.next_source_id.max(next_source_id);
+                }
+                if let Some(ideas) = &mut self.ideas {
+                    ideas.next_source_id = ideas.next_source_id.max(next_source_id);
+                }
+                if let Some(reforms) = &mut self.reforms {
+                    reforms.next_source_id = reforms.next_source_id.max(next_source_id);
+                }
                 delta.changes.push(StateChange::EventResolved {
                     country,
                     key: key.into(),
@@ -1475,6 +2235,12 @@ impl GameState {
                 if let Some(events) = &mut self.events {
                     events.next_source_id = events.next_source_id.max(technology.next_source_id);
                 }
+                if let Some(ideas) = &mut self.ideas {
+                    ideas.next_source_id = ideas.next_source_id.max(technology.next_source_id);
+                }
+                if let Some(reforms) = &mut self.reforms {
+                    reforms.next_source_id = reforms.next_source_id.max(technology.next_source_id);
+                }
                 let base = self.countries.get_mut(&country).expect("validated country");
                 base.known_technologies.insert(key.into());
                 base.modifiers
@@ -1496,6 +2262,88 @@ impl GameState {
                 delta.changes.push(StateChange::TechnologyUnlocked {
                     country,
                     key: key.into(),
+                    source,
+                });
+            }
+            PreparedCommand::UnlockIdea(country, key, source, modifiers) => {
+                let ideas = self.ideas.as_mut().expect("validated idea catalog");
+                ideas.sources.insert((country, key.into()), source);
+                ideas.next_source_id = source.get().checked_add(1).expect("validated source");
+                let technology = self.technology.as_mut().expect("shared research points");
+                let points = technology
+                    .points
+                    .get_mut(&country)
+                    .expect("validated country");
+                *points -= IDEA_COST;
+                technology.next_source_id = technology.next_source_id.max(ideas.next_source_id);
+                if let Some(events) = &mut self.events {
+                    events.next_source_id = events.next_source_id.max(ideas.next_source_id);
+                }
+                if let Some(reforms) = &mut self.reforms {
+                    reforms.next_source_id = reforms.next_source_id.max(ideas.next_source_id);
+                }
+                let base = self.countries.get_mut(&country).expect("validated country");
+                base.modifiers
+                    .insert_source(source, None, modifiers.clone())
+                    .expect("validated source");
+                delta.changes.push(StateChange::ResearchPointsChanged {
+                    country,
+                    points: *points,
+                });
+                for modifier in modifiers {
+                    delta.changes.push(StateChange::ModifierSourceActivated {
+                        country,
+                        grant: PreparedModifier {
+                            modifier,
+                            expires_at: None,
+                        },
+                    });
+                }
+                delta.changes.push(StateChange::IdeaUnlocked {
+                    country,
+                    key: key.into(),
+                    source,
+                });
+            }
+            PreparedCommand::UnlockReform(country, key, tier, source, modifiers) => {
+                let reforms = self.reforms.as_mut().expect("validated reform catalog");
+                reforms.choices.insert((country, tier), key.into());
+                reforms.sources.insert((country, key.into()), source);
+                reforms.next_source_id = source.get().checked_add(1).expect("validated source");
+                let technology = self.technology.as_mut().expect("shared research points");
+                let points = technology
+                    .points
+                    .get_mut(&country)
+                    .expect("validated country");
+                *points -= REFORM_COST;
+                technology.next_source_id = technology.next_source_id.max(reforms.next_source_id);
+                if let Some(ideas) = &mut self.ideas {
+                    ideas.next_source_id = ideas.next_source_id.max(reforms.next_source_id);
+                }
+                if let Some(events) = &mut self.events {
+                    events.next_source_id = events.next_source_id.max(reforms.next_source_id);
+                }
+                let base = self.countries.get_mut(&country).expect("validated country");
+                base.modifiers
+                    .insert_source(source, None, modifiers.clone())
+                    .expect("validated reform modifier source");
+                delta.changes.push(StateChange::ResearchPointsChanged {
+                    country,
+                    points: *points,
+                });
+                for modifier in modifiers {
+                    delta.changes.push(StateChange::ModifierSourceActivated {
+                        country,
+                        grant: PreparedModifier {
+                            modifier,
+                            expires_at: None,
+                        },
+                    });
+                }
+                delta.changes.push(StateChange::ReformUnlocked {
+                    country,
+                    key: key.into(),
+                    tier,
                     source,
                 });
             }
@@ -1585,6 +2433,43 @@ impl GameState {
                     .map(|route| PreparedCommand::MoveFleet(*fleet, route))
                     .map_err(CommandError::Navy)
             }
+            Command::BuildShip { country, port, sea } => {
+                let polity = self.authorized_polity(actor, *country)?;
+                let navy = self
+                    .navy()
+                    .ok_or(CommandError::Navy(NavyError::Unavailable))?;
+                if self.owner_of_province(*port) != Some(*country)
+                    || self.province_graph.get(*port).is_none_or(|province| {
+                        province.kind != crate::ProvinceKind::Land
+                            || !province.ports.contains(sea)
+                            || !province
+                                .neighbors
+                                .iter()
+                                .any(|edge| edge.to == *sea && edge.kind == EdgeKind::Port)
+                    })
+                {
+                    return Err(CommandError::Navy(NavyError::InvalidShipyard(*port)));
+                }
+                if self
+                    .province_graph
+                    .get(*sea)
+                    .is_none_or(|p| p.kind != crate::ProvinceKind::Sea)
+                {
+                    return Err(CommandError::Navy(NavyError::InvalidSea(*sea)));
+                }
+                if navy.shipyards.contains_key(port) {
+                    return Err(CommandError::Navy(NavyError::ShipyardOccupied(*port)));
+                }
+                if polity.countries[country].economy.treasury.raw() < SHIP_BUILD_COST_RAW {
+                    return Err(CommandError::Navy(NavyError::InsufficientFunds));
+                }
+                polity.countries[country]
+                    .economy
+                    .treasury
+                    .checked_sub(Fixed::from_raw(SHIP_BUILD_COST_RAW))
+                    .ok_or(CommandError::Navy(NavyError::InsufficientFunds))?;
+                Ok(PreparedCommand::BuildShip(*country, *port, *sea))
+            }
             Command::EmbarkArmy {
                 country,
                 army,
@@ -1606,7 +2491,8 @@ impl GameState {
                 country,
                 defender,
                 goal,
-            } => self.prepare_military(actor, *country, MilitaryOrder::Declare(*defender, *goal)),
+            } => self.prepare_declare_war(actor, *country, *defender, *goal),
+            Command::DeclareIndependence { country } => self.prepare_independence(actor, *country),
             Command::OfferPeace {
                 country,
                 war,
@@ -1614,6 +2500,12 @@ impl GameState {
             } => self.prepare_military(actor, *country, MilitaryOrder::Offer(*war, *cede_goal)),
             Command::AcceptPeace { country, war } => {
                 self.prepare_military(actor, *country, MilitaryOrder::Accept(*war))
+            }
+            Command::AcceptCallToArms { country, war, from } => {
+                self.prepare_call_to_arms(actor, *country, *war, *from, true)
+            }
+            Command::RejectCallToArms { country, war, from } => {
+                self.prepare_call_to_arms(actor, *country, *war, *from, false)
             }
             Command::OfferAlliance { country, toward } => {
                 self.prepare_diplomacy(actor, *country, *toward, 0)
@@ -1686,6 +2578,11 @@ impl GameState {
                         self.events
                             .as_ref()
                             .map_or(1, |events| events.next_source_id),
+                    )
+                    .max(
+                        self.reforms
+                            .as_ref()
+                            .map_or(1, |reforms| reforms.next_source_id),
                     );
                 next.checked_add(1).ok_or(CommandError::Technology(
                     TechnologyError::ModifierSourceExhausted,
@@ -1707,6 +2604,145 @@ impl GameState {
                     .collect::<Result<Vec<_>, _>>()?;
                 Ok(PreparedCommand::UnlockTechnology(
                     *country, key, source, modifiers,
+                ))
+            }
+            Command::UnlockIdea { country, key } => {
+                self.authorized_country(actor, *country)?;
+                let ideas = self
+                    .ideas
+                    .as_ref()
+                    .ok_or_else(|| CommandError::Idea(IdeaError::UnknownIdea(key.clone())))?;
+                let idea = ideas
+                    .definitions
+                    .get(key)
+                    .ok_or_else(|| CommandError::Idea(IdeaError::UnknownIdea(key.clone())))?;
+                let polity = self
+                    .polity
+                    .as_ref()
+                    .and_then(|polity| polity.countries.get(country))
+                    .ok_or(CommandError::PolityUnavailable)?;
+                if polity.tag != idea.country {
+                    return Err(CommandError::Idea(IdeaError::WrongCountry(key.clone())));
+                }
+                if ideas.sources.contains_key(&(*country, key.clone())) {
+                    return Err(CommandError::Idea(IdeaError::AlreadyKnown(key.clone())));
+                }
+                if !idea.unlock.evaluate(&self.countries[country]) {
+                    return Err(CommandError::Idea(IdeaError::Locked(key.clone())));
+                }
+                let available = self.research_points(*country).unwrap_or(0);
+                if available < IDEA_COST {
+                    return Err(CommandError::Idea(IdeaError::InsufficientPoints {
+                        available,
+                    }));
+                }
+                let next = self
+                    .highest_modifier_source()
+                    .checked_add(1)
+                    .ok_or(CommandError::Idea(IdeaError::ModifierSourceExhausted))?
+                    .max(ideas.next_source_id)
+                    .max(
+                        self.technology
+                            .as_ref()
+                            .expect("idea research points")
+                            .next_source_id,
+                    )
+                    .max(
+                        self.events
+                            .as_ref()
+                            .map_or(1, |events| events.next_source_id),
+                    )
+                    .max(
+                        self.reforms
+                            .as_ref()
+                            .map_or(1, |reforms| reforms.next_source_id),
+                    );
+                next.checked_add(1)
+                    .ok_or(CommandError::Idea(IdeaError::ModifierSourceExhausted))?;
+                let source = ModifierSourceId::new(next);
+                let modifiers = idea
+                    .modifiers
+                    .iter()
+                    .map(|effect| {
+                        effect
+                            .prepare(source, self.time.tick().get())
+                            .map(|grant| grant.modifier)
+                            .map_err(|_| {
+                                CommandError::Idea(IdeaError::InvalidDefinition(key.clone()))
+                            })
+                    })
+                    .collect::<Result<Vec<_>, _>>()?;
+                Ok(PreparedCommand::UnlockIdea(
+                    *country, key, source, modifiers,
+                ))
+            }
+            Command::UnlockReform { country, key } => {
+                self.authorized_country(actor, *country)?;
+                let reforms = self
+                    .reforms
+                    .as_ref()
+                    .ok_or_else(|| CommandError::Reform(ReformError::UnknownReform(key.clone())))?;
+                let definition = reforms
+                    .definitions
+                    .get(key)
+                    .ok_or_else(|| CommandError::Reform(ReformError::UnknownReform(key.clone())))?;
+                let polity = self
+                    .polity
+                    .as_ref()
+                    .and_then(|polity| polity.countries.get(country))
+                    .ok_or(CommandError::PolityUnavailable)?;
+                if polity.government != definition.government {
+                    return Err(CommandError::Reform(ReformError::WrongGovernment(
+                        key.clone(),
+                    )));
+                }
+                if reforms.sources.contains_key(&(*country, key.clone())) {
+                    return Err(CommandError::Reform(ReformError::AlreadyKnown(key.clone())));
+                }
+                if reforms.choices.contains_key(&(*country, definition.tier)) {
+                    return Err(CommandError::Reform(ReformError::TierAlreadyChosen(
+                        definition.tier,
+                    )));
+                }
+                let available = self.research_points(*country).unwrap_or(0);
+                if available < REFORM_COST {
+                    return Err(CommandError::Reform(ReformError::InsufficientPoints {
+                        available,
+                    }));
+                }
+                let next = self
+                    .highest_modifier_source()
+                    .checked_add(1)
+                    .ok_or(CommandError::Reform(ReformError::ModifierSourceExhausted))?
+                    .max(reforms.next_source_id)
+                    .max(
+                        self.technology
+                            .as_ref()
+                            .map_or(1, |state| state.next_source_id),
+                    )
+                    .max(self.ideas.as_ref().map_or(1, |state| state.next_source_id))
+                    .max(self.events.as_ref().map_or(1, |state| state.next_source_id));
+                next.checked_add(1)
+                    .ok_or(CommandError::Reform(ReformError::ModifierSourceExhausted))?;
+                let source = ModifierSourceId::new(next);
+                let modifiers = definition
+                    .effects
+                    .iter()
+                    .map(|effect| {
+                        effect
+                            .prepare(source, self.time.tick().get())
+                            .map(|grant| grant.modifier)
+                            .map_err(|_| {
+                                CommandError::Reform(ReformError::InvalidDefinition(key.clone()))
+                            })
+                    })
+                    .collect::<Result<Vec<_>, _>>()?;
+                Ok(PreparedCommand::UnlockReform(
+                    *country,
+                    key,
+                    definition.tier,
+                    source,
+                    modifiers,
                 ))
             }
             Command::OfferRoyalMarriage {
@@ -1733,6 +2769,18 @@ impl GameState {
             Command::RevokeGuarantee { country, protected } => {
                 self.prepare_diplomacy(actor, *country, *protected, 5)
             }
+            Command::OfferVassalage { country, toward } => {
+                self.prepare_diplomacy(actor, *country, *toward, 6)
+            }
+            Command::AcceptVassalage { country, from } => {
+                self.prepare_diplomacy(actor, *country, *from, 7)
+            }
+            Command::RejectVassalage { country, from } => {
+                self.prepare_diplomacy(actor, *country, *from, 8)
+            }
+            Command::ReleaseVassal { country, subject } => {
+                self.prepare_diplomacy(actor, *country, *subject, 9)
+            }
         }
     }
 
@@ -1746,6 +2794,17 @@ impl GameState {
         kind: u8,
     ) -> Result<PreparedCommand<'static>, CommandError> {
         self.authorized_polity(actor, if kind == 0 { from } else { toward })?;
+        let signer = if kind == 0 { from } else { toward };
+        if kind != 2
+            && self
+                .diplomacy
+                .as_ref()
+                .is_some_and(|d| d.overlord_of(signer).is_some())
+        {
+            return Err(CommandError::Diplomacy(
+                DiplomacyError::SubjectCannotOfferTreaty,
+            ));
+        }
         let now = self.time.date();
         let action = match kind {
             0 => {
@@ -1800,6 +2859,78 @@ impl GameState {
         Ok(PreparedCommand::Marriage(action))
     }
 
+    fn prepare_call_to_arms(
+        &self,
+        actor: CommandActor,
+        country: CountryId,
+        war_id: WarId,
+        from: CountryId,
+        accept: bool,
+    ) -> Result<PreparedCommand<'static>, CommandError> {
+        self.authorized_polity(actor, country)?;
+        let diplomacy = self
+            .diplomacy
+            .as_ref()
+            .ok_or(CommandError::Diplomacy(DiplomacyError::NoCallToArmsOffer))?;
+        let offer = diplomacy
+            .call_to_arms_offer(war_id, from, country)
+            .filter(|offer| offer.expires_at > self.time.date())
+            .ok_or(CommandError::Diplomacy(DiplomacyError::NoCallToArmsOffer))?;
+        let war_state = self
+            .war_state
+            .as_ref()
+            .ok_or(CommandError::War(WarError::Unavailable))?;
+        let war = war_state
+            .wars
+            .get(&war_id)
+            .ok_or(CommandError::Diplomacy(DiplomacyError::NoCallToArmsOffer))?;
+        if !war.is_leader(from)
+            || war.side(from) != Some(offer.side)
+            || war.side(country).is_some()
+            || war_state.war_for(country).is_some()
+            || !diplomacy.allied(from, country)
+        {
+            return Err(CommandError::Diplomacy(DiplomacyError::NoCallToArmsOffer));
+        }
+        Ok(PreparedCommand::CallToArms(
+            war_id, country, from, offer.side, accept,
+        ))
+    }
+
+    fn prepare_declare_war(
+        &self,
+        actor: CommandActor,
+        country: CountryId,
+        defender: CountryId,
+        goal: ProvinceId,
+    ) -> Result<PreparedCommand<'static>, CommandError> {
+        let prepared =
+            self.prepare_military(actor, country, MilitaryOrder::Declare(defender, goal))?;
+        let may_invite_allies = self.diplomacy.as_ref().is_some_and(|diplomacy| {
+            diplomacy.alliances.iter().any(|&(a, b)| {
+                let ally = if a == country || a == defender {
+                    Some(b)
+                } else if b == country || b == defender {
+                    Some(a)
+                } else {
+                    None
+                };
+                ally.is_some_and(|ally| {
+                    ally != country
+                        && ally != defender
+                        && self
+                            .war_state
+                            .as_ref()
+                            .is_none_or(|military| military.war_for(ally).is_none())
+                })
+            })
+        });
+        if may_invite_allies && self.time.date().checked_add_days(30).is_none() {
+            return Err(CommandError::Diplomacy(DiplomacyError::DateOverflow));
+        }
+        Ok(prepared)
+    }
+
     fn prepare_diplomacy(
         &self,
         actor: CommandActor,
@@ -1808,6 +2939,16 @@ impl GameState {
         kind: u8,
     ) -> Result<PreparedCommand<'static>, CommandError> {
         self.authorized_polity(actor, country)?;
+        if matches!(kind, 0 | 1 | 4 | 6)
+            && self
+                .diplomacy
+                .as_ref()
+                .is_some_and(|d| d.overlord_of(country).is_some())
+        {
+            return Err(CommandError::Diplomacy(
+                DiplomacyError::SubjectCannotOfferTreaty,
+            ));
+        }
         if !self.countries.contains_key(&other) {
             return Err(CommandError::Diplomacy(DiplomacyError::UnknownCountry(
                 other,
@@ -1888,6 +3029,62 @@ impl GameState {
                 }
                 DiplomacyAction::RevokeGuarantee(country, other)
             }
+            6 => {
+                if self.country_at_war(country) || self.country_at_war(other) {
+                    return Err(CommandError::Diplomacy(DiplomacyError::AtWar));
+                }
+                if diplomacy.is_some_and(|d| d.overlord_of(other).is_some()) {
+                    return Err(CommandError::Diplomacy(DiplomacyError::AlreadyVassal));
+                }
+                if diplomacy.is_some_and(|d| {
+                    d.vassals.contains_key(&country)
+                        || d.vassals.values().any(|&overlord| overlord == other)
+                }) {
+                    return Err(CommandError::Diplomacy(DiplomacyError::VassalChain));
+                }
+                if diplomacy.is_some_and(|d| d.vassal_offers.contains_key(&(country, other))) {
+                    return Err(CommandError::Diplomacy(DiplomacyError::OfferAlreadyPending));
+                }
+                let expiry = now
+                    .checked_add_days(30)
+                    .ok_or(CommandError::Diplomacy(DiplomacyError::DateOverflow))?;
+                DiplomacyAction::OfferVassalage(country, other, expiry)
+            }
+            7 | 8 => {
+                if !diplomacy.is_some_and(|d| {
+                    d.vassal_offers
+                        .get(&(other, country))
+                        .is_some_and(|&expiry| expiry > now)
+                }) {
+                    return Err(CommandError::Diplomacy(DiplomacyError::NoOffer));
+                }
+                if kind == 7 {
+                    if self.country_at_war(country) || self.country_at_war(other) {
+                        return Err(CommandError::Diplomacy(DiplomacyError::AtWar));
+                    }
+                    if diplomacy.is_some_and(|d| d.overlord_of(country).is_some()) {
+                        return Err(CommandError::Diplomacy(DiplomacyError::AlreadyVassal));
+                    }
+                    if diplomacy.is_some_and(|d| {
+                        d.vassals.contains_key(&other)
+                            || d.vassals.values().any(|&overlord| overlord == country)
+                    }) {
+                        return Err(CommandError::Diplomacy(DiplomacyError::VassalChain));
+                    }
+                    DiplomacyAction::AcceptVassalage(other, country)
+                } else {
+                    DiplomacyAction::RejectVassalage(other, country)
+                }
+            }
+            9 => {
+                if diplomacy.and_then(|d| d.overlord_of(other)) != Some(country) {
+                    return Err(CommandError::Diplomacy(DiplomacyError::NotVassal));
+                }
+                if self.country_at_war(country) || self.country_at_war(other) {
+                    return Err(CommandError::Diplomacy(DiplomacyError::AtWar));
+                }
+                DiplomacyAction::ReleaseVassal(country, other)
+            }
             _ => unreachable!("known diplomacy command"),
         };
         Ok(PreparedCommand::Diplomacy(action))
@@ -1915,6 +3112,22 @@ impl GameState {
             }
         }
         if let MilitaryOrder::Declare(defender, _) = order {
+            if self
+                .diplomacy
+                .as_ref()
+                .is_some_and(|d| d.overlord_of(country).is_some())
+            {
+                return Err(CommandError::Diplomacy(
+                    DiplomacyError::SubjectCannotDeclareWar,
+                ));
+            }
+            if self
+                .diplomacy
+                .as_ref()
+                .is_some_and(|d| d.overlord_of(defender) == Some(country))
+            {
+                return Err(CommandError::Diplomacy(DiplomacyError::MustReleaseVassal));
+            }
             if self.allied(country, defender) {
                 return Err(CommandError::Diplomacy(DiplomacyError::MustBreakAlliance));
             }
@@ -1945,6 +3158,7 @@ impl GameState {
             )
             .map_err(CommandError::War)?;
         let mut failed_guarantees = Vec::new();
+        let mut failed_vassal = None;
         if let MilitaryAction::Declare(_, declared) = &mut action {
             if let Some(diplomacy) = &self.diplomacy {
                 for guarantor in diplomacy.guarantors_of(declared.defender) {
@@ -1954,9 +3168,58 @@ impl GameState {
                         declared.defender_supporters.insert(guarantor);
                     }
                 }
+                if let Some(overlord) = diplomacy.overlord_of(declared.defender) {
+                    if war.war_for(overlord).is_some() || self.allied(overlord, country) {
+                        failed_vassal = Some((declared.defender, overlord));
+                    } else {
+                        declared.defender_supporters.insert(overlord);
+                    }
+                }
             }
         }
-        Ok(PreparedCommand::Military(action, failed_guarantees))
+        Ok(PreparedCommand::Military(
+            action,
+            failed_guarantees,
+            failed_vassal,
+        ))
+    }
+
+    fn prepare_independence(
+        &self,
+        actor: CommandActor,
+        subject: CountryId,
+    ) -> Result<PreparedCommand<'static>, CommandError> {
+        let polity = self.authorized_polity(actor, subject)?;
+        let overlord = self
+            .diplomacy
+            .as_ref()
+            .and_then(|d| d.overlord_of(subject))
+            .ok_or(CommandError::Diplomacy(DiplomacyError::NotVassal))?;
+        if self.allied(subject, overlord) {
+            return Err(CommandError::Diplomacy(DiplomacyError::MustBreakAlliance));
+        }
+        if self
+            .diplomacy
+            .as_ref()
+            .is_some_and(|d| d.guarantees(subject, overlord))
+        {
+            return Err(CommandError::Diplomacy(DiplomacyError::MustRevokeGuarantee));
+        }
+        let capital = polity.countries[&overlord].capital;
+        let war = self
+            .war_state()
+            .ok_or(CommandError::War(WarError::Unavailable))?;
+        let action = war
+            .prepare(
+                &self.province_graph,
+                polity,
+                self.time.tick(),
+                subject,
+                MilitaryOrder::DeclareIndependence(overlord, capital),
+                None,
+            )
+            .map_err(CommandError::War)?;
+        Ok(PreparedCommand::Military(action, Vec::new(), None))
     }
 
     fn prepare_embark(
@@ -2046,6 +3309,11 @@ impl GameState {
         }
         if fleet.movement.is_some() {
             return Err(CommandError::Navy(NavyError::FleetInMotion(fleet_id)));
+        }
+        if let Some((&blocker, _)) = navy.fleets.iter().find(|(&id, other)| {
+            id != fleet_id && other.sea == fleet.sea && self.directly_at_war(country, other.country)
+        }) {
+            return Err(CommandError::Navy(NavyError::HostileFleet(blocker)));
         }
         let army_id = fleet
             .cargo
@@ -2184,12 +3452,22 @@ impl GameState {
                 }
             }
         }
+        let blockaded_ports = if self.time.date().components().2 == 1 {
+            self.blockaded_ports()
+        } else {
+            BTreeSet::new()
+        };
         if let Some(polity) = &mut self.polity {
             let (changes, failures) = polity.advance(
                 previous_date,
                 self.time.date(),
                 &self.province_graph,
+                &blockaded_ports,
                 &self.countries,
+                &self
+                    .diplomacy
+                    .as_ref()
+                    .map_or_else(BTreeMap::new, |state| state.vassals.clone()),
             );
             report.delta.changes.extend(changes);
             report.polity_failures = failures;
@@ -2221,6 +3499,21 @@ impl GameState {
                         toward: offer.toward,
                     });
             }
+            for offer in diplomacy.expire_vassal_offers(self.time.date()) {
+                report
+                    .delta
+                    .changes
+                    .push(StateChange::VassalageOfferRemoved {
+                        overlord: offer.from,
+                        subject: offer.toward,
+                    });
+            }
+            for offer in diplomacy.expire_call_to_arms(self.time.date()) {
+                report
+                    .delta
+                    .changes
+                    .push(StateChange::CallToArmsOfferRemoved(offer));
+            }
             if let Some(polity) = &self.polity {
                 for offer in diplomacy.expire_marriages(self.time.date(), &polity.characters) {
                     report
@@ -2234,38 +3527,146 @@ impl GameState {
             }
         }
         self.advance_military(&mut report);
-        let opposed_pairs: BTreeSet<_> = self
-            .war_state
-            .iter()
-            .flat_map(|war| war.wars.values())
-            .flat_map(|war| {
-                war.attacker_supporters
+        let invalid_call_offers = self
+            .diplomacy
+            .as_ref()
+            .into_iter()
+            .flat_map(|diplomacy| {
+                diplomacy
+                    .call_to_arms_offers
                     .iter()
-                    .copied()
-                    .chain(std::iter::once(war.attacker))
-                    .flat_map(move |a| {
-                        war.defender_supporters
-                            .iter()
-                            .copied()
-                            .chain(std::iter::once(war.defender))
-                            .map(move |b| (a.min(b), a.max(b)))
+                    .filter_map(|(&(war_id, from, toward), &(side, expires_at))| {
+                        let valid = self.war_state.as_ref().is_some_and(|military| {
+                            military.wars.get(&war_id).is_some_and(|war| {
+                                war.is_leader(from)
+                                    && war.side(from) == Some(side)
+                                    && war.side(toward).is_none()
+                                    && military.war_for(toward).is_none()
+                            })
+                        }) && diplomacy.allied(from, toward)
+                            && expires_at > self.time.date();
+                        (!valid).then_some(crate::CallToArmsOffer {
+                            war: war_id,
+                            from,
+                            toward,
+                            side,
+                            expires_at,
+                        })
                     })
+                    .collect::<Vec<_>>()
+            })
+            .collect::<Vec<_>>();
+        if let Some(diplomacy) = &mut self.diplomacy {
+            for offer in invalid_call_offers {
+                diplomacy
+                    .call_to_arms_offers
+                    .remove(&(offer.war, offer.from, offer.toward));
+                report
+                    .delta
+                    .changes
+                    .push(StateChange::CallToArmsOfferRemoved(offer));
+            }
+        }
+        let naval_month_start = self.time.date().components().2 == 1;
+        let sheltered_ports = if naval_month_start {
+            self.naval_sheltered_ports()
+        } else {
+            BTreeSet::new()
+        };
+        let army_strength: BTreeMap<_, _> = self
+            .war_state
+            .as_ref()
+            .map(|war| {
+                war.armies
+                    .iter()
+                    .map(|(&id, army)| (id, army.soldiers))
+                    .collect()
+            })
+            .unwrap_or_default();
+        let province_owners: BTreeMap<_, _> = self
+            .polity()
+            .into_iter()
+            .flat_map(|polity| {
+                polity.countries.iter().flat_map(|(&country, data)| {
+                    data.provinces
+                        .iter()
+                        .copied()
+                        .map(move |province| (province, country))
+                })
             })
             .collect();
         if let Some(navy) = &mut self.navy {
-            for (id, blocked_by) in
-                navy.advance(|a, b| opposed_pairs.contains(&(a.min(b), a.max(b))))
-            {
+            let (completed_shipyards, cancelled_shipyards) =
+                navy.advance_shipyards(|port| province_owners.get(&port).copied());
+            for port in cancelled_shipyards {
+                report
+                    .delta
+                    .changes
+                    .push(StateChange::ShipyardChanged { port, state: None });
+            }
+            for (port, fleet) in completed_shipyards {
+                report
+                    .delta
+                    .changes
+                    .push(StateChange::ShipyardChanged { port, state: None });
+                report.delta.changes.push(StateChange::FleetChanged {
+                    fleet,
+                    state: navy.fleets.get(&fleet).cloned(),
+                });
+            }
+            let previous = navy.advance();
+            let battles = navy.resolve_battles(
+                &self.province_graph,
+                self.war_state
+                    .iter()
+                    .flat_map(|state| state.wars.iter().map(|(&id, war)| (id, war))),
+                &previous,
+                |army| {
+                    self.war_state
+                        .as_ref()
+                        .and_then(|war| war.armies.get(&army).map(|a| a.soldiers))
+                },
+            );
+            let mut changed: BTreeSet<_> = previous.keys().copied().collect();
+            for battle in battles {
+                changed.extend(battle.changed_fleets.iter().copied());
+                if let Some(war) = &mut self.war_state {
+                    for &army in &battle.lost_armies {
+                        war.armies.remove(&army);
+                        report
+                            .delta
+                            .changes
+                            .push(StateChange::ArmyChanged { army, state: None });
+                    }
+                }
+                report
+                    .delta
+                    .changes
+                    .push(StateChange::NavalBattleResolved(battle));
+            }
+            if naval_month_start {
+                for attrition in
+                    navy.apply_monthly_attrition(&self.province_graph, &sheltered_ports, |army| {
+                        army_strength.get(&army).copied()
+                    })
+                {
+                    changed.insert(attrition.fleet);
+                    if let Some(army) = attrition.lost_army {
+                        if let Some(war) = &mut self.war_state {
+                            war.armies.remove(&army);
+                        }
+                        report
+                            .delta
+                            .changes
+                            .push(StateChange::ArmyChanged { army, state: None });
+                    }
+                }
+            }
+            for id in changed {
                 report.delta.changes.push(StateChange::FleetChanged {
                     fleet: id,
                     state: navy.fleets.get(&id).cloned(),
                 });
-                if let Some(by) = blocked_by {
-                    report
-                        .delta
-                        .changes
-                        .push(StateChange::FleetBlocked { fleet: id, by });
-                }
             }
         }
         if let Some(events) = &mut self.events {

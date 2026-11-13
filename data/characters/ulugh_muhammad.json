@@ -1,0 +1,20 @@
+{
+  "schema_version": 2,
+  "key": "ulugh_muhammad",
+  "country": "kaz",
+  "name": "Ulugh Muhammad",
+  "dynasty": "jenghisid",
+  "sex": "male",
+  "birth": [
+    1405,
+    1,
+    1
+  ],
+  "birth_precision": "year",
+  "stats": {
+    "adm": 3,
+    "dip": 3,
+    "mil": 4
+  },
+  "traits": []
+}

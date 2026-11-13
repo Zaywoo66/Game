@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 150 100" role="img" aria-labelledby="title">
+  <title id="title">Arms banner of the Crown of Aragon</title>
+  <rect width="150" height="100" fill="#f2d16b"/>
+  <g fill="#b73532">
+    <rect x="30" width="14" height="100"/><rect x="58" width="14" height="100"/>
+    <rect x="86" width="14" height="100"/><rect x="114" width="14" height="100"/>
+  </g>
+  <rect x="2" y="2" width="146" height="96" fill="none" stroke="#493a2c" stroke-width="4"/>
+</svg>

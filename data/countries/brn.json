@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "tag": "brn",
+  "name": "Duchy of Brunswick",
+  "color": [
+    118,
+    138,
+    154
+  ],
+  "capital": "braunschweig",
+  "ai_profile": "balanced",
+  "government": "monarchy",
+  "start": {
+    "ruler": null,
+    "heir": null,
+    "provinces": [
+      "braunschweig",
+      "hanover"
+    ],
+    "treasury": 50000,
+    "tax_rate": 220,
+    "monthly_spending": 3500
+  }
+}

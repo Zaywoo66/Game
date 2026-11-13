@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "tag": "yar",
+  "name": "Principality of Yaroslavl",
+  "color": [
+    161,
+    195,
+    163
+  ],
+  "capital": "yaroslavl",
+  "ai_profile": "balanced",
+  "government": "monarchy",
+  "start": {
+    "ruler": null,
+    "heir": null,
+    "provinces": [
+      "rybinsk",
+      "yaroslavl"
+    ],
+    "treasury": 50000,
+    "tax_rate": 220,
+    "monthly_spending": 3500
+  }
+}

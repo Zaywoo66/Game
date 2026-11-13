@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "tag": "cri",
+  "name": "Crimean Khanate",
+  "color": [
+    166,
+    177,
+    211
+  ],
+  "capital": "dzhankoy",
+  "ai_profile": "balanced",
+  "government": "monarchy",
+  "start": {
+    "ruler": "haci_giray",
+    "heir": null,
+    "provinces": [
+      "belaya_kalitva",
+      "donetsk",
+      "dzhankoy",
+      "eu_501_231",
+      "kerch",
+      "mariupol",
+      "melitopol",
+      "sevastopol"
+    ],
+    "treasury": 50000,
+    "tax_rate": 200,
+    "monthly_spending": 3500
+  }
+}

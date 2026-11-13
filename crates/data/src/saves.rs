@@ -5,25 +5,29 @@ use serde_json::value::RawValue;
 use sha2::{Digest, Sha256};
 use strategy_sim::{
     AiProfileKey, CharacterId, Controller, CountryId, CountryState, Date, DiplomacyError,
-    DiplomacyState, Effect, EventError, Fixed, GameState, InvalidDate, InvalidSpeed, MapIdentity,
-    MapIdentityMismatch, ModKey, Modifier, ModifierInsertError, ModifierKind, ModifierSourceId,
-    ModifierStore, NavyError, Opinion, OpinionError, OpinionStateError, PlayerId, PolityError,
-    ProvinceGraph, ScheduleError, ScheduledEffect, SeededRng, SimTime, Speed, TechnologyError,
-    Tick, TimeError, TriggerView, WarError, WarState,
+    DiplomacyState, Effect, EventError, Fixed, GameState, IdeaError, InvalidDate, InvalidSpeed,
+    MapIdentity, MapIdentityMismatch, ModKey, Modifier, ModifierInsertError, ModifierKind,
+    ModifierSourceId, ModifierStore, NavyError, Opinion, OpinionError, OpinionStateError, PlayerId,
+    PolityError, ProvinceGraph, ReformError, ScheduleError, ScheduledEffect, SeededRng, SimTime,
+    Speed, TechnologyError, Tick, TimeError, TriggerView, WarError, WarId, WarSide, WarState,
 };
 
 use crate::provinces::decode_hash;
 
 mod events;
+mod ideas;
 mod military;
 mod navy;
 mod polity;
+mod reforms;
 mod technology;
 
 use events::EventStateFile;
+use ideas::IdeaStateFile;
 use military::WarStateFile;
 use navy::NavyStateFile;
 use polity::PolityFile;
+use reforms::ReformStateFile;
 use technology::TechnologyStateFile;
 
 const LEGACY_VERSION: u32 = 1;
@@ -37,6 +41,12 @@ const EVENT_VERSION: u32 = 8;
 const GUARANTEE_VERSION: u32 = 9;
 const NAVY_VERSION: u32 = 10;
 const TECHNOLOGY_VERSION: u32 = 11;
+const VASSAL_VERSION: u32 = 12;
+const IDEA_VERSION: u32 = 13;
+const REFORM_VERSION: u32 = 14;
+const SHIPYARD_VERSION: u32 = 15;
+const APPROXIMATE_BIRTH_VERSION: u32 = 16;
+const CALL_TO_ARMS_VERSION: u32 = 17;
 const STATE_HASH_DOMAIN_V1: &[u8] = b"strategy:game-state:v1\0";
 const STATE_HASH_DOMAIN_V2: &[u8] = b"strategy:game-state:v2\0";
 const STATE_HASH_DOMAIN_V3: &[u8] = b"strategy:game-state:v3\0";
@@ -48,6 +58,12 @@ const STATE_HASH_DOMAIN_V8: &[u8] = b"strategy:game-state:v8\0";
 const STATE_HASH_DOMAIN_V9: &[u8] = b"strategy:game-state:v9\0";
 const STATE_HASH_DOMAIN_V10: &[u8] = b"strategy:game-state:v10\0";
 const STATE_HASH_DOMAIN_V11: &[u8] = b"strategy:game-state:v11\0";
+const STATE_HASH_DOMAIN_V12: &[u8] = b"strategy:game-state:v12\0";
+const STATE_HASH_DOMAIN_V13: &[u8] = b"strategy:game-state:v13\0";
+const STATE_HASH_DOMAIN_V14: &[u8] = b"strategy:game-state:v14\0";
+const STATE_HASH_DOMAIN_V15: &[u8] = b"strategy:game-state:v15\0";
+const STATE_HASH_DOMAIN_V16: &[u8] = b"strategy:game-state:v16\0";
+const STATE_HASH_DOMAIN_V17: &[u8] = b"strategy:game-state:v17\0";
 
 #[derive(Debug)]
 pub enum SaveError {
@@ -63,6 +79,9 @@ pub enum SaveError {
     VersionGuaranteeMismatch(u32),
     VersionNavyMismatch(u32),
     VersionTechnologyMismatch(u32),
+    VersionVassalMismatch(u32),
+    VersionIdeaMismatch(u32),
+    VersionReformMismatch(u32),
     InvalidPolity(PolityError),
     InvalidMilitary(WarError),
     InvalidOpinion(OpinionError),
@@ -71,6 +90,8 @@ pub enum SaveError {
     InvalidEvent(EventError),
     InvalidNavy(NavyError),
     InvalidTechnology(TechnologyError),
+    InvalidIdea(IdeaError),
+    InvalidReform(ReformError),
     InvalidMapHash,
     MapMismatch(MapIdentityMismatch),
     UnorderedRecords(&'static str),
@@ -119,12 +140,17 @@ impl fmt::Display for SaveError {
                 write!(f, "save version {version} has the wrong navy payload")
             }
             Self::VersionTechnologyMismatch(version) => write!(f, "save version {version} has the wrong technology payload"),
+            Self::VersionVassalMismatch(version) => write!(f, "save version {version} has the wrong vassalage payload"),
+            Self::VersionIdeaMismatch(version) => write!(f, "save version {version} has the wrong idea payload"),
+            Self::VersionReformMismatch(version) => write!(f, "save version {version} has the wrong government reform payload"),
             Self::InvalidOpinion(error) => write!(f, "invalid saved opinion: {error:?}"),
             Self::InvalidOpinionState(error) => write!(f, "invalid saved opinion state: {error:?}"),
             Self::InvalidDiplomacy(error) => write!(f, "invalid saved diplomacy state: {error:?}"),
             Self::InvalidEvent(error) => write!(f, "invalid saved event state: {error:?}"),
             Self::InvalidNavy(error) => write!(f, "invalid saved navy state: {error:?}"),
             Self::InvalidTechnology(error) => write!(f, "invalid saved technology state: {error:?}"),
+            Self::InvalidIdea(error) => write!(f, "invalid saved idea state: {error:?}"),
+            Self::InvalidReform(error) => write!(f, "invalid saved reform state: {error:?}"),
             Self::InvalidMapHash => f.write_str("map_hash must be 64 lowercase hexadecimal digits"),
             Self::MapMismatch(error) => error.fmt(f),
             Self::UnorderedRecords(records) => write!(f, "{records} must be unique and sorted"),
@@ -196,6 +222,12 @@ pub fn load_game(bytes: &[u8], graph: ProvinceGraph) -> Result<GameState, SaveEr
             | GUARANTEE_VERSION
             | NAVY_VERSION
             | TECHNOLOGY_VERSION
+            | VASSAL_VERSION
+            | IDEA_VERSION
+            | REFORM_VERSION
+            | SHIPYARD_VERSION
+            | APPROXIMATE_BIRTH_VERSION
+            | CALL_TO_ARMS_VERSION
     ) {
         return Err(SaveError::UnsupportedSchemaVersion(save.schema_version));
     }
@@ -242,6 +274,17 @@ pub fn load_game(bytes: &[u8], graph: ProvinceGraph) -> Result<GameState, SaveEr
         return Err(SaveError::VersionCoalitionMismatch(save.schema_version));
     }
     let restored = state.restore(graph)?;
+    if restored.war_state().is_some_and(|military| {
+        military.wars.values().any(|war| {
+            war.independence
+                && restored
+                    .diplomacy()
+                    .and_then(|d| d.overlord_of(war.attacker))
+                    != Some(war.defender)
+        })
+    }) {
+        return Err(SaveError::InvalidDiplomacy(DiplomacyError::InvalidState));
+    }
     let has_marriage_data = restored.polity().is_some_and(|polity| {
         polity.characters.values().any(|character| {
             character.sex != strategy_sim::Sex::Unknown || character.spouse.is_some()
@@ -273,10 +316,62 @@ pub fn load_game(bytes: &[u8], graph: ProvinceGraph) -> Result<GameState, SaveEr
     {
         return Err(SaveError::VersionNavyMismatch(save.schema_version));
     }
+    let has_shipyards = restored
+        .navy()
+        .is_some_and(|navy| !navy.shipyards.is_empty());
+    if (save.schema_version < SHIPYARD_VERSION && has_shipyards)
+        || (save.schema_version == SHIPYARD_VERSION && !has_shipyards)
+    {
+        return Err(SaveError::UnsupportedSchemaVersion(save.schema_version));
+    }
+    let has_approximate_birth = restored.polity().is_some_and(|polity| {
+        polity
+            .characters
+            .values()
+            .any(|character| character.birth_precision == strategy_sim::BirthPrecision::Year)
+    });
+    if (save.schema_version < APPROXIMATE_BIRTH_VERSION && has_approximate_birth)
+        || (save.schema_version == APPROXIMATE_BIRTH_VERSION && !has_approximate_birth)
+    {
+        return Err(SaveError::UnsupportedSchemaVersion(save.schema_version));
+    }
+    let has_call_to_arms = restored
+        .diplomacy()
+        .is_some_and(|diplomacy| !diplomacy.call_to_arms_offers.is_empty());
+    if (save.schema_version < CALL_TO_ARMS_VERSION && has_call_to_arms)
+        || (save.schema_version == CALL_TO_ARMS_VERSION && !has_call_to_arms)
+    {
+        return Err(SaveError::UnsupportedSchemaVersion(save.schema_version));
+    }
     if (save.schema_version < TECHNOLOGY_VERSION && restored.technologies().is_some())
         || (save.schema_version == TECHNOLOGY_VERSION && restored.technologies().is_none())
     {
         return Err(SaveError::VersionTechnologyMismatch(save.schema_version));
+    }
+    if (save.schema_version < VASSAL_VERSION && has_vassal_data(&restored))
+        || (save.schema_version == VASSAL_VERSION && !has_vassal_data(&restored))
+    {
+        return Err(SaveError::VersionVassalMismatch(save.schema_version));
+    }
+    if (save.schema_version < IDEA_VERSION && restored.ideas().is_some())
+        || (save.schema_version == IDEA_VERSION && restored.ideas().is_none())
+    {
+        return Err(SaveError::VersionIdeaMismatch(save.schema_version));
+    }
+    let has_government = restored.polity().is_some_and(|polity| {
+        polity
+            .countries
+            .values()
+            .any(|country| !country.government.is_empty())
+            || polity
+                .ai_profiles
+                .values()
+                .any(|profile| profile.reform_priority != 0)
+    });
+    if (save.schema_version < REFORM_VERSION && has_government)
+        || (save.schema_version == REFORM_VERSION && !has_government)
+    {
+        return Err(SaveError::VersionReformMismatch(save.schema_version));
     }
     Ok(restored)
 }
@@ -285,6 +380,12 @@ pub fn load_game(bytes: &[u8], graph: ProvinceGraph) -> Result<GameState, SaveEr
 pub fn state_hash(state: &GameState) -> Result<[u8; 32], SaveError> {
     let mut hash = Sha256::new();
     hash.update(match schema_version(state) {
+        CALL_TO_ARMS_VERSION => STATE_HASH_DOMAIN_V17,
+        APPROXIMATE_BIRTH_VERSION => STATE_HASH_DOMAIN_V16,
+        SHIPYARD_VERSION => STATE_HASH_DOMAIN_V15,
+        IDEA_VERSION => STATE_HASH_DOMAIN_V13,
+        REFORM_VERSION => STATE_HASH_DOMAIN_V14,
+        VASSAL_VERSION => STATE_HASH_DOMAIN_V12,
         TECHNOLOGY_VERSION => STATE_HASH_DOMAIN_V11,
         NAVY_VERSION => STATE_HASH_DOMAIN_V10,
         GUARANTEE_VERSION => STATE_HASH_DOMAIN_V9,
@@ -302,7 +403,38 @@ pub fn state_hash(state: &GameState) -> Result<[u8; 32], SaveError> {
 }
 
 fn schema_version(state: &GameState) -> u32 {
-    if state.technologies().is_some() {
+    if state
+        .diplomacy()
+        .is_some_and(|diplomacy| !diplomacy.call_to_arms_offers.is_empty())
+    {
+        CALL_TO_ARMS_VERSION
+    } else if state.polity().is_some_and(|polity| {
+        polity
+            .characters
+            .values()
+            .any(|character| character.birth_precision == strategy_sim::BirthPrecision::Year)
+    }) {
+        APPROXIMATE_BIRTH_VERSION
+    } else if state.navy().is_some_and(|navy| !navy.shipyards.is_empty()) {
+        SHIPYARD_VERSION
+    } else if state.reforms().is_some()
+        || state.polity().is_some_and(|polity| {
+            polity
+                .countries
+                .values()
+                .any(|country| !country.government.is_empty())
+                || polity
+                    .ai_profiles
+                    .values()
+                    .any(|profile| profile.reform_priority != 0)
+        })
+    {
+        REFORM_VERSION
+    } else if state.ideas().is_some() {
+        IDEA_VERSION
+    } else if has_vassal_data(state) {
+        VASSAL_VERSION
+    } else if state.technologies().is_some() {
         TECHNOLOGY_VERSION
     } else if state.navy().is_some() {
         NAVY_VERSION
@@ -338,6 +470,25 @@ fn schema_version(state: &GameState) -> u32 {
     } else {
         LEGACY_VERSION
     }
+}
+
+fn has_vassal_data(state: &GameState) -> bool {
+    state.diplomacy().is_some_and(|diplomacy| {
+        !diplomacy.vassals.is_empty() || !diplomacy.vassal_offers.is_empty()
+    }) || state
+        .war_state()
+        .is_some_and(|military| military.wars.values().any(|war| war.independence))
+        || state.polity().is_some_and(|polity| {
+            polity
+                .ai_profiles
+                .values()
+                .any(|profile| profile.thresholds.vassal_min_opinion != 0)
+                || polity.countries.values().any(|country| {
+                    country.economy.last_month.is_some_and(|budget| {
+                        budget.tribute_paid != Fixed::ZERO || budget.tribute_received != Fixed::ZERO
+                    })
+                })
+        })
 }
 
 #[derive(Serialize, Deserialize)]
@@ -386,6 +537,10 @@ struct StateFile {
     events: Option<EventStateFile>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     technology: Option<TechnologyStateFile>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    ideas: Option<IdeaStateFile>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    reforms: Option<ReformStateFile>,
 }
 
 impl From<&GameState> for StateFile {
@@ -425,6 +580,8 @@ impl From<&GameState> for StateFile {
             navy: state.navy().map(NavyStateFile::from),
             events: state.events().map(EventStateFile::from),
             technology: state.technologies().map(TechnologyStateFile::from),
+            ideas: state.ideas().map(IdeaStateFile::from),
+            reforms: state.reforms().map(ReformStateFile::from),
         }
     }
 }
@@ -512,10 +669,24 @@ impl StateFile {
         } else {
             Ok(state)
         }?;
-        if let Some(technology) = self.technology {
+        let state = if let Some(technology) = self.technology {
             state
                 .with_technology_state(technology.restore()?)
                 .map_err(SaveError::InvalidTechnology)
+        } else {
+            Ok(state)
+        }?;
+        let state = if let Some(ideas) = self.ideas {
+            state
+                .with_idea_state(ideas.restore()?)
+                .map_err(SaveError::InvalidIdea)
+        } else {
+            Ok(state)
+        }?;
+        if let Some(reforms) = self.reforms {
+            state
+                .with_reform_state(reforms.restore()?)
+                .map_err(SaveError::InvalidReform)
         } else {
             Ok(state)
         }
@@ -540,6 +711,12 @@ struct DiplomacyFile {
     marriage_offers: Vec<DatedPairFile>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     guarantees: Vec<PairFile>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    vassals: Vec<PairFile>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    vassal_offers: Vec<DatedPairFile>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    call_to_arms_offers: Vec<CallToArmsFile>,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -555,6 +732,23 @@ struct DatedPairFile {
     a: u32,
     b: u32,
     until: (u32, u8, u8),
+}
+
+#[derive(Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct CallToArmsFile {
+    war: u32,
+    from: u32,
+    toward: u32,
+    side: WarSideFile,
+    until: (u32, u8, u8),
+}
+
+#[derive(Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+enum WarSideFile {
+    Attacker,
+    Defender,
 }
 
 impl From<&DiplomacyState> for DiplomacyFile {
@@ -603,6 +797,37 @@ impl From<&DiplomacyState> for DiplomacyFile {
                     b: b.get(),
                 })
                 .collect(),
+            vassals: state
+                .vassals
+                .iter()
+                .map(|(&subject, &overlord)| PairFile {
+                    a: subject.get(),
+                    b: overlord.get(),
+                })
+                .collect(),
+            vassal_offers: state
+                .vassal_offers
+                .iter()
+                .map(|(&(overlord, subject), &until)| DatedPairFile {
+                    a: overlord.get(),
+                    b: subject.get(),
+                    until: until.components(),
+                })
+                .collect(),
+            call_to_arms_offers: state
+                .call_to_arms_offers
+                .iter()
+                .map(|(&(war, from, toward), &(side, until))| CallToArmsFile {
+                    war: war.get(),
+                    from: from.get(),
+                    toward: toward.get(),
+                    side: match side {
+                        WarSide::Attacker => WarSideFile::Attacker,
+                        WarSide::Defender => WarSideFile::Defender,
+                    },
+                    until: until.components(),
+                })
+                .collect(),
         }
     }
 }
@@ -618,6 +843,13 @@ impl DiplomacyFile {
             (item.a, item.b)
         })?;
         require_sorted(&self.guarantees, "guarantees", |item| (item.a, item.b))?;
+        require_sorted(&self.vassals, "vassals", |item| (item.a, item.b))?;
+        require_sorted(&self.vassal_offers, "vassal offers", |item| {
+            (item.a, item.b)
+        })?;
+        require_sorted(&self.call_to_arms_offers, "call to arms offers", |item| {
+            (item.war, item.from, item.toward)
+        })?;
         let alliances = self
             .alliances
             .into_iter()
@@ -647,6 +879,32 @@ impl DiplomacyFile {
                 Date::new(year, month, day).map_err(SaveError::InvalidDate)?,
             );
         }
+        let mut vassal_offers = std::collections::BTreeMap::new();
+        for item in self.vassal_offers {
+            let (year, month, day) = item.until;
+            vassal_offers.insert(
+                (CountryId::new(item.a), CountryId::new(item.b)),
+                Date::new(year, month, day).map_err(SaveError::InvalidDate)?,
+            );
+        }
+        let mut call_to_arms_offers = std::collections::BTreeMap::new();
+        for item in self.call_to_arms_offers {
+            let (year, month, day) = item.until;
+            call_to_arms_offers.insert(
+                (
+                    WarId::new(item.war),
+                    CountryId::new(item.from),
+                    CountryId::new(item.toward),
+                ),
+                (
+                    match item.side {
+                        WarSideFile::Attacker => WarSide::Attacker,
+                        WarSideFile::Defender => WarSide::Defender,
+                    },
+                    Date::new(year, month, day).map_err(SaveError::InvalidDate)?,
+                ),
+            );
+        }
         Ok(DiplomacyState {
             alliances,
             offers,
@@ -657,6 +915,13 @@ impl DiplomacyFile {
                 .into_iter()
                 .map(|item| (CountryId::new(item.a), CountryId::new(item.b)))
                 .collect(),
+            vassals: self
+                .vassals
+                .into_iter()
+                .map(|item| (CountryId::new(item.a), CountryId::new(item.b)))
+                .collect(),
+            vassal_offers,
+            call_to_arms_offers,
         })
     }
 }

@@ -1,0 +1,24 @@
+{
+  "schema_version": 2,
+  "key": "rene_of_anjou",
+  "country": "nap",
+  "name": "René of Anjou",
+  "dynasty": "valois_anjou",
+  "sex": "male",
+  "birth": [
+    1409,
+    1,
+    16
+  ],
+  "death": [
+    1480,
+    7,
+    10
+  ],
+  "stats": {
+    "adm": 3,
+    "dip": 3,
+    "mil": 3
+  },
+  "traits": []
+}

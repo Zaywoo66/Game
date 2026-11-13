@@ -16,6 +16,18 @@ export function decodeProvinceId(red: number, green: number, blue: number): numb
   return (red << 16) | (green << 8) | blue;
 }
 
+/** A subtle, deterministic sub-province bend used by both rendering and picking. */
+export function organicMapUv(u: number, v: number, width: number, height: number): [number, number] {
+  const bendX = 3.75 * Math.sin(v * 41 + Math.sin(v * 13) * 1.8)
+    + 1.65 * Math.sin(v * 107 + 0.7);
+  const bendY = 3.45 * Math.sin(u * 37 + Math.sin(u * 12) * 1.6)
+    + 1.5 * Math.sin(u * 91 + 1.1);
+  return [
+    Math.max(0, Math.min(1, u + bendX / width)),
+    Math.max(0, Math.min(1, v + bendY / height)),
+  ];
+}
+
 /** Coordinates are normalized from the northwest corner, with v increasing south. */
 export function pickProvinceId(
   rgba: Uint8ClampedArray | Uint8Array,
@@ -27,8 +39,9 @@ export function pickProvinceId(
   if (!Number.isFinite(u) || !Number.isFinite(v) || u < 0 || u > 1 || v < 0 || v > 1) {
     return 0;
   }
-  const x = Math.min(width - 1, Math.floor(u * width));
-  const y = Math.min(height - 1, Math.floor(v * height));
+  const [sampleU, sampleV] = organicMapUv(u, v, width, height);
+  const x = Math.min(width - 1, Math.floor(sampleU * width));
+  const y = Math.min(height - 1, Math.floor(sampleV * height));
   const i = (y * width + x) * 4;
   return decodeProvinceId(rgba[i], rgba[i + 1], rgba[i + 2]);
 }
@@ -154,6 +167,7 @@ export interface PolityAttribution {
 
 export interface MapAssets {
   provinces: Map<number, Province>;
+  projection: { pixels_per_degree: number; origin: [number, number] };
   names: ReadonlyMap<string, string>;
   polityAttributions: ReadonlyMap<number, PolityAttribution>;
   raster: Raster;
@@ -189,7 +203,10 @@ export async function loadMapAssets(base: string, signal: AbortSignal): Promise<
   }
 
   const [metadata, provincesRaster, heightmap, terrain, rivers, rawNames, evidence] = await Promise.all([
-    file('provinces.json').then((response) => response.json()) as Promise<{ map_version: number; map_hash: string; provinces: Province[] }>,
+    file('provinces.json').then((response) => response.json()) as Promise<{
+      map_version: number; map_hash: string; provinces: Province[];
+      projection: { pixels_per_degree: number; origin: [number, number] };
+    }>,
     raster('provinces.png'),
     file('heightmap.png').then((response) => response.arrayBuffer()).then(decodeHeightmap16),
     raster('terrain.png'),
@@ -241,5 +258,6 @@ export async function loadMapAssets(base: string, signal: AbortSignal): Promise<
   if ([...provinces.values()].some((province) => !province.name_key || !names.has(province.name_key))) {
     throw new Error('A province has no localized display name');
   }
-  return { provinces, names, polityAttributions, raster: provincesRaster, heightmap, terrain, rivers };
+  return { provinces, projection: metadata.projection, names, polityAttributions,
+    raster: provincesRaster, heightmap, terrain, rivers };
 }

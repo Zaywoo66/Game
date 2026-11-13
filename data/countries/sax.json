@@ -1,0 +1,26 @@
+{
+  "schema_version": 1,
+  "tag": "sax",
+  "name": "Electorate of Saxony",
+  "color": [
+    161,
+    163,
+    195
+  ],
+  "capital": "leipzig",
+  "ai_profile": "balanced",
+  "government": "monarchy",
+  "start": {
+    "ruler": null,
+    "heir": null,
+    "provinces": [
+      "dresden",
+      "erfurt",
+      "jena",
+      "leipzig"
+    ],
+    "treasury": 50000,
+    "tax_rate": 220,
+    "monthly_spending": 3500
+  }
+}

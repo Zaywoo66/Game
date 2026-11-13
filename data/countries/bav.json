@@ -1,0 +1,26 @@
+{
+  "schema_version": 1,
+  "tag": "bav",
+  "name": "Duchy of Bavaria",
+  "color": [
+    118,
+    178,
+    186
+  ],
+  "capital": "munich",
+  "ai_profile": "balanced",
+  "government": "monarchy",
+  "start": {
+    "ruler": null,
+    "heir": null,
+    "provinces": [
+      "augsburg",
+      "ingolstadt",
+      "munich",
+      "passau"
+    ],
+    "treasury": 50000,
+    "tax_rate": 220,
+    "monthly_spending": 3500
+  }
+}

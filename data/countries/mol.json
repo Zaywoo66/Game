@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "tag": "mol",
+  "name": "Principality of Moldavia",
+  "color": [
+    139,
+    139,
+    198
+  ],
+  "capital": "boto_ani",
+  "ai_profile": "balanced",
+  "government": "monarchy",
+  "start": {
+    "ruler": "stephen_ii_moldavia",
+    "heir": null,
+    "provinces": [
+      "bac_u",
+      "boto_ani",
+      "chernivtsi",
+      "chi_in_u",
+      "eu_426_261",
+      "ia_i",
+      "izmayil"
+    ],
+    "treasury": 65000,
+    "tax_rate": 220,
+    "monthly_spending": 4500
+  }
+}

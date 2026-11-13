@@ -138,6 +138,117 @@ async fn lan_players_can_reject_accept_and_break_alliance_proposals() {
 }
 
 #[tokio::test]
+async fn lan_players_can_reject_accept_and_release_vassalage() {
+    let scenario = load_embedded_scenario().unwrap();
+    let graph = scenario.province_graph().clone();
+    let host_id = CountryId::new(country(&scenario, "por"));
+    let guest_id = CountryId::new(country(&scenario, "sco"));
+    let host = LanHost::start(
+        HostConfig {
+            room: "Vassalage commands".into(),
+            host_country_id: host_id.get(),
+            guest_country_id: guest_id.get(),
+            ai_preset: AiPreset::Balanced,
+            grace_minutes: 0,
+            port: 0,
+        },
+        scenario,
+    )
+    .await
+    .unwrap();
+    let guest = LanClient::join(host.address(), "Vassalage guest".into(), graph)
+        .await
+        .unwrap();
+    let mut view = guest.subscribe();
+    host.command(Command::OfferVassalage {
+        country: host_id,
+        toward: guest_id,
+    })
+    .unwrap();
+    timeout(WAIT, async {
+        loop {
+            if view
+                .borrow()
+                .game
+                .diplomacy()
+                .is_some_and(|d| d.vassal_offers.contains_key(&(host_id, guest_id)))
+            {
+                break;
+            }
+            view.changed().await.unwrap();
+        }
+    })
+    .await
+    .unwrap();
+    guest
+        .command(Command::RejectVassalage {
+            country: guest_id,
+            from: host_id,
+        })
+        .await
+        .unwrap();
+    assert!(!host
+        .view()
+        .game
+        .diplomacy()
+        .unwrap()
+        .vassal_offers
+        .contains_key(&(host_id, guest_id)));
+    host.command(Command::OfferVassalage {
+        country: host_id,
+        toward: guest_id,
+    })
+    .unwrap();
+    guest
+        .command(Command::AcceptVassalage {
+            country: guest_id,
+            from: host_id,
+        })
+        .await
+        .unwrap();
+    assert_eq!(
+        host.view().game.diplomacy().unwrap().overlord_of(guest_id),
+        Some(host_id)
+    );
+    timeout(WAIT, async {
+        loop {
+            if view
+                .borrow()
+                .game
+                .diplomacy()
+                .and_then(|d| d.overlord_of(guest_id))
+                == Some(host_id)
+            {
+                break;
+            }
+            view.changed().await.unwrap();
+        }
+    })
+    .await
+    .unwrap();
+    host.command(Command::ReleaseVassal {
+        country: host_id,
+        subject: guest_id,
+    })
+    .unwrap();
+    timeout(WAIT, async {
+        loop {
+            if view
+                .borrow()
+                .game
+                .diplomacy()
+                .is_some_and(|d| d.overlord_of(guest_id).is_none())
+            {
+                break;
+            }
+            view.changed().await.unwrap();
+        }
+    })
+    .await
+    .unwrap();
+}
+
+#[tokio::test]
 async fn lan_guest_guarantee_and_revoke_replicate_to_host_and_guest() {
     let scenario = load_embedded_scenario().unwrap();
     let graph = scenario.province_graph().clone();
@@ -284,6 +395,7 @@ async fn lan_host_and_guest_keep_initial_directional_opinions() {
 }
 
 #[tokio::test]
+#[ignore = "10,000-tick TCP AI soak; run for release acceptance or network/AI changes"]
 async fn lan_guest_matches_host_after_ten_thousand_ticks_with_ai() {
     let scenario = load_embedded_scenario().unwrap();
     let graph = scenario.province_graph().clone();

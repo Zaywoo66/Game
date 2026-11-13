@@ -8,7 +8,7 @@ fn main() {
 fn embed_game_data() -> std::io::Result<()> {
     let root =
         PathBuf::from(env::var_os("CARGO_MANIFEST_DIR").expect("manifest path")).join("../data");
-    let mut paths = vec!["map/western_europe/provinces.json".to_owned()];
+    let mut paths = vec!["map/europe/provinces.json".to_owned()];
     for directory in ["scenarios", "countries", "characters", "ai/profiles"] {
         let path = root.join(directory);
         println!("cargo:rerun-if-changed={}", path.display());
@@ -24,6 +24,21 @@ fn embed_game_data() -> std::io::Result<()> {
             }
         }
     }
+    let reforms = root.join("reforms");
+    println!("cargo:rerun-if-changed={}", reforms.display());
+    if reforms.is_dir() {
+        for entry in fs::read_dir(reforms)? {
+            let entry = entry?;
+            if entry.file_type()?.is_file()
+                && entry
+                    .path()
+                    .extension()
+                    .is_some_and(|ext| ext == "yaml" || ext == "yml")
+            {
+                paths.push(format!("reforms/{}", entry.file_name().to_string_lossy()));
+            }
+        }
+    }
     let techs = root.join("techs");
     println!("cargo:rerun-if-changed={}", techs.display());
     if techs.is_dir() {
@@ -36,6 +51,21 @@ fn embed_game_data() -> std::io::Result<()> {
                     .is_some_and(|ext| ext == "yaml" || ext == "yml")
             {
                 paths.push(format!("techs/{}", entry.file_name().to_string_lossy()));
+            }
+        }
+    }
+    let ideas = root.join("ideas");
+    println!("cargo:rerun-if-changed={}", ideas.display());
+    if ideas.is_dir() {
+        for entry in fs::read_dir(ideas)? {
+            let entry = entry?;
+            if entry.file_type()?.is_file()
+                && entry
+                    .path()
+                    .extension()
+                    .is_some_and(|ext| ext == "yaml" || ext == "yml")
+            {
+                paths.push(format!("ideas/{}", entry.file_name().to_string_lossy()));
             }
         }
     }

@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "tag": "pap",
+  "name": "Papal States",
+  "color": [
+    198,
+    139,
+    198
+  ],
+  "capital": "rome",
+  "ai_profile": "balanced",
+  "government": "theocracy",
+  "start": {
+    "ruler": "eugene_iv",
+    "heir": null,
+    "provinces": [
+      "ancona",
+      "bologna",
+      "civitavecchia",
+      "perugia",
+      "ravenna",
+      "rome"
+    ],
+    "treasury": 60000,
+    "tax_rate": 200,
+    "monthly_spending": 4000
+  }
+}

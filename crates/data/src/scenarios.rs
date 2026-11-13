@@ -199,6 +199,7 @@ impl MilitaryFile {
 struct CountryFile {
     schema_version: u32,
     tag: String,
+    government: String,
     name: String,
     color: [u8; 3],
     capital: String,
@@ -209,7 +210,7 @@ struct CountryFile {
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 struct CountryStart {
-    ruler: String,
+    ruler: Option<String>,
     heir: Option<String>,
     provinces: Vec<String>,
     treasury: i64,
@@ -228,10 +229,20 @@ struct CharacterFile {
     sex: CharacterSexFile,
     spouse: Option<String>,
     birth: DateFields,
+    #[serde(default)]
+    birth_precision: BirthPrecisionFile,
     death: Option<DateFields>,
     #[serde(with = "StatsFile")]
     stats: CharacterStats,
     traits: Vec<String>,
+}
+
+#[derive(Clone, Copy, Debug, Default, Deserialize)]
+#[serde(rename_all = "snake_case")]
+enum BirthPrecisionFile {
+    #[default]
+    Day,
+    Year,
 }
 
 #[derive(Deserialize)]
@@ -254,6 +265,10 @@ struct ProfileContentFile {
     preferred_monthly_spending: i64,
     #[serde(default)]
     tech_branch_weights: BTreeMap<String, u16>,
+    #[serde(default)]
+    idea_priority: u16,
+    #[serde(default)]
+    reform_priority: u16,
 }
 
 /// Loads a scenario file in `data/scenarios/` with its referenced content.
@@ -272,7 +287,7 @@ pub fn load_scenario(graph: ProvinceGraph, scenario_path: impl AsRef<Path>) -> R
         .filter(|parent| parent.file_name().is_some_and(|name| name == "scenarios"))
         .and_then(Path::parent)
         .ok_or_else(|| invalid("scenario path must be inside a scenarios directory"))?;
-    let state = load_scenario_from_reader(graph, scenario_key, |relative| {
+    let mut state = load_scenario_from_reader(graph, scenario_key, |relative| {
         fs::read(root.join(relative))
     })?;
     let technology_dir = root.join("techs");
@@ -282,12 +297,30 @@ pub fn load_scenario(graph: ProvinceGraph, scenario_path: impl AsRef<Path>) -> R
             .into_iter()
             .map(|(key, definition)| (key, definition.into()))
             .collect();
-        state
+        state = state
             .with_technologies(definitions)
-            .map_err(|error| invalid(format!("invalid technology catalog: {error:?}")))
-    } else {
-        Ok(state)
+            .map_err(|error| invalid(format!("invalid technology catalog: {error:?}")))?;
     }
+    let idea_dir = root.join("ideas");
+    if idea_dir.is_dir() {
+        let definitions = crate::load_ideas_from_dir(&idea_dir)
+            .map_err(|error| invalid(error.to_string()))?
+            .into_iter()
+            .map(|(key, definition)| (key, definition.into()))
+            .collect();
+        state = state
+            .with_ideas(definitions)
+            .map_err(|error| invalid(format!("invalid idea catalog: {error:?}")))?;
+    }
+    let reform_path = root.join("reforms/governments.yaml");
+    if reform_path.is_file() {
+        let definitions =
+            crate::load_reforms(&reform_path).map_err(|error| invalid(error.to_string()))?;
+        state = state
+            .with_reforms(definitions)
+            .map_err(|error| invalid(format!("invalid reform catalog: {error:?}")))?;
+    }
+    Ok(state)
 }
 
 /// Loads the same scenario from embedded assets or a filesystem resolver.
@@ -360,6 +393,14 @@ pub fn load_scenario_from_reader(
             .get(file.country.as_str())
             .ok_or_else(|| invalid(format!("{path}: unknown country {}", file.country)))?;
         let birth = parse_date(file.birth, &format!("{path} birth"))?;
+        let (_, birth_month, birth_day) = birth.components();
+        if matches!(file.birth_precision, BirthPrecisionFile::Year)
+            && (birth_month != 1 || birth_day != 1)
+        {
+            return Err(invalid(format!(
+                "{path}: year-precision birth dates must use January 1 as a placeholder"
+            )));
+        }
         let death = file
             .death
             .map(|parts| parse_date(parts, &format!("{path} death")))
@@ -401,6 +442,10 @@ pub fn load_scenario_from_reader(
                 },
                 spouse: None,
                 birth,
+                birth_precision: match file.birth_precision {
+                    BirthPrecisionFile::Day => strategy_sim::BirthPrecision::Day,
+                    BirthPrecisionFile::Year => strategy_sim::BirthPrecision::Year,
+                },
                 death,
                 stats: file.stats,
                 traits: trait_keys,
@@ -425,6 +470,7 @@ pub fn load_scenario_from_reader(
         check_version(&path, file.schema_version)?;
         require_file_key(&path, &file.tag, tag)?;
         check_name(&file.name, &path)?;
+        check_key(&file.government, "government")?;
         check_key(&file.ai_profile, "AI profile")?;
         if !profiles.contains_key(&file.ai_profile) {
             let profile_path = format!("ai/profiles/{}.json", file.ai_profile);
@@ -438,6 +484,8 @@ pub fn load_scenario_from_reader(
                 preferred_tax_rate: profile.preferred_tax_rate,
                 preferred_monthly_spending: profile.preferred_monthly_spending,
                 tech_branch_weights: profile.tech_branch_weights,
+                idea_priority: profile.idea_priority,
+                reform_priority: profile.reform_priority,
             }
             .restore();
             profiles.insert(key, profile);
@@ -472,14 +520,29 @@ pub fn load_scenario_from_reader(
             )));
         }
 
-        let ruler = resolve_character(&characters, &character_states, &file.start.ruler, id, date)?;
+        let ruler = file
+            .start
+            .ruler
+            .as_ref()
+            .map(|key| resolve_character(&characters, &character_states, key, id, date))
+            .transpose()?;
         let heir = file
             .start
             .heir
             .as_ref()
             .map(|key| resolve_character(&characters, &character_states, key, id, date))
             .transpose()?;
-        if heir == Some(ruler) {
+        if ruler.is_none() && matches!(&controller, Controller::Human(_)) {
+            return Err(invalid(format!(
+                "{path}: a human-controlled country requires a ruler"
+            )));
+        }
+        if ruler.is_none() && heir.is_some() {
+            return Err(invalid(format!(
+                "{path}: an heir requires a recorded ruler"
+            )));
+        }
+        if ruler.is_some() && heir == ruler {
             return Err(invalid(format!(
                 "{path}: ruler and heir are the same character"
             )));
@@ -492,6 +555,7 @@ pub fn load_scenario_from_reader(
             id,
             CountryPolity {
                 tag: file.tag,
+                government: file.government,
                 name: file.name,
                 color: file.color,
                 capital,
@@ -505,10 +569,7 @@ pub fn load_scenario_from_reader(
                     last_month: None,
                     bankrupt: false,
                 },
-                succession: SuccessionState {
-                    ruler: Some(ruler),
-                    heir,
-                },
+                succession: SuccessionState { ruler, heir },
                 ai_profile: profile_key,
             },
         );

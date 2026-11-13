@@ -1,0 +1,12 @@
+{
+  "schema_version": 2,
+  "key": "vasily_ii",
+  "country": "mos",
+  "name": "Vasily II",
+  "dynasty": "rurik",
+  "sex": "male",
+  "birth": [1415, 3, 10],
+  "death": [1462, 3, 27],
+  "stats": {"adm": 3, "dip": 3, "mil": 3},
+  "traits": []
+}

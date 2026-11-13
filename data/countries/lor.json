@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "tag": "lor",
+  "name": "Duchy of Lorraine",
+  "color": [
+    161,
+    143,
+    179
+  ],
+  "capital": "nancy",
+  "ai_profile": "balanced",
+  "government": "monarchy",
+  "start": {
+    "ruler": null,
+    "heir": null,
+    "provinces": [
+      "nancy",
+      "saarbrucken"
+    ],
+    "treasury": 50000,
+    "tax_rate": 220,
+    "monthly_spending": 3500
+  }
+}

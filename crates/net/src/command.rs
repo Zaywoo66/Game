@@ -56,6 +56,11 @@ pub enum PlayerCommand {
         fleet: u32,
         destination: u32,
     },
+    BuildShip {
+        country: u32,
+        port: u32,
+        sea: u32,
+    },
     EmbarkArmy {
         country: u32,
         army: u32,
@@ -76,6 +81,9 @@ pub enum PlayerCommand {
         defender: u32,
         goal: u32,
     },
+    DeclareIndependence {
+        country: u32,
+    },
     OfferPeace {
         country: u32,
         war: u32,
@@ -84,6 +92,16 @@ pub enum PlayerCommand {
     AcceptPeace {
         country: u32,
         war: u32,
+    },
+    AcceptCallToArms {
+        country: u32,
+        war: u32,
+        from: u32,
+    },
+    RejectCallToArms {
+        country: u32,
+        war: u32,
+        from: u32,
     },
     OfferAlliance {
         country: u32,
@@ -107,6 +125,14 @@ pub enum PlayerCommand {
         option: u32,
     },
     UnlockTechnology {
+        country: u32,
+        key: String,
+    },
+    UnlockIdea {
+        country: u32,
+        key: String,
+    },
+    UnlockReform {
         country: u32,
         key: String,
     },
@@ -135,6 +161,22 @@ pub enum PlayerCommand {
     RevokeGuarantee {
         country: u32,
         protected: u32,
+    },
+    OfferVassalage {
+        country: u32,
+        toward: u32,
+    },
+    AcceptVassalage {
+        country: u32,
+        from: u32,
+    },
+    RejectVassalage {
+        country: u32,
+        from: u32,
+    },
+    ReleaseVassal {
+        country: u32,
+        subject: u32,
     },
 }
 
@@ -241,6 +283,11 @@ impl From<&Command> for PlayerCommand {
                 fleet: fleet.get(),
                 destination: destination.get(),
             },
+            Command::BuildShip { country, port, sea } => Self::BuildShip {
+                country: country.get(),
+                port: port.get(),
+                sea: sea.get(),
+            },
             Command::EmbarkArmy {
                 country,
                 army,
@@ -277,6 +324,9 @@ impl From<&Command> for PlayerCommand {
                 defender: defender.get(),
                 goal: goal.get(),
             },
+            Command::DeclareIndependence { country } => Self::DeclareIndependence {
+                country: country.get(),
+            },
             Command::OfferPeace {
                 country,
                 war,
@@ -289,6 +339,16 @@ impl From<&Command> for PlayerCommand {
             Command::AcceptPeace { country, war } => Self::AcceptPeace {
                 country: country.get(),
                 war: war.get(),
+            },
+            Command::AcceptCallToArms { country, war, from } => Self::AcceptCallToArms {
+                country: country.get(),
+                war: war.get(),
+                from: from.get(),
+            },
+            Command::RejectCallToArms { country, war, from } => Self::RejectCallToArms {
+                country: country.get(),
+                war: war.get(),
+                from: from.get(),
             },
             Command::OfferAlliance { country, toward } => Self::OfferAlliance {
                 country: country.get(),
@@ -316,6 +376,14 @@ impl From<&Command> for PlayerCommand {
                 option: *option,
             },
             Command::UnlockTechnology { country, key } => Self::UnlockTechnology {
+                country: country.get(),
+                key: key.clone(),
+            },
+            Command::UnlockIdea { country, key } => Self::UnlockIdea {
+                country: country.get(),
+                key: key.clone(),
+            },
+            Command::UnlockReform { country, key } => Self::UnlockReform {
                 country: country.get(),
                 key: key.clone(),
             },
@@ -359,6 +427,22 @@ impl From<&Command> for PlayerCommand {
             Command::RevokeGuarantee { country, protected } => Self::RevokeGuarantee {
                 country: country.get(),
                 protected: protected.get(),
+            },
+            Command::OfferVassalage { country, toward } => Self::OfferVassalage {
+                country: country.get(),
+                toward: toward.get(),
+            },
+            Command::AcceptVassalage { country, from } => Self::AcceptVassalage {
+                country: country.get(),
+                from: from.get(),
+            },
+            Command::RejectVassalage { country, from } => Self::RejectVassalage {
+                country: country.get(),
+                from: from.get(),
+            },
+            Command::ReleaseVassal { country, subject } => Self::ReleaseVassal {
+                country: country.get(),
+                subject: subject.get(),
             },
         }
     }
@@ -446,6 +530,11 @@ impl TryFrom<PlayerCommand> for Command {
                 fleet: FleetId::new(fleet),
                 destination: ProvinceId::new(destination),
             },
+            PlayerCommand::BuildShip { country, port, sea } => Self::BuildShip {
+                country: CountryId::new(country),
+                port: ProvinceId::new(port),
+                sea: ProvinceId::new(sea),
+            },
             PlayerCommand::EmbarkArmy {
                 country,
                 army,
@@ -482,6 +571,9 @@ impl TryFrom<PlayerCommand> for Command {
                 defender: CountryId::new(defender),
                 goal: ProvinceId::new(goal),
             },
+            PlayerCommand::DeclareIndependence { country } => Self::DeclareIndependence {
+                country: CountryId::new(country),
+            },
             PlayerCommand::OfferPeace {
                 country,
                 war,
@@ -494,6 +586,16 @@ impl TryFrom<PlayerCommand> for Command {
             PlayerCommand::AcceptPeace { country, war } => Self::AcceptPeace {
                 country: CountryId::new(country),
                 war: WarId::new(war),
+            },
+            PlayerCommand::AcceptCallToArms { country, war, from } => Self::AcceptCallToArms {
+                country: CountryId::new(country),
+                war: WarId::new(war),
+                from: CountryId::new(from),
+            },
+            PlayerCommand::RejectCallToArms { country, war, from } => Self::RejectCallToArms {
+                country: CountryId::new(country),
+                war: WarId::new(war),
+                from: CountryId::new(from),
             },
             PlayerCommand::OfferAlliance { country, toward } => Self::OfferAlliance {
                 country: CountryId::new(country),
@@ -521,6 +623,14 @@ impl TryFrom<PlayerCommand> for Command {
                 option,
             },
             PlayerCommand::UnlockTechnology { country, key } => Self::UnlockTechnology {
+                country: CountryId::new(country),
+                key,
+            },
+            PlayerCommand::UnlockIdea { country, key } => Self::UnlockIdea {
+                country: CountryId::new(country),
+                key,
+            },
+            PlayerCommand::UnlockReform { country, key } => Self::UnlockReform {
                 country: CountryId::new(country),
                 key,
             },
@@ -564,6 +674,22 @@ impl TryFrom<PlayerCommand> for Command {
             PlayerCommand::RevokeGuarantee { country, protected } => Self::RevokeGuarantee {
                 country: CountryId::new(country),
                 protected: CountryId::new(protected),
+            },
+            PlayerCommand::OfferVassalage { country, toward } => Self::OfferVassalage {
+                country: CountryId::new(country),
+                toward: CountryId::new(toward),
+            },
+            PlayerCommand::AcceptVassalage { country, from } => Self::AcceptVassalage {
+                country: CountryId::new(country),
+                from: CountryId::new(from),
+            },
+            PlayerCommand::RejectVassalage { country, from } => Self::RejectVassalage {
+                country: CountryId::new(country),
+                from: CountryId::new(from),
+            },
+            PlayerCommand::ReleaseVassal { country, subject } => Self::ReleaseVassal {
+                country: CountryId::new(country),
+                subject: CountryId::new(subject),
             },
         })
     }

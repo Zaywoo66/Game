@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "tag": "boh",
+  "name": "Kingdom of Bohemia",
+  "color": [
+    118,
+    126,
+    118
+  ],
+  "capital": "prague",
+  "ai_profile": "balanced",
+  "government": "monarchy",
+  "start": {
+    "ruler": null,
+    "heir": null,
+    "provinces": [
+      "brno",
+      "cottbus",
+      "ostrava",
+      "pardubice",
+      "pizen",
+      "prague"
+    ],
+    "treasury": 50000,
+    "tax_rate": 220,
+    "monthly_spending": 3500
+  }
+}

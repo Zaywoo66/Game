@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 150 100" role="img" aria-label="Visconti serpent emblem on a white field">
+  <rect width="150" height="100" fill="#f5f1e8"/>
+  <path d="M66 85C46 75 43 57 56 48c11-8 27-1 25 11-2 10-17 12-20 3-3-8 7-16 19-21 15-6 28-12 26-25-2-10-14-12-23-7"
+    fill="none" stroke="#24539a" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M81 13 87 4l6 8 8-4 1 10-19 2z" fill="#c9a44c" stroke="#7a6127" stroke-width="1.5"/>
+  <ellipse cx="82" cy="12" rx="8" ry="6" fill="#24539a"/>
+  <circle cx="79" cy="10" r="1.2" fill="#fff"/>
+  <path d="m74 15-8 3 8 1m1-1-6 5" fill="none" stroke="#a83c3c" stroke-width="2" stroke-linecap="round"/>
+  <path d="M8 8h134v84H8z" fill="none" stroke="#d7cba9" stroke-width="2"/>
+</svg>

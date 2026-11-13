@@ -226,7 +226,7 @@ struct RawModifier {
     duration_days: Option<NonZeroU64>,
 }
 
-fn parse_trigger(value: &Value, field: &str) -> Result<Trigger, EventLoadError> {
+pub(crate) fn parse_trigger(value: &Value, field: &str) -> Result<Trigger, EventLoadError> {
     let (kind, child) = one_key(value, field)?;
     match kind {
         "all" | "any" => {

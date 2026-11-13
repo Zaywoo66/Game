@@ -7,11 +7,18 @@ function useEventLocale(): Locale {
   const [locale, setLocale] = useState<Locale>({});
   useEffect(() => {
     const controller = new AbortController();
-    void fetch(import.meta.env.BASE_URL + 'locales/events.en.json', { signal: controller.signal })
-      .then((response) => {
-        if (!response.ok) throw new Error(`Event locale: HTTP ${response.status}`);
-        return response.json() as Promise<unknown>;
-      })
+    const language = navigator.language.toLowerCase().startsWith('ru') ? 'ru' : 'en';
+    const load = async (code: string) => {
+      const response = await fetch(import.meta.env.BASE_URL + `locales/events.${code}.json`, {
+        signal: controller.signal,
+      });
+      if (!response.ok) throw new Error(`Event locale: HTTP ${response.status}`);
+      return response.json() as Promise<unknown>;
+    };
+    void load(language).catch((error: unknown) => {
+      if (controller.signal.aborted || language === 'en') throw error;
+      return load('en');
+    })
       .then((catalog) => {
         if (catalog && typeof catalog === 'object' && !Array.isArray(catalog)) {
           setLocale(Object.fromEntries(Object.entries(catalog).filter((entry): entry is [string, string] =>

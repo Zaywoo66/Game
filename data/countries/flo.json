@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "tag": "flo",
+  "name": "Republic of Florence",
+  "color": [
+    198,
+    198,
+    139
+  ],
+  "capital": "florence",
+  "ai_profile": "mercantile",
+  "government": "republic",
+  "start": {
+    "ruler": "cosimo_de_medici",
+    "heir": null,
+    "provinces": [
+      "arezzo",
+      "florence",
+      "livorno"
+    ],
+    "treasury": 80000,
+    "tax_rate": 240,
+    "monthly_spending": 6000
+  }
+}

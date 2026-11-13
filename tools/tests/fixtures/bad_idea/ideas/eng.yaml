@@ -1,0 +1,13 @@
+schema_version: 1
+country: eng
+ideas:
+  - key: longbow
+    name: longbow
+    unlock: {at_war: false}
+    modifiers:
+      - {key: army_morale, value: 0.1, kind: multiplicative}
+  - key: longbow
+    name: longbow
+    unlock: {at_war: false}
+    modifiers:
+      - {key: army_morale, value: 100, kind: additive, duration_days: 30}

@@ -3,9 +3,9 @@
   "tag": "cas",
   "name": "Crown of Castile",
   "color": [
-    216,
-    170,
-    69
+    211,
+    177,
+    166
   ],
   "capital": "valladolid",
   "ai_profile": "balanced",
@@ -47,5 +47,6 @@
     "treasury": 120000,
     "tax_rate": 250,
     "monthly_spending": 11000
-  }
+  },
+  "government": "monarchy"
 }

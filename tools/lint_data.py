@@ -9,20 +9,24 @@ import yaml
 
 from event_schema import KEY, noncanonical_scalar_tokens, validate_event
 from tech_schema import validate_prerequisites, validate_tech_branch
+from idea_schema import technology_references, validate_ideas
+from reform_schema import validate_reforms
 
 
 RAW_FIXED = (-(1 << 63), (1 << 63) - 1, "expected a raw Fixed integer in the signed 64-bit range")
 DURATION_DAYS = (1, (1 << 64) - 1, "expected a positive integer day count in the unsigned 64-bit range")
 DATA_SUFFIXES = {".json", ".yaml", ".yml"}
 EVENT_LOCALE = Path("locales/events.en.json")
+EVENT_LOCALE_PREFIX = "events."
+TECH_LOCALE = Path("locales/techs.en.json")
 
 
-def unique_locale_pairs(pairs):
-    """Reject duplicate event translation keys before JSON discards them."""
+def unique_locale_pairs(pairs, domain="event"):
+    """Reject duplicate translation keys before JSON discards them."""
     result = {}
     for key, value in pairs:
         if key in result:
-            raise ValueError(f"duplicate event localization key {key}")
+            raise ValueError(f"duplicate {domain} localization key {key}")
         result[key] = value
     return result
 
@@ -77,11 +81,17 @@ def main():
     checked = 0
     event_keys = {}
     event_references = {}
-    event_locale = None
+    event_locales = {}
+    tech_locale = None
+    tech_locale_references = {}
     tech_branches = {}
     tech_keys = {}
     tech_graph = {}
+    idea_keys = {}
+    idea_tech_refs = []
     ai_profiles = []
+    reform_catalogs = []
+    country_governments = []
     for path in sorted(root.rglob("*")):
         suffix = path.suffix.lower()
         if suffix not in DATA_SUFFIXES or not path.is_file():
@@ -92,7 +102,15 @@ def main():
         try:
             text = path.read_text(encoding="utf-8")
             if suffix == ".json":
-                hook = unique_locale_pairs if relative_path == EVENT_LOCALE else None
+                hook = None
+                is_event_locale_file = (
+                    relative_path.parent == Path("locales")
+                    and path.stem.startswith(EVENT_LOCALE_PREFIX)
+                )
+                if is_event_locale_file:
+                    hook = unique_locale_pairs
+                elif relative_path == TECH_LOCALE:
+                    hook = lambda pairs: unique_locale_pairs(pairs, "technology")
                 document = json.loads(text, object_pairs_hook=hook)
             else:
                 document = yaml.safe_load(text)
@@ -129,14 +147,33 @@ def main():
                             *(option["text"] for option in document["options"])):
                     event_references.setdefault(key, relative_path)
 
-        if relative_path == EVENT_LOCALE:
-            event_locale = document
+        is_event_locale = (
+            relative_path.parent == Path("locales")
+            and path.stem.startswith(EVENT_LOCALE_PREFIX)
+            and suffix == ".json"
+        )
+        if is_event_locale:
+            language = path.stem.removeprefix(EVENT_LOCALE_PREFIX)
+            language_name = {"en": "English", "ru": "Russian"}.get(language, language.upper())
+            event_locales[language] = document
             if not isinstance(document, dict):
                 errors.append(f"{relative_path}: expected a flat localization mapping")
                 continue
             for key, value in document.items():
                 if not isinstance(key, str) or KEY.fullmatch(key) is None:
                     errors.append(f"{relative_path}: invalid localization key {key!r}")
+                if not isinstance(value, str) or not value.strip():
+                    errors.append(f"{relative_path}: {key}: expected nonempty {language_name} text")
+
+        if relative_path == TECH_LOCALE:
+            tech_locale = document
+            if not isinstance(document, dict):
+                errors.append(f"{relative_path}: expected a flat localization mapping")
+                continue
+            for key, value in document.items():
+                namespace, separator, name = key.partition(".") if isinstance(key, str) else ("", "", "")
+                if separator != "." or namespace not in {"branch", "tech", "modifier"} or KEY.fullmatch(name) is None:
+                    errors.append(f"{relative_path}: invalid technology localization key {key!r}")
                 if not isinstance(value, str) or not value.strip():
                     errors.append(f"{relative_path}: {key}: expected nonempty English text")
 
@@ -150,6 +187,7 @@ def main():
             branch_errors, entries = validate_tech_branch(document, path.stem)
             errors.extend(f"{relative_path}: {error}" for error in branch_errors)
             if not branch_errors:
+                tech_locale_references[f"branch.{document['branch']}"] = relative_path
                 if document["branch"] in tech_branches:
                     errors.append(
                         f"{relative_path}: duplicate technology branch {document['branch']} "
@@ -158,6 +196,7 @@ def main():
                 else:
                     tech_branches[document["branch"]] = relative_path
                 for key, requirements in entries:
+                    tech_locale_references[f"tech.{key}"] = relative_path
                     if key in tech_keys:
                         errors.append(
                             f"{relative_path}: duplicate technology key {key} also in {tech_keys[key]}"
@@ -165,11 +204,40 @@ def main():
                     else:
                         tech_keys[key] = relative_path
                         tech_graph[key] = requirements
+                for node in document["technologies"]:
+                    for effect in node["effects"]:
+                        modifier = effect.get("add_modifier")
+                        if isinstance(modifier, dict) and isinstance(modifier.get("key"), str):
+                            tech_locale_references[f"modifier.{modifier['key']}"] = relative_path
+
+        if relative_path.parts[0] == "ideas":
+            if suffix not in {".yaml", ".yml"}:
+                errors.append(f"{relative_path}: ideas must use YAML")
+                continue
+            errors.extend(f"{relative_path}: {error}" for error in noncanonical_scalar_tokens(text))
+            idea_errors, keys = validate_ideas(document, path.stem)
+            errors.extend(f"{relative_path}: {error}" for error in idea_errors)
+            for key in keys:
+                if key in idea_keys:
+                    errors.append(f"{relative_path}: duplicate idea key {key} also in {idea_keys[key]}")
+                else:
+                    idea_keys[key] = relative_path
+            if not idea_errors:
+                idea_tech_refs.extend((relative_path, key) for key in technology_references(document))
 
         if relative_path.parts[:2] == ("ai", "profiles"):
             ai_profiles.append((relative_path, document))
 
+        if relative_path == Path("reforms/governments.yaml"):
+            reform_catalogs.append((relative_path, document))
+        if relative_path.parts[0] == "countries" and suffix == ".json":
+            if isinstance(document, dict) and "government" in document:
+                country_governments.append((relative_path, document.get("government")))
+
     errors.extend(f"techs: {error}" for error in validate_prerequisites(tech_graph))
+    for source, key in idea_tech_refs:
+        if key not in tech_keys:
+            errors.append(f"{source}: idea unlock references unknown technology {key}")
     for profile_path, profile in ai_profiles:
         if not isinstance(profile, dict):
             errors.append(f"{profile_path}: expected a profile object")
@@ -183,12 +251,37 @@ def main():
                 errors.append(f"{profile_path}: unknown technology branch {branch!r}")
             if type(weight) is not int or not 0 <= weight <= 1000:
                 errors.append(f"{profile_path}: tech_branch_weights.{branch} must be a whole score 0..1000")
-    if event_references and event_locale is None:
+        idea_priority = profile.get("idea_priority", 0)
+        if type(idea_priority) is not int or not 0 <= idea_priority <= 1000:
+            errors.append(f"{profile_path}: idea_priority must be a whole score 0..1000")
+        reform_priority = profile.get("reform_priority", 0)
+        if type(reform_priority) is not int or not 0 <= reform_priority <= 1000:
+            errors.append(f"{profile_path}: reform_priority must be a whole score 0..1000")
+    known_governments = set()
+    for path, document in reform_catalogs:
+        reform_errors, _, governments = validate_reforms(document)
+        errors.extend(f"{path}: {error}" for error in reform_errors)
+        known_governments.update(governments)
+    if country_governments and not reform_catalogs:
+        errors.append("reforms/governments.yaml: required when countries declare governments")
+    for path, government in country_governments:
+        if not isinstance(government, str) or government not in known_governments:
+            errors.append(f"{path}: unknown government {government!r}")
+    if event_references and "en" not in event_locales:
         errors.append(f"{EVENT_LOCALE}: required for event localization keys")
-    elif isinstance(event_locale, dict):
+    for language, locale in sorted(event_locales.items()):
+        if not isinstance(locale, dict):
+            continue
         for key, source in sorted(event_references.items()):
-            if key not in event_locale:
-                errors.append(f"{source}: missing English event localization key {key}")
+            if key not in locale:
+                language_name = "English" if language == "en" else language.upper()
+                errors.append(f"{source}: missing {language_name} event localization key {key}")
+    if tech_locale_references and tech_locale is None:
+        errors.append(f"{TECH_LOCALE}: required for technology localization keys")
+    elif isinstance(tech_locale, dict):
+        for key, source in sorted(tech_locale_references.items()):
+            if key not in tech_locale:
+                errors.append(f"{source}: missing English technology localization key {key}")
 
     for error in errors:
         print(error, file=sys.stderr)

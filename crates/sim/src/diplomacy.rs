@@ -1,6 +1,6 @@
 use std::collections::{BTreeMap, BTreeSet};
 
-use crate::{CharacterId, CountryId, Date};
+use crate::{CharacterId, CountryId, Date, WarId, WarSide};
 
 /// The pair key is always ordered by numeric country ID.
 pub fn pair(a: CountryId, b: CountryId) -> (CountryId, CountryId) {
@@ -22,6 +22,15 @@ pub struct AllianceOffer {
 pub struct MarriageOffer {
     pub from: CharacterId,
     pub toward: CharacterId,
+    pub expires_at: Date,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct CallToArmsOffer {
+    pub war: WarId,
+    pub from: CountryId,
+    pub toward: CountryId,
+    pub side: WarSide,
     pub expires_at: Date,
 }
 
@@ -51,6 +60,12 @@ pub struct DiplomacyState {
     pub marriage_offers: BTreeMap<(CharacterId, CharacterId), Date>,
     /// Directed (guarantor, protected) pairs; no expiry.
     pub guarantees: BTreeSet<(CountryId, CountryId)>,
+    /// Directed subject -> overlord relations. No subject may also be an overlord.
+    pub vassals: BTreeMap<CountryId, CountryId>,
+    /// Directed overlord -> prospective subject offers.
+    pub vassal_offers: BTreeMap<(CountryId, CountryId), Date>,
+    /// Keyed by (war, inviter, invitee); an invitee can hear from both sides.
+    pub call_to_arms_offers: BTreeMap<(WarId, CountryId, CountryId), (WarSide, Date)>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -64,15 +79,137 @@ pub enum DiplomacyError {
     NotAllied,
     AlreadyGuaranteed,
     NotGuaranteed,
+    AlreadyVassal,
+    NotVassal,
+    VassalChain,
+    SubjectCannotDeclareWar,
+    SubjectCannotOfferTreaty,
+    MustReleaseVassal,
     AtWar,
     OfferAlreadyPending,
     NoOffer,
+    NoCallToArmsOffer,
     Cooldown(Date),
     DateOverflow,
     InvalidState,
 }
 
 impl DiplomacyState {
+    pub fn call_to_arms_offers_to(
+        &self,
+        toward: CountryId,
+    ) -> impl Iterator<Item = CallToArmsOffer> + '_ {
+        self.call_to_arms_offers.iter().filter_map(
+            move |(&(war, from, target), &(side, expires_at))| {
+                (target == toward).then_some(CallToArmsOffer {
+                    war,
+                    from,
+                    toward: target,
+                    side,
+                    expires_at,
+                })
+            },
+        )
+    }
+
+    pub fn call_to_arms_offer(
+        &self,
+        war: WarId,
+        from: CountryId,
+        toward: CountryId,
+    ) -> Option<CallToArmsOffer> {
+        let (side, expires_at) = self
+            .call_to_arms_offers
+            .get(&(war, from, toward))
+            .copied()?;
+        Some(CallToArmsOffer {
+            war,
+            from,
+            toward,
+            side,
+            expires_at,
+        })
+    }
+
+    pub fn expire_call_to_arms(&mut self, date: Date) -> Vec<CallToArmsOffer> {
+        let expired: Vec<_> = self
+            .call_to_arms_offers
+            .iter()
+            .filter_map(|(&(war, from, toward), &(side, expires_at))| {
+                (expires_at <= date).then_some(CallToArmsOffer {
+                    war,
+                    from,
+                    toward,
+                    side,
+                    expires_at,
+                })
+            })
+            .collect();
+        for offer in &expired {
+            self.call_to_arms_offers
+                .remove(&(offer.war, offer.from, offer.toward));
+        }
+        expired
+    }
+
+    pub fn remove_call_to_arms_for_war(&mut self, war: WarId) -> Vec<CallToArmsOffer> {
+        let removed: Vec<_> = self
+            .call_to_arms_offers
+            .iter()
+            .filter_map(|(&(offer_war, from, toward), &(side, expires_at))| {
+                (offer_war == war).then_some(CallToArmsOffer {
+                    war: offer_war,
+                    from,
+                    toward,
+                    side,
+                    expires_at,
+                })
+            })
+            .collect();
+        for offer in &removed {
+            self.call_to_arms_offers
+                .remove(&(offer.war, offer.from, offer.toward));
+        }
+        removed
+    }
+
+    pub fn overlord_of(&self, subject: CountryId) -> Option<CountryId> {
+        self.vassals.get(&subject).copied()
+    }
+
+    pub fn vassal_offers_to(&self, subject: CountryId) -> impl Iterator<Item = AllianceOffer> + '_ {
+        self.vassal_offers
+            .iter()
+            .filter_map(move |(&(from, toward), &expires_at)| {
+                (toward == subject).then_some(AllianceOffer {
+                    from,
+                    toward,
+                    expires_at,
+                })
+            })
+    }
+
+    pub fn expire_vassal_offers(&mut self, date: Date) -> Vec<AllianceOffer> {
+        let expired: Vec<_> = self
+            .vassal_offers_to_all()
+            .filter(|offer| offer.expires_at <= date)
+            .collect();
+        for offer in &expired {
+            self.vassal_offers.remove(&(offer.from, offer.toward));
+        }
+        expired
+    }
+
+    fn vassal_offers_to_all(&self) -> impl Iterator<Item = AllianceOffer> + '_ {
+        self.vassal_offers
+            .iter()
+            .map(|(&(from, toward), &expires_at)| AllianceOffer {
+                from,
+                toward,
+                expires_at,
+            })
+    }
+
     pub fn marriage_offer(&self, from: CharacterId, toward: CharacterId) -> Option<MarriageOffer> {
         self.marriage_offers
             .get(&(from, toward))
@@ -202,6 +339,37 @@ impl DiplomacyState {
             if guarantor == protected
                 || !countries.contains(&guarantor)
                 || !countries.contains(&protected)
+            {
+                return Err(DiplomacyError::InvalidState);
+            }
+        }
+        for (&subject, &overlord) in &self.vassals {
+            if subject == overlord
+                || !countries.contains(&subject)
+                || !countries.contains(&overlord)
+                || self.vassals.contains_key(&overlord)
+            {
+                return Err(DiplomacyError::InvalidState);
+            }
+        }
+        for (&(from, toward), &expires) in &self.vassal_offers {
+            if from == toward
+                || !countries.contains(&from)
+                || !countries.contains(&toward)
+                || expires <= now
+                || self.vassals.contains_key(&from)
+                || self.vassals.contains_key(&toward)
+                || self.vassals.values().any(|&overlord| overlord == toward)
+            {
+                return Err(DiplomacyError::InvalidState);
+            }
+        }
+        for (&(war, from, toward), &(_, expires)) in &self.call_to_arms_offers {
+            if war.get() == 0
+                || from == toward
+                || !countries.contains(&from)
+                || !countries.contains(&toward)
+                || expires <= now
             {
                 return Err(DiplomacyError::InvalidState);
             }

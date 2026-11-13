@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "tag": "bra",
+  "name": "Electorate of Brandenburg",
+  "color": [
+    139,
+    198,
+    139
+  ],
+  "capital": "berlin",
+  "ai_profile": "balanced",
+  "government": "monarchy",
+  "start": {
+    "ruler": "friedrich_i_brandenburg",
+    "heir": null,
+    "provinces": [
+      "berlin",
+      "bremerhaven",
+      "eu_261_186",
+      "furth",
+      "gottingen",
+      "kiel",
+      "lubeck",
+      "nurnberg",
+      "rostock",
+      "schwerin",
+      "szczecin"
+    ],
+    "treasury": 70000,
+    "tax_rate": 220,
+    "monthly_spending": 5000
+  }
+}

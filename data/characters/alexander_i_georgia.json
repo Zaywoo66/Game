@@ -1,0 +1,12 @@
+{
+  "schema_version": 2,
+  "key": "alexander_i_georgia",
+  "country": "geo",
+  "name": "Alexander I of Georgia",
+  "dynasty": "bagrationi",
+  "sex": "male",
+  "birth": [1390, 1, 1],
+  "birth_precision": "year",
+  "stats": {"adm": 3, "dip": 3, "mil": 3},
+  "traits": []
+}

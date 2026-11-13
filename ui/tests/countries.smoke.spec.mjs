@@ -4,21 +4,28 @@ import { expect, test } from '@playwright/test';
 const initialClock = { date: '1440-01-31', tick: 30, paused: false, speed: 1 };
 const ruler = {
   id: 9, name: 'Elinor', dynasty: 'House of the Oak', age: 29, adm: 7, dip: 8, mil: 5,
-  traits: ['calm_ruler'], death: null,
+  sex: 'male', spouse_id: null, traits: ['calm_ruler'], death: null,
 };
 const local = {
   id: 1, tag: 'tst', name: 'Test Realm', color: '#f70bab', capital_id: 1, capital: 'Capital City',
   treasury: '9007199254740993001', income: '12250', expenses: '7100', tax_rate: 100,
   monthly_spending: '7000', bankrupt: false, regency: true, ruler,
   heir: { ...ruler, id: 10, name: 'Matilda', age: 4 },
+  research_points: 150, known_technologies: [], known_ideas: [],
+  government: 'monarchy', known_reforms: [], chosen_reform_tiers: [],
 };
 const other = {
   ...local, id: 2, tag: 'oth', name: 'Other Realm', color: '#2fc953',
   capital: 'Other Capital', ruler: null, heir: null, regency: false,
 };
 
-async function mockHost(page, provinceId) {
-  await page.addInitScript(({ initialClock, local, other, provinceId }) => {
+async function mockHost(page, provinceId, {
+  truces = [], localCountry = local, blockadedPorts = [], ideas = [], reforms = [],
+  otherCountry = other, alliances = [], allianceOffers = [], marriageOffers = [], opinions = [],
+  acceptancePreviews = [],
+} = {}) {
+  await page.addInitScript(({ initialClock, local, other, provinceId, truces, blockadedPorts, ideas, reforms,
+    alliances, allianceOffers, marriageOffers, opinions, acceptancePreviews }) => {
     const listeners = new Set();
     const commands = [];
     const calls = [];
@@ -44,7 +51,17 @@ async function mockHost(page, provinceId) {
             return {
               sequence: 9, clock: initialClock, local_country_id: local.id,
               countries: [local, other], owners: [{ province_id: provinceId, country_id: local.id }],
+              acceptance_previews: acceptancePreviews,
+              ideas,
+              reforms,
+              alliances,
+              alliance_offers: allianceOffers,
+              marriage_offers: marriageOffers,
+              marriage_adulthood_years: 16,
+              opinions,
+              truces, armies: truces.length ? [] : undefined,
               max_tax_rate: 200, max_monthly_spending: '999999999999999999',
+              blockaded_ports: blockadedPorts,
             };
           }
           if (name === 'game_command') {
@@ -60,12 +77,222 @@ async function mockHost(page, provinceId) {
         },
       },
     };
-  }, { initialClock, local, other, provinceId });
+  }, { initialClock, local: localCountry, other: otherCountry, provinceId, truces, blockadedPorts, ideas, reforms,
+    alliances, allianceOffers, marriageOffers, opinions, acceptancePreviews });
 }
+
+test('full Europe campaign opens on authoritative game ownership', async ({ page }) => {
+  const map = await page.request.get('/map/europe/provinces.json');
+  expect(map.ok()).toBe(true);
+  const provinces = (await map.json()).provinces;
+  const id = provinces.find(({ key }) => key === 'london').id;
+  const evidenceResponse = await page.request.get('/map/europe/polities_1440.json');
+  expect(evidenceResponse.ok()).toBe(true);
+  const unowned = (await evidenceResponse.json()).assignments
+    .find(({ province_id, resolution }) => resolution === 'polygon' && province_id !== id
+      && provinces.some(({ id: provinceId }) => provinceId === province_id));
+  expect(unowned).toBeTruthy();
+  await mockHost(page, id);
+  await page.goto('/?verify=1&map=europe&verifyHost=1');
+  await expect(page.locator('main[data-map-status="ready"]')).toBeVisible({ timeout: 60_000 });
+  await expect(page.locator('main')).toHaveAttribute('data-map-mode', 'political');
+  await expect.poll(async () => (await page.evaluate((provinceId) =>
+    window.strategyMapTest.readOwnerColor(provinceId), unowned.province_id))[3]).toBe(132);
+  const unownedFill = await page.evaluate((provinceId) =>
+    window.strategyMapTest.readOwnerColor(provinceId), unowned.province_id);
+  expect(unownedFill[3]).toBe(132);
+  const ownedFill = await page.evaluate((provinceId) =>
+    window.strategyMapTest.readOwnerColor(provinceId), id);
+  expect(ownedFill).toEqual([247, 11, 171, 255]);
+  await expect(page.getByText(/These are reference borders, not game ownership\./)).toHaveCount(0);
+});
+
+test('M6 diplomacy window accepts a LAN proposal and sends a new alliance offer through the host', async ({ page }) => {
+  const map = await page.request.get('/map/western_europe/provinces.json');
+  expect(map.ok()).toBe(true);
+  const id = (await map.json()).provinces.find(({ key }) => key === 'london').id;
+  await mockHost(page, id, {
+    allianceOffers: [{ from_id: 2, toward_id: 1, expires_at: '1440-03-01' }],
+    opinions: [{ from_id: 1, toward_id: 2, points: 10, effective_points: 10 }],
+    acceptancePreviews: [{
+      country_id: 2,
+      alliance: { outcome: '10% acceptance chance', factors: [
+        { key: 'opinion', value: -5 }, { key: 'profile_minimum', value: 20 },
+        { key: 'common_stronger_neighbor', value: 1 }, { key: 'direct_war', value: 0 },
+        { key: 'negative_opinion_accept_percent', value: 10 },
+      ] },
+      vassalage: { outcome: 'would decline', factors: [] },
+      marriage: null,
+    }],
+  });
+  await page.goto('/?verify=1&map=western_europe&verifyHost=1');
+  await page.getByRole('button', { name: 'Diplomacy', exact: true }).click();
+  const panel = page.getByRole('region', { name: 'Diplomacy' });
+  await expect(panel.getByRole('region', { name: 'Incoming alliance proposals' }))
+    .toContainText('Other Realm · expires 1440-03-01');
+  await expect(panel).toContainText('Opinion 10/100');
+  await expect(panel.getByLabel('AI acceptance preview')).toContainText('Alliance: 10% acceptance chance');
+  await expect(panel.getByLabel('AI acceptance preview')).toContainText('shared stronger neighbor: 1');
+  await panel.getByRole('button', { name: 'Accept', exact: true }).click();
+  await expect.poll(() => page.evaluate(() => window.__strategyMockHost.commands)).toEqual([{
+    type: 'accept_alliance', country_id: 1, from_id: 2,
+  }]);
+
+  await page.evaluate((clock) => window.__strategyMockHost.emit({
+    sequence: 11, clock, countries: [], alliance_offers: [], alliances: [{ a_id: 1, b_id: 2 }],
+  }), initialClock);
+  await expect(panel.getByRole('button', { name: 'Break alliance' })).toBeVisible();
+  await panel.getByRole('button', { name: 'Break alliance' }).click();
+  await expect.poll(() => page.evaluate(() => window.__strategyMockHost.commands[1])).toEqual({
+    type: 'break_alliance', country_id: 1, other_id: 2,
+  });
+
+  await page.evaluate((clock) => window.__strategyMockHost.emit({
+    sequence: 12, clock, countries: [], alliances: [],
+  }), initialClock);
+  await panel.getByRole('button', { name: 'Offer alliance' }).click();
+  await expect.poll(() => page.evaluate(() => window.__strategyMockHost.commands[2])).toEqual({
+    type: 'offer_alliance', country_id: 1, toward_id: 2,
+  });
+});
+
+test('M6 diplomacy window responds to an eligible royal-marriage proposal', async ({ page }) => {
+  const map = await page.request.get('/map/western_europe/provinces.json');
+  expect(map.ok()).toBe(true);
+  const id = (await map.json()).provinces.find(({ key }) => key === 'london').id;
+  const localMarriage = { ...local, ruler: { ...ruler, sex: 'male' } };
+  const otherMarriage = { ...other, ruler: { ...ruler, id: 20, name: 'Isabella', sex: 'female' } };
+  await mockHost(page, id, {
+    localCountry: localMarriage,
+    otherCountry: otherMarriage,
+    marriageOffers: [{ from_country_id: 2, toward_country_id: 1, from_character_id: 20,
+      toward_character_id: 9, expires_at: '1440-03-01' }],
+  });
+  await page.goto('/?verify=1&map=western_europe&verifyHost=1');
+  await page.getByRole('button', { name: 'Diplomacy', exact: true }).click();
+  const panel = page.getByRole('region', { name: 'Diplomacy' });
+  const proposals = panel.getByRole('region', { name: 'Incoming royal-marriage proposals' });
+  await expect(proposals).toContainText('Isabella of Other Realm proposes to Elinor');
+  await proposals.getByRole('button', { name: 'Accept', exact: true }).click();
+  await expect.poll(() => page.evaluate(() => window.__strategyMockHost.commands)).toEqual([{
+    type: 'accept_royal_marriage', country_id: 1, from_id: 2, character_id: 9, partner_id: 20,
+  }]);
+});
+
+test('M9 purchases one government reform per tier through the host', async ({ page }) => {
+  const map = await page.request.get('/map/western_europe/provinces.json');
+  expect(map.ok()).toBe(true);
+  const id = (await map.json()).provinces.find(({ key }) => key === 'london').id;
+  await mockHost(page, id, { reforms: [{
+    key: 'royal_council', government: 'monarchy', tier: 1, ai_weight: 10,
+    effects: [{ key: 'tax_income', value: '100', kind: 'multiplicative' }],
+  }] });
+  await page.goto('/?verify=1&map=western_europe&verifyHost=1');
+  await page.getByRole('button', { name: 'Reforms', exact: true }).click();
+  const panel = page.getByRole('region', { name: 'Government reforms' });
+  const adopt = panel.getByRole('button', { name: 'Adopt · 150' });
+  await expect(adopt).toBeEnabled();
+  await adopt.click();
+  await expect.poll(() => page.evaluate(() => window.__strategyMockHost.commands)).toEqual([{
+    type: 'unlock_reform', country_id: 1, key: 'royal_council',
+  }]);
+  await expect(adopt).toHaveText('Adopt · 150');
+  await page.evaluate(({ local, clock }) => {
+    window.__strategyMockHost.emit({ sequence: 11, clock, countries: [{
+      ...local, research_points: 0, known_reforms: ['royal_council'], chosen_reform_tiers: [1],
+    }] });
+  }, { local, clock: { ...initialClock, tick: 31, date: '1440-02-01' } });
+  await expect(panel.getByRole('button', { name: 'Selected' })).toBeDisabled();
+});
+
+test('M9 purchases a national idea through the host and waits for its update', async ({ page }) => {
+  const map = await page.request.get('/map/western_europe/provinces.json');
+  expect(map.ok()).toBe(true);
+  const id = (await map.json()).provinces.find(({ key }) => key === 'london').id;
+  await mockHost(page, id, { ideas: [{
+    key: 'english_longbow', country: 'tst', name_key: 'english_longbow',
+    available_countries: [1],
+    effects: [{ key: 'army_morale', value: '100', kind: 'multiplicative' }],
+  }] });
+  await page.goto('/?verify=1&map=western_europe&verifyHost=1');
+  await page.getByRole('button', { name: 'Ideas', exact: true }).click();
+  const panel = page.getByRole('region', { name: 'National ideas' });
+  const buy = panel.getByRole('button', { name: 'Unlock · 100' });
+  await expect(buy).toBeEnabled();
+  await buy.click();
+  await expect.poll(() => page.evaluate(() => window.__strategyMockHost.commands)).toEqual([{
+    type: 'unlock_idea', country_id: 1, key: 'english_longbow',
+  }]);
+  await expect(buy).toHaveText('Unlock · 100');
+  await page.evaluate(({ local, clock }) => {
+    window.__strategyMockHost.emit({ sequence: 11, clock, countries: [{
+      ...local, research_points: 50, known_ideas: ['english_longbow'],
+    }] });
+  }, { local, clock: { ...initialClock, tick: 31, date: '1440-02-01' } });
+  await expect(panel.getByRole('button', { name: 'Unlocked' })).toBeDisabled();
+});
+
+test('M6 shows active truce and blocks a war order until expiry', async ({ page }) => {
+  const map = await page.request.get('/map/western_europe/provinces.json');
+  expect(map.ok()).toBe(true);
+  const id = (await map.json()).provinces.find(({ key }) => key === 'london').id;
+  await mockHost(page, id, {
+    truces: [{ a_id: 1, b_id: 2, remaining_days: 4, ends_on: '1440-02-05' }],
+  });
+  await page.goto('/?verify=1&map=western_europe&verifyHost=1');
+  await expect(page.locator('main[data-map-status="ready"]')).toBeVisible({ timeout: 60_000 });
+  const panel = page.getByRole('region', { name: 'Country and rulers' });
+  await expect(panel.getByRole('region', { name: 'Truces' })).toContainText('Other Realm · 4 days left · ends 1440-02-05');
+
+  await page.evaluate((provinceId) => {
+    window.__strategyMockHost.emit({
+      sequence: 11, clock: { date: '1440-02-01', tick: 31, paused: false, speed: 1 },
+      countries: [], owners: [{ province_id: provinceId, country_id: 2 }],
+      truces: [{ a_id: 1, b_id: 2, remaining_days: 4, ends_on: '1440-02-05' }],
+    });
+  }, id);
+  const point = await page.evaluate((provinceId) => window.strategyMapTest.projectProvince(provinceId), id);
+  await page.mouse.click(point.x, point.y);
+  await page.getByRole('button', { name: 'Military', exact: true }).click();
+  const military = page.getByRole('region', { name: 'Military' });
+  const declaration = military.getByRole('button', { name: /Declare war for/ });
+  await expect(declaration).toBeDisabled();
+  await expect(military.getByRole('status')).toContainText('Truce with Other Realm · 4 days left');
+
+  await page.evaluate(() => {
+    window.__strategyMockHost.emit({
+      sequence: 12, clock: { date: '1440-02-05', tick: 35, paused: false, speed: 1 },
+      countries: [], truces: [],
+    });
+  });
+  await expect(declaration).toBeEnabled();
+});
+
+test('M11 Brittany displays its period-grounded ermine flag', async ({ page }) => {
+  await mockHost(page, 1, {
+    localCountry: { ...local, tag: 'bre', name: 'Duchy of Brittany' },
+  });
+  await page.goto('/?verify=1&map=western_europe&verifyHost=1');
+  const flag = page.getByRole('region', { name: 'Country and rulers' }).locator('img.country-flag');
+  await expect(flag).toBeVisible({ timeout: 60_000 });
+  await expect(flag).toHaveAttribute('src', /bre(?:-[\w-]+)?\.svg/);
+  await expect.poll(() => flag.evaluate((image) => image.naturalWidth)).toBeGreaterThan(0);
+});
+
+test('M11 Lithuania displays its original period-grounded rider flag', async ({ page }) => {
+  await mockHost(page, 1, {
+    localCountry: { ...local, tag: 'lit', name: 'Grand Duchy of Lithuania' },
+  });
+  await page.goto('/?verify=1&map=western_europe&verifyHost=1');
+  const flag = page.getByRole('region', { name: 'Country and rulers' }).locator('img.country-flag');
+  await expect(flag).toBeVisible({ timeout: 60_000 });
+  await expect(flag).toHaveAttribute('src', /lit(?:-[\w-]+)?\.svg/);
+  await expect.poll(() => flag.evaluate((image) => image.naturalWidth)).toBeGreaterThan(0);
+});
 
 test('M3 panels apply host deltas and issue commands without optimistic writes', async ({ page }) => {
   await mockHost(page, 1);
-  await page.goto('/?verify=1&verifyHost=1');
+  await page.goto('/?verify=1&map=western_europe&verifyHost=1');
   const panel = page.getByRole('region', { name: 'Country and rulers' });
   const clock = page.getByRole('region', { name: 'Game clock' });
   await expect(panel).toBeVisible({ timeout: 60_000 });
@@ -126,7 +353,7 @@ test('M3 colors a province from the host ownership snapshot', async ({ page }) =
   const provinces = (await map.json()).provinces;
   const id = provinces.find(({ key }) => key === 'london').id;
   await mockHost(page, id);
-  await page.goto('/?verify=1&verifyHost=1');
+  await page.goto('/?verify=1&map=western_europe&verifyHost=1');
   await expect(page.locator('main[data-map-status="ready"]')).toBeVisible({ timeout: 60_000 });
   await expect(page.getByRole('region', { name: 'Country and rulers' })).toBeVisible();
   await expect.poll(() => page.evaluate((provinceId) => {
@@ -139,4 +366,27 @@ test('M3 colors a province from the host ownership snapshot', async ({ page }) =
   const selected = page.locator('[data-map-selected]');
   await expect(selected).toHaveAttribute('data-map-selected', String(id));
   await expect(selected.getByText('Owner · Test Realm')).toBeVisible();
+});
+
+test('M8 shows a blocked port and clears the indicator on a host update', async ({ page }) => {
+  const map = await page.request.get('/map/western_europe/provinces.json');
+  expect(map.ok()).toBe(true);
+  const provinces = (await map.json()).provinces;
+  const id = provinces.find(({ key }) => key === 'london').id;
+  await mockHost(page, id, { blockadedPorts: [id] });
+  await page.goto('/?verify=1&map=western_europe&verifyHost=1');
+  await expect(page.locator('main[data-map-status="ready"]')).toBeVisible({ timeout: 60_000 });
+  const point = await page.evaluate((provinceId) => window.strategyMapTest.projectProvince(provinceId), id);
+  expect(point).not.toBeNull();
+  await page.mouse.click(point.x, point.y);
+  const selected = page.locator('[data-map-selected]');
+  await expect(selected).toHaveAttribute('data-map-selected', String(id));
+  await expect(selected.getByText('Blockaded · port tax income closed')).toBeVisible();
+  await page.evaluate(() => {
+    window.__strategyMockHost.emit({
+      sequence: 11, clock: { date: '1440-02-02', tick: 32, paused: false, speed: 1 },
+      countries: [], owners: [], guarantees: [], blockaded_ports: [],
+    });
+  });
+  await expect(selected.getByText('Blockaded · port tax income closed')).toHaveCount(0);
 });

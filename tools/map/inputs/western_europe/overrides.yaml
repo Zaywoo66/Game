@@ -1,4 +1,4 @@
-map_version: 3
+map_version: 4
 movement_costs:
   normal: 3
   river: 5

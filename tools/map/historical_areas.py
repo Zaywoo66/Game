@@ -8,7 +8,7 @@ import numpy as np
 
 from map_common import BOUNDS, HEIGHT, INPUTS, ROOT, WIDTH, json_bytes, read_json
 
-HISTORY_SOURCE = "https://github.com/Seshat-Global-History-Databank/cliopatria/releases/tag/v0.1.3"
+HISTORY_SOURCE = "https://github.com/Seshat-Global-History-Databank/cliopatria/releases/tag/v0.2.1"
 
 
 def slug(name):

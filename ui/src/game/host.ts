@@ -12,6 +12,8 @@ export interface CharacterView {
   name: string;
   dynasty: string;
   age: number;
+  sex?: 'male' | 'female' | 'unknown';
+  spouse_id?: number | null;
   adm: number;
   dip: number;
   mil: number;
@@ -28,6 +30,8 @@ export interface CountryView {
   capital: string;
   treasury: string;
   income: string;
+  tribute_paid: string;
+  tribute_received: string;
   expenses: string;
   tax_rate: number;
   monthly_spending: string;
@@ -35,6 +39,38 @@ export interface CountryView {
   regency: boolean;
   ruler: CharacterView | null;
   heir: CharacterView | null;
+  research_points: number | null;
+  known_technologies: string[];
+  known_ideas: string[];
+  government: string;
+  known_reforms: string[];
+  chosen_reform_tiers: number[];
+}
+
+export interface TechnologyView {
+  key: string;
+  branch: string;
+  cost: number;
+  requires: string[];
+  pos_x: number;
+  pos_y: number;
+  effects: { key: string; value: string; kind: 'additive' | 'multiplicative'; source_key: string }[];
+}
+
+export interface IdeaView {
+  key: string;
+  country: string;
+  name_key: string;
+  available_countries: number[];
+  effects: { key: string; value: string; kind: 'additive' | 'multiplicative' }[];
+}
+
+export interface ReformView {
+  key: string;
+  government: string;
+  tier: number;
+  ai_weight: number;
+  effects: { key: string; value: string; kind: 'additive' | 'multiplicative' }[];
 }
 
 export interface ArmyView {
@@ -58,6 +94,21 @@ export interface FleetView {
   progress: number;
 }
 
+export interface ShipyardView {
+  port_province_id: number;
+  sea_province_id: number;
+  country_id: number;
+  days_remaining: number;
+}
+
+export interface CallToArmsOfferView {
+  war_id: number;
+  from_id: number;
+  toward_id: number;
+  side: 'attacker' | 'defender';
+  expires_at: string;
+}
+
 export interface WarView {
   id: number;
   attacker_id: number;
@@ -65,9 +116,17 @@ export interface WarView {
   attacker_supporters: number[];
   defender_supporters: number[];
   goal_province_id: number;
+  independence: boolean;
   score: number;
   occupations: { province_id: number; country_id: number }[];
   offer: { offered_by: number; cede_goal: boolean } | null;
+}
+
+export interface TruceView {
+  a_id: number;
+  b_id: number;
+  remaining_days: number;
+  ends_on: string | null;
 }
 
 export interface SiegeView {
@@ -86,6 +145,18 @@ export interface AiLogEntry {
   score: number | null;
 }
 
+export interface ProposalAcceptancePreview {
+  outcome: string;
+  factors: { key: string; value: number }[];
+}
+
+export interface CountryAcceptancePreview {
+  country_id: number;
+  alliance: ProposalAcceptancePreview;
+  vassalage: ProposalAcceptancePreview;
+  marriage: ProposalAcceptancePreview | null;
+}
+
 export interface EventView {
   country_id: number;
   key: string;
@@ -100,13 +171,29 @@ export interface GameSnapshot {
   clock: ClockView;
   local_country_id: number | null;
   countries: CountryView[];
+  acceptance_previews?: CountryAcceptancePreview[];
+  technologies?: TechnologyView[];
+  ideas?: IdeaView[];
+  reforms?: ReformView[];
   pending_events?: EventView[];
   guarantees: { guarantor_id: number; protected_id: number }[];
+  alliances?: { a_id: number; b_id: number }[];
+  alliance_offers?: { from_id: number; toward_id: number; expires_at: string }[];
+  marriage_offers?: { from_country_id: number; toward_country_id: number; from_character_id: number;
+    toward_character_id: number; expires_at: string }[];
+  marriage_adulthood_years?: number;
+  opinions?: { from_id: number; toward_id: number; points: number; effective_points: number }[];
+  truces: TruceView[];
+  blockaded_ports?: number[];
+  vassals: { subject_id: number; overlord_id: number }[];
+  vassal_offers: { overlord_id: number; subject_id: number; expires_at: string }[];
+  call_to_arms_offers?: CallToArmsOfferView[];
   owners: { province_id: number; country_id: number }[];
   max_tax_rate: number;
   max_monthly_spending: string;
   armies?: ArmyView[];
   fleets?: FleetView[];
+  shipyards?: ShipyardView[];
   wars?: WarView[];
   sieges?: SiegeView[];
   forts?: { province_id: number; level: number }[];
@@ -119,11 +206,24 @@ interface GameUpdate {
   sequence: number;
   clock: ClockView;
   countries: CountryView[];
+  acceptance_previews?: CountryAcceptancePreview[];
   pending_events?: EventView[] | null;
   guarantees: { guarantor_id: number; protected_id: number }[];
+  alliances?: { a_id: number; b_id: number }[];
+  alliance_offers?: { from_id: number; toward_id: number; expires_at: string }[];
+  marriage_offers?: { from_country_id: number; toward_country_id: number; from_character_id: number;
+    toward_character_id: number; expires_at: string }[];
+  marriage_adulthood_years?: number;
+  opinions?: { from_id: number; toward_id: number; points: number; effective_points: number }[];
+  truces: TruceView[];
+  blockaded_ports?: number[];
+  vassals: { subject_id: number; overlord_id: number }[];
+  vassal_offers: { overlord_id: number; subject_id: number; expires_at: string }[];
+  call_to_arms_offers?: CallToArmsOfferView[];
   armies?: ArmyView[];
   removed_armies?: number[];
   fleets?: FleetView[];
+  shipyards?: ShipyardView[];
   removed_fleets?: number[];
   wars?: WarView[];
   removed_wars?: number[];
@@ -140,14 +240,26 @@ export type GameCommand =
   | { type: 'split_army'; country_id: number; army_id: number; soldiers: number }
   | { type: 'move_army' | 'retreat_army'; country_id: number; army_id: number; destination: number }
   | { type: 'move_fleet'; country_id: number; fleet_id: number; destination: number }
+  | { type: 'build_ship'; country_id: number; port_id: number; sea_id: number }
   | { type: 'embark_army'; country_id: number; army_id: number; fleet_id: number }
   | { type: 'disembark_army'; country_id: number; fleet_id: number; destination: number }
   | { type: 'declare_war'; country_id: number; defender_id: number; goal_province_id: number }
+  | { type: 'accept_call_to_arms' | 'reject_call_to_arms'; country_id: number; war_id: number; from_id: number }
+  | { type: 'declare_independence'; country_id: number }
   | { type: 'offer_peace'; country_id: number; war_id: number; cede_goal: boolean }
   | { type: 'accept_peace'; country_id: number; war_id: number }
+  | { type: 'offer_alliance'; country_id: number; toward_id: number }
+  | { type: 'accept_alliance' | 'reject_alliance'; country_id: number; from_id: number }
+  | { type: 'break_alliance'; country_id: number; other_id: number }
+  | { type: 'offer_royal_marriage'; country_id: number; character_id: number; toward_id: number; partner_id: number }
+  | { type: 'accept_royal_marriage' | 'reject_royal_marriage'; country_id: number; from_id: number;
+    character_id: number; partner_id: number }
   | { type: 'choose_event'; country_id: number; key: string; option: number }
   | { type: 'guarantee' | 'revoke_guarantee'; country_id: number; protected_id: number }
-  | { type: 'unlock_technology'; country_id: number; key: string };
+  | { type: 'offer_vassalage'; country_id: number; toward_id: number }
+  | { type: 'accept_vassalage' | 'reject_vassalage'; country_id: number; from_id: number }
+  | { type: 'release_vassal'; country_id: number; subject_id: number }
+  | { type: 'unlock_technology' | 'unlock_idea' | 'unlock_reform'; country_id: number; key: string };
 
 interface TauriBridge {
   core: { invoke<T>(name: string, args?: Record<string, unknown>): Promise<T> };
@@ -174,6 +286,32 @@ function updateRows<T extends { id: number }>(
   return [...rows.values()];
 }
 
+function normalizeSnapshot(snapshot: GameSnapshot): GameSnapshot {
+  return {
+    ...snapshot,
+    countries: snapshot.countries.map((country) => ({
+      ...country,
+      tribute_paid: country.tribute_paid ?? '0',
+      tribute_received: country.tribute_received ?? '0',
+      research_points: country.research_points ?? null,
+      known_technologies: country.known_technologies ?? [],
+      known_ideas: country.known_ideas ?? [],
+      government: country.government ?? '',
+      known_reforms: country.known_reforms ?? [],
+      chosen_reform_tiers: country.chosen_reform_tiers ?? [],
+    })),
+    guarantees: snapshot.guarantees ?? [],
+    alliances: snapshot.alliances ?? [],
+    alliance_offers: snapshot.alliance_offers ?? [],
+    marriage_offers: snapshot.marriage_offers ?? [],
+    marriage_adulthood_years: snapshot.marriage_adulthood_years ?? 18,
+    opinions: snapshot.opinions ?? [],
+    truces: snapshot.truces ?? [],
+    vassals: snapshot.vassals ?? [],
+    vassal_offers: snapshot.vassal_offers ?? [],
+  };
+}
+
 function applyUpdate(snapshot: GameSnapshot, update: GameUpdate): GameSnapshot {
   if (update.sequence <= snapshot.sequence) return snapshot;
   let owners = snapshot.owners;
@@ -189,12 +327,34 @@ function applyUpdate(snapshot: GameSnapshot, update: GameUpdate): GameSnapshot {
     ...snapshot,
     sequence: update.sequence,
     clock: update.clock,
-    countries: updateRows(snapshot.countries, update.countries) ?? snapshot.countries,
+    countries: updateRows(snapshot.countries, update.countries)?.map((country) => ({
+      ...country,
+      tribute_paid: country.tribute_paid ?? '0',
+      tribute_received: country.tribute_received ?? '0',
+      research_points: country.research_points ?? null,
+      known_technologies: country.known_technologies ?? [],
+      known_ideas: country.known_ideas ?? [],
+      government: country.government ?? '',
+      known_reforms: country.known_reforms ?? [],
+      chosen_reform_tiers: country.chosen_reform_tiers ?? [],
+    })) ?? snapshot.countries,
+    acceptance_previews: update.acceptance_previews ?? snapshot.acceptance_previews ?? [],
     pending_events: update.pending_events ?? snapshot.pending_events,
-    guarantees: update.guarantees,
+    guarantees: update.guarantees ?? snapshot.guarantees,
+    alliances: update.alliances ?? snapshot.alliances ?? [],
+    alliance_offers: update.alliance_offers ?? snapshot.alliance_offers ?? [],
+    marriage_offers: update.marriage_offers ?? snapshot.marriage_offers ?? [],
+    marriage_adulthood_years: update.marriage_adulthood_years ?? snapshot.marriage_adulthood_years ?? 18,
+    opinions: update.opinions ?? snapshot.opinions ?? [],
+    truces: update.truces ?? snapshot.truces,
+    blockaded_ports: update.blockaded_ports ?? snapshot.blockaded_ports,
+    vassals: update.vassals ?? snapshot.vassals,
+    vassal_offers: update.vassal_offers ?? snapshot.vassal_offers,
+    call_to_arms_offers: update.call_to_arms_offers ?? snapshot.call_to_arms_offers ?? [],
     owners,
     armies: updateRows(snapshot.armies, update.armies, update.removed_armies),
     fleets: updateRows(snapshot.fleets, update.fleets, update.removed_fleets),
+    shipyards: update.shipyards ?? snapshot.shipyards ?? [],
     wars: updateRows(snapshot.wars, update.wars, update.removed_wars),
     sieges: update.sieges ?? snapshot.sieges,
   };
@@ -248,7 +408,7 @@ export function useGameHost(enabled: boolean, generation = 0, canCommand = true,
         if (initial.generation !== undefined && initial.generation !== generation) return;
         const latest = queued
           .sort((left, right) => left.sequence - right.sequence)
-          .reduce(applyUpdate, initial);
+          .reduce(applyUpdate, normalizeSnapshot(initial));
         queued.length = 0;
         ready = true;
         setModel({ generation, snapshot: latest });

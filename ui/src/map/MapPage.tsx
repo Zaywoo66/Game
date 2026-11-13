@@ -2,14 +2,19 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { CountryPanel, HostControls } from '../game/CountryPanel';
+import { DiplomacyPanel } from '../game/DiplomacyPanel';
 import { EventPopup } from '../game/EventPopup';
+import { IdeaPanel } from '../game/IdeaPanel';
+import { ReformPanel } from '../game/ReformPanel';
 import { CountryView, GameSnapshot, useGameHost } from '../game/host';
 import { LanLobby } from '../game/LanLobby';
 import { lanStatusText, useLan } from '../game/lan';
 import { ArmyOrder, MilitaryPanel } from '../game/MilitaryPanel';
+import { TechnologyPanel } from '../game/TechnologyPanel';
 import { loadMapAssets, MapAssets, Province, Rgba } from './mapData';
-import { MapMode } from './mapPresentation';
+import { historicalPresentation, MapMode } from './mapPresentation';
 import { BenchmarkSample, createMapViewer, MapTestControls } from './mapViewer';
+import { FleetMarker } from './fleetLayer';
 
 declare global {
   interface Window {
@@ -17,8 +22,9 @@ declare global {
   }
 }
 
-const base = import.meta.env.BASE_URL + 'map/western_europe/';
 const options = new URLSearchParams(window.location.search);
+const mapRegion = options.get('map') === 'western_europe' ? 'western_europe' : 'europe';
+const base = import.meta.env.BASE_URL + `map/${mapRegion}/`;
 const verify = options.get('verify') === '1';
 const benchmark = options.get('benchmark') === '1';
 const manualFrames = import.meta.env.DEV && !benchmark && (verify || options.get('testFrames') === '1');
@@ -42,8 +48,8 @@ function MapSources() {
       <summary>Map sources</summary>
       <ul>
         <li>
-          <a href="https://github.com/Seshat-Global-History-Databank/cliopatria/releases/tag/v0.1.3"
-            target="_blank" rel="noreferrer">Cliopatria v0.1.3</a> by Bennett et al. (Seshat),
+          <a href="https://github.com/Seshat-Global-History-Databank/cliopatria/releases/tag/v0.2.1"
+            target="_blank" rel="noreferrer">Cliopatria v0.2.1</a> by Bennett et al. (Seshat),
           {' '}<a href="https://creativecommons.org/licenses/by/4.0/"
             target="_blank" rel="noreferrer">CC BY 4.0</a>. Clipped and used to seed test provinces.
         </li>
@@ -52,6 +58,7 @@ function MapSources() {
           <a href="https://www.naturalearthdata.com/downloads/"
             target="_blank" rel="noreferrer">Natural Earth</a>.
         </li>
+        <li>Political coloring uses the cited historical source polygons, not extracted Europa Universalis IV game data.</li>
         <li>
           Elevation and bathymetry from{' '}
           <a href="https://www.ncei.noaa.gov/products/etopo-global-relief-model"
@@ -65,9 +72,14 @@ function MapSources() {
 function provinceColors(
   owners: GameSnapshot['owners'] | undefined,
   countries: CountryView[] | undefined,
+  historical?: ReadonlyMap<number, Rgba>,
 ): Map<number, Rgba> {
   const colors = new Map<number, Rgba>();
   if (!owners || !countries) return colors;
+  for (const [provinceId, [red, green, blue]] of historical ?? []) {
+    // Historical source fill is intentionally translucent to distinguish it from ownership.
+    colors.set(provinceId, [red, green, blue, 132]);
+  }
   const byCountry = new Map<number, Rgba>();
   for (const country of countries) {
     if (!/^#[a-f\d]{6}$/i.test(country.color)) continue;
@@ -87,13 +99,15 @@ export function MapPage() {
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
   const [error, setError] = useState('');
   const [selected, setSelected] = useState<Province | null>(null);
+  const [hoveredProvince, setHoveredProvince] = useState<{ id: number; x: number; y: number } | null>(null);
   const [inspectedCountry, setInspectedCountry] = useState<number | null>(null);
   const [provinceNames, setProvinceNames] = useState<ReadonlyMap<number, Province>>(new Map());
   const [mapAssets, setMapAssets] = useState<MapAssets | null>(null);
   const [mapMode, setMapMode] = useState<MapMode>('historical');
   const modeChosenByUser = useRef(false);
-  const [section, setSection] = useState<'country' | 'military'>('country');
+  const [section, setSection] = useState<'country' | 'diplomacy' | 'military' | 'technology' | 'ideas' | 'reforms'>('country');
   const [inspectedArmy, setInspectedArmy] = useState(0);
+  const [inspectedFleet, setInspectedFleet] = useState(0);
   const [order, setOrder] = useState<ArmyOrder | null>(null);
   const [renderer, setRenderer] = useState('');
   const [benchmarkResult, setBenchmarkResult] = useState('Loading the map…');
@@ -114,9 +128,16 @@ export function MapPage() {
     if (hasGame && !modeChosenByUser.current) setMapMode('political');
   }, [hasGame]);
   const militaryEnabled = game?.armies !== undefined;
+  const technologyEnabled = Boolean(game?.technologies?.length);
+  const ideasEnabled = Boolean(game?.ideas?.length);
+  const reformsEnabled = Boolean(game?.reforms?.length);
+  const historicalColors = useMemo(
+    () => mapAssets ? historicalPresentation(mapAssets).colors : undefined,
+    [mapAssets],
+  );
   const colors = useMemo(
-    () => provinceColors(game?.owners, game?.countries),
-    [game?.owners, game?.countries],
+    () => provinceColors(game?.owners, game?.countries, historicalColors),
+    [game?.owners, game?.countries, historicalColors],
   );
   const occupationColors = useMemo(
     () => provinceColors(game?.wars?.flatMap((war) => war.occupations), game?.countries),
@@ -133,10 +154,33 @@ export function MapPage() {
       soldiers: army.soldiers,
     })) ?? [];
   }, [game?.armies, game?.countries]);
+  const fleets: FleetMarker[] = useMemo(() => {
+    const countries = new Map(game?.countries.map((country) => [country.id, country.color]));
+    return game?.fleets?.map((fleet) => ({
+      id: fleet.id,
+      province: fleet.sea_province_id,
+      destination: fleet.to_sea_province_id,
+      progress: fleet.progress,
+      color: countries.get(fleet.country_id) ?? '#ffffff',
+      ships: fleet.ships,
+    })) ?? [];
+  }, [game?.fleets, game?.countries]);
 
   const shownArmy = game?.armies?.find((army) => army.id === inspectedArmy);
   const mayTarget = Boolean(order && shownArmy && shownArmy.country_id === game?.local_country_id);
   const onProvinceClick = useRef<(province: Province | null) => void>(() => undefined);
+  const hoverTimer = useRef<number | undefined>(undefined);
+  const onProvinceHover = useRef<(id: number, x: number, y: number) => void>(() => undefined);
+  useEffect(() => {
+    onProvinceHover.current = (id, x, y) => {
+      window.clearTimeout(hoverTimer.current);
+      if (id === 0) {
+        setHoveredProvince(null);
+        return;
+      }
+      hoverTimer.current = window.setTimeout(() => setHoveredProvince({ id, x, y }), 300);
+    };
+  }, []);
   useEffect(() => {
     onProvinceClick.current = (province) => {
       setSelected(province);
@@ -151,8 +195,8 @@ export function MapPage() {
   }, [order, mayTarget, shownArmy, hostGame.pending, hostGame.send]);
 
   useEffect(() => {
-    if (hasGame && status === 'ready') viewerRef.current?.setOwnerColors(colors);
-  }, [hasGame, status, colors]);
+    if (status === 'ready') viewerRef.current?.setOwnerColors(colors);
+  }, [status, colors]);
   useEffect(() => {
     if (status === 'ready') viewerRef.current?.setMapMode(mapMode);
   }, [status, mapMode]);
@@ -169,8 +213,14 @@ export function MapPage() {
     if (militaryEnabled && status === 'ready') viewerRef.current?.setArmies(armies);
   }, [militaryEnabled, status, armies]);
   useEffect(() => {
+    if (militaryEnabled && status === 'ready') viewerRef.current?.setFleets(fleets);
+  }, [militaryEnabled, status, fleets]);
+  useEffect(() => {
     if (militaryEnabled && status === 'ready') viewerRef.current?.setArmySelection(shownArmy?.id ?? 0, mayTarget);
   }, [militaryEnabled, status, shownArmy?.id, mayTarget]);
+  useEffect(() => {
+    if (militaryEnabled && status === 'ready') viewerRef.current?.setFleetSelection(inspectedFleet);
+  }, [militaryEnabled, status, inspectedFleet]);
 
   const ownerId = selected && game?.owners.find((owner) => owner.province_id === selected.id)?.country_id;
   const shownCountryId = inspectedCountry ?? (selected ? ownerId : game?.local_country_id ?? game?.countries[0]?.id);
@@ -201,9 +251,15 @@ export function MapPage() {
           host,
           assets,
           (id) => onProvinceClick.current(provinces.get(id) ?? null),
+          (id, x, y) => onProvinceHover.current(id, x, y),
           (id) => {
             setSection('military');
             setInspectedArmy(id);
+            setOrder(null);
+          },
+          (id) => {
+            setSection('military');
+            setInspectedFleet(id);
             setOrder(null);
           },
           manualFrames,
@@ -239,6 +295,7 @@ export function MapPage() {
       abort.abort();
       window.clearTimeout(warmupTimer);
       window.clearTimeout(measurementTimer);
+      window.clearTimeout(hoverTimer.current);
       if (viewer && window.strategyMapTest === viewer.testControls) delete window.strategyMapTest;
       if (viewerRef.current === viewer) viewerRef.current = undefined;
       viewer?.dispose();
@@ -246,10 +303,11 @@ export function MapPage() {
   }, []);
 
   return (
-    <main className="map-page" data-map-status={status} data-map-renderer={renderer} data-map-mode={mapMode}>
+    <main className="map-page" data-map-status={status} data-map-renderer={renderer} data-map-mode={mapMode}
+      data-map-selected-fleet={inspectedFleet}>
       <div className="map-viewport" data-map-viewport ref={viewport} />
       <header className="map-header map-panel">
-        <h1>Western Europe</h1>
+        <h1>{mapRegion === 'europe' ? 'Europe' : 'Western Europe'}</h1>
         {benchmark ? (
           <>
             <p data-map-benchmark role="status">{status === 'error' ? error : benchmarkResult}</p>
@@ -257,7 +315,7 @@ export function MapPage() {
           </>
         ) : (
           <>
-            <p>Drag to pan · Scroll to zoom · Right-drag to tilt</p>
+            <p>Drag to pan · WASD/arrows · Scroll to zoom · Double-click to focus · Home for region</p>
             <a href="?smoke=1">WebGL smoke test</a>
             <MapSources />
             <nav className="map-modes" aria-label="Map mode">
@@ -268,7 +326,14 @@ export function MapPage() {
                 </button>
               ))}
             </nav>
-            {mapMode === 'historical' && <p className="map-mode-note">Reference borders (1440), not game ownership.</p>}
+            {mapMode === 'historical' && <p className="map-mode-note">
+              1440 reference colors · Solid tint: named polity · Muted tint: unresolved placeholder.
+              Scandinavian realm labels are visual references; placeholder colors do not assert game ownership.
+            </p>}
+            {game && mapMode === 'political' && <p className="map-mode-note">
+              Solid fill: campaign owner · Muted fill: historical reference on unmodeled land ·
+              Fine stripes: low-confidence source; placeholder colors do not imply ownership.
+            </p>}
             {lan.status && (
               <div className="map-lan">
                 <button type="button" onClick={() => setLobbyOpen(true)}>LAN multiplayer</button>
@@ -284,6 +349,15 @@ export function MapPage() {
         canSetSpeed={!guest} send={hostGame.send} />}
       {game && <EventPopup events={game.pending_events ?? []} localCountryId={game.local_country_id}
         pending={hostGame.pending} error={hostGame.commandError} send={hostGame.send} />}
+      {hoveredProvince && !benchmark && (() => {
+        const province = provinceNames.get(hoveredProvince.id);
+        const name = province ? mapAssets?.names.get(province.name_key ?? '') ?? `Province ${hoveredProvince.id}` : '';
+        return name ? <div className="map-hover-tooltip" role="tooltip"
+          style={{ left: Math.min(hoveredProvince.x + 14, window.innerWidth - 250),
+            top: Math.min(hoveredProvince.y + 14, window.innerHeight - 56) }}>
+          {name}
+        </div> : null;
+      })()}
       {hostGame.connected && !game && (
         <p className="game-clock map-panel" role={hostGame.connectionError ? 'alert' : 'status'}>
           {hostGame.connectionError || 'Connecting to the game host…'}
@@ -294,7 +368,8 @@ export function MapPage() {
           {status === 'loading' ? 'Loading terrain and provinces…' : error}
         </p>
       )}
-      <aside className={'map-inspector map-panel' + (game ? ' map-inspector--host' : '')}
+      <aside className={'map-inspector map-panel' + (game ? ' map-inspector--host' : '')
+        + (section === 'technology' || section === 'ideas' || section === 'reforms' || section === 'diplomacy' ? ' map-inspector--technology' : '')}
         data-map-selected={selected?.id ?? 0}
         hidden={benchmark || status !== 'ready'}>
         <div aria-live="polite">
@@ -303,9 +378,12 @@ export function MapPage() {
               <h2>{provinceName(selected.id)}</h2>
               <p>Province {selected.id} · {nameOf(selected.kind)} · {nameOf(selected.terrain)}</p>
               {game && <p>Owner · {provinceOwner?.name ?? 'Unowned'}</p>}
+              {game?.blockaded_ports?.includes(selected.id) && <p>Blockaded · port tax income closed</p>}
               {mapMode === 'historical' && selected.kind === 'land' && (
                 <p data-historical-resolution={attribution?.resolution ?? 'unmatched'}>
-                  1440 source · {attribution?.polity_name ?? 'Unknown attribution'}
+                  1440 source · {attribution?.polity_name === 'Kalmar Union'
+                    ? 'Scandinavian kingdoms · separate reference tints'
+                    : attribution?.polity_name ?? 'Unknown attribution'}
                   {attribution?.resolution === 'coarse_group' && ' · Low precision group'}
                 </p>
               )}
@@ -313,26 +391,52 @@ export function MapPage() {
             </>
           ) : <p>Click a province to inspect it</p>}
         </div>
-        {militaryEnabled && (
+        {(militaryEnabled || technologyEnabled || ideasEnabled || reformsEnabled || (game && game.local_country_id !== null)) && (
           <div className="inspector-tabs" role="group" aria-label="Inspector panels">
             <button type="button" aria-pressed={section === 'country'} onClick={() => {
               setSection('country');
               setOrder(null);
             }}>Country</button>
-            <button type="button" aria-pressed={section === 'military'}
-              onClick={() => setSection('military')}>Military</button>
+            {game && game.local_country_id !== null && <button type="button" aria-pressed={section === 'diplomacy'}
+              onClick={() => { setSection('diplomacy'); setOrder(null); }}>Diplomacy</button>}
+            {militaryEnabled && <button type="button" aria-pressed={section === 'military'}
+              onClick={() => setSection('military')}>Military</button>}
+            {technologyEnabled && <button type="button" aria-pressed={section === 'technology'}
+              onClick={() => setSection('technology')}>Technology</button>}
+            {ideasEnabled && <button type="button" aria-pressed={section === 'ideas'}
+              onClick={() => setSection('ideas')}>Ideas</button>}
+            {reformsEnabled && <button type="button" aria-pressed={section === 'reforms'}
+              onClick={() => setSection('reforms')}>Reforms</button>}
           </div>
         )}
-        {game && (!militaryEnabled || section === 'country') && (
+        {game && section === 'country' && (
           <CountryPanel game={game} country={shownCountry} pending={hostGame.pending}
             onSelect={setInspectedCountry} send={hostGame.send} />
         )}
+        {game && section === 'diplomacy' && (
+          <DiplomacyPanel game={game} pending={hostGame.pending} send={hostGame.send} />
+        )}
         {game && militaryEnabled && section === 'military' && (
           <MilitaryPanel game={game} pending={hostGame.pending} provinceId={selected?.id ?? null}
-            provinceIsLand={selected?.kind === 'land'} army={shownArmy} order={order}
+            provinceIsLand={selected?.kind === 'land'}
+            portSeaIds={selected?.neighbors.filter((edge) => edge.edge === 'port').map((edge) => edge.id)}
+            army={shownArmy} order={order}
             selectArmy={(id) => { setInspectedArmy(id); setOrder(null); }}
+            selectedFleetId={inspectedFleet}
             chooseOrder={setOrder} cancelOrder={() => setOrder(null)} provinceName={provinceName}
             send={hostGame.send} readAiLog={hostGame.readAiLog} canReadAiLog={!guest} />
+        )}
+        {game && technologyEnabled && section === 'technology' && (
+          <TechnologyPanel game={game} country={shownCountry} pending={hostGame.pending}
+            send={hostGame.send} />
+        )}
+        {game && ideasEnabled && section === 'ideas' && (
+          <IdeaPanel game={game} country={shownCountry} pending={hostGame.pending}
+            send={hostGame.send} />
+        )}
+        {game && reformsEnabled && section === 'reforms' && (
+          <ReformPanel game={game} country={shownCountry} pending={hostGame.pending}
+            send={hostGame.send} />
         )}
       </aside>
       {lobbyOpen && lan.status && <LanLobby game={game} lan={lan} onClose={() => setLobbyOpen(false)} />}

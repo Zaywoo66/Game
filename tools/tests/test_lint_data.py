@@ -1,10 +1,23 @@
+import json
 from pathlib import Path
 import subprocess
 import sys
 import unittest
+import xml.etree.ElementTree as ET
 
 
 class DataLintTest(unittest.TestCase):
+    def test_every_1440_country_has_a_registered_flag(self):
+        repo = Path(__file__).resolve().parents[2]
+        scenario = json.loads((repo / "data/scenarios/1440.json").read_text(encoding="utf-8"))
+        register = (repo / "docs/ASSETS.md").read_text(encoding="utf-8")
+        for tag in scenario["countries"]:
+            with self.subTest(country=tag):
+                flag = repo / "ui/src/assets/flags" / f"{tag}.svg"
+                self.assertTrue(flag.is_file(), f"missing flag asset for scenario country {tag}")
+                ET.parse(flag)
+                self.assertIn(f"ui/src/assets/flags/{tag}.svg", register)
+
     def test_rejects_invalid_json(self):
         result = run_lint("bad_json")
         self.assertEqual(result.returncode, 1, result)
@@ -64,6 +77,11 @@ class DataLintTest(unittest.TestCase):
         self.assertEqual(result.returncode, 1, result)
         self.assertIn("duplicate event localization key event_notice_title", result.stderr)
 
+    def test_rejects_missing_translated_event_localization_key(self):
+        result = run_lint("bad_event_locale_ru")
+        self.assertEqual(result.returncode, 1, result)
+        self.assertIn("missing RU event localization key event_notice_ack", result.stderr)
+
     def test_rejects_unknown_trigger_effect_missing_weight_and_fractional_mtth(self):
         result = run_lint("bad_event")
         self.assertEqual(result.returncode, 1, result)
@@ -120,7 +138,18 @@ class DataLintTest(unittest.TestCase):
         result = run_lint("good_tech")
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stderr, "")
-        self.assertIn("Checked 2 JSON and YAML data files", result.stdout)
+        self.assertIn("Checked 3 JSON and YAML data files", result.stdout)
+
+    def test_rejects_missing_and_empty_technology_localization(self):
+        result = run_lint("bad_tech_locale_missing")
+        self.assertEqual(result.returncode, 1, result)
+        self.assertIn("missing English technology localization key modifier.tax_income", result.stderr)
+        self.assertIn("tech.recordkeeping: expected nonempty English text", result.stderr)
+
+    def test_rejects_duplicate_technology_localization_key(self):
+        result = run_lint("bad_tech_locale")
+        self.assertEqual(result.returncode, 1, result)
+        self.assertIn("duplicate technology localization key tech.recordkeeping", result.stderr)
 
     def test_rejects_missing_duplicate_and_cyclic_technology_keys(self):
         result = run_lint("bad_tech_graph")
@@ -162,6 +191,23 @@ class DataLintTest(unittest.TestCase):
         self.assertEqual(result.returncode, 1, result)
         self.assertIn("unknown technology branch", result.stderr)
         self.assertIn("must be a whole score 0..1000", result.stderr)
+
+    def test_rejects_invalid_national_idea_fixture(self):
+        result = run_lint("bad_idea")
+        self.assertEqual(result.returncode, 1, result)
+        self.assertIn("$.ideas[0].modifiers[0].value: expected an integer", result.stderr)
+        self.assertIn("$.ideas[1].key: duplicate idea key", result.stderr)
+        self.assertIn("$.ideas[1].modifiers[0].duration_days: unknown field", result.stderr)
+
+    def test_rejects_idea_unlock_with_missing_technology(self):
+        result = run_lint("bad_idea_reference")
+        self.assertEqual(result.returncode, 1, result)
+        self.assertIn("idea unlock references unknown technology absent_technology", result.stderr)
+
+    def test_rejects_fractional_reform_modifier_value(self):
+        result = run_lint("bad_reform")
+        self.assertEqual(result.returncode, 1, result)
+        self.assertIn("$.governments.monarchy[0].reforms[0].effects[0].value: expected an integer", result.stderr)
 
 
 def run_lint(fixture):

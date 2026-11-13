@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "tag": "pom",
+  "name": "Duchy of Pomerania",
+  "color": [
+    118,
+    170,
+    122
+  ],
+  "capital": "stralsund",
+  "ai_profile": "balanced",
+  "government": "monarchy",
+  "start": {
+    "ruler": null,
+    "heir": null,
+    "provinces": [
+      "eu_306_171",
+      "stralsund"
+    ],
+    "treasury": 50000,
+    "tax_rate": 220,
+    "monthly_spending": 3500
+  }
+}

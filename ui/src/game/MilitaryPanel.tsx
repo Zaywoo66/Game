@@ -8,9 +8,11 @@ interface MilitaryProps {
   pending: boolean;
   provinceId: number | null;
   provinceIsLand: boolean;
+  portSeaIds?: number[];
   army: ArmyView | undefined;
   order: ArmyOrder | null;
   selectArmy(id: number): void;
+  selectedFleetId?: number;
   chooseOrder(order: ArmyOrder): void;
   cancelOrder(): void;
   provinceName(id: number): string;
@@ -116,13 +118,13 @@ function ActiveWar({
       <p>Attacker war score · {war.score}</p>
       {war.occupations.length > 0 && <p>Occupied provinces · {war.occupations.length}</p>}
       {war.offer && (
-        <p>{countryName(war.offer.offered_by)} offered {war.offer.cede_goal ? 'cession of the war goal' : 'white peace'}.</p>
+        <p>{countryName(war.offer.offered_by)} offered {war.offer.cede_goal ? (war.independence ? 'independence' : 'cession of the war goal') : 'white peace'}.</p>
       )}
       {involved && (
         <div className="military-actions">
           <button type="button" disabled={pending} onClick={() => offer(false)}>Offer white peace</button>
           <button type="button" disabled={pending} onClick={() => offer(true)}>
-            {local === war.attacker_id ? 'Demand war goal' : 'Offer war goal'}
+            {war.independence ? 'Enforce independence' : local === war.attacker_id ? 'Demand war goal' : 'Offer war goal'}
           </button>
           {war.offer && war.offer.offered_by !== local && local !== null && (
             <button type="button" disabled={pending}
@@ -182,14 +184,21 @@ export function MilitaryPanel(props: MilitaryProps) {
     game, pending, provinceId, provinceIsLand, army, order, selectArmy, chooseOrder, cancelOrder,
     provinceName, send, readAiLog, canReadAiLog = true,
   } = props;
+  const selectedFleetId = props.selectedFleetId ?? 0;
   const localId = game.local_country_id;
   const local = game.countries.find((country) => country.id === localId);
   const armies = game.armies ?? [];
   const fleets = game.fleets ?? [];
+  const shipyards = game.shipyards ?? [];
   const wars = game.wars ?? [];
   const countryName = (id: number) => game.countries.find((country) => country.id === id)?.name ?? 'Country ' + id;
   const owner = game.owners.find((row) => row.province_id === provinceId)?.country_id;
   const enemy = owner === undefined || owner === localId ? undefined : owner;
+  const truce = (game.truces ?? []).find((row) => (
+    localId !== null && enemy !== undefined
+    && ((row.a_id === localId && row.b_id === enemy)
+      || (row.a_id === enemy && row.b_id === localId))
+  ));
   const fort = game.forts?.find((row) => row.province_id === provinceId);
   const sieges = game.sieges?.filter((row) => row.province_id === provinceId) ?? [];
   const existingWar = wars.some((war) => (
@@ -240,8 +249,22 @@ export function MilitaryPanel(props: MilitaryProps) {
         ) : <p>Capital is not controlled. Raising is unavailable.</p>
       )}
       <h3>Fleets</h3>
+      {local && provinceId !== null && provinceIsLand && props.portSeaIds?.length ? (
+        <div className="military-actions" aria-label="Ship construction">
+          {props.portSeaIds.map((seaId) => (
+            <button key={seaId} type="button" disabled={pending || owner !== local.id
+              || shipyards.some((order) => order.port_province_id === provinceId)}
+              onClick={() => void send({ type: 'build_ship', country_id: local.id, port_id: provinceId, sea_id: seaId })}>
+              Build ship at {provinceName(provinceId)} · 5 treasury · 30 days
+            </button>
+          ))}
+        </div>
+      ) : null}
+      {shipyards.filter((yard) => yard.country_id === localId).map((yard) => (
+        <p key={yard.port_province_id} role="status">Shipbuilding at {provinceName(yard.port_province_id)}: {yard.days_remaining} days remaining</p>
+      ))}
       {fleets.length ? fleets.map((fleet: FleetView) => (
-        <section key={fleet.id} aria-label={`Fleet ${fleet.id}`}>
+        <section key={fleet.id} aria-label={`Fleet ${fleet.id}`} data-selected={fleet.id === selectedFleetId}>
           <h4>{countryName(fleet.country_id)} · Fleet {fleet.id}</h4>
           <p>{fleet.ships} ships · Capacity {(fleet.ships * 1000).toLocaleString()} soldiers</p>
           <p>{provinceName(fleet.sea_province_id)}</p>
@@ -271,12 +294,21 @@ export function MilitaryPanel(props: MilitaryProps) {
         <p key={siege.war_id}>{countryName(siege.country_id)} siege · {siege.progress_days}/{siege.required_days} days</p>
       ))}
       {local && enemy !== undefined && provinceId !== null && provinceIsLand && !existingWar && (
-        <button type="button" disabled={pending}
-          onClick={() => void send({
-            type: 'declare_war', country_id: local.id, defender_id: enemy, goal_province_id: provinceId,
-          })}>
-          Declare war for {provinceName(provinceId)}
-        </button>
+        <>
+          <button type="button" disabled={pending || Boolean(truce)}
+            title={truce ? `Truce until ${truce.ends_on ?? `after ${truce.remaining_days} days`}` : undefined}
+            onClick={() => void send({
+              type: 'declare_war', country_id: local.id, defender_id: enemy, goal_province_id: provinceId,
+            })}>
+            Declare war for {provinceName(provinceId)}
+          </button>
+          {truce && (
+            <p role="status">
+              Truce with {countryName(enemy)} · {truce.remaining_days} days left
+              {truce.ends_on && ` · ends ${truce.ends_on}`}
+            </p>
+          )}
+        </>
       )}
       {wars.length ? wars.map((war) => (
         <ActiveWar key={war.id} war={war} local={localId} pending={pending}

@@ -3,9 +3,9 @@
   "tag": "ara",
   "name": "Crown of Aragon",
   "color": [
-    209,
-    142,
-    63
+    145,
+    99,
+    191
   ],
   "capital": "zaragoza",
   "ai_profile": "mercantile",
@@ -13,15 +13,29 @@
     "ruler": "alfonso_v_aragon",
     "heir": "john_ii_aragon",
     "provinces": [
+      "ajaccio",
       "alicante",
+      "andorra",
+      "athens",
       "barcelona",
+      "bastia",
       "cagliari",
       "castello",
+      "catania",
+      "chlef",
+      "eu_381_321",
+      "kalamata",
+      "marsala",
       "mataro",
+      "medea",
       "olbia",
+      "palermo",
       "palma",
+      "pamplona",
+      "patra",
       "perpignan",
       "sassari",
+      "tarbes",
       "tarragona",
       "valencia",
       "zaragoza"
@@ -29,5 +43,6 @@
     "treasury": 85000,
     "tax_rate": 220,
     "monthly_spending": 6500
-  }
+  },
+  "government": "monarchy"
 }

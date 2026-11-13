@@ -1,0 +1,12 @@
+{
+  "schema_version": 2,
+  "key": "amadeus_viii_savoy",
+  "country": "sav",
+  "name": "Amadeus VIII of Savoy",
+  "dynasty": "savoy",
+  "sex": "male",
+  "birth": [1383, 1, 1],
+  "birth_precision": "year",
+  "stats": {"adm": 3, "dip": 3, "mil": 3},
+  "traits": []
+}

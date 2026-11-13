@@ -158,6 +158,56 @@ fn fiscal_and_heir_commands_require_the_country_controller() {
 }
 
 #[test]
+fn vassal_tribute_uses_post_modifier_tax_and_is_independent_of_country_id_order() {
+    for (overlord, subject, proposer, responder, expected) in [
+        (ALPHA, BETA, OWNER, CommandActor::Ai(BETA), raw(250)),
+        (BETA, ALPHA, CommandActor::Ai(BETA), OWNER, raw(200)),
+    ] {
+        let mut state = setup(date(1440, 1, 31), |_| {}).unwrap();
+        state
+            .apply(
+                proposer,
+                &Command::OfferVassalage {
+                    country: overlord,
+                    toward: subject,
+                },
+            )
+            .unwrap();
+        state
+            .apply(
+                responder,
+                &Command::AcceptVassalage {
+                    country: subject,
+                    from: overlord,
+                },
+            )
+            .unwrap();
+        let subject_policy = state.country_polity(subject).unwrap().economy.policy;
+        let overlord_policy = state.country_polity(overlord).unwrap().economy.policy;
+        let subject_forecast = state
+            .preview_monthly_economy(subject, subject_policy)
+            .unwrap();
+        let overlord_forecast = state
+            .preview_monthly_economy(overlord, overlord_policy)
+            .unwrap();
+        assert_eq!(subject_forecast.last_month.unwrap().tribute_paid, expected);
+        assert_eq!(
+            overlord_forecast.last_month.unwrap().tribute_received,
+            expected
+        );
+        advance_to(&mut state, date(1440, 2, 1));
+        assert_eq!(
+            state.country_polity(subject).unwrap().economy,
+            subject_forecast
+        );
+        assert_eq!(
+            state.country_polity(overlord).unwrap().economy,
+            overlord_forecast
+        );
+    }
+}
+
+#[test]
 fn month_boundary_taxes_owned_development_and_applies_country_and_ruler_modifiers() {
     let mut state = setup(date(1440, 1, 30), |_| {}).unwrap();
     assert_eq!(state.owner_of_province(ALPHA_LAND), Some(ALPHA));
@@ -173,6 +223,8 @@ fn month_boundary_taxes_owned_development_and_applies_country_and_ruler_modifier
         forecast.last_month,
         Some(MonthlyBudget {
             income: raw(2_000),
+            tribute_paid: Fixed::ZERO,
+            tribute_received: Fixed::ZERO,
             expenses: raw(1_000)
         })
     );
@@ -214,6 +266,8 @@ fn shortfall_caps_paid_expenses_and_bankruptcy_clears_only_after_recovery() {
         economy.last_month,
         Some(MonthlyBudget {
             income: raw(500),
+            tribute_paid: Fixed::ZERO,
+            tribute_received: Fixed::ZERO,
             expenses: raw(2_500)
         })
     );
@@ -290,12 +344,14 @@ fn fiscal_overflow_reports_the_country_and_preserves_its_budget() {
         }]
     );
     assert_eq!(state.country_polity(ALPHA).unwrap().economy, previous);
+    // A failed monthly batch must not credit another country while leaving
+    // its counterparty unchanged, including when a subject pays tribute.
     assert!(state
         .country_polity(BETA)
         .unwrap()
         .economy
         .last_month
-        .is_some());
+        .is_none());
 }
 
 #[test]
@@ -595,6 +651,8 @@ fn setup(start: Date, edit: impl FnOnce(&mut PolityState)) -> Result<GameState, 
         preferred_tax_rate: raw(500),
         preferred_monthly_spending: raw(1_000),
         tech_branch_weights: BTreeMap::new(),
+        idea_priority: 0,
+        reform_priority: 0,
     };
     let mut polity = PolityState {
         rules: PolityRules {
@@ -634,6 +692,7 @@ fn character(country: CountryId, dynasty: &str, birth: Date) -> CharacterState {
         country,
         dynasty: dynasty.to_owned(),
         birth,
+        birth_precision: strategy_sim::BirthPrecision::Day,
         death: None,
         stats: CharacterStats {
             adm: 2,
@@ -645,9 +704,24 @@ fn character(country: CountryId, dynasty: &str, birth: Date) -> CharacterState {
     }
 }
 
+#[test]
+fn year_precision_uses_year_boundaries_without_claiming_a_day() {
+    let mut ruler = character(
+        CountryId::new(1),
+        "test_dynasty",
+        Date::new(1365, 1, 1).unwrap(),
+    );
+    ruler.birth_precision = strategy_sim::BirthPrecision::Year;
+    assert_eq!(ruler.age_years(Date::new(1440, 1, 1).unwrap()), Some(75));
+    assert_eq!(ruler.age_years(Date::new(1440, 12, 31).unwrap()), Some(75));
+    ruler.birth_precision = strategy_sim::BirthPrecision::Day;
+    assert_eq!(ruler.age_years(Date::new(1440, 1, 1).unwrap()), Some(75));
+}
+
 fn country(tag: &str, capital: ProvinceId, ruler: CharacterId) -> CountryPolity {
     CountryPolity {
         tag: tag.to_owned(),
+        government: "monarchy".into(),
         name: tag.to_owned(),
         color: [0, 0, 0],
         capital,

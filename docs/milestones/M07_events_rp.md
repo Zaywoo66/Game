@@ -2,11 +2,10 @@
 Docs: DATA_FORMATS.md, SIM_RULES.md
 
 Progress: event YAML contract and typed loader, deterministic firing and choice
-commands, AI weighted responses, and a three-event generic 1440 starter pack
-with English localization are in progress. The 20–40 event content target,
-AI-only content run, and multiplayer acceptance remain open. The pending-event
-popup presents localized choices for the local player and sends each selection
-to the host; the browser test covers the command and host-driven dismissal.
+commands, AI weighted responses, and a 20-event generic 1440 starter pack with
+English and Russian catalogs are implemented. The popup chooses Russian text
+for a Russian browser locale and submits choices to the host. Historical event
+content, an AI-only content run, and multiplayer acceptance remain open.
 
 ## Tasks
 - Event engine: triggers, mean time to happen, options, effects, popup UI

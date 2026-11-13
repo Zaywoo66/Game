@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "tag": "mag",
+  "name": "Archbishopric of Magdeburg",
+  "color": [
+    161,
+    165,
+    181
+  ],
+  "capital": "magdeburg",
+  "ai_profile": "balanced",
+  "government": "theocracy",
+  "start": {
+    "ruler": null,
+    "heir": null,
+    "provinces": [
+      "magdeburg"
+    ],
+    "treasury": 50000,
+    "tax_rate": 220,
+    "monthly_spending": 3500
+  }
+}

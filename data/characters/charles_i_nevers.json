@@ -1,0 +1,12 @@
+{
+  "schema_version": 2,
+  "key": "charles_i_nevers",
+  "country": "neu",
+  "name": "Charles I of Nevers",
+  "dynasty": "burgundy_nevers",
+  "sex": "male",
+  "birth": [1414, 1, 1],
+  "birth_precision": "year",
+  "stats": {"adm": 3, "dip": 3, "mil": 3},
+  "traits": []
+}

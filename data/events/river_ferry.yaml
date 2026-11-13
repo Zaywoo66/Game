@@ -1,0 +1,14 @@
+key: river_ferry
+title: event_river_ferry_title
+desc: event_river_ferry_desc
+trigger: {not: {at_war: true}}
+mean_time_to_happen: 24000
+options:
+  - text: event_peace_approve
+    ai_weight: 4
+    effects:
+      - add_modifier: {key: tax_income, value: 100, kind: multiplicative, duration_days: 365}
+  - text: event_peace_decline
+    ai_weight: 2
+    effects:
+      - add_modifier: {key: tax_income, value: 25, kind: multiplicative, duration_days: 180}

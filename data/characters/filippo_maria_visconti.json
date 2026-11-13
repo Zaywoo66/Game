@@ -1,0 +1,19 @@
+{
+  "schema_version": 2,
+  "key": "filippo_maria_visconti",
+  "country": "mil",
+  "name": "Filippo Maria Visconti",
+  "dynasty": "visconti",
+  "sex": "male",
+  "birth": [
+    1392,
+    9,
+    3
+  ],
+  "stats": {
+    "adm": 3,
+    "dip": 3,
+    "mil": 3
+  },
+  "traits": []
+}

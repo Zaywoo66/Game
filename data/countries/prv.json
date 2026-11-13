@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "tag": "prv",
+  "name": "County of Provence",
+  "color": [
+    161,
+    133,
+    129
+  ],
+  "capital": "aix_en_provence",
+  "ai_profile": "balanced",
+  "government": "monarchy",
+  "start": {
+    "ruler": null,
+    "heir": null,
+    "provinces": [
+      "aix_en_provence",
+      "toulon"
+    ],
+    "treasury": 50000,
+    "tax_rate": 220,
+    "monthly_spending": 3500
+  }
+}

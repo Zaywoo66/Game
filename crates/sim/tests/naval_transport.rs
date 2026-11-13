@@ -6,10 +6,10 @@ use std::{
 use strategy_sim::{
     AiProfileKey, AiThresholds, AiWeights, Army, ArmyId, Command, CommandActor, CommandError,
     Controller, CountryId, CountryPolity, CountryState, Date, EconomyState, EdgeKind,
-    FiscalAiProfile, Fixed, Fleet, FleetId, GameState, MapIdentity, ModKey, ModifierStore,
-    NavyError, NavyState, PlayerId, PolityRules, PolityState, Province, ProvinceEdge,
-    ProvinceGraph, ProvinceId, ProvinceKind, SimTime, Speed, StateChange, SuccessionState,
-    WarRules, WarState,
+    FiscalAiProfile, FiscalPolicy, Fixed, Fleet, FleetId, GameState, MapIdentity, ModKey,
+    ModifierStore, NavyError, NavyState, PlayerId, PolityRules, PolityState, Province,
+    ProvinceEdge, ProvinceGraph, ProvinceId, ProvinceKind, SimTime, Speed, StateChange,
+    SuccessionState, WarRules, WarState,
 };
 
 const A: CountryId = CountryId::new(1);
@@ -44,6 +44,10 @@ fn province(
 }
 
 fn setup(ships: u32) -> GameState {
+    setup_with_enemy(ships, false)
+}
+
+fn setup_with_enemy(ships: u32, enemy_at_port: bool) -> GameState {
     let graph = ProvinceGraph::try_new(
         MapIdentity {
             version: NonZeroU32::new(3).unwrap(),
@@ -83,6 +87,7 @@ fn setup(ships: u32) -> GameState {
     };
     let nation = |tag: &str, capital: u32, provinces: &[u32]| CountryPolity {
         tag: tag.into(),
+        government: "monarchy".into(),
         name: tag.into(),
         color: [0, 0, 0],
         capital: ProvinceId::new(capital),
@@ -117,6 +122,8 @@ fn setup(ships: u32) -> GameState {
                 preferred_tax_rate: Fixed::ZERO,
                 preferred_monthly_spending: Fixed::ZERO,
                 tech_branch_weights: BTreeMap::new(),
+                idea_priority: 0,
+                reform_priority: 0,
             },
         )]),
     };
@@ -173,7 +180,19 @@ fn setup(ships: u32) -> GameState {
             cargo: None,
         },
     );
-    navy.next_fleet_id = 2;
+    if enemy_at_port {
+        navy.fleets.insert(
+            FleetId::new(2),
+            Fleet {
+                country: B,
+                sea: ProvinceId::new(3),
+                ships: 1,
+                movement: None,
+                cargo: None,
+            },
+        );
+    }
+    navy.next_fleet_id = if enemy_at_port { 3 } else { 2 };
     GameState::new(
         SimTime::new(Date::new(1440, 1, 1).unwrap(), Speed::One, false),
         42,
@@ -188,6 +207,294 @@ fn setup(ships: u32) -> GameState {
     .unwrap()
     .with_navy(navy)
     .unwrap()
+}
+
+#[test]
+fn an_unopposed_fleet_closes_port_tax_until_it_sails_away() {
+    let mut state = setup(100);
+    let policy = FiscalPolicy {
+        tax_rate: Fixed::ONE,
+        monthly_spending: Fixed::ZERO,
+    };
+    state
+        .apply(
+            CommandActor::Host(PlayerId::new(2)),
+            &Command::SetFiscalPolicy { country: B, policy },
+        )
+        .unwrap();
+    let income = |state: &GameState| {
+        state
+            .preview_monthly_economy(B, policy)
+            .unwrap()
+            .last_month
+            .unwrap()
+            .income
+    };
+    assert_eq!(income(&state), Fixed::from_raw(4_000));
+    state
+        .apply(
+            HOST,
+            &Command::DeclareWar {
+                country: A,
+                defender: B,
+                goal: ProvinceId::new(2),
+            },
+        )
+        .unwrap();
+    state
+        .apply(
+            HOST,
+            &Command::MoveFleet {
+                country: A,
+                fleet: FLEET,
+                destination: ProvinceId::new(4),
+            },
+        )
+        .unwrap();
+    for _ in 0..2 {
+        state.tick(|_, _| vec![]).unwrap();
+    }
+    assert!(state.is_port_blockaded(ProvinceId::new(2)));
+    assert!(!state.is_port_blockaded(ProvinceId::new(5)));
+    assert_eq!(income(&state), Fixed::from_raw(2_000));
+    while state.time().date() != Date::new(1440, 2, 1).unwrap() {
+        state.tick(|_, _| vec![]).unwrap();
+    }
+    assert_eq!(
+        state
+            .country_polity(B)
+            .unwrap()
+            .economy
+            .last_month
+            .unwrap()
+            .income,
+        Fixed::from_raw(2_000)
+    );
+    state
+        .apply(
+            HOST,
+            &Command::MoveFleet {
+                country: A,
+                fleet: FLEET,
+                destination: ProvinceId::new(3),
+            },
+        )
+        .unwrap();
+    for _ in 0..2 {
+        state.tick(|_, _| vec![]).unwrap();
+    }
+    assert!(!state.is_port_blockaded(ProvinceId::new(2)));
+    assert_eq!(income(&state), Fixed::from_raw(4_000));
+
+    state
+        .apply(
+            HOST,
+            &Command::MoveFleet {
+                country: A,
+                fleet: FLEET,
+                destination: ProvinceId::new(4),
+            },
+        )
+        .unwrap();
+    for _ in 0..2 {
+        state.tick(|_, _| vec![]).unwrap();
+    }
+    assert!(state.is_port_blockaded(ProvinceId::new(2)));
+    let war = *state.war_state().unwrap().wars.keys().next().unwrap();
+    state
+        .apply(
+            HOST,
+            &Command::OfferPeace {
+                country: A,
+                war,
+                cede_goal: false,
+            },
+        )
+        .unwrap();
+    state
+        .apply(
+            CommandActor::Host(PlayerId::new(2)),
+            &Command::AcceptPeace { country: B, war },
+        )
+        .unwrap();
+    assert!(!state.is_port_blockaded(ProvinceId::new(2)));
+    assert_eq!(income(&state), Fixed::from_raw(4_000));
+}
+
+#[test]
+fn same_side_fleet_in_the_zone_prevents_a_blockade() {
+    let mut state = setup_with_enemy(1, true);
+    state
+        .apply(
+            HOST,
+            &Command::DeclareWar {
+                country: A,
+                defender: B,
+                goal: ProvinceId::new(2),
+            },
+        )
+        .unwrap();
+    // B's fleet sits beside A's port, but A's own fleet defends that sea zone.
+    assert!(!state.is_port_blockaded(ProvinceId::new(1)));
+}
+
+#[test]
+fn shipbuilding_spends_five_units_and_finishes_after_thirty_days() {
+    let mut state = setup(1);
+    let treasury_before = state.country_polity(A).unwrap().economy.treasury;
+    state
+        .apply(
+            HOST,
+            &Command::BuildShip {
+                country: A,
+                port: ProvinceId::new(1),
+                sea: ProvinceId::new(3),
+            },
+        )
+        .unwrap();
+    assert_eq!(
+        state.country_polity(A).unwrap().economy.treasury,
+        treasury_before.checked_sub(Fixed::from_raw(5_000)).unwrap()
+    );
+    assert_eq!(
+        state.navy().unwrap().shipyards[&ProvinceId::new(1)].days_remaining,
+        30
+    );
+    for _ in 0..29 {
+        state.tick(|_, _| vec![]).unwrap();
+    }
+    assert_eq!(state.navy().unwrap().fleets.len(), 1);
+    assert_eq!(
+        state.navy().unwrap().shipyards[&ProvinceId::new(1)].days_remaining,
+        1
+    );
+    state.tick(|_, _| vec![]).unwrap();
+    assert_eq!(state.navy().unwrap().fleets.len(), 2);
+    assert!(state.navy().unwrap().shipyards.is_empty());
+    assert_eq!(state.navy().unwrap().fleets[&FleetId::new(2)].ships, 1);
+    assert_eq!(
+        state.navy().unwrap().fleets[&FleetId::new(2)].sea,
+        ProvinceId::new(3)
+    );
+}
+
+#[test]
+fn hostile_fleet_interrupts_landing_until_naval_battle_clears_the_port() {
+    let mut state = setup_with_enemy(2, true);
+    state
+        .apply(
+            HOST,
+            &Command::DeclareWar {
+                country: A,
+                defender: B,
+                goal: ProvinceId::new(2),
+            },
+        )
+        .unwrap();
+    state
+        .apply(
+            HOST,
+            &Command::EmbarkArmy {
+                country: A,
+                army: ARMY,
+                fleet: FLEET,
+            },
+        )
+        .unwrap();
+    let landing = Command::DisembarkArmy {
+        country: A,
+        fleet: FLEET,
+        destination: ProvinceId::new(1),
+    };
+    assert_eq!(
+        state.validate_command(HOST, &landing),
+        Err(CommandError::Navy(NavyError::HostileFleet(FleetId::new(2))))
+    );
+    let report = state.tick(|_, _| vec![]).unwrap();
+    assert!(report
+        .delta
+        .changes()
+        .iter()
+        .any(|change| matches!(change, StateChange::NavalBattleResolved(_))));
+    assert!(!state.navy().unwrap().fleets.contains_key(&FleetId::new(2)));
+    assert!(state.validate_command(HOST, &landing).is_ok());
+}
+
+#[test]
+fn monthly_naval_attrition_shelters_stationary_fleets_by_accessible_ports() {
+    let mut sheltered = setup(1);
+    while sheltered.time().date() != Date::new(1440, 2, 1).unwrap() {
+        sheltered.tick(|_, _| vec![]).unwrap();
+    }
+    assert_eq!(sheltered.navy().unwrap().fleets[&FLEET].ships, 1);
+
+    let mut exposed = setup(101);
+    exposed
+        .apply(
+            HOST,
+            &Command::MoveFleet {
+                country: A,
+                fleet: FLEET,
+                destination: ProvinceId::new(4),
+            },
+        )
+        .unwrap();
+    while exposed.time().date() != Date::new(1440, 2, 1).unwrap() {
+        exposed.tick(|_, _| vec![]).unwrap();
+    }
+    assert_eq!(exposed.navy().unwrap().fleets[&FLEET].ships, 99);
+}
+
+#[test]
+fn attrition_that_sinks_a_transport_also_removes_its_embarked_army() {
+    let mut state = setup(1);
+    state
+        .apply(
+            HOST,
+            &Command::EmbarkArmy {
+                country: A,
+                army: ARMY,
+                fleet: FLEET,
+            },
+        )
+        .unwrap();
+    state
+        .apply(
+            HOST,
+            &Command::MoveFleet {
+                country: A,
+                fleet: FLEET,
+                destination: ProvinceId::new(4),
+            },
+        )
+        .unwrap();
+    let mut removed_fleet = false;
+    let mut removed_army = false;
+    while state.time().date() != Date::new(1440, 2, 1).unwrap() {
+        let report = state.tick(|_, _| vec![]).unwrap();
+        removed_fleet |= report.delta.changes().iter().any(|change| {
+            matches!(
+                change,
+                StateChange::FleetChanged {
+                    fleet: FLEET,
+                    state: None
+                }
+            )
+        });
+        removed_army |= report.delta.changes().iter().any(|change| {
+            matches!(
+                change,
+                StateChange::ArmyChanged {
+                    army: ARMY,
+                    state: None
+                }
+            )
+        });
+    }
+    assert!(removed_fleet);
+    assert!(removed_army);
+    assert!(!state.navy().unwrap().fleets.contains_key(&FLEET));
+    assert!(!state.war_state().unwrap().armies.contains_key(&ARMY));
 }
 
 #[test]

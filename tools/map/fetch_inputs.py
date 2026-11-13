@@ -12,7 +12,7 @@ import json
 import numpy as np
 from scipy.io import netcdf_file
 from shapely import make_valid
-from shapely.geometry import box, mapping, shape
+from shapely.geometry import MultiPolygon, box, mapping, shape
 
 from map_common import BOUNDS, INPUTS, json_bytes, read_json
 
@@ -27,7 +27,7 @@ PLACES = (
 PLACES_HASH = "9b8e3de09048ef00dfc70357dbb9fa324493f214b5e0ae4daf1aa79a8d10116b"
 HISTORY = (
     "https://raw.githubusercontent.com/Seshat-Global-History-Databank/"
-    "cliopatria/v0.1.3/cliopatria.geojson.zip"
+    "cliopatria/v0.2.1/cliopatria.geojson.zip"
 )
 RELIEF = (
     "https://cwcgom.aoml.noaa.gov/erddap/griddap/etopo180.nc"
@@ -41,7 +41,7 @@ PHYSICAL = {
     "lakes": "d350b75978b26fe839b797c2c529b2fb8f47fb3983c03f4964e36d5df9378a52",
     "rivers_lake_centerlines": "f286e0ce978fde999ca2d7a78c764be08542e19b63cded52b05c12d5173ccc51",
 }
-HISTORY_HASH = "a6417c73f16049ff7a21c75dce52dde641b659255e22ed30294b47a35b664123"
+HISTORY_HASH = "e10a4e429fca708788ff9e7572a95fce801fae55852d217cffabc1c59cd4eed4"
 CLIP = box(*BOUNDS)
 
 
@@ -134,16 +134,35 @@ def populated_places_layer(cache):
 
 
 def historical_layer(cache):
-    source = download(cache, "cliopatria.zip", HISTORY, HISTORY_HASH)
+    source = download(cache, "cliopatria-v0.2.1.zip", HISTORY, HISTORY_HASH)
     items = []
-    with ZipFile(source) as archive, archive.open("cliopatria_polities_only.geojson") as data:
-        # This pinned release encodes each feature on one line.
+    with ZipFile(source) as archive, archive.open("cliopatria_polities_only_v021.geojson") as data:
+        # The pinned release encodes each feature on one line.
         for line in data:
             if not line.lstrip().startswith(b'{ "type": "Feature",'):
                 continue
             item = json.loads(line.rstrip().rstrip(b","))
             fields = item["properties"]
-            if fields["FromYear"] <= 1440 <= fields["ToYear"]:
+            if fields["Type"] == "POLITY" and fields["FromYear"] <= 1440 <= fields["ToYear"]:
+                if fields["Name"] == "Duchy of Bavaria":
+                    # Cliopatria carries Bavaria-Straubing's former Holland and
+                    # Hainaut components into 1440. The 1433 transfer to Philip
+                    # the Good is documented in a BMGN study and Dutch National
+                    # Archives record. Keep the Bavarian parts east of longitude
+                    # 6 and label the transferred parts as Burgundian Netherlands.
+                    geometry = shape(item["geometry"])
+                    components = [part for part in geometry.geoms if part.bounds[2] >= 6.0]
+                    transferred = [part for part in geometry.geoms if part.bounds[2] < 6.0]
+                    if not components or not transferred:
+                        raise ValueError("historical Bavaria correction no longer matches the pinned source")
+                    item["geometry"] = mapping(MultiPolygon(components))
+                    for region in transferred:
+                        items.append((region, {
+                            "name": "Burgundian Netherlands",
+                            "from_year": fields["FromYear"],
+                            "to_year": fields["ToYear"],
+                            "source_name": fields["Name"],
+                        }))
                 for geometry in clipped(item, ("Polygon", "MultiPolygon")):
                     items.append((geometry, {
                         "name": fields["Name"],

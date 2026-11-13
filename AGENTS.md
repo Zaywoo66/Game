@@ -38,4 +38,4 @@ Stack: Rust (`sim`, `net`, `data`) + Tauri 2 + React/TS UI + three.js map.
 - AI acts only through `Command`s validated like human commands; AI code lives in `crates/ai` and never mutates state directly. A mechanic without AI support is not accepted.
 
 ## Definition of done
-`cargo fmt --check`, `cargo clippy -- -D warnings`, `cargo test`, UI build, data lint all green; docs updated; PR description lists what changed and how it was verified.
+For a completed task or PR ready for review, `cargo fmt --check`, `cargo clippy -- -D warnings`, `cargo test`, UI build, and data lint must be green; docs updated; PR description lists what changed and how it was verified. Do not rerun the full suite after each edit or during a draft implementation batch. Run focused checks only when needed to diagnose a concrete failure; run the full required set once when the batch is ready for review. Long soaks and hardware measurements are release/milestone checks, not per-edit checks.

@@ -2,16 +2,15 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use crate::{
     province_graph::is_content_key, AiProfileKey, CharacterId, Controller, CountryId, CountryState,
-    Date, Fixed, ModKey, ModifierSourceId, ModifierStore, ProvinceGraph, ProvinceId, ProvinceKind,
-    StateChange,
+    Date, Fixed, ModKey, ModifierSourceId, ProvinceGraph, ProvinceId, ProvinceKind, StateChange,
 };
 
 mod economy;
 mod succession;
 
-use economy::monthly_economy;
+use economy::{monthly_economy, monthly_tax_income, Tribute};
 pub use economy::{EconomyState, FiscalError, FiscalPolicy, MonthlyBudget};
-pub use succession::{CharacterState, CharacterStats, Sex, SuccessionState};
+pub use succession::{BirthPrecision, CharacterState, CharacterStats, Sex, SuccessionState};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct PolityRules {
@@ -57,6 +56,7 @@ pub struct AiThresholds {
     pub peace_accept_score: i32,
     pub alliance_min_opinion: i32,
     pub marriage_min_opinion: i32,
+    pub vassal_min_opinion: i32,
 }
 
 /// Scenario policy preferences. Bot decisions stay in the AI crate.
@@ -68,11 +68,16 @@ pub struct FiscalAiProfile {
     pub preferred_monthly_spending: Fixed,
     /// Content branch keys mapped to whole AI preference points (0..=1000).
     pub tech_branch_weights: BTreeMap<String, u16>,
+    /// Whole preference points for an affordable national idea (0..=1000).
+    pub idea_priority: u16,
+    /// Whole preference points for an affordable government reform (0..=1000).
+    pub reform_priority: u16,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct CountryPolity {
     pub tag: String,
+    pub government: String,
     pub name: String,
     pub color: [u8; 3],
     pub capital: ProvinceId,
@@ -167,6 +172,7 @@ impl PolityState {
                     .tech_branch_weights
                     .iter()
                     .any(|(branch, weight)| !is_content_key(branch) || *weight > 1000)
+                || profile.idea_priority > 1000
                 || self
                     .rules
                     .check_policy(FiscalPolicy {
@@ -300,7 +306,9 @@ impl PolityState {
         previous_date: Date,
         date: Date,
         graph: &ProvinceGraph,
+        blockaded_ports: &BTreeSet<ProvinceId>,
         base_countries: &BTreeMap<CountryId, CountryState>,
+        vassals: &BTreeMap<CountryId, CountryId>,
     ) -> (Vec<StateChange>, Vec<PolityTickFailure>) {
         let mut changes = self.advance_characters(previous_date, date);
         let mut failures = Vec::new();
@@ -308,7 +316,52 @@ impl PolityState {
             return (changes, failures);
         }
 
-        for (&country, state) in &mut self.countries {
+        // Compute every subject's post-modifier tax before applying anyone's
+        // spending. This makes tribute independent of country ID ordering.
+        let mut paid = BTreeMap::<CountryId, Fixed>::new();
+        let mut received = BTreeMap::<CountryId, Fixed>::new();
+        for (&subject, &overlord) in vassals {
+            let state = &self.countries[&subject];
+            let ruler_traits = state
+                .succession
+                .ruler
+                .and_then(|ruler| self.characters.get(&ruler))
+                .map(|ruler| &ruler.modifiers);
+            match monthly_tax_income(
+                &self.rules,
+                state,
+                graph,
+                blockaded_ports,
+                base_countries[&subject].modifiers(),
+                ruler_traits,
+                state.economy.policy,
+            ) {
+                Ok(gross) => {
+                    let transfer = Fixed::from_raw(gross.raw() / 10);
+                    let total = received
+                        .get(&overlord)
+                        .copied()
+                        .unwrap_or(Fixed::ZERO)
+                        .checked_add(transfer);
+                    if let Some(total) = total {
+                        paid.insert(subject, transfer);
+                        received.insert(overlord, total);
+                    } else {
+                        failures.push(PolityTickFailure {
+                            country: overlord,
+                            error: FiscalError::ArithmeticOverflow,
+                        });
+                    }
+                }
+                Err(error) => failures.push(PolityTickFailure {
+                    country: subject,
+                    error,
+                }),
+            }
+        }
+
+        let mut computed = BTreeMap::new();
+        for (&country, state) in &self.countries {
             let ruler_traits = state
                 .succession
                 .ruler
@@ -318,35 +371,104 @@ impl PolityState {
                 &self.rules,
                 state,
                 graph,
+                blockaded_ports,
                 base_countries[&country].modifiers(),
                 ruler_traits,
                 state.economy.policy,
+                Tribute {
+                    paid: paid.get(&country).copied().unwrap_or(Fixed::ZERO),
+                    received: received.get(&country).copied().unwrap_or(Fixed::ZERO),
+                },
             ) {
-                Ok(economy) if economy != state.economy => {
-                    state.economy = economy;
-                    changes.push(StateChange::EconomyChanged { country, economy });
+                Ok(economy) => {
+                    computed.insert(country, economy);
                 }
-                Ok(_) => {}
                 Err(error) => failures.push(PolityTickFailure { country, error }),
+            }
+        }
+        if !failures.is_empty() {
+            return (changes, failures);
+        }
+        for (country, economy) in computed {
+            let state = &mut self
+                .countries
+                .get_mut(&country)
+                .expect("country computed")
+                .economy;
+            if *state != economy {
+                *state = economy;
+                changes.push(StateChange::EconomyChanged { country, economy });
             }
         }
         (changes, failures)
     }
 
+    #[expect(
+        clippy::too_many_arguments,
+        reason = "forecast receives the same explicit state inputs as the monthly tick"
+    )]
     pub(crate) fn forecast(
         &self,
         country: CountryId,
-        state: &CountryPolity,
         date: Date,
         graph: &ProvinceGraph,
-        modifiers: &ModifierStore,
+        blockaded_ports: &BTreeSet<ProvinceId>,
         policy: FiscalPolicy,
+        base_countries: &BTreeMap<CountryId, CountryState>,
+        vassals: &BTreeMap<CountryId, CountryId>,
     ) -> Result<EconomyState, FiscalError> {
+        let state = &self.countries[&country];
+        let modifiers = base_countries[&country].modifiers();
         let ruler_traits = self
             .projected_succession(country, state, date)
             .ruler
             .and_then(|ruler| self.characters.get(&ruler))
             .map(|ruler| &ruler.modifiers);
-        monthly_economy(&self.rules, state, graph, modifiers, ruler_traits, policy)
+        let mut paid = Fixed::ZERO;
+        let mut received = Fixed::ZERO;
+        if vassals.contains_key(&country) {
+            let gross = monthly_tax_income(
+                &self.rules,
+                state,
+                graph,
+                blockaded_ports,
+                modifiers,
+                ruler_traits,
+                policy,
+            )?;
+            paid = Fixed::from_raw(gross.raw() / 10);
+        }
+        for (&subject, &overlord) in vassals {
+            if overlord == country {
+                let subject_state = &self.countries[&subject];
+                let traits = subject_state
+                    .succession
+                    .ruler
+                    .and_then(|ruler| self.characters.get(&ruler))
+                    .map(|ruler| &ruler.modifiers);
+                let gross = monthly_tax_income(
+                    &self.rules,
+                    subject_state,
+                    graph,
+                    blockaded_ports,
+                    base_countries[&subject].modifiers(),
+                    traits,
+                    subject_state.economy.policy,
+                )?;
+                received = received
+                    .checked_add(Fixed::from_raw(gross.raw() / 10))
+                    .ok_or(FiscalError::ArithmeticOverflow)?;
+            }
+        }
+        monthly_economy(
+            &self.rules,
+            state,
+            graph,
+            blockaded_ports,
+            modifiers,
+            ruler_traits,
+            policy,
+            Tribute { paid, received },
+        )
     }
 }

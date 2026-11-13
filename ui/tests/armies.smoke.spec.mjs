@@ -7,7 +7,7 @@ async function landPoints(page) {
   const response = await page.request.get('/map/western_europe/provinces.json');
   expect(response.ok()).toBe(true);
   const { provinces } = await response.json();
-  await page.goto('/?verify=1');
+  await page.goto('/?verify=1&map=western_europe');
   await expect(page.locator('main[data-map-status="ready"]')).toBeVisible({ timeout: 60_000 });
   return page.evaluate((ids) => ids.flatMap((id) => {
     const point = window.strategyMapTest.projectProvince(id);
@@ -87,7 +87,7 @@ test('M4 renders armies and applies only authoritative land-war updates', async 
   expect(capital && enemy).toBeTruthy();
   const army = await mockWarHost(page, capital.id, enemy.id);
   const modelResponse = page.waitForResponse((response) => response.url().endsWith('/models/infantry.glb'));
-  await page.goto('/?verify=1&verifyHost=1');
+  await page.goto('/?verify=1&map=western_europe&verifyHost=1');
   await expect(page.locator('main[data-map-status="ready"]')).toBeVisible({ timeout: 60_000 });
   await expect(page.locator('main')).toHaveAttribute('data-map-mode', 'political');
   await expect(page.getByText('Reference borders (1440), not game ownership.')).toHaveCount(0);

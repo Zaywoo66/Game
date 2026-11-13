@@ -65,6 +65,8 @@ pub(super) struct ThresholdsFile {
     alliance_min_opinion: i32,
     #[serde(default, skip_serializing_if = "is_zero_i32")]
     marriage_min_opinion: i32,
+    #[serde(default, skip_serializing_if = "is_zero_i32")]
+    vassal_min_opinion: i32,
 }
 
 fn is_zero_i32(value: &i32) -> bool {
@@ -91,6 +93,14 @@ pub(super) struct ProfileFile {
     pub preferred_monthly_spending: i64,
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub tech_branch_weights: BTreeMap<String, u16>,
+    #[serde(default, skip_serializing_if = "is_zero")]
+    pub idea_priority: u16,
+    #[serde(default, skip_serializing_if = "is_zero")]
+    pub reform_priority: u16,
+}
+
+fn is_zero(value: &u16) -> bool {
+    *value == 0
 }
 
 impl ProfileFile {
@@ -102,6 +112,8 @@ impl ProfileFile {
             preferred_tax_rate: profile.preferred_tax_rate.raw(),
             preferred_monthly_spending: profile.preferred_monthly_spending.raw(),
             tech_branch_weights: profile.tech_branch_weights.clone(),
+            idea_priority: profile.idea_priority,
+            reform_priority: profile.reform_priority,
         }
     }
 
@@ -114,6 +126,8 @@ impl ProfileFile {
                 preferred_tax_rate: Fixed::from_raw(self.preferred_tax_rate),
                 preferred_monthly_spending: Fixed::from_raw(self.preferred_monthly_spending),
                 tech_branch_weights: self.tech_branch_weights,
+                idea_priority: self.idea_priority,
+                reform_priority: self.reform_priority,
             },
         )
     }

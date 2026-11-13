@@ -86,15 +86,20 @@ requires the generated map to pass validation.
 | `data/map/<region>/regions.yaml` | Schema v1 and region records with `key`, `name_key` and `name`. |
 | `data/map/<region>/names.en.json` | Flat v1 localization key→English fallback name mapping, with no `schema_version` field. |
 
-MAP_SCALE.md defines the hierarchy and reserved ID ranges. The generated Western Europe map uses `map_version: 3`. The loader still verifies schema v1/v2 maps with their original hash rules. Older saves are accepted only when loaded against their own map identity.
+MAP_SCALE.md defines the hierarchy and reserved ID ranges. The refreshed Western Europe map uses `map_version: 4`; full Europe uses `map_version: 6` after its eastward extension through Tura. Full-Europe IDs remain stable from the v5 baseline, but its map hash changed, so saves and LAN clients must use the matching map identity. The loader still verifies schema v1/v2 maps with their original hash rules.
 
 ### 1440 polity overlap evidence (`polities_1440.json`)
 
-This generated sidecar records the largest rasterized Cliopatria v0.1.3 polygon
-overlap for every land province. It is evidence for content review, not a
-scenario owner table. An unmatched cell stays unknown; Holy Roman Empire minor
-states and Kalmar Union labels are coarse groups. Equal pixel overlaps break
-by polity name in lexical order.
+This generated sidecar records the largest rasterized Cliopatria v0.2.1 polygon
+overlap for every land province. The generated input applies one documented
+correction: western Bavaria-Straubing components transferred to Burgundy are
+labelled `Burgundian Netherlands` in 1440.
+It is source evidence, not an owner table by itself. `tools/map/assign_1440_ownership.py`
+seeds the current scenario only when a named polygon maps to an existing
+country and covers at least half of the province pixels; it never overwrites
+an owner. Unmatched cells stay unknown; Holy Roman Empire minor states and
+Kalmar Union labels are coarse groups and are not assigned. Equal pixel
+overlaps break by polity name in lexical order.
 
 | Field | Representation and unit |
 |---|---|
@@ -103,7 +108,7 @@ by polity name in lexical order.
 | `map_hash` | Lowercase SHA-256 hex string matching `provinces.json`. |
 | `reference_year` | Integer Gregorian calendar year, currently 1440. |
 | `source` | `name`, `release`, `url`, `license`, repo-relative `file`, and lowercase SHA-256 `sha256` of the clipped GeoJSON with Git-canonical LF line endings. |
-| `method` | Literal raster overlap selection and tie break. |
+| `method` | Literal raster overlap selection, documented Bavaria correction, and tie break. |
 | `assignments[].province_id` | Positive integer province ID from the map; unitless. |
 | `assignments[].province_key` | Stable province key from the map. |
 | `assignments[].polity_name` | Exact source polygon name, or `null` when no polygon overlaps. |
@@ -150,23 +155,29 @@ and ordered types from `sim`. Callers handle file input/output.
 
 ## Countries (`data/countries/<tag>.json`)
 
-M3 country, character, scenario and AI profile files use strict JSON with unsigned
-32-bit `schema_version: 1`. Tags and keys are ASCII snake_case strings.
+Country, scenario and AI profile files use strict JSON with unsigned 32-bit
+`schema_version: 1`; characters use version 2 as specified below. Tags and keys are ASCII snake_case strings.
 Country and character numeric IDs are assigned in sorted key order starting at 1.
 
 | Country field | Representation and unit |
 |---|---|
 | `tag` | Country key and filename stem. |
 | `name` | Nonempty display name. |
-| `sex` | Required `male` or `female`. This content value is checked against biographical sources for historical characters. |
-| `spouse` | Optional key of another character in the scenario. Both character files must point to each other; the pair must be living, adult, from different countries and of opposite sex at scenario start. Omission means no modeled spouse. |
 | `color` | Three unsigned 8-bit RGB channel values in the order red, green, blue. |
 | `capital` | Province key referring to one of this country's land provinces. |
 | `ai_profile` | Profile key. |
-| `start.ruler`, `start.heir` | Character keys. The heir may be omitted or null. |
+| `government` | Government key matching an entry in `data/reforms/governments.yaml`; unitless. |
+| `start.ruler`, `start.heir` | Character keys. A minor AI-controlled country may omit `ruler` or set it to null when no ruler is documented; such a country must also omit `heir` or set it to null. A human-controlled country requires a ruler. |
 | `start.provinces` | Unique land province keys, owned by one country at most. |
 | `start.treasury`, `start.monthly_spending` | Raw Fixed thousandths of a treasury unit. Spending is per game month. |
 | `start.tax_rate` | Raw Fixed fraction of taxable income. `250` means 25%. |
+
+The UI loads an SVG from `ui/src/assets/flags/<tag>.svg`, where `<tag>` is the
+country's `tag` in this file. Each country included in the M11 1440 scenario
+must have a flag asset; countries in editor fixtures may omit it, in which
+case the UI leaves the country color swatch visible. Medieval heraldic banners
+are not presented as modern national flags. Record each new SVG and its source
+in `docs/ASSETS.md`.
 
 ### World-map country extensions (planned for M13)
 
@@ -182,11 +193,14 @@ below.
 |---|---|
 | `key`, `country`, `dynasty` | Character filename stem, country tag, dynasty key. |
 | `name` | Nonempty display name. |
+| `sex` | Required `male` or `female`. This content value is checked against biographical sources for historical characters. |
+| `spouse` | Optional key of another character in the scenario. Both character files must point to each other; the pair must be living, adult, from different countries and of opposite sex at scenario start. Omission means no modeled spouse. |
 | `birth`, `death` | Gregorian `[year, month, day]` as in saves. Omit `death` or use null if unspecified. |
+| `birth_precision` | Optional `day` (default) or `year`. For `year`, `birth` must use January 1 as a placeholder; age increments on January 1, and the date is approximate rather than a documented day. |
 | `stats.adm`, `stats.dip`, `stats.mil` | Whole unsigned 8-bit skill points. |
 | `traits` | Unique keys from the scenario's trait map. |
 
-The 13 existing `male` entries were checked against the [UK Royal Family biographies](https://www.royal.uk/henry-vi) (Henry VI, Edward IV, Humphrey of Gloucester, James II and James III), [France's Larousse biographies](https://www.larousse.fr/encyclopedie/personnage/Charles_VII/112825) (Charles VII and Louis XI), the [Spanish national archives](https://pares.cultura.gob.es/ParesBusquedas20/catalogo/autoridad/46221) (John II of Aragon, Alfonso V of Aragon, John II and Henry IV of Castile), and the [Portuguese expansion encyclopedia](https://eve.fcsh.unl.pt/en/people/prince-dom-fernando-1433-1470) (Ferdinand of Viseu and Afonso V of Portugal). No female historic character has been added to the 1440 slice; that content review belongs to M11.
+Existing male entries are checked against the [UK Royal Family biographies](https://www.royal.uk/henry-vi), [France's Larousse biographies](https://www.larousse.fr/encyclopedie/personnage/Charles_VII/112825), the [Spanish national archives](https://pares.cultura.gob.es/ParesBusquedas20/catalogo/autoridad/46221), and the [Portuguese expansion encyclopedia](https://eve.fcsh.unl.pt/en/people/prince-dom-fernando-1433-1470). M11 adds Isabella of Portugal as the first female historical character in the 1440 scenario and models her reciprocal marriage to Philip the Good; her `country` remains `por` to retain her Portuguese royal affiliation, while the cross-country spouse link supplies the marriage relation.
 
 ## Technologies (`data/techs/<branch>.yaml`) — DAG
 
@@ -238,10 +252,52 @@ reads `.yaml`/`.yml` files in filename order, returns a technology-key ordered
 map, and rejects duplicate branch files, duplicate technology keys, missing
 prerequisites and cycles. The Rust loader uses the existing pinned
 `yaml_serde` 0.10.7. The research runtime and profile-weighted AI choice are
-recorded below; ideas, reforms and the tech-tree UI remain separate M9 tasks.
+recorded below.
+
+The desktop tech tree reads the validated packaged layout coordinates from
+these YAML files. Coordinates are presentation grid units and are not saved;
+research points, known technologies, costs, prerequisites and modifier effects
+are projected from the authoritative game state. The UI receives the catalog
+in its initial snapshot and receives changed country research rows through
+normal host updates. `data/locales/techs.en.json` is a flat English text map:
+`branch.<branch_key>` names every branch, `tech.<technology_key>` names every
+technology, and `modifier.<modifier_key>` names each technology effect. The
+data linter requires nonempty entries for every referenced key and rejects
+duplicate translation keys.
 
 ## Ideas (`data/ideas/<tag>.yaml`)
-`key, name, modifiers:[{key,value,kind}], unlock: Trigger`
+
+An optional country idea catalog uses one YAML v1 file named for its lowercase country tag. A missing file means the country has no national ideas in this scenario. The
+root is `{schema_version: 1, country: <tag>, ideas: [...]}`. Idea keys are
+unique across files. The loader and linter reject unknown fields, duplicate
+keys, noncanonical YAML scalar tokens, and invalid modifier units.
+
+| Field | Representation and unit |
+|---|---|
+| `schema_version` | Integer schema version, exactly 1; unitless. |
+| `country` | Country tag, matching the filename stem; unitless key. |
+| `ideas[].key` | Unique ASCII snake_case idea key; unitless. |
+| `ideas[].name` | ASCII snake_case localization key for display; unitless. |
+| `ideas[].unlock` | Required Trigger in the event trigger syntax; boolean condition evaluated for the buying country at purchase. |
+| `ideas[].modifiers[].key` | ASCII snake_case modifier key; unitless. |
+| `ideas[].modifiers[].value` | Signed 64-bit raw Fixed thousandths (100 means 0.100). |
+| `ideas[].modifiers[].kind` | `additive` or `multiplicative`; unitless. |
+
+Every idea has at least one permanent modifier. A country may buy each of its
+ideas once with a validated host command for exactly 100 whole research points
+from the same stockpile as technologies. Ideas have no duration. The catalog,
+purchases, and modifier source IDs are stored in authoritative saves.
+
+```yaml
+schema_version: 1
+country: eng
+ideas:
+  - key: english_longbow
+    name: english_longbow
+    unlock: {country_has_tech: professional_officers}
+    modifiers:
+      - {key: army_morale, value: 100, kind: multiplicative}
+```
 
 ## Events (`data/events/*.yaml`)
 
@@ -258,7 +314,8 @@ implemented in a separate M7 task.
 `Effect` values; `strategy_data::load_events_from_dir` reads files in filename
 order and returns a key-ordered map, rejecting duplicate event keys. Text
 fields remain localization-key references; the data linter checks their presence
-in `data/locales/events.en.json`. The Rust loader uses pinned
+in the required `data/locales/events.en.json` and in every additional
+`events.<language>.json` catalog. The Rust loader uses pinned
 `yaml_serde` 0.10.7.
 The authoritative game copies these validated definitions into its state. On
 each game day it evaluates definitions in event-key order and countries in
@@ -269,13 +326,13 @@ events wait `cooldown_days` from the resolution tick. The option index is
 zero-based. Each effect receives a unique monotonically increasing modifier
 source ID so timed modifiers can expire independently.
 
-The event locale catalog is a flat JSON mapping from ASCII snake_case keys to
-nonempty English display strings. Every `title`, `desc`, and option `text` key
-used by a valid event must be present. Duplicate keys, empty strings, and
-missing references fail data lint. Vite serves the English catalog at
-`/locales/events.en.json` in development and includes it in production UI
-builds. The popup UI consumes this route in a separate M7 task; other
-languages remain open.
+Each event locale catalog is a flat JSON mapping from ASCII snake_case keys to
+nonempty display strings in its language. English is required; every added
+language catalog must cover every referenced `title`, `desc`, and option `text`
+key. Duplicate keys, empty strings, and missing references fail data lint.
+Vite serves and packages all catalogs. The event popup selects Russian when the
+browser language is Russian and otherwise uses English; a missing selected
+catalog falls back to English.
 
 | Field | Representation and unit |
 |---|---|
@@ -312,10 +369,11 @@ options:
     effects: []
 ```
 
-The 1440 starter pack currently has three generic events in `data/events/`:
-`court_auditors`, `harvest_surplus`, and `frontier_patrol`. They use only the
+The 1440 starter pack has 20 generic events in `data/events/`. They use the
 current `at_war` trigger and existing `tax_income`, `army_combat`, and
-`army_morale` modifier keys. This content is not a historical claim.
+`army_morale` modifier keys. Generic events carry no historical claim. Their
+mean-time and cooldown values are tuned so the repeatable harvest and patrol
+events do not continually fill the player’s pending-event queue.
 
 ## Scenarios (`data/scenarios/<year>.json`)
 
@@ -341,10 +399,19 @@ current `at_war` trigger and existing `tax_income`, `army_combat`, and
 M8.2 has one transport ship type. Each ship holds 1,000 whole soldiers; an
 army boards as one unit and must fit in one fleet. Fleets start in the
 specified sea cell, travel only by `normal` or `strait` sea-to-sea edges, and
-spend each edge's positive whole tick cost in game days. A fleet that would
-enter a sea cell occupied by a wartime opponent stops in its previous cell,
-cancels its route and emits `FleetBlocked` with the blocking fleet ID. Naval
-battles, attrition, blockades and ship construction follow in separate M8/M9
+spend each edge's positive whole tick cost in game days. Wartime opponents
+fight when they share a sea cell. One battle per war and sea cell resolves each
+day, sorted by war ID then sea ID. Each side sums its ships. The larger side
+wins, losing `ceil(ships * 10 / 100)` while the loser loses
+`ceil(ships * 25 / 100)`. A tie costs both sides 10%. Losses consume fleets
+by ascending fleet ID. Losers, or both sides in a tie, cancel routes and
+retreat to their previous safe sea cell, otherwise the adjacent safe cell
+with the lowest ID. A fleet with no safe cell remains until the next day.
+Zero-ship fleets are removed. An embarked army is lost if its fleet sinks or
+the surviving ships cannot carry its full strength. Disembarkation is blocked
+while an opposing wartime fleet occupies the same sea cell; the host returns
+the blocking fleet ID. Peaceful fleets may share
+a sea cell. Attrition, blockades and ship construction follow in separate M8/M9
 tasks. Peacetime alliance alone grants no port access. Embarkation requires a
 port owned by the country or a participant on its side of the same war;
 landing may use such a port or an enemy port during war, with land combat
@@ -355,6 +422,29 @@ fleet's sea cell.
 
 Validate content and cross-references with
 `cargo run --locked -p strategy-data --bin lint-scenario -- data/scenarios/1440.json data/map/western_europe/provinces.json`.
+
+## Government reforms (`data/reforms/governments.yaml`)
+
+The YAML catalog has `schema_version: 1` and a `governments` mapping. Each
+government maps to an ordered list of tiers; each tier contains `reforms`.
+Countries select at most one reform per tier, permanently, for 150 whole
+research points from the shared stockpile. Effects are permanent modifier
+effects. `ai_weight` is a whole preference integer from 0 through 1000.
+
+| Field | Representation and unit |
+|---|---|
+| `schema_version` | Integer exactly `1`; unitless. |
+| government key | ASCII snake_case key referenced by a country's `government`; unitless. |
+| tier list position | One-based stage number; unitless. |
+| `reforms[].key` | Globally unique ASCII snake_case key; unitless. |
+| `reforms[].ai_weight` | Integer from 0 through 1000; unitless preference weight. |
+| `reforms[].effects[].key` | Modifier key; unitless. |
+| `reforms[].effects[].value` | Signed 64-bit raw Fixed thousandths (100 means 0.100). |
+| `reforms[].effects[].kind` | `additive` or `multiplicative`; unitless. |
+
+The AI profile's `reform_priority` (0–1000) competes monthly with idea and
+technology priorities for the same one-purchase slot. Within a tier, AI picks
+highest `ai_weight`, then ascending key. Effects cannot have `duration_days`.
 
 ## Trigger and effect syntax
 
@@ -405,10 +495,13 @@ Add new leaves here first, then implement.
 |---|---|
 | `key` | Profile key and filename stem. |
 | `weights.aggression`, `expansion`, `caution`, `diplomacy`, `economy`, `naval`, `loyalty` | Whole weight points from 0 through 1000. |
-| `thresholds.war_min_score`, `peace_accept_score`, `alliance_min_opinion`, `marriage_min_opinion` | Signed 32-bit whole decision score points. The 1440 marriage threshold is 20 effective opinion points. |
+| `thresholds.war_min_score`, `peace_accept_score`, `alliance_min_opinion`, `marriage_min_opinion`, `vassal_min_opinion` | Signed 32-bit whole decision score points. The 1440 marriage and vassal thresholds are 20 effective opinion points. |
 | `preferred_tax_rate` | Raw Fixed fraction within scenario tax limits. |
 | `preferred_monthly_spending` | Raw Fixed treasury amount per month within scenario spending limits. |
 | `tech_branch_weights` | Optional object from loaded technology branch key to whole preference points 0 through 1000. Unknown branches and out-of-range weights are rejected when the catalog is attached. Missing branch weights score zero. |
+| `idea_priority` | Optional whole preference points 0 through 1000. Missing value scores zero. Compared monthly with technology branch weights for affordable, unlocked purchases; equal scores break by ascending content key. |
+| `reform_priority` | Optional whole preference points 0 through 1000. Missing value scores zero. Compared monthly with idea and technology priorities for affordable reforms; reform variants use `ai_weight` then ascending key. |
+| `reform_priority` | Optional whole preference points 0 through 1000. Missing value scores zero. Compared monthly with idea and technology priorities for affordable reforms; reform variants use `ai_weight` then ascending key. |
 
 ## Saved games (schema version 2)
 
@@ -612,3 +705,61 @@ keys, and permanent modifier effects in raw Fixed thousandths. The country
 record's `known_technologies` and the technology source records must agree.
 The hash domain is `strategy:game-state:v11` followed by NUL and canonical
 save bytes. Older saves remain readable without research state.
+
+## Saved games (schema version 12)
+
+Vassalage uses save schema v12 and hash domain `strategy:game-state:v12`
+followed by NUL and canonical save bytes. The `state.diplomacy.vassals`
+array stores directed `{a,b}` records with `a` the positive unsigned 32-bit
+subject country ID and `b` the positive unsigned 32-bit overlord ID. Records
+are sorted by `(a,b)`, unique by subject, and form no chains or cycles.
+`vassal_offers` stores directed `{a,b,until}` records: positive unsigned
+32-bit overlord and prospective-subject IDs followed by a Gregorian
+`[year,month,day]` expiry after the saved date. Both arrays omit empty values.
+An active war's optional boolean `independence` is true only for a subject
+attacking its overlord with the overlord capital as goal. A true goal-peace
+offer ends the bond without ceding that province; white peace keeps it.
+
+The optional monthly budget fields `tribute_paid` and `tribute_received` are
+raw Fixed treasury amounts (thousandths), never negative, and omitted when
+zero. The AI profile's optional `vassal_min_opinion` is in whole opinion
+points and omitted when zero. V12 is selected when any of these vassalage
+fields is active or nonzero. V1–v11 saves without them remain readable and
+keep their original canonical bytes. LAN protocol v10 transports the v12
+snapshot and the validated vassalage commands.
+
+## Saved games (schema version 13)
+
+V13 adds `state.ideas` with catalog definitions sorted by idea key, purchased
+idea sources sorted by `(country_id, idea_key)`, and a positive next modifier
+source ID. Each definition stores its country tag, localization key, unlock
+trigger, and permanent modifiers in raw Fixed thousandths. The source list
+must reference a definition owned by that country's tag, and each country may
+purchase an idea only once. V13 retains technology, vassalage, and all earlier
+state payloads. Its hash domain is `strategy:game-state:v13` followed by NUL
+and canonical save bytes. V1–v12 remain readable without idea state. LAN
+protocol v11 transports the v13 state and the validated `UnlockIdea` command.
+
+## Saved games (schema version 14)
+
+V14 adds each country's `government` key to saved polity data and `state.reforms`
+with sorted reform definitions, selected sources sorted by
+`(country_id, reform_key)`, and a positive next modifier-source ID. The source
+records and permanent modifiers must agree, and a country cannot select two
+reforms in one tier. V14 retains all earlier payloads; its hash domain is
+`strategy:game-state:v14` followed by NUL and canonical save bytes. V1–v13
+remain readable without government or reform data. LAN protocol v12 transports
+the v14 state and the validated `UnlockReform` command.
+
+
+## Saved games (schema version 15)
+
+V15 adds optional `state.navy.shipyards`, sorted by `port` province ID. Each order stores `port` and `sea` positive province IDs, `country` positive country ID, and `days_remaining` from 1 through 30 (whole game days). The command requires the port to be owned by `country` when accepted; `sea` must be linked by a reciprocal `port` edge. A country may have one active order per port. One ship costs 5 treasury units, or 5,000 raw Fixed thousandths, paid when ordered; it completes after 30 daily simulation ticks. If the port changes owner before completion, the order is canceled on the next tick without refund. On completion, the ship appears in the selected sea province. V15 uses hash domain `strategy:game-state:v15` followed by NUL and canonical save bytes. V1–v14 remain readable without shipyard orders. LAN protocol v13 carries this state and the validated `BuildShip` command.
+
+## Saved games (schema version 16)
+
+V16 preserves the birth precision of each historical character. Exact day precision is implicit and omitted; year precision is stored as `birth_precision: year` alongside a January 1 placeholder date. Age advances on January 1 for these characters. V16 retains all previous payloads and uses hash domain `strategy:game-state:v16` followed by NUL and canonical save bytes. V1–v15 remain readable without year-precision birth dates. A v16 save must contain at least one year-precision birth date. LAN protocol v14 carries this state.
+
+## Saved games (schema version 17)
+
+V17 adds `state.diplomacy.call_to_arms_offers`, sorted by `(war_id, from_country_id, toward_country_id)`. Each offer stores its war ID, inviting leader, recipient, side (`attacker` or `defender`), and expiry date. Offers are created for the leaders' peaceful allies when war is declared, expire after 30 game days, and are removed when the war ends, the alliance becomes invalid, or the recipient joins either side. Either answer removes competing invitations to that country for the same war. V17 uses hash domain `strategy:game-state:v17` followed by NUL and canonical save bytes. V1–v16 remain readable without call-to-arms data. LAN protocol v15 carries these offers and the validated accept/reject commands.

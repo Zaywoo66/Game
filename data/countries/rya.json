@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "tag": "rya",
+  "name": "Principality of Ryazan",
+  "color": [
+    161,
+    183,
+    127
+  ],
+  "capital": "ryazan",
+  "ai_profile": "balanced",
+  "government": "monarchy",
+  "start": {
+    "ruler": null,
+    "heir": null,
+    "provinces": [
+      "kaluga",
+      "ryazan"
+    ],
+    "treasury": 50000,
+    "tax_rate": 220,
+    "monthly_spending": 3500
+  }
+}

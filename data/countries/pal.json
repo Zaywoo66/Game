@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "tag": "pal",
+  "name": "Electoral Palatinate",
+  "color": [
+    165,
+    158,
+    170
+  ],
+  "capital": "heidelberg",
+  "ai_profile": "balanced",
+  "government": "monarchy",
+  "start": {
+    "ruler": null,
+    "heir": null,
+    "provinces": [
+      "heidelberg"
+    ],
+    "treasury": 50000,
+    "tax_rate": 220,
+    "monthly_spending": 3500
+  }
+}

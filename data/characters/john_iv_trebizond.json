@@ -1,0 +1,12 @@
+{
+  "schema_version": 2,
+  "key": "john_iv_trebizond",
+  "country": "tre",
+  "name": "John IV Megas Komnenos",
+  "dynasty": "megas_komnenos",
+  "sex": "male",
+  "birth": [1404, 1, 1],
+  "birth_precision": "year",
+  "stats": {"adm": 3, "dip": 3, "mil": 3},
+  "traits": []
+}

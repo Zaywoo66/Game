@@ -1,17 +1,17 @@
 {
   "schema_version": 1,
-  "map_version": 3,
-  "map_hash": "025f9a6ce304f74323f3c365071b5333a144f1c956c38f61f01cf9c46ea873d3",
+  "map_version": 4,
+  "map_hash": "d5fbd0fd511074471237537fac90c9a30b63401f0ce4cbe9ba80df823835222e",
   "reference_year": 1440,
   "source": {
     "name": "Cliopatria",
-    "release": "v0.1.3",
-    "url": "https://github.com/Seshat-Global-History-Databank/cliopatria/releases/tag/v0.1.3",
+    "release": "v0.2.1",
+    "url": "https://github.com/Seshat-Global-History-Databank/cliopatria/releases/tag/v0.2.1",
     "license": "CC BY 4.0",
     "file": "tools/map/inputs/western_europe/historical_1440.geojson",
-    "sha256": "a9c8753f15d3132286f3d080f80ee4770fbeb18ae4cf38dbc1321b631475cfa5"
+    "sha256": "07a181eb3da646efd8f58b5cb197fb397ed95859074cb044b43a65a0f37f50b4"
   },
-  "method": "largest rasterized source-polygon pixel overlap; lexical tie break",
+  "method": "largest rasterized source-polygon pixel overlap; documented Bavaria-to-Burgundian-Netherlands correction; lexical tie break",
   "assignments": [
     {
       "province_id": 1,
@@ -34,8 +34,8 @@
       "province_key": "barcelona",
       "polity_name": "Crown of Aragon",
       "resolution": "polygon",
-      "overlap_pixels": 355,
-      "province_pixels": 384
+      "overlap_pixels": 458,
+      "province_pixels": 487
     },
     {
       "province_id": 4,
@@ -82,8 +82,8 @@
       "province_key": "zaragoza",
       "polity_name": "Crown of Aragon",
       "resolution": "polygon",
-      "overlap_pixels": 3541,
-      "province_pixels": 3548
+      "overlap_pixels": 3630,
+      "province_pixels": 3637
     },
     {
       "province_id": 10,
@@ -122,8 +122,8 @@
       "province_key": "rouen",
       "polity_name": "Kingdom of France",
       "resolution": "polygon",
-      "overlap_pixels": 1132,
-      "province_pixels": 1199
+      "overlap_pixels": 1134,
+      "province_pixels": 1203
     },
     {
       "province_id": 15,
@@ -170,16 +170,16 @@
       "province_key": "geneva",
       "polity_name": "County of Savoy",
       "resolution": "polygon",
-      "overlap_pixels": 484,
-      "province_pixels": 513
+      "overlap_pixels": 482,
+      "province_pixels": 502
     },
     {
       "province_id": 21,
       "province_key": "amsterdam",
-      "polity_name": "Duchy of Bavaria",
+      "polity_name": "Burgundian Netherlands",
       "resolution": "polygon",
-      "overlap_pixels": 253,
-      "province_pixels": 371
+      "overlap_pixels": 252,
+      "province_pixels": 370
     },
     {
       "province_id": 22,
@@ -218,16 +218,16 @@
       "province_key": "brussels",
       "polity_name": "Duchy of Burgundy",
       "resolution": "polygon",
-      "overlap_pixels": 285,
-      "province_pixels": 285
+      "overlap_pixels": 286,
+      "province_pixels": 286
     },
     {
       "province_id": 27,
       "province_key": "munich",
       "polity_name": "Duchy of Bavaria",
       "resolution": "polygon",
-      "overlap_pixels": 943,
-      "province_pixels": 943
+      "overlap_pixels": 940,
+      "province_pixels": 940
     },
     {
       "province_id": 28,
@@ -250,7 +250,7 @@
       "province_key": "tunis",
       "polity_name": "Hafsid Dynasty",
       "resolution": "polygon",
-      "overlap_pixels": 295,
+      "overlap_pixels": 298,
       "province_pixels": 312
     },
     {
@@ -258,8 +258,8 @@
       "province_key": "lyon",
       "polity_name": "House of Bourbon",
       "resolution": "polygon",
-      "overlap_pixels": 205,
-      "province_pixels": 477
+      "overlap_pixels": 203,
+      "province_pixels": 473
     },
     {
       "province_id": 32,
@@ -304,7 +304,7 @@
     {
       "province_id": 37,
       "province_key": "the_hague",
-      "polity_name": "Duchy of Bavaria",
+      "polity_name": "Burgundian Netherlands",
       "resolution": "polygon",
       "overlap_pixels": 121,
       "province_pixels": 121
@@ -322,8 +322,8 @@
       "province_key": "bordeaux",
       "polity_name": "Kingdom of England",
       "resolution": "polygon",
-      "overlap_pixels": 1560,
-      "province_pixels": 1842
+      "overlap_pixels": 1564,
+      "province_pixels": 1849
     },
     {
       "province_id": 40,
@@ -338,7 +338,7 @@
       "province_key": "annaba",
       "polity_name": "Hafsid Dynasty",
       "resolution": "polygon",
-      "overlap_pixels": 253,
+      "overlap_pixels": 255,
       "province_pixels": 268
     },
     {
@@ -370,8 +370,8 @@
       "province_key": "le_havre",
       "polity_name": "Kingdom of France",
       "resolution": "polygon",
-      "overlap_pixels": 163,
-      "province_pixels": 176
+      "overlap_pixels": 152,
+      "province_pixels": 170
     },
     {
       "province_id": 46,
@@ -386,8 +386,8 @@
       "province_key": "stuttgart",
       "polity_name": "Holy Roman Empire Minor States",
       "resolution": "coarse_group",
-      "overlap_pixels": 1175,
-      "province_pixels": 1233
+      "overlap_pixels": 993,
+      "province_pixels": 1056
     },
     {
       "province_id": 48,
@@ -395,7 +395,7 @@
       "polity_name": "Holy Roman Empire Minor States",
       "resolution": "coarse_group",
       "overlap_pixels": 240,
-      "province_pixels": 356
+      "province_pixels": 347
     },
     {
       "province_id": 49,
@@ -410,13 +410,13 @@
       "province_key": "lille",
       "polity_name": "Duchy of Burgundy",
       "resolution": "polygon",
-      "overlap_pixels": 585,
-      "province_pixels": 585
+      "overlap_pixels": 635,
+      "province_pixels": 635
     },
     {
       "province_id": 51,
       "province_key": "rotterdam",
-      "polity_name": "Duchy of Bavaria",
+      "polity_name": "Burgundian Netherlands",
       "resolution": "polygon",
       "overlap_pixels": 204,
       "province_pixels": 204
@@ -434,16 +434,16 @@
       "province_key": "nice",
       "polity_name": "County of Savoy",
       "resolution": "polygon",
-      "overlap_pixels": 321,
-      "province_pixels": 821
+      "overlap_pixels": 322,
+      "province_pixels": 813
     },
     {
       "province_id": 54,
       "province_key": "antwerpen",
       "polity_name": "Duchy of Burgundy",
       "resolution": "polygon",
-      "overlap_pixels": 597,
-      "province_pixels": 604
+      "overlap_pixels": 594,
+      "province_pixels": 601
     },
     {
       "province_id": 55,
@@ -466,8 +466,8 @@
       "province_key": "toulouse",
       "polity_name": "Kingdom of France",
       "resolution": "polygon",
-      "overlap_pixels": 1852,
-      "province_pixels": 2254
+      "overlap_pixels": 1833,
+      "province_pixels": 2239
     },
     {
       "province_id": 58,
@@ -482,8 +482,8 @@
       "province_key": "nurnberg",
       "polity_name": "Electorate of Trier",
       "resolution": "polygon",
-      "overlap_pixels": 353,
-      "province_pixels": 496
+      "overlap_pixels": 697,
+      "province_pixels": 769
     },
     {
       "province_id": 60,
@@ -514,8 +514,8 @@
       "province_key": "strasbourg",
       "polity_name": "Holy Roman Empire Minor States",
       "resolution": "coarse_group",
-      "overlap_pixels": 1000,
-      "province_pixels": 1017
+      "overlap_pixels": 984,
+      "province_pixels": 997
     },
     {
       "province_id": 64,
@@ -538,7 +538,7 @@
       "province_key": "palma",
       "polity_name": "Crown of Aragon",
       "resolution": "polygon",
-      "overlap_pixels": 521,
+      "overlap_pixels": 524,
       "province_pixels": 541
     },
     {
@@ -562,15 +562,15 @@
       "province_key": "pamplona",
       "polity_name": "Crown of Aragon",
       "resolution": "polygon",
-      "overlap_pixels": 1493,
-      "province_pixels": 1508
+      "overlap_pixels": 1474,
+      "province_pixels": 1493
     },
     {
       "province_id": 70,
       "province_key": "arhus",
       "polity_name": "Kalmar Union",
       "resolution": "coarse_group",
-      "overlap_pixels": 528,
+      "overlap_pixels": 523,
       "province_pixels": 548
     },
     {
@@ -602,8 +602,8 @@
       "province_key": "limoges",
       "polity_name": "County of Touraine",
       "resolution": "polygon",
-      "overlap_pixels": 1114,
-      "province_pixels": 1251
+      "overlap_pixels": 1133,
+      "province_pixels": 1273
     },
     {
       "province_id": 75,
@@ -634,8 +634,8 @@
       "province_key": "luxembourg",
       "polity_name": "Duchy of Luxembourg",
       "resolution": "polygon",
-      "overlap_pixels": 202,
-      "province_pixels": 223
+      "overlap_pixels": 205,
+      "province_pixels": 236
     },
     {
       "province_id": 79,
@@ -666,16 +666,16 @@
       "province_key": "andorra",
       "polity_name": "Crown of Aragon",
       "resolution": "polygon",
-      "overlap_pixels": 1571,
-      "province_pixels": 1998
+      "overlap_pixels": 795,
+      "province_pixels": 1174
     },
     {
       "province_id": 83,
       "province_key": "monaco",
       "polity_name": "County of Savoy",
       "resolution": "polygon",
-      "overlap_pixels": 266,
-      "province_pixels": 641
+      "overlap_pixels": 244,
+      "province_pixels": 642
     },
     {
       "province_id": 84,
@@ -706,8 +706,8 @@
       "province_key": "basel",
       "polity_name": "Holy Roman Empire Minor States",
       "resolution": "coarse_group",
-      "overlap_pixels": 103,
-      "province_pixels": 103
+      "overlap_pixels": 101,
+      "province_pixels": 101
     },
     {
       "province_id": 88,
@@ -722,8 +722,8 @@
       "province_key": "saarbrucken",
       "polity_name": "Holy Roman Empire Minor States",
       "resolution": "coarse_group",
-      "overlap_pixels": 327,
-      "province_pixels": 720
+      "overlap_pixels": 346,
+      "province_pixels": 752
     },
     {
       "province_id": 90,
@@ -810,7 +810,7 @@
       "province_key": "nantes",
       "polity_name": "Duchy of Brittany",
       "resolution": "polygon",
-      "overlap_pixels": 600,
+      "overlap_pixels": 616,
       "province_pixels": 746
     },
     {
@@ -826,7 +826,7 @@
       "province_key": "metz",
       "polity_name": "Holy Roman Empire Minor States",
       "resolution": "coarse_group",
-      "overlap_pixels": 286,
+      "overlap_pixels": 287,
       "province_pixels": 327
     },
     {
@@ -866,7 +866,7 @@
       "province_key": "toulon",
       "polity_name": "House of Valois-Anjou",
       "resolution": "polygon",
-      "overlap_pixels": 622,
+      "overlap_pixels": 616,
       "province_pixels": 688
     },
     {
@@ -880,7 +880,7 @@
     {
       "province_id": 109,
       "province_key": "haarlem",
-      "polity_name": "Duchy of Bavaria",
+      "polity_name": "Burgundian Netherlands",
       "resolution": "polygon",
       "overlap_pixels": 178,
       "province_pixels": 184
@@ -890,16 +890,16 @@
       "province_key": "verona",
       "polity_name": "Republic of Venice",
       "resolution": "polygon",
-      "overlap_pixels": 1284,
-      "province_pixels": 1292
+      "overlap_pixels": 1266,
+      "province_pixels": 1274
     },
     {
       "province_id": 111,
       "province_key": "charleroi",
-      "polity_name": "Duchy of Bavaria",
-      "resolution": "polygon",
-      "overlap_pixels": 168,
-      "province_pixels": 319
+      "polity_name": "Holy Roman Empire Minor States",
+      "resolution": "coarse_group",
+      "overlap_pixels": 216,
+      "province_pixels": 431
     },
     {
       "province_id": 112,
@@ -930,7 +930,7 @@
       "province_key": "kingston_upon_hull",
       "polity_name": "Kingdom of England",
       "resolution": "polygon",
-      "overlap_pixels": 487,
+      "overlap_pixels": 486,
       "province_pixels": 493
     },
     {
@@ -938,7 +938,7 @@
       "province_key": "cagliari",
       "polity_name": "Crown of Aragon",
       "resolution": "polygon",
-      "overlap_pixels": 1120,
+      "overlap_pixels": 1129,
       "province_pixels": 1130
     },
     {
@@ -970,32 +970,32 @@
       "province_key": "nancy",
       "polity_name": "House of Valois-Anjou",
       "resolution": "polygon",
-      "overlap_pixels": 1376,
-      "province_pixels": 1678
+      "overlap_pixels": 1455,
+      "province_pixels": 1752
     },
     {
       "province_id": 121,
       "province_key": "lausanne",
       "polity_name": "County of Savoy",
       "resolution": "polygon",
-      "overlap_pixels": 300,
-      "province_pixels": 306
+      "overlap_pixels": 319,
+      "province_pixels": 319
     },
     {
       "province_id": 122,
       "province_key": "saint_etienne",
       "polity_name": "House of Bourbon",
       "resolution": "polygon",
-      "overlap_pixels": 809,
-      "province_pixels": 992
+      "overlap_pixels": 806,
+      "province_pixels": 989
     },
     {
       "province_id": 123,
       "province_key": "freiburg",
       "polity_name": "House of Habsburg",
       "resolution": "polygon",
-      "overlap_pixels": 338,
-      "province_pixels": 338
+      "overlap_pixels": 355,
+      "province_pixels": 355
     },
     {
       "province_id": 124,
@@ -1010,7 +1010,7 @@
       "province_key": "tours",
       "polity_name": "Kingdom of France",
       "resolution": "polygon",
-      "overlap_pixels": 578,
+      "overlap_pixels": 584,
       "province_pixels": 742
     },
     {
@@ -1082,8 +1082,8 @@
       "province_key": "mulhouse",
       "polity_name": "House of Habsburg",
       "resolution": "polygon",
-      "overlap_pixels": 307,
-      "province_pixels": 341
+      "overlap_pixels": 325,
+      "province_pixels": 379
     },
     {
       "province_id": 135,
@@ -1098,7 +1098,7 @@
       "province_key": "pisa",
       "polity_name": "Holy Roman Empire Minor States",
       "resolution": "coarse_group",
-      "overlap_pixels": 196,
+      "overlap_pixels": 192,
       "province_pixels": 419
     },
     {
@@ -1114,16 +1114,16 @@
       "province_key": "bergamo",
       "polity_name": "Republic of Venice",
       "resolution": "polygon",
-      "overlap_pixels": 736,
-      "province_pixels": 759
+      "overlap_pixels": 737,
+      "province_pixels": 760
     },
     {
       "province_id": 139,
       "province_key": "reims",
       "polity_name": "Kingdom of France",
       "resolution": "polygon",
-      "overlap_pixels": 1946,
-      "province_pixels": 2139
+      "overlap_pixels": 1894,
+      "province_pixels": 2095
     },
     {
       "province_id": 140,
@@ -1146,8 +1146,8 @@
       "province_key": "caen",
       "polity_name": "Kingdom of England",
       "resolution": "polygon",
-      "overlap_pixels": 1102,
-      "province_pixels": 1421
+      "overlap_pixels": 1104,
+      "province_pixels": 1423
     },
     {
       "province_id": 143,
@@ -1178,8 +1178,8 @@
       "province_key": "ulm",
       "polity_name": "Holy Roman Empire Minor States",
       "resolution": "coarse_group",
-      "overlap_pixels": 215,
-      "province_pixels": 345
+      "overlap_pixels": 637,
+      "province_pixels": 800
     },
     {
       "province_id": 147,
@@ -1210,8 +1210,8 @@
       "province_key": "wurzburg",
       "polity_name": "Holy Roman Empire Minor States",
       "resolution": "coarse_group",
-      "overlap_pixels": 1560,
-      "province_pixels": 1570
+      "overlap_pixels": 1542,
+      "province_pixels": 1552
     },
     {
       "province_id": 151,
@@ -1227,7 +1227,7 @@
       "polity_name": "Duchy of Bavaria",
       "resolution": "polygon",
       "overlap_pixels": 534,
-      "province_pixels": 706
+      "province_pixels": 542
     },
     {
       "province_id": 153,
@@ -1274,8 +1274,8 @@
       "province_key": "innsbruck",
       "polity_name": "House of Habsburg",
       "resolution": "polygon",
-      "overlap_pixels": 917,
-      "province_pixels": 1004
+      "overlap_pixels": 916,
+      "province_pixels": 1007
     },
     {
       "province_id": 159,
@@ -1402,8 +1402,8 @@
       "province_key": "tarragona",
       "polity_name": "Crown of Aragon",
       "resolution": "polygon",
-      "overlap_pixels": 1291,
-      "province_pixels": 1389
+      "overlap_pixels": 1678,
+      "province_pixels": 1776
     },
     {
       "province_id": 175,
@@ -1458,8 +1458,8 @@
       "province_key": "trento",
       "polity_name": "Holy Roman Empire Minor States",
       "resolution": "coarse_group",
-      "overlap_pixels": 882,
-      "province_pixels": 933
+      "overlap_pixels": 899,
+      "province_pixels": 950
     },
     {
       "province_id": 182,
@@ -1474,16 +1474,16 @@
       "province_key": "namur",
       "polity_name": "Duchy of Burgundy",
       "resolution": "polygon",
-      "overlap_pixels": 477,
-      "province_pixels": 622
+      "overlap_pixels": 458,
+      "province_pixels": 612
     },
     {
       "province_id": 184,
       "province_key": "lugano",
       "polity_name": "Duchy of Milan",
       "resolution": "polygon",
-      "overlap_pixels": 275,
-      "province_pixels": 275
+      "overlap_pixels": 276,
+      "province_pixels": 276
     },
     {
       "province_id": 185,
@@ -1634,7 +1634,7 @@
       "province_key": "scarborough",
       "polity_name": "Kingdom of England",
       "resolution": "polygon",
-      "overlap_pixels": 225,
+      "overlap_pixels": 216,
       "province_pixels": 231
     },
     {
@@ -1650,8 +1650,8 @@
       "province_key": "troyes",
       "polity_name": "Kingdom of France",
       "resolution": "polygon",
-      "overlap_pixels": 1607,
-      "province_pixels": 1640
+      "overlap_pixels": 1609,
+      "province_pixels": 1636
     },
     {
       "province_id": 206,
@@ -1682,7 +1682,7 @@
       "province_key": "beja_tunisia",
       "polity_name": "Hafsid Dynasty",
       "resolution": "polygon",
-      "overlap_pixels": 496,
+      "overlap_pixels": 502,
       "province_pixels": 527
     },
     {
@@ -1698,16 +1698,16 @@
       "province_key": "hof",
       "polity_name": "Holy Roman Empire Minor States",
       "resolution": "coarse_group",
-      "overlap_pixels": 241,
-      "province_pixels": 561
+      "overlap_pixels": 236,
+      "province_pixels": 366
     },
     {
       "province_id": 212,
       "province_key": "brive",
       "polity_name": "County of P\u00e9rigord",
       "resolution": "polygon",
-      "overlap_pixels": 1729,
-      "province_pixels": 1930
+      "overlap_pixels": 1707,
+      "province_pixels": 1908
     },
     {
       "province_id": 213,
@@ -1722,7 +1722,7 @@
       "province_key": "siena",
       "polity_name": "Holy Roman Empire Minor States",
       "resolution": "coarse_group",
-      "overlap_pixels": 778,
+      "overlap_pixels": 772,
       "province_pixels": 820
     },
     {
@@ -1746,15 +1746,15 @@
       "province_key": "nevers",
       "polity_name": "County of Nevers",
       "resolution": "polygon",
-      "overlap_pixels": 928,
-      "province_pixels": 928
+      "overlap_pixels": 924,
+      "province_pixels": 924
     },
     {
       "province_id": 218,
       "province_key": "olbia",
       "polity_name": "Crown of Aragon",
       "resolution": "polygon",
-      "overlap_pixels": 675,
+      "overlap_pixels": 673,
       "province_pixels": 675
     },
     {
@@ -1770,8 +1770,8 @@
       "province_key": "vichy",
       "polity_name": "House of Bourbon",
       "resolution": "polygon",
-      "overlap_pixels": 975,
-      "province_pixels": 975
+      "overlap_pixels": 979,
+      "province_pixels": 979
     },
     {
       "province_id": 221,
@@ -1802,7 +1802,7 @@
       "province_key": "bastia",
       "polity_name": "Crown of Aragon",
       "resolution": "polygon",
-      "overlap_pixels": 345,
+      "overlap_pixels": 350,
       "province_pixels": 350
     },
     {
@@ -1810,7 +1810,7 @@
       "province_key": "perth",
       "polity_name": "Kingdom of Scotland",
       "resolution": "polygon",
-      "overlap_pixels": 861,
+      "overlap_pixels": 857,
       "province_pixels": 871
     },
     {
@@ -1818,7 +1818,7 @@
       "province_key": "dundalk",
       "polity_name": "Kingdom of England",
       "resolution": "polygon",
-      "overlap_pixels": 90,
+      "overlap_pixels": 96,
       "province_pixels": 262
     },
     {
@@ -1842,15 +1842,15 @@
       "province_key": "vaduz",
       "polity_name": "Holy Roman Empire Minor States",
       "resolution": "coarse_group",
-      "overlap_pixels": 133,
-      "province_pixels": 144
+      "overlap_pixels": 135,
+      "province_pixels": 145
     },
     {
       "province_id": 230,
       "province_key": "douglas",
       "polity_name": "Kingdom of England",
       "resolution": "polygon",
-      "overlap_pixels": 147,
+      "overlap_pixels": 82,
       "province_pixels": 169
     },
     {
@@ -1882,7 +1882,7 @@
       "province_key": "kilkenny",
       "polity_name": "Earldom of Desmond",
       "resolution": "polygon",
-      "overlap_pixels": 603,
+      "overlap_pixels": 607,
       "province_pixels": 1082
     },
     {
@@ -1922,7 +1922,7 @@
       "province_key": "kirkwall",
       "polity_name": "Kalmar Union",
       "resolution": "coarse_group",
-      "overlap_pixels": 89,
+      "overlap_pixels": 88,
       "province_pixels": 109
     },
     {
@@ -2018,15 +2018,15 @@
       "province_key": "gent",
       "polity_name": "Duchy of Burgundy",
       "resolution": "polygon",
-      "overlap_pixels": 393,
-      "province_pixels": 393
+      "overlap_pixels": 406,
+      "province_pixels": 406
     },
     {
       "province_id": 252,
       "province_key": "bournemouth",
       "polity_name": "Kingdom of England",
       "resolution": "polygon",
-      "overlap_pixels": 357,
+      "overlap_pixels": 352,
       "province_pixels": 364
     },
     {
@@ -2058,8 +2058,8 @@
       "province_key": "karlsruhe",
       "polity_name": "Holy Roman Empire Minor States",
       "resolution": "coarse_group",
-      "overlap_pixels": 528,
-      "province_pixels": 910
+      "overlap_pixels": 529,
+      "province_pixels": 897
     },
     {
       "province_id": 257,
@@ -2074,15 +2074,15 @@
       "province_key": "augsburg",
       "polity_name": "Duchy of Bavaria",
       "resolution": "polygon",
-      "overlap_pixels": 1029,
-      "province_pixels": 1113
+      "overlap_pixels": 1025,
+      "province_pixels": 1043
     },
     {
       "province_id": 259,
       "province_key": "gijon",
       "polity_name": "Crown of Castile",
       "resolution": "polygon",
-      "overlap_pixels": 304,
+      "overlap_pixels": 300,
       "province_pixels": 380
     },
     {
@@ -2138,8 +2138,8 @@
       "province_key": "furth",
       "polity_name": "Electorate of Brandenburg",
       "resolution": "polygon",
-      "overlap_pixels": 406,
-      "province_pixels": 570
+      "overlap_pixels": 436,
+      "province_pixels": 656
     },
     {
       "province_id": 267,
@@ -2186,8 +2186,8 @@
       "province_key": "mataro",
       "polity_name": "Crown of Aragon",
       "resolution": "polygon",
-      "overlap_pixels": 490,
-      "province_pixels": 543
+      "overlap_pixels": 585,
+      "province_pixels": 638
     },
     {
       "province_id": 273,
@@ -2210,24 +2210,24 @@
       "province_key": "aix_en_provence",
       "polity_name": "House of Valois-Anjou",
       "resolution": "polygon",
-      "overlap_pixels": 1225,
-      "province_pixels": 1234
+      "overlap_pixels": 1229,
+      "province_pixels": 1238
     },
     {
       "province_id": 276,
       "province_key": "perpignan",
       "polity_name": "Crown of Aragon",
       "resolution": "polygon",
-      "overlap_pixels": 689,
-      "province_pixels": 780
+      "overlap_pixels": 754,
+      "province_pixels": 845
     },
     {
       "province_id": 277,
       "province_key": "biarritz",
       "polity_name": "Kingdom of England",
       "resolution": "polygon",
-      "overlap_pixels": 633,
-      "province_pixels": 788
+      "overlap_pixels": 669,
+      "province_pixels": 796
     },
     {
       "province_id": 278,
@@ -2242,8 +2242,8 @@
       "province_key": "besancon",
       "polity_name": "Duchy of Burgundy",
       "resolution": "polygon",
-      "overlap_pixels": 1529,
-      "province_pixels": 1599
+      "overlap_pixels": 1759,
+      "province_pixels": 1829
     },
     {
       "province_id": 280,
@@ -2266,15 +2266,15 @@
       "province_key": "novara",
       "polity_name": "Duchy of Milan",
       "resolution": "polygon",
-      "overlap_pixels": 458,
-      "province_pixels": 632
+      "overlap_pixels": 461,
+      "province_pixels": 635
     },
     {
       "province_id": 283,
       "province_key": "chester",
       "polity_name": "Kingdom of England",
       "resolution": "polygon",
-      "overlap_pixels": 1372,
+      "overlap_pixels": 1378,
       "province_pixels": 1385
     },
     {
@@ -2290,8 +2290,8 @@
       "province_key": "biel",
       "polity_name": "Swiss Confederation",
       "resolution": "polygon",
-      "overlap_pixels": 97,
-      "province_pixels": 97
+      "overlap_pixels": 128,
+      "province_pixels": 137
     },
     {
       "province_id": 286,
@@ -2306,8 +2306,8 @@
       "province_key": "roanne",
       "polity_name": "Duchy of Burgundy",
       "resolution": "polygon",
-      "overlap_pixels": 740,
-      "province_pixels": 751
+      "overlap_pixels": 747,
+      "province_pixels": 758
     },
     {
       "province_id": 288,
@@ -2323,7 +2323,7 @@
       "polity_name": "Duchy of Milan",
       "resolution": "polygon",
       "overlap_pixels": 462,
-      "province_pixels": 698
+      "province_pixels": 699
     },
     {
       "province_id": 290,
@@ -2354,8 +2354,8 @@
       "province_key": "tarbes",
       "polity_name": "County of Armagnac",
       "resolution": "polygon",
-      "overlap_pixels": 715,
-      "province_pixels": 1773
+      "overlap_pixels": 710,
+      "province_pixels": 1873
     },
     {
       "province_id": 294,
@@ -2386,8 +2386,8 @@
       "province_key": "chur",
       "polity_name": "Holy Roman Empire Minor States",
       "resolution": "coarse_group",
-      "overlap_pixels": 786,
-      "province_pixels": 841
+      "overlap_pixels": 770,
+      "province_pixels": 825
     },
     {
       "province_id": 298,
@@ -2426,7 +2426,7 @@
       "province_key": "fort_william",
       "polity_name": "Kingdom of Scotland",
       "resolution": "polygon",
-      "overlap_pixels": 2530,
+      "overlap_pixels": 2529,
       "province_pixels": 2642
     },
     {
@@ -2498,8 +2498,8 @@
       "province_key": "s_hertogenbosch",
       "polity_name": "Duchy of Burgundy",
       "resolution": "polygon",
-      "overlap_pixels": 259,
-      "province_pixels": 307
+      "overlap_pixels": 263,
+      "province_pixels": 311
     },
     {
       "province_id": 312,
@@ -2528,17 +2528,17 @@
     {
       "province_id": 315,
       "province_key": "mons",
-      "polity_name": "Duchy of Bavaria",
+      "polity_name": "Burgundian Netherlands",
       "resolution": "polygon",
-      "overlap_pixels": 256,
-      "province_pixels": 463
+      "overlap_pixels": 242,
+      "province_pixels": 335
     },
     {
       "province_id": 316,
       "province_key": "saint_gallen",
       "polity_name": "Holy Roman Empire Minor States",
       "resolution": "coarse_group",
-      "overlap_pixels": 255,
+      "overlap_pixels": 258,
       "province_pixels": 268
     },
     {
@@ -2594,13 +2594,13 @@
       "province_key": "vejle",
       "polity_name": "Kalmar Union",
       "resolution": "coarse_group",
-      "overlap_pixels": 614,
+      "overlap_pixels": 615,
       "province_pixels": 626
     },
     {
       "province_id": 324,
       "province_key": "middelburg",
-      "polity_name": "Duchy of Bavaria",
+      "polity_name": "Burgundian Netherlands",
       "resolution": "polygon",
       "overlap_pixels": 70,
       "province_pixels": 104
@@ -2626,7 +2626,7 @@
       "province_key": "braganca",
       "polity_name": "Kingdom of Portugal",
       "resolution": "polygon",
-      "overlap_pixels": 650,
+      "overlap_pixels": 664,
       "province_pixels": 972
     },
     {
@@ -2634,16 +2634,16 @@
       "province_key": "aosta",
       "polity_name": "County of Savoy",
       "resolution": "polygon",
-      "overlap_pixels": 1431,
-      "province_pixels": 1471
+      "overlap_pixels": 1436,
+      "province_pixels": 1479
     },
     {
       "province_id": 329,
       "province_key": "schaffhausen",
       "polity_name": "Holy Roman Empire Minor States",
       "resolution": "coarse_group",
-      "overlap_pixels": 432,
-      "province_pixels": 459
+      "overlap_pixels": 443,
+      "province_pixels": 456
     },
     {
       "province_id": 330,
@@ -2658,8 +2658,8 @@
       "province_key": "fribourg",
       "polity_name": "Holy Roman Empire Minor States",
       "resolution": "coarse_group",
-      "overlap_pixels": 167,
-      "province_pixels": 167
+      "overlap_pixels": 174,
+      "province_pixels": 174
     },
     {
       "province_id": 332,
@@ -2672,10 +2672,10 @@
     {
       "province_id": 333,
       "province_key": "neuchatel",
-      "polity_name": "Duchy of Burgundy",
-      "resolution": "polygon",
-      "overlap_pixels": 303,
-      "province_pixels": 462
+      "polity_name": "Holy Roman Empire Minor States",
+      "resolution": "coarse_group",
+      "overlap_pixels": 126,
+      "province_pixels": 141
     },
     {
       "province_id": 334,
@@ -2698,8 +2698,8 @@
       "province_key": "sion",
       "polity_name": "Holy Roman Empire Minor States",
       "resolution": "coarse_group",
-      "overlap_pixels": 585,
-      "province_pixels": 585
+      "overlap_pixels": 578,
+      "province_pixels": 578
     },
     {
       "province_id": 337,
@@ -2714,8 +2714,8 @@
       "province_key": "bregenz",
       "polity_name": "Holy Roman Empire Minor States",
       "resolution": "coarse_group",
-      "overlap_pixels": 902,
-      "province_pixels": 993
+      "overlap_pixels": 723,
+      "province_pixels": 802
     },
     {
       "province_id": 339,
@@ -2730,8 +2730,8 @@
       "province_key": "arlon",
       "polity_name": "Duchy of Luxembourg",
       "resolution": "polygon",
-      "overlap_pixels": 661,
-      "province_pixels": 1204
+      "overlap_pixels": 679,
+      "province_pixels": 1120
     },
     {
       "province_id": 341,
@@ -2746,8 +2746,8 @@
       "province_key": "frauenfeld",
       "polity_name": "Holy Roman Empire Minor States",
       "resolution": "coarse_group",
-      "overlap_pixels": 162,
-      "province_pixels": 226
+      "overlap_pixels": 172,
+      "province_pixels": 229
     },
     {
       "province_id": 343,
@@ -2770,8 +2770,8 @@
       "province_key": "bellinzona",
       "polity_name": "Duchy of Milan",
       "resolution": "polygon",
-      "overlap_pixels": 637,
-      "province_pixels": 639
+      "overlap_pixels": 652,
+      "province_pixels": 655
     },
     {
       "province_id": 346,
@@ -2802,8 +2802,8 @@
       "province_key": "solothurn",
       "polity_name": "Holy Roman Empire Minor States",
       "resolution": "coarse_group",
-      "overlap_pixels": 63,
-      "province_pixels": 63
+      "overlap_pixels": 64,
+      "province_pixels": 64
     },
     {
       "province_id": 350,
@@ -2818,8 +2818,8 @@
       "province_key": "liestal",
       "polity_name": "House of Habsburg",
       "resolution": "polygon",
-      "overlap_pixels": 72,
-      "province_pixels": 72
+      "overlap_pixels": 66,
+      "province_pixels": 66
     },
     {
       "province_id": 352,
@@ -2827,7 +2827,7 @@
       "polity_name": "Holy Roman Empire Minor States",
       "resolution": "coarse_group",
       "overlap_pixels": 115,
-      "province_pixels": 115
+      "province_pixels": 131
     },
     {
       "province_id": 353,
@@ -2835,7 +2835,7 @@
       "polity_name": "Swiss Confederation",
       "resolution": "polygon",
       "overlap_pixels": 227,
-      "province_pixels": 283
+      "province_pixels": 287
     },
     {
       "province_id": 354,
@@ -2874,7 +2874,7 @@
       "province_key": "muineachan",
       "polity_name": "Kingdom of England",
       "resolution": "polygon",
-      "overlap_pixels": 26,
+      "overlap_pixels": 19,
       "province_pixels": 769
     },
     {
@@ -2890,7 +2890,7 @@
       "province_key": "appenzell",
       "polity_name": "Holy Roman Empire Minor States",
       "resolution": "coarse_group",
-      "overlap_pixels": 184,
+      "overlap_pixels": 183,
       "province_pixels": 185
     },
     {
@@ -2898,7 +2898,7 @@
       "province_key": "ros_comain",
       "polity_name": "Earldom of Desmond",
       "resolution": "polygon",
-      "overlap_pixels": 28,
+      "overlap_pixels": 27,
       "province_pixels": 1063
     },
     {
@@ -2906,8 +2906,8 @@
       "province_key": "grevenmacher",
       "polity_name": "Holy Roman Empire Minor States",
       "resolution": "coarse_group",
-      "overlap_pixels": 446,
-      "province_pixels": 545
+      "overlap_pixels": 430,
+      "province_pixels": 533
     }
   ]
 }

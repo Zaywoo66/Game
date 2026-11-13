@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 150 100" role="img" aria-labelledby="title">
+  <title id="title">Simplified royal arms banner of France</title>
+  <rect width="150" height="100" fill="#234b88"/>
+  <g fill="#e4bd55">
+    <path d="M39 17c-4 5-10 8-10 14 0 4 3 6 7 6h1v10l-7 5 10-2 10 2-7-5V37h1c4 0 7-2 7-6 0-6-6-9-10-14z"/>
+    <path d="M111 17c-4 5-10 8-10 14 0 4 3 6 7 6h1v10l-7 5 10-2 10 2-7-5V37h1c4 0 7-2 7-6 0-6-6-9-10-14z"/>
+    <path d="M75 54c-4 5-10 8-10 14 0 4 3 6 7 6h1v10l-7 5 10-2 10 2-7-5V74h1c4 0 7-2 7-6 0-6-6-9-10-14z"/>
+  </g>
+  <rect x="2" y="2" width="146" height="96" fill="none" stroke="#e4bd55" stroke-width="4"/>
+</svg>

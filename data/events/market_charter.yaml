@@ -1,0 +1,14 @@
+key: market_charter
+title: event_market_charter_title
+desc: event_market_charter_desc
+trigger: {not: {at_war: true}}
+mean_time_to_happen: 24000
+options:
+  - text: event_peace_approve
+    ai_weight: 4
+    effects:
+      - add_modifier: {key: tax_income, value: 150, kind: multiplicative, duration_days: 365}
+  - text: event_peace_decline
+    ai_weight: 2
+    effects:
+      - add_modifier: {key: tax_income, value: 50, kind: multiplicative, duration_days: 730}

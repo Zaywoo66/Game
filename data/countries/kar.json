@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "tag": "kar",
+  "name": "Beylik of Karaman",
+  "color": [
+    169,
+    160,
+    197
+  ],
+  "capital": "karaman",
+  "ai_profile": "balanced",
+  "government": "monarchy",
+  "start": {
+    "ruler": "ibrahim_ii_karaman",
+    "heir": null,
+    "provinces": [
+      "adana",
+      "ank_r",
+      "ere_li",
+      "k_r_ehir",
+      "karaman",
+      "konya"
+    ],
+    "treasury": 65000,
+    "tax_rate": 220,
+    "monthly_spending": 4500
+  }
+}

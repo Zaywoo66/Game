@@ -1,0 +1,43 @@
+{
+  "schema_version": 1,
+  "tag": "prm",
+  "name": "Principality of Perm",
+  "color": [
+    161,
+    193,
+    177
+  ],
+  "capital": "berezniki",
+  "ai_profile": "balanced",
+  "government": "monarchy",
+  "start": {
+    "ruler": null,
+    "heir": null,
+    "provinces": [
+      "berezniki",
+      "eu_561_096",
+      "eu_576_096",
+      "eu_591_096",
+      "eu_606_096",
+      "eu_621_096",
+      "eu_636_081",
+      "eu_651_081",
+      "eu_651_096",
+      "eu_651_111",
+      "eu_666_096",
+      "eu_666_111",
+      "eu_666_126",
+      "eu_681_111",
+      "eu_696_111",
+      "eu_711_111",
+      "kotlas",
+      "kudymkar",
+      "severouralsk",
+      "syktyvkar",
+      "ukhta"
+    ],
+    "treasury": 50000,
+    "tax_rate": 220,
+    "monthly_spending": 3500
+  }
+}

@@ -7,7 +7,7 @@ use strategy_sim::{Command, Controller};
 
 fn scenario() -> strategy_sim::GameState {
     let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
-    let map = fs::read(root.join("map/western_europe/provinces.json")).unwrap();
+    let map = fs::read(root.join("map/europe/provinces.json")).unwrap();
     let graph = parse_provinces(&map).unwrap();
     load_scenario(graph, root.join("scenarios/1440.json")).unwrap()
 }
@@ -46,4 +46,41 @@ fn ai_buys_technologies_by_profile_through_validated_commands() {
     assert!(ai_countries
         .iter()
         .all(|(_, state)| state.known_technologies().any(|key| key == "recordkeeping")));
+}
+
+#[test]
+fn ai_buys_eligible_national_idea_with_validated_command() {
+    let mut state = scenario();
+    let france = state
+        .polity()
+        .unwrap()
+        .countries
+        .iter()
+        .find(|(_, nation)| nation.tag == "fra")
+        .map(|(&id, _)| id)
+        .unwrap();
+    let mut idea_commands = 0;
+    for _ in 0..800 {
+        let report = state
+            .tick(|state, country| {
+                decide(state, country, &mut AiContext::new(state, country))
+                    .into_iter()
+                    .map(|(command, reason)| {
+                        if matches!(reason, Reason::NationalIdea) {
+                            assert!(matches!(command, Command::UnlockIdea { .. }));
+                            idea_commands += 1;
+                        }
+                        command
+                    })
+                    .collect()
+            })
+            .unwrap();
+        assert!(report.ai_rejections.is_empty());
+    }
+    assert!(idea_commands > 0);
+    assert!(state
+        .ideas()
+        .unwrap()
+        .sources
+        .contains_key(&(france, "french_crown_lands".into())));
 }

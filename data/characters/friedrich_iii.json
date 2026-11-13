@@ -1,0 +1,19 @@
+{
+  "schema_version": 2,
+  "key": "friedrich_iii",
+  "country": "aus",
+  "name": "Friedrich III",
+  "dynasty": "habsburg",
+  "sex": "male",
+  "birth": [
+    1415,
+    9,
+    21
+  ],
+  "stats": {
+    "adm": 3,
+    "dip": 3,
+    "mil": 3
+  },
+  "traits": []
+}

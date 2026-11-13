@@ -78,6 +78,8 @@ impl PolityFile {
 struct CountryFile {
     id: u32,
     tag: String,
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    government: String,
     name: String,
     color: [u8; 3],
     capital: u32,
@@ -92,6 +94,7 @@ impl CountryFile {
         Self {
             id: id.get(),
             tag: country.tag.clone(),
+            government: country.government.clone(),
             name: country.name.clone(),
             color: country.color,
             capital: country.capital.get(),
@@ -111,6 +114,7 @@ impl CountryFile {
             CountryId::new(self.id),
             CountryPolity {
                 tag: self.tag,
+                government: self.government,
                 name: self.name,
                 color: self.color,
                 capital: ProvinceId::new(self.capital),
@@ -146,6 +150,8 @@ impl From<&EconomyState> for EconomyFile {
             },
             last_month: economy.last_month.as_ref().map(|budget| BudgetFile {
                 income: budget.income.raw(),
+                tribute_paid: budget.tribute_paid.raw(),
+                tribute_received: budget.tribute_received.raw(),
                 expenses: budget.expenses.raw(),
             }),
             bankrupt: economy.bankrupt,
@@ -163,6 +169,8 @@ impl From<EconomyFile> for EconomyState {
             },
             last_month: file.last_month.map(|budget| MonthlyBudget {
                 income: Fixed::from_raw(budget.income),
+                tribute_paid: Fixed::from_raw(budget.tribute_paid),
+                tribute_received: Fixed::from_raw(budget.tribute_received),
                 expenses: Fixed::from_raw(budget.expenses),
             }),
             bankrupt: file.bankrupt,
@@ -181,7 +189,15 @@ struct PolicyFile {
 #[serde(deny_unknown_fields)]
 struct BudgetFile {
     income: i64,
+    #[serde(default, skip_serializing_if = "is_zero_i64")]
+    tribute_paid: i64,
+    #[serde(default, skip_serializing_if = "is_zero_i64")]
+    tribute_received: i64,
     expenses: i64,
+}
+
+fn is_zero_i64(value: &i64) -> bool {
+    *value == 0
 }
 
 #[derive(Serialize, Deserialize)]
@@ -204,6 +220,8 @@ struct CharacterFile {
     sex: Option<CharacterSexFile>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     spouse: Option<u32>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    birth_precision: Option<BirthPrecisionFile>,
     birth: (u32, u8, u8),
     #[serde(deserialize_with = "required_optional")]
     death: Option<(u32, u8, u8)>,
@@ -220,6 +238,12 @@ enum CharacterSexFile {
     Female,
 }
 
+#[derive(Clone, Copy, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+enum BirthPrecisionFile {
+    Year,
+}
+
 impl CharacterFile {
     fn snapshot(id: CharacterId, character: &CharacterState) -> Self {
         Self {
@@ -233,6 +257,8 @@ impl CharacterFile {
                 strategy_sim::Sex::Female => Some(CharacterSexFile::Female),
             },
             spouse: character.spouse.map(CharacterId::get),
+            birth_precision: (character.birth_precision == strategy_sim::BirthPrecision::Year)
+                .then_some(BirthPrecisionFile::Year),
             birth: character.birth.components(),
             death: character.death.map(Date::components),
             stats: character.stats,
@@ -259,6 +285,10 @@ impl CharacterFile {
                 },
                 spouse: self.spouse.map(CharacterId::new),
                 birth: date(self.birth)?,
+                birth_precision: match self.birth_precision {
+                    None => strategy_sim::BirthPrecision::Day,
+                    Some(BirthPrecisionFile::Year) => strategy_sim::BirthPrecision::Year,
+                },
                 death: self.death.map(date).transpose()?,
                 stats: self.stats,
                 traits: self.traits.into_iter().collect(),

@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "tag": "brm",
+  "name": "City of Bremen",
+  "color": [
+    118,
+    126,
+    118
+  ],
+  "capital": "bremen",
+  "ai_profile": "balanced",
+  "government": "republic",
+  "start": {
+    "ruler": null,
+    "heir": null,
+    "provinces": [
+      "bremen"
+    ],
+    "treasury": 50000,
+    "tax_rate": 220,
+    "monthly_spending": 3500
+  }
+}

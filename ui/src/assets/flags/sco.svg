@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 150 100" role="img" aria-labelledby="title">
+  <title id="title">Simplified royal arms banner of Scotland</title>
+  <rect width="150" height="100" fill="#e8c657"/>
+  <path d="M10 10Q75 22 140 10v80Q75 78 10 90z" fill="none" stroke="#a6383e" stroke-width="4"/>
+  <path d="M16 17Q75 28 134 17v66Q75 72 16 83z" fill="none" stroke="#a6383e" stroke-width="2"/>
+  <path fill="#a6383e" stroke="#76313a" stroke-width="2" stroke-linejoin="round" d="M58 74l4-17-14-8 6-7 13 7 5-18 8 1 2 17 11-10 7 5-9 15 17 3-2 8-18 2-4 16-8-2-2-14-12 11zM84 33q4-17-9-19 1-8 13-3 11 7 3 24M56 46q-12-7-15 4 9 8 18 5"/>
+  <path fill="#e8c657" d="M68 38l9 2-3 15-10-3z"/>
+</svg>

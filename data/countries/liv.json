@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "tag": "liv",
+  "name": "Livonian Order",
+  "color": [
+    118,
+    188,
+    152
+  ],
+  "capital": "tartu",
+  "ai_profile": "balanced",
+  "government": "theocracy",
+  "start": {
+    "ruler": null,
+    "heir": null,
+    "provinces": [
+      "daugavpils",
+      "eu_381_156",
+      "p_rnu",
+      "r_zekne",
+      "tartu",
+      "viljandi"
+    ],
+    "treasury": 50000,
+    "tax_rate": 220,
+    "monthly_spending": 3500
+  }
+}

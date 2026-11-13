@@ -2,7 +2,7 @@ key: court_auditors
 title: event_court_auditors_title
 desc: event_court_auditors_desc
 trigger: {not: {at_war: true}}
-mean_time_to_happen: 900
+mean_time_to_happen: 18000
 options:
   - text: event_court_auditors_appoint
     ai_weight: 4

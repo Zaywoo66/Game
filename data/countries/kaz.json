@@ -1,0 +1,47 @@
+{
+  "schema_version": 1,
+  "tag": "kaz",
+  "name": "Khanate of Kazan",
+  "color": [
+    139,
+    198,
+    198
+  ],
+  "capital": "kazan",
+  "ai_profile": "balanced",
+  "government": "monarchy",
+  "start": {
+    "ruler": "ulugh_muhammad",
+    "heir": null,
+    "provinces": [
+      "alatyr",
+      "almetyevsk",
+      "chistopol",
+      "dimitrovgrad",
+      "eu_606_171",
+      "eu_621_141",
+      "eu_636_126",
+      "eu_636_141",
+      "eu_636_156",
+      "eu_666_141",
+      "eu_681_141",
+      "eu_681_156",
+      "glazov",
+      "izhevsk",
+      "kazan",
+      "kirov",
+      "kirs",
+      "kuznetsk",
+      "mozhga",
+      "neftekamsk",
+      "nizhnekamsk",
+      "syzran",
+      "tuymazy",
+      "ufa",
+      "ulyanovsk"
+    ],
+    "treasury": 60000,
+    "tax_rate": 210,
+    "monthly_spending": 4000
+  }
+}

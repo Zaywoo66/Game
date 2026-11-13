@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "tag": "bou",
+  "name": "House of Bourbon",
+  "color": [
+    191,
+    99,
+    191
+  ],
+  "capital": "vichy",
+  "ai_profile": "balanced",
+  "government": "monarchy",
+  "start": {
+    "ruler": "charles_i_bourbon",
+    "heir": null,
+    "provinces": [
+      "brive",
+      "clermont_ferrand",
+      "limoges",
+      "lyon",
+      "saint_etienne",
+      "vichy"
+    ],
+    "treasury": 65000,
+    "tax_rate": 220,
+    "monthly_spending": 4500
+  }
+}

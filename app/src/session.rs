@@ -9,14 +9,19 @@ use std::{
 };
 
 use serde::{Deserialize, Serialize};
+use strategy_ai::{
+    alliance_acceptance_factors, marriage_acceptance_factors, vassal_acceptance_factors,
+};
 use strategy_app::{
+    embedded_technologies,
     lan::{ClientPhase, HostConfig, LanClient, LanHost, LanMetrics},
     load_embedded_scenario, tick_host_with_log, AiDecisionLog,
 };
 use strategy_net::discover_rooms;
 use strategy_sim::{
-    ArmyId, Command, CommandActor, Controller, CountryId, Date, FiscalPolicy, Fixed, FleetId,
-    GameState, PlayerId, ProvinceId, Speed, TimeCommand, WarId,
+    ArmyId, Command, CommandActor, Controller, CountryId, Date, Effect, FiscalPolicy, Fixed,
+    FleetId, GameState, ModifierKind, PlayerId, ProvinceId, Speed, Tick, TimeCommand, WarId,
+    WarState,
 };
 use tauri::{App, AppHandle, Emitter, Manager, State};
 
@@ -91,6 +96,8 @@ struct CharacterView {
     name: String,
     dynasty: String,
     age: u32,
+    sex: &'static str,
+    spouse_id: Option<u32>,
     adm: u8,
     dip: u8,
     mil: u8,
@@ -108,6 +115,8 @@ struct CountryView {
     capital: String,
     treasury: String,
     income: String,
+    tribute_paid: String,
+    tribute_received: String,
     expenses: String,
     tax_rate: i64,
     monthly_spending: String,
@@ -115,6 +124,76 @@ struct CountryView {
     regency: bool,
     ruler: Option<CharacterView>,
     heir: Option<CharacterView>,
+    research_points: Option<u32>,
+    known_technologies: Vec<String>,
+    known_ideas: Vec<String>,
+    government: String,
+    known_reforms: Vec<String>,
+    chosen_reform_tiers: Vec<u16>,
+}
+
+#[derive(Clone, PartialEq, Eq, Serialize)]
+struct AcceptanceFactorView {
+    key: &'static str,
+    value: i32,
+}
+
+#[derive(Clone, PartialEq, Eq, Serialize)]
+struct ProposalAcceptanceView {
+    outcome: &'static str,
+    factors: Vec<AcceptanceFactorView>,
+}
+
+#[derive(Clone, PartialEq, Eq, Serialize)]
+struct CountryAcceptancePreviewView {
+    country_id: u32,
+    alliance: ProposalAcceptanceView,
+    vassalage: ProposalAcceptanceView,
+    marriage: Option<ProposalAcceptanceView>,
+}
+
+#[derive(Serialize)]
+struct TechnologyEffectView {
+    key: String,
+    value: String,
+    kind: &'static str,
+    source_key: String,
+}
+
+#[derive(Serialize)]
+struct TechnologyView {
+    key: String,
+    branch: String,
+    cost: u32,
+    requires: Vec<String>,
+    pos_x: i32,
+    pos_y: i32,
+    effects: Vec<TechnologyEffectView>,
+}
+
+#[derive(Serialize)]
+struct IdeaEffectView {
+    key: String,
+    value: String,
+    kind: &'static str,
+}
+
+#[derive(Serialize)]
+struct IdeaView {
+    key: String,
+    country: String,
+    name_key: String,
+    available_countries: Vec<u32>,
+    effects: Vec<IdeaEffectView>,
+}
+
+#[derive(Serialize)]
+struct ReformView {
+    key: String,
+    government: String,
+    tier: u16,
+    ai_weight: u16,
+    effects: Vec<IdeaEffectView>,
 }
 
 #[derive(Clone, PartialEq, Eq, Serialize)]
@@ -161,6 +240,14 @@ struct FleetView {
 }
 
 #[derive(Clone, PartialEq, Eq, Serialize)]
+struct ShipyardView {
+    port_province_id: u32,
+    sea_province_id: u32,
+    country_id: u32,
+    days_remaining: u8,
+}
+
+#[derive(Clone, PartialEq, Eq, Serialize)]
 struct PeaceView {
     offered_by: u32,
     cede_goal: bool,
@@ -174,6 +261,7 @@ struct WarView {
     attacker_supporters: Vec<u32>,
     defender_supporters: Vec<u32>,
     goal_province_id: u32,
+    independence: bool,
     score: i32,
     occupations: Vec<OwnerView>,
     offer: Option<PeaceView>,
@@ -200,6 +288,66 @@ struct GuaranteeView {
     protected_id: u32,
 }
 
+#[derive(Clone, PartialEq, Eq, Serialize)]
+struct AllianceView {
+    a_id: u32,
+    b_id: u32,
+}
+
+#[derive(Clone, PartialEq, Eq, Serialize)]
+struct AllianceOfferView {
+    from_id: u32,
+    toward_id: u32,
+    expires_at: String,
+}
+
+#[derive(Clone, PartialEq, Eq, Serialize)]
+struct MarriageOfferView {
+    from_country_id: u32,
+    toward_country_id: u32,
+    from_character_id: u32,
+    toward_character_id: u32,
+    expires_at: String,
+}
+
+#[derive(Clone, PartialEq, Eq, Serialize)]
+struct OpinionView {
+    from_id: u32,
+    toward_id: u32,
+    points: i16,
+    effective_points: i16,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+struct TruceView {
+    a_id: u32,
+    b_id: u32,
+    remaining_days: u32,
+    ends_on: Option<String>,
+}
+
+#[derive(Clone, PartialEq, Eq, Serialize)]
+struct VassalView {
+    subject_id: u32,
+    overlord_id: u32,
+}
+
+#[derive(Clone, PartialEq, Eq, Serialize)]
+struct VassalOfferView {
+    overlord_id: u32,
+    subject_id: u32,
+    expires_at: String,
+}
+
+#[derive(Clone, PartialEq, Eq, Serialize)]
+struct CallToArmsOfferView {
+    war_id: u32,
+    from_id: u32,
+    toward_id: u32,
+    side: String,
+    expires_at: String,
+}
+
 #[derive(Default)]
 struct MilitaryView {
     armies: BTreeMap<u32, ArmyView>,
@@ -215,13 +363,28 @@ pub(crate) struct Snapshot {
     clock: ClockView,
     local_country_id: Option<u32>,
     countries: Vec<CountryView>,
+    acceptance_previews: Vec<CountryAcceptancePreviewView>,
+    technologies: Vec<TechnologyView>,
+    ideas: Vec<IdeaView>,
+    reforms: Vec<ReformView>,
     pending_events: Vec<EventView>,
     owners: Vec<OwnerView>,
     max_tax_rate: i64,
     max_monthly_spending: String,
     guarantees: Vec<GuaranteeView>,
+    alliances: Vec<AllianceView>,
+    alliance_offers: Vec<AllianceOfferView>,
+    marriage_offers: Vec<MarriageOfferView>,
+    marriage_adulthood_years: u16,
+    opinions: Vec<OpinionView>,
+    truces: Vec<TruceView>,
+    blockaded_ports: Vec<u32>,
+    vassals: Vec<VassalView>,
+    vassal_offers: Vec<VassalOfferView>,
+    call_to_arms_offers: Vec<CallToArmsOfferView>,
     armies: Vec<ArmyView>,
     fleets: Vec<FleetView>,
+    shipyards: Vec<ShipyardView>,
     wars: Vec<WarView>,
     sieges: Vec<SiegeView>,
     forts: Vec<FortView>,
@@ -235,12 +398,24 @@ struct Update {
     generation: u64,
     clock: ClockView,
     countries: Vec<CountryView>,
+    acceptance_previews: Vec<CountryAcceptancePreviewView>,
     pending_events: Option<Vec<EventView>>,
     guarantees: Vec<GuaranteeView>,
+    alliances: Vec<AllianceView>,
+    alliance_offers: Vec<AllianceOfferView>,
+    marriage_offers: Vec<MarriageOfferView>,
+    marriage_adulthood_years: u16,
+    opinions: Vec<OpinionView>,
+    truces: Vec<TruceView>,
+    blockaded_ports: Vec<u32>,
+    vassals: Vec<VassalView>,
+    vassal_offers: Vec<VassalOfferView>,
+    call_to_arms_offers: Vec<CallToArmsOfferView>,
     owners: Vec<OwnerView>,
     armies: Vec<ArmyView>,
     removed_armies: Vec<u32>,
     fleets: Vec<FleetView>,
+    shipyards: Vec<ShipyardView>,
     removed_fleets: Vec<u32>,
     wars: Vec<WarView>,
     removed_wars: Vec<u32>,
@@ -298,6 +473,11 @@ pub(crate) enum UiCommand {
         fleet_id: u32,
         destination: u32,
     },
+    BuildShip {
+        country_id: u32,
+        port_id: u32,
+        sea_id: u32,
+    },
     EmbarkArmy {
         country_id: u32,
         army_id: u32,
@@ -318,6 +498,9 @@ pub(crate) enum UiCommand {
         defender_id: u32,
         goal_province_id: u32,
     },
+    DeclareIndependence {
+        country_id: u32,
+    },
     OfferPeace {
         country_id: u32,
         war_id: u32,
@@ -327,7 +510,59 @@ pub(crate) enum UiCommand {
         country_id: u32,
         war_id: u32,
     },
+    AcceptCallToArms {
+        country_id: u32,
+        war_id: u32,
+        from_id: u32,
+    },
+    RejectCallToArms {
+        country_id: u32,
+        war_id: u32,
+        from_id: u32,
+    },
+    OfferAlliance {
+        country_id: u32,
+        toward_id: u32,
+    },
+    AcceptAlliance {
+        country_id: u32,
+        from_id: u32,
+    },
+    RejectAlliance {
+        country_id: u32,
+        from_id: u32,
+    },
+    BreakAlliance {
+        country_id: u32,
+        other_id: u32,
+    },
+    OfferRoyalMarriage {
+        country_id: u32,
+        character_id: u32,
+        toward_id: u32,
+        partner_id: u32,
+    },
+    AcceptRoyalMarriage {
+        country_id: u32,
+        from_id: u32,
+        character_id: u32,
+        partner_id: u32,
+    },
+    RejectRoyalMarriage {
+        country_id: u32,
+        from_id: u32,
+        character_id: u32,
+        partner_id: u32,
+    },
     UnlockTechnology {
+        country_id: u32,
+        key: String,
+    },
+    UnlockIdea {
+        country_id: u32,
+        key: String,
+    },
+    UnlockReform {
         country_id: u32,
         key: String,
     },
@@ -343,6 +578,22 @@ pub(crate) enum UiCommand {
     RevokeGuarantee {
         country_id: u32,
         protected_id: u32,
+    },
+    OfferVassalage {
+        country_id: u32,
+        toward_id: u32,
+    },
+    AcceptVassalage {
+        country_id: u32,
+        from_id: u32,
+    },
+    RejectVassalage {
+        country_id: u32,
+        from_id: u32,
+    },
+    ReleaseVassal {
+        country_id: u32,
+        subject_id: u32,
     },
 }
 
@@ -413,6 +664,15 @@ impl UiCommand {
                 fleet: FleetId::new(fleet_id),
                 destination: ProvinceId::new(destination),
             },
+            Self::BuildShip {
+                country_id,
+                port_id,
+                sea_id,
+            } => Command::BuildShip {
+                country: CountryId::new(country_id),
+                port: ProvinceId::new(port_id),
+                sea: ProvinceId::new(sea_id),
+            },
             Self::EmbarkArmy {
                 country_id,
                 army_id,
@@ -449,6 +709,9 @@ impl UiCommand {
                 defender: CountryId::new(defender_id),
                 goal: ProvinceId::new(goal_province_id),
             },
+            Self::DeclareIndependence { country_id } => Command::DeclareIndependence {
+                country: CountryId::new(country_id),
+            },
             Self::OfferPeace {
                 country_id,
                 war_id,
@@ -462,7 +725,94 @@ impl UiCommand {
                 country: CountryId::new(country_id),
                 war: WarId::new(war_id),
             },
+            Self::AcceptCallToArms {
+                country_id,
+                war_id,
+                from_id,
+            } => Command::AcceptCallToArms {
+                country: CountryId::new(country_id),
+                war: WarId::new(war_id),
+                from: CountryId::new(from_id),
+            },
+            Self::RejectCallToArms {
+                country_id,
+                war_id,
+                from_id,
+            } => Command::RejectCallToArms {
+                country: CountryId::new(country_id),
+                war: WarId::new(war_id),
+                from: CountryId::new(from_id),
+            },
+            Self::OfferAlliance {
+                country_id,
+                toward_id,
+            } => Command::OfferAlliance {
+                country: CountryId::new(country_id),
+                toward: CountryId::new(toward_id),
+            },
+            Self::AcceptAlliance {
+                country_id,
+                from_id,
+            } => Command::AcceptAlliance {
+                country: CountryId::new(country_id),
+                from: CountryId::new(from_id),
+            },
+            Self::RejectAlliance {
+                country_id,
+                from_id,
+            } => Command::RejectAlliance {
+                country: CountryId::new(country_id),
+                from: CountryId::new(from_id),
+            },
+            Self::BreakAlliance {
+                country_id,
+                other_id,
+            } => Command::BreakAlliance {
+                country: CountryId::new(country_id),
+                other: CountryId::new(other_id),
+            },
+            Self::OfferRoyalMarriage {
+                country_id,
+                character_id,
+                toward_id,
+                partner_id,
+            } => Command::OfferRoyalMarriage {
+                country: CountryId::new(country_id),
+                character: strategy_sim::CharacterId::new(character_id),
+                toward: CountryId::new(toward_id),
+                partner: strategy_sim::CharacterId::new(partner_id),
+            },
+            Self::AcceptRoyalMarriage {
+                country_id,
+                from_id,
+                character_id,
+                partner_id,
+            } => Command::AcceptRoyalMarriage {
+                country: CountryId::new(country_id),
+                from: CountryId::new(from_id),
+                character: strategy_sim::CharacterId::new(character_id),
+                partner: strategy_sim::CharacterId::new(partner_id),
+            },
+            Self::RejectRoyalMarriage {
+                country_id,
+                from_id,
+                character_id,
+                partner_id,
+            } => Command::RejectRoyalMarriage {
+                country: CountryId::new(country_id),
+                from: CountryId::new(from_id),
+                character: strategy_sim::CharacterId::new(character_id),
+                partner: strategy_sim::CharacterId::new(partner_id),
+            },
             Self::UnlockTechnology { country_id, key } => Command::UnlockTechnology {
+                country: CountryId::new(country_id),
+                key,
+            },
+            Self::UnlockIdea { country_id, key } => Command::UnlockIdea {
+                country: CountryId::new(country_id),
+                key,
+            },
+            Self::UnlockReform { country_id, key } => Command::UnlockReform {
                 country: CountryId::new(country_id),
                 key,
             },
@@ -488,6 +838,34 @@ impl UiCommand {
             } => Command::RevokeGuarantee {
                 country: CountryId::new(country_id),
                 protected: CountryId::new(protected_id),
+            },
+            Self::OfferVassalage {
+                country_id,
+                toward_id,
+            } => Command::OfferVassalage {
+                country: CountryId::new(country_id),
+                toward: CountryId::new(toward_id),
+            },
+            Self::AcceptVassalage {
+                country_id,
+                from_id,
+            } => Command::AcceptVassalage {
+                country: CountryId::new(country_id),
+                from: CountryId::new(from_id),
+            },
+            Self::RejectVassalage {
+                country_id,
+                from_id,
+            } => Command::RejectVassalage {
+                country: CountryId::new(country_id),
+                from: CountryId::new(from_id),
+            },
+            Self::ReleaseVassal {
+                country_id,
+                subject_id,
+            } => Command::ReleaseVassal {
+                country: CountryId::new(country_id),
+                subject: CountryId::new(subject_id),
             },
         })
     }
@@ -644,6 +1022,10 @@ pub(crate) fn game_snapshot(state: State<'_, Mutex<Session>>) -> Result<Snapshot
         clock: clock_view(&session.game),
         local_country_id,
         countries: session.visible_countries.values().cloned().collect(),
+        acceptance_previews: acceptance_preview_views(&session.game, local_country_id),
+        technologies: technology_views(&session.game)?,
+        ideas: idea_views(&session.game),
+        reforms: reform_views(&session.game),
         pending_events: event_views(&session.game, player),
         owners: session
             .visible_owners
@@ -656,8 +1038,24 @@ pub(crate) fn game_snapshot(state: State<'_, Mutex<Session>>) -> Result<Snapshot
         max_tax_rate: polity.rules.max_tax_rate.raw(),
         max_monthly_spending: money(polity.rules.max_monthly_spending),
         guarantees: guarantee_views(&session.game),
+        alliances: alliance_views(&session.game),
+        alliance_offers: alliance_offer_views(&session.game),
+        marriage_offers: marriage_offer_views(&session.game),
+        marriage_adulthood_years: polity.rules.adulthood_years,
+        opinions: opinion_views(&session.game),
+        truces: truce_views(&session.game),
+        blockaded_ports: session
+            .game
+            .blockaded_ports()
+            .into_iter()
+            .map(|id| id.get())
+            .collect(),
+        vassals: vassal_views(&session.game),
+        vassal_offers: vassal_offer_views(&session.game),
+        call_to_arms_offers: call_to_arms_offer_views(&session.game),
         armies: session.military.armies.values().cloned().collect(),
         fleets: session.military.fleets.values().cloned().collect(),
+        shipyards: shipyard_views(&session.game),
         wars: session.military.wars.values().cloned().collect(),
         sieges: session.military.sieges.clone(),
         forts: war
@@ -1097,8 +1495,33 @@ fn publish(app: &AppHandle, session: &mut Session) {
         generation: session.generation,
         clock: clock_view(&session.game),
         countries: changed_rows(&session.visible_countries, &countries),
+        acceptance_previews: acceptance_preview_views(
+            &session.game,
+            session.game.countries().find_map(|(id, country)| {
+                (country.controller() == &Controller::Human(local_player(&session.mode)))
+                    .then_some(id.get())
+            }),
+        ),
         pending_events: (session.visible_events != events).then(|| events.clone()),
         guarantees: guarantee_views(&session.game),
+        alliances: alliance_views(&session.game),
+        alliance_offers: alliance_offer_views(&session.game),
+        marriage_offers: marriage_offer_views(&session.game),
+        marriage_adulthood_years: session
+            .game
+            .polity()
+            .map_or(18, |p| p.rules.adulthood_years),
+        opinions: opinion_views(&session.game),
+        truces: truce_views(&session.game),
+        blockaded_ports: session
+            .game
+            .blockaded_ports()
+            .into_iter()
+            .map(|id| id.get())
+            .collect(),
+        vassals: vassal_views(&session.game),
+        vassal_offers: vassal_offer_views(&session.game),
+        call_to_arms_offers: call_to_arms_offer_views(&session.game),
         owners: owners
             .iter()
             .filter(|(id, owner)| session.visible_owners.get(id) != Some(*owner))
@@ -1119,6 +1542,7 @@ fn publish(app: &AppHandle, session: &mut Session) {
         removed_armies: removed_rows(&session.military.armies, &military.armies),
         fleets: changed_rows(&session.military.fleets, &military.fleets),
         removed_fleets: removed_rows(&session.military.fleets, &military.fleets),
+        shipyards: shipyard_views(&session.game),
         wars: changed_rows(&session.military.wars, &military.wars),
         removed_wars: removed_rows(&session.military.wars, &military.wars),
         sieges: (session.military.sieges != military.sieges).then(|| military.sieges.clone()),
@@ -1154,6 +1578,144 @@ fn guarantee_views(game: &GameState) -> Vec<GuaranteeView> {
             guarantor_id: guarantor.get(),
             protected_id: protected.get(),
         })
+        .collect()
+}
+
+fn alliance_views(game: &GameState) -> Vec<AllianceView> {
+    game.diplomacy()
+        .into_iter()
+        .flat_map(|diplomacy| &diplomacy.alliances)
+        .map(|&(a, b)| AllianceView {
+            a_id: a.get(),
+            b_id: b.get(),
+        })
+        .collect()
+}
+
+fn alliance_offer_views(game: &GameState) -> Vec<AllianceOfferView> {
+    game.diplomacy()
+        .into_iter()
+        .flat_map(|diplomacy| &diplomacy.offers)
+        .map(|(&(from, toward), &expires)| AllianceOfferView {
+            from_id: from.get(),
+            toward_id: toward.get(),
+            expires_at: format_date(expires),
+        })
+        .collect()
+}
+
+fn marriage_offer_views(game: &GameState) -> Vec<MarriageOfferView> {
+    game.diplomacy()
+        .into_iter()
+        .flat_map(|diplomacy| &diplomacy.marriage_offers)
+        .filter_map(|(&(from, toward), &expires)| {
+            Some(MarriageOfferView {
+                from_country_id: game.character(from)?.country.get(),
+                toward_country_id: game.character(toward)?.country.get(),
+                from_character_id: from.get(),
+                toward_character_id: toward.get(),
+                expires_at: format_date(expires),
+            })
+        })
+        .collect()
+}
+
+fn opinion_views(game: &GameState) -> Vec<OpinionView> {
+    game.opinions()
+        .map(|(from, toward, opinion)| OpinionView {
+            from_id: from.get(),
+            toward_id: toward.get(),
+            points: opinion.points(),
+            effective_points: game
+                .effective_opinion(from, toward)
+                .unwrap_or(opinion)
+                .points(),
+        })
+        .collect()
+}
+
+fn truce_views(game: &GameState) -> Vec<TruceView> {
+    game.war_state().map_or_else(Vec::new, |war| {
+        collect_truce_views(war, game.time().tick(), game.time().date())
+    })
+}
+
+fn collect_truce_views(war: &WarState, now: Tick, today: Date) -> Vec<TruceView> {
+    let mut pairs = BTreeMap::<(CountryId, CountryId), u32>::new();
+    let duration = u64::from(war.rules.truce_ticks);
+    let mut record = |a: CountryId, b: CountryId, concluded_at: Tick| {
+        let Some(elapsed) = now.get().checked_sub(concluded_at.get()) else {
+            return;
+        };
+        if elapsed >= duration {
+            return;
+        }
+        let pair = if a < b { (a, b) } else { (b, a) };
+        let remaining = (duration - elapsed) as u32;
+        pairs
+            .entry(pair)
+            .and_modify(|previous| *previous = (*previous).max(remaining))
+            .or_insert(remaining);
+    };
+    for treaty in war.treaties.values() {
+        record(treaty.attacker, treaty.defender, treaty.concluded_at);
+    }
+    for (&(a, b), &concluded_at) in &war.coalition_truces {
+        record(a, b, concluded_at);
+    }
+    pairs
+        .into_iter()
+        .map(|((a, b), remaining_days)| TruceView {
+            a_id: a.get(),
+            b_id: b.get(),
+            remaining_days,
+            ends_on: today
+                .checked_add_days(u64::from(remaining_days))
+                .map(format_date),
+        })
+        .collect()
+}
+
+fn vassal_views(game: &GameState) -> Vec<VassalView> {
+    game.diplomacy()
+        .into_iter()
+        .flat_map(|diplomacy| &diplomacy.vassals)
+        .map(|(&subject, &overlord)| VassalView {
+            subject_id: subject.get(),
+            overlord_id: overlord.get(),
+        })
+        .collect()
+}
+
+fn vassal_offer_views(game: &GameState) -> Vec<VassalOfferView> {
+    game.diplomacy()
+        .into_iter()
+        .flat_map(|diplomacy| &diplomacy.vassal_offers)
+        .map(|(&(overlord, subject), &expires)| VassalOfferView {
+            overlord_id: overlord.get(),
+            subject_id: subject.get(),
+            expires_at: format_date(expires),
+        })
+        .collect()
+}
+
+fn call_to_arms_offer_views(game: &GameState) -> Vec<CallToArmsOfferView> {
+    game.diplomacy()
+        .into_iter()
+        .flat_map(|diplomacy| &diplomacy.call_to_arms_offers)
+        .map(
+            |(&(war, from, toward), &(side, expires_at))| CallToArmsOfferView {
+                war_id: war.get(),
+                from_id: from.get(),
+                toward_id: toward.get(),
+                side: match side {
+                    strategy_sim::WarSide::Attacker => "attacker",
+                    strategy_sim::WarSide::Defender => "defender",
+                }
+                .to_owned(),
+                expires_at: format_date(expires_at),
+            },
+        )
         .collect()
 }
 
@@ -1249,6 +1811,7 @@ fn military_view(game: &GameState) -> MilitaryView {
                             .map(|id| id.get())
                             .collect(),
                         goal_province_id: war.goal.get(),
+                        independence: war.independence,
                         score: war.score,
                         occupations: war
                             .occupations
@@ -1278,6 +1841,19 @@ fn military_view(game: &GameState) -> MilitaryView {
             })
             .collect(),
     }
+}
+
+fn shipyard_views(game: &GameState) -> Vec<ShipyardView> {
+    game.navy()
+        .into_iter()
+        .flat_map(|navy| navy.shipyards.iter())
+        .map(|(&port, order)| ShipyardView {
+            port_province_id: port.get(),
+            sea_province_id: order.sea.get(),
+            country_id: order.country.get(),
+            days_remaining: order.days_remaining,
+        })
+        .collect()
 }
 
 fn local_player(mode: &Mode) -> PlayerId {
@@ -1332,6 +1908,12 @@ fn country_views(game: &GameState) -> BTreeMap<u32, CountryView> {
                     name: character.name.clone(),
                     dynasty: character.dynasty.clone(),
                     age: character.age_years(game.time().date())?,
+                    sex: match character.sex {
+                        strategy_sim::Sex::Male => "male",
+                        strategy_sim::Sex::Female => "female",
+                        strategy_sim::Sex::Unknown => "unknown",
+                    },
+                    spouse_id: character.spouse.map(|spouse| spouse.get()),
                     adm: character.stats.adm,
                     dip: character.stats.dip,
                     mil: character.stats.mil,
@@ -1362,6 +1944,16 @@ fn country_views(game: &GameState) -> BTreeMap<u32, CountryView> {
                             .last_month
                             .map_or(Fixed::ZERO, |budget| budget.income),
                     ),
+                    tribute_paid: money(
+                        economy
+                            .last_month
+                            .map_or(Fixed::ZERO, |budget| budget.tribute_paid),
+                    ),
+                    tribute_received: money(
+                        economy
+                            .last_month
+                            .map_or(Fixed::ZERO, |budget| budget.tribute_received),
+                    ),
                     expenses: money(
                         economy
                             .last_month
@@ -1373,8 +1965,280 @@ fn country_views(game: &GameState) -> BTreeMap<u32, CountryView> {
                     regency: game.is_in_regency(id).unwrap_or_default(),
                     ruler: country.succession.ruler.and_then(character_view),
                     heir: country.succession.heir.and_then(character_view),
+                    research_points: game.research_points(id),
+                    known_technologies: game
+                        .country(id)
+                        .map(|state| state.known_technologies().map(str::to_owned).collect())
+                        .unwrap_or_default(),
+                    known_ideas: game
+                        .ideas()
+                        .into_iter()
+                        .flat_map(|ideas| ideas.sources.keys())
+                        .filter(|&(country_id, _)| *country_id == id)
+                        .map(|(_, key)| key.clone())
+                        .collect(),
+                    government: country.government.clone(),
+                    known_reforms: game
+                        .reforms()
+                        .into_iter()
+                        .flat_map(|reforms| reforms.sources.keys())
+                        .filter(|&(country_id, _)| *country_id == id)
+                        .map(|(_, key)| key.clone())
+                        .collect(),
+                    chosen_reform_tiers: game
+                        .reforms()
+                        .into_iter()
+                        .flat_map(|reforms| reforms.choices.keys())
+                        .filter_map(|&(country_id, tier)| (country_id == id).then_some(tier))
+                        .collect(),
                 },
             )
+        })
+        .collect()
+}
+
+fn acceptance_preview_views(
+    game: &GameState,
+    local_country_id: Option<u32>,
+) -> Vec<CountryAcceptancePreviewView> {
+    let Some(local_country) = local_country_id.map(CountryId::new) else {
+        return Vec::new();
+    };
+    let Some(polity) = game.polity() else {
+        return Vec::new();
+    };
+    let Some(local_data) = polity.countries.get(&local_country) else {
+        return Vec::new();
+    };
+    let mut previews = Vec::new();
+    for (target, country_state) in game.countries() {
+        let Controller::Ai(profile_key) = country_state.controller() else {
+            continue;
+        };
+        if target == local_country {
+            continue;
+        }
+        let Some(profile) = polity.ai_profiles.get(profile_key.as_str()) else {
+            continue;
+        };
+        let alliance_factors = alliance_acceptance_factors(game, local_country, target, profile);
+        let alliance_opinion = alliance_factors
+            .iter()
+            .find(|factor| factor.key == "opinion")
+            .map_or(0, |factor| factor.value);
+        let alliance_minimum = alliance_factors
+            .iter()
+            .find(|factor| factor.key == "profile_minimum")
+            .map_or(0, |factor| factor.value);
+        let direct_war = alliance_factors
+            .iter()
+            .find(|factor| factor.key == "direct_war")
+            .is_some_and(|factor| factor.value == 1);
+        let negative_chance = alliance_factors
+            .iter()
+            .find(|factor| factor.key == "negative_opinion_accept_percent")
+            .map_or(0, |factor| factor.value);
+        let alliance_outcome = if direct_war {
+            "blocked by war"
+        } else if alliance_opinion < 0 && negative_chance > 0 {
+            "10% acceptance chance"
+        } else if alliance_opinion >= 0 && alliance_opinion >= alliance_minimum {
+            "would accept"
+        } else {
+            "would decline"
+        };
+        let alliance = ProposalAcceptanceView {
+            outcome: alliance_outcome,
+            factors: alliance_factors
+                .into_iter()
+                .map(|factor| AcceptanceFactorView {
+                    key: factor.key,
+                    value: factor.value,
+                })
+                .collect(),
+        };
+
+        let vassal_factors = vassal_acceptance_factors(game, local_country, target, profile);
+        let vassalage = ProposalAcceptanceView {
+            outcome: if vassal_factors[0].value >= vassal_factors[1].value
+                && vassal_factors[2].value > vassal_factors[3].value
+            {
+                "would accept"
+            } else {
+                "would decline"
+            },
+            factors: vassal_factors
+                .into_iter()
+                .map(|factor| AcceptanceFactorView {
+                    key: factor.key,
+                    value: factor.value,
+                })
+                .collect(),
+        };
+
+        let target_data = &polity.countries[&target];
+        let marriage = local_data
+            .succession
+            .ruler
+            .into_iter()
+            .chain(local_data.succession.heir)
+            .flat_map(|character| {
+                target_data
+                    .succession
+                    .ruler
+                    .into_iter()
+                    .chain(target_data.succession.heir)
+                    .map(move |partner| (character, partner))
+            })
+            .find(|(character, partner)| {
+                game.marriage_eligibility(local_country, *character, target, *partner)
+                    .is_ok()
+            })
+            .map(|(character, partner)| {
+                let factors = marriage_acceptance_factors(
+                    game,
+                    local_country,
+                    character,
+                    target,
+                    partner,
+                    profile,
+                );
+                let accepts = factors[2].value == 1 && factors[0].value >= factors[1].value;
+                ProposalAcceptanceView {
+                    outcome: if accepts {
+                        "would accept"
+                    } else {
+                        "would decline"
+                    },
+                    factors: factors
+                        .into_iter()
+                        .map(|factor| AcceptanceFactorView {
+                            key: factor.key,
+                            value: factor.value,
+                        })
+                        .collect(),
+                }
+            });
+
+        previews.push(CountryAcceptancePreviewView {
+            country_id: target.get(),
+            alliance,
+            vassalage,
+            marriage,
+        });
+    }
+    previews
+}
+
+fn technology_views(game: &GameState) -> Result<Vec<TechnologyView>, String> {
+    let Some(technology) = game.technologies() else {
+        return Ok(Vec::new());
+    };
+    let packaged = embedded_technologies()?;
+    technology
+        .definitions
+        .iter()
+        .map(|(key, definition)| {
+            let layout = packaged
+                .get(key)
+                .ok_or_else(|| format!("missing packaged technology layout for {key}"))?;
+            let effects = definition
+                .effects
+                .iter()
+                .map(|effect| match effect {
+                    Effect::AddModifier {
+                        key, value, kind, ..
+                    } => TechnologyEffectView {
+                        key: key.as_str().to_owned(),
+                        value: value.raw().to_string(),
+                        kind: match kind {
+                            ModifierKind::Additive => "additive",
+                            ModifierKind::Multiplicative => "multiplicative",
+                        },
+                        source_key: definition.key.clone(),
+                    },
+                })
+                .collect();
+            Ok(TechnologyView {
+                key: key.clone(),
+                branch: definition.branch.clone(),
+                cost: definition.cost.get(),
+                requires: definition.requires.clone(),
+                pos_x: layout.position.x,
+                pos_y: layout.position.y,
+                effects,
+            })
+        })
+        .collect()
+}
+
+fn idea_views(game: &GameState) -> Vec<IdeaView> {
+    let Some(ideas) = game.ideas() else {
+        return Vec::new();
+    };
+    ideas
+        .definitions
+        .values()
+        .map(|definition| IdeaView {
+            key: definition.key.clone(),
+            country: definition.country.clone(),
+            name_key: definition.name_key.clone(),
+            available_countries: game
+                .countries()
+                .filter_map(|(id, _)| {
+                    game.country(id)
+                        .is_some_and(|country| definition.unlock.evaluate(country))
+                        .then_some(id.get())
+                })
+                .collect(),
+            effects: definition
+                .modifiers
+                .iter()
+                .map(|effect| match effect {
+                    Effect::AddModifier {
+                        key, value, kind, ..
+                    } => IdeaEffectView {
+                        key: key.as_str().to_owned(),
+                        value: value.raw().to_string(),
+                        kind: match kind {
+                            ModifierKind::Additive => "additive",
+                            ModifierKind::Multiplicative => "multiplicative",
+                        },
+                    },
+                })
+                .collect(),
+        })
+        .collect()
+}
+
+fn reform_views(game: &GameState) -> Vec<ReformView> {
+    let Some(reforms) = game.reforms() else {
+        return Vec::new();
+    };
+    reforms
+        .definitions
+        .values()
+        .map(|definition| ReformView {
+            key: definition.key.clone(),
+            government: definition.government.clone(),
+            tier: definition.tier,
+            ai_weight: definition.ai_weight,
+            effects: definition
+                .effects
+                .iter()
+                .map(|effect| match effect {
+                    Effect::AddModifier {
+                        key, value, kind, ..
+                    } => IdeaEffectView {
+                        key: key.as_str().to_owned(),
+                        value: value.raw().to_string(),
+                        kind: match kind {
+                            ModifierKind::Additive => "additive",
+                            ModifierKind::Multiplicative => "multiplicative",
+                        },
+                    },
+                })
+                .collect(),
         })
         .collect()
 }
@@ -1400,16 +2264,121 @@ fn money(value: Fixed) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::{event_views, Startup, UiCommand, GUEST, HOST};
+    use super::{
+        acceptance_preview_views, collect_truce_views, event_views, technology_views, Startup,
+        TruceView, UiCommand, GUEST, HOST,
+    };
     use std::{
         collections::{BTreeMap, BTreeSet},
         num::{NonZeroU32, NonZeroU64},
     };
+    use strategy_app::load_embedded_scenario;
     use strategy_data::parse_event_yaml;
     use strategy_sim::{
         Command, Controller, CountryId, CountryState, Date, GameState, MapIdentity, ModifierStore,
-        ProvinceGraph, SimTime, Speed, Trigger,
+        PeaceTreaty, PlayerId, ProvinceGraph, SimTime, Speed, Tick, Trigger, WarId,
     };
+
+    #[test]
+    fn acceptance_preview_projection_covers_ai_countries_and_their_factors() {
+        let game = load_embedded_scenario().unwrap();
+        let local = game
+            .countries()
+            .find_map(|(id, country)| {
+                (country.controller() == &Controller::Human(PlayerId::new(1))).then_some(id)
+            })
+            .expect("the scenario assigns a human player");
+        let previews = acceptance_preview_views(&game, Some(local.get()));
+        let ai_countries: BTreeSet<_> = game
+            .countries()
+            .filter_map(|(id, country)| {
+                matches!(country.controller(), Controller::Ai(_)).then_some(id.get())
+            })
+            .collect();
+        let preview_countries: BTreeSet<_> = previews.iter().map(|row| row.country_id).collect();
+
+        assert!(!ai_countries.is_empty());
+        assert_eq!(preview_countries, ai_countries);
+        assert!(previews.iter().all(|row| {
+            row.alliance
+                .factors
+                .iter()
+                .any(|factor| factor.key == "negative_opinion_accept_percent")
+                && row.vassalage.factors.len() == 4
+        }));
+    }
+
+    #[test]
+    fn truce_projection_includes_coalition_pairs_and_expires_on_time() {
+        let mut war = load_embedded_scenario()
+            .unwrap()
+            .war_state()
+            .unwrap()
+            .clone();
+        war.rules.truce_ticks = 5;
+        war.treaties.insert(
+            WarId::new(1),
+            PeaceTreaty {
+                attacker: CountryId::new(2),
+                defender: CountryId::new(1),
+                ceded: None,
+                concluded_at: Tick::ZERO,
+            },
+        );
+        war.coalition_truces
+            .insert((CountryId::new(1), CountryId::new(3)), Tick::new(1));
+        let start = Date::new(1440, 1, 1).unwrap();
+        let at =
+            |day| collect_truce_views(&war, Tick::new(day), start.checked_add_days(day).unwrap());
+        assert_eq!(
+            at(3),
+            vec![
+                TruceView {
+                    a_id: 1,
+                    b_id: 2,
+                    remaining_days: 2,
+                    ends_on: Some("1440-01-06".into()),
+                },
+                TruceView {
+                    a_id: 1,
+                    b_id: 3,
+                    remaining_days: 3,
+                    ends_on: Some("1440-01-07".into()),
+                },
+            ]
+        );
+        assert_eq!(at(5).len(), 1);
+        assert_eq!(at(5)[0].remaining_days, 1);
+        assert!(at(6).is_empty());
+        war.treaties.insert(
+            WarId::new(2),
+            PeaceTreaty {
+                attacker: CountryId::new(1),
+                defender: CountryId::new(2),
+                ceded: None,
+                concluded_at: Tick::new(4),
+            },
+        );
+        let rows = collect_truce_views(&war, Tick::new(5), start.checked_add_days(5).unwrap());
+        assert_eq!(rows[0].remaining_days, 4);
+        assert_eq!(rows[0].ends_on.as_deref(), Some("1440-01-10"));
+    }
+
+    #[test]
+    fn packaged_technology_layout_projects_authoritative_effects() {
+        let game = strategy_app::load_embedded_scenario().unwrap();
+        let nodes = technology_views(&game).unwrap();
+        assert_eq!(nodes.len(), game.technologies().unwrap().definitions.len());
+        let military = nodes
+            .iter()
+            .find(|node| node.key == "professional_officers")
+            .unwrap();
+        assert_eq!((military.pos_x, military.pos_y), (1, 0));
+        assert_eq!(military.requires, ["recordkeeping"]);
+        assert_eq!(military.effects.len(), 1);
+        assert_eq!(military.effects[0].source_key, military.key);
+        assert_eq!(military.effects[0].value, "50");
+    }
     #[test]
     fn guarantee_ui_commands_preserve_direction_and_country_ids() {
         for (json, revoke) in [
@@ -1440,6 +2409,138 @@ mod tests {
                     }
                 }
             );
+        }
+    }
+
+    #[test]
+    fn alliance_ui_commands_preserve_direction_and_country_ids() {
+        let cases = [
+            (
+                r#"{"type":"offer_alliance","country_id":3,"toward_id":2}"#,
+                Command::OfferAlliance {
+                    country: CountryId::new(3),
+                    toward: CountryId::new(2),
+                },
+            ),
+            (
+                r#"{"type":"accept_alliance","country_id":2,"from_id":3}"#,
+                Command::AcceptAlliance {
+                    country: CountryId::new(2),
+                    from: CountryId::new(3),
+                },
+            ),
+            (
+                r#"{"type":"reject_alliance","country_id":2,"from_id":3}"#,
+                Command::RejectAlliance {
+                    country: CountryId::new(2),
+                    from: CountryId::new(3),
+                },
+            ),
+            (
+                r#"{"type":"break_alliance","country_id":3,"other_id":2}"#,
+                Command::BreakAlliance {
+                    country: CountryId::new(3),
+                    other: CountryId::new(2),
+                },
+            ),
+        ];
+        for (json, expected) in cases {
+            assert_eq!(
+                serde_json::from_str::<UiCommand>(json)
+                    .unwrap()
+                    .into_sim()
+                    .unwrap(),
+                expected
+            );
+        }
+    }
+
+    #[test]
+    fn royal_marriage_ui_commands_preserve_country_and_character_ids() {
+        let cases = [
+            (
+                r#"{"type":"offer_royal_marriage","country_id":3,"character_id":31,"toward_id":2,"partner_id":22}"#,
+                Command::OfferRoyalMarriage {
+                    country: CountryId::new(3),
+                    character: strategy_sim::CharacterId::new(31),
+                    toward: CountryId::new(2),
+                    partner: strategy_sim::CharacterId::new(22),
+                },
+            ),
+            (
+                r#"{"type":"accept_royal_marriage","country_id":2,"from_id":3,"character_id":22,"partner_id":31}"#,
+                Command::AcceptRoyalMarriage {
+                    country: CountryId::new(2),
+                    from: CountryId::new(3),
+                    character: strategy_sim::CharacterId::new(22),
+                    partner: strategy_sim::CharacterId::new(31),
+                },
+            ),
+            (
+                r#"{"type":"reject_royal_marriage","country_id":2,"from_id":3,"character_id":22,"partner_id":31}"#,
+                Command::RejectRoyalMarriage {
+                    country: CountryId::new(2),
+                    from: CountryId::new(3),
+                    character: strategy_sim::CharacterId::new(22),
+                    partner: strategy_sim::CharacterId::new(31),
+                },
+            ),
+        ];
+        for (json, expected) in cases {
+            assert_eq!(
+                serde_json::from_str::<UiCommand>(json)
+                    .unwrap()
+                    .into_sim()
+                    .unwrap(),
+                expected
+            );
+        }
+    }
+
+    #[test]
+    fn vassal_ui_commands_preserve_direction_and_country_ids() {
+        let cases = [
+            (
+                r#"{"type":"offer_vassalage","country_id":3,"toward_id":2}"#,
+                Command::OfferVassalage {
+                    country: CountryId::new(3),
+                    toward: CountryId::new(2),
+                },
+            ),
+            (
+                r#"{"type":"accept_vassalage","country_id":2,"from_id":3}"#,
+                Command::AcceptVassalage {
+                    country: CountryId::new(2),
+                    from: CountryId::new(3),
+                },
+            ),
+            (
+                r#"{"type":"reject_vassalage","country_id":2,"from_id":3}"#,
+                Command::RejectVassalage {
+                    country: CountryId::new(2),
+                    from: CountryId::new(3),
+                },
+            ),
+            (
+                r#"{"type":"release_vassal","country_id":3,"subject_id":2}"#,
+                Command::ReleaseVassal {
+                    country: CountryId::new(3),
+                    subject: CountryId::new(2),
+                },
+            ),
+            (
+                r#"{"type":"declare_independence","country_id":2}"#,
+                Command::DeclareIndependence {
+                    country: CountryId::new(2),
+                },
+            ),
+        ];
+        for (json, expected) in cases {
+            let actual = serde_json::from_str::<UiCommand>(json)
+                .unwrap()
+                .into_sim()
+                .unwrap();
+            assert_eq!(actual, expected);
         }
     }
 
