@@ -18,6 +18,7 @@ Stack: Rust (`sim`, `net`, `data`) + Tauri 2 + React/TS UI + three.js map.
 | anything in `crates/sim`            | docs/SIM_RULES.md         |
 | JSON/YAML content, schemas          | docs/DATA_FORMATS.md      |
 | map generation, rendering           | docs/MAP_PIPELINE.md      |
+| UI look, layout, components, map overlays | docs/UI_DESIGN_GUIDE.md |
 | province density, hierarchy, world readiness | docs/MAP_SCALE.md |
 | multiplayer, protocol, LAN          | docs/NETWORK.md           |
 | models, icons, textures, licenses   | docs/ASSETS.md            |
