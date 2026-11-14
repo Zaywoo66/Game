@@ -1,7 +1,7 @@
 /// <reference types="vite/client" />
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { CountryPanel, HostControls } from '../game/CountryPanel';
+import { CountryPanel } from '../game/CountryPanel';
 import { CountryView, GameSnapshot, useGameHost } from '../game/host';
 import { LanLobby } from '../game/LanLobby';
 import { lanStatusText, useLan } from '../game/lan';
@@ -19,6 +19,15 @@ const base = import.meta.env.BASE_URL + 'map/western_europe/';
 const options = new URLSearchParams(window.location.search);
 const verify = options.get('verify') === '1';
 const benchmark = options.get('benchmark') === '1';
+
+/** Format thousandths-encoded money for display. */
+function fixedText(raw: string | bigint): string {
+  const integer = BigInt(raw);
+  const absolute = integer < 0n ? -integer : integer;
+  const whole = absolute / 1000n;
+  const fraction = String(absolute % 1000n).padStart(3, '0').replace(/0+$/, '');
+  return (integer < 0n ? '-' : '') + whole + (fraction ? '.' + fraction : '');
+}
 
 function nameOf(key: string): string {
   return key.replace(/_/g, ' ').replace(/\b\w/g, (character) => character.toUpperCase());
@@ -76,6 +85,93 @@ function provinceColors(
     if (color) colors.set(owner.province_id, color);
   }
   return colors;
+}
+
+/** Find the first province owned by a country (used as label anchor). */
+function capitalProvinceForCountry(
+  countryId: number,
+  owners: GameSnapshot['owners'],
+): number | null {
+  for (const owner of owners) {
+    if (owner.country_id === countryId) return owner.province_id;
+  }
+  return null;
+}
+
+interface LabelPosition {
+  id: number;
+  name: string;
+  x: number;
+  y: number;
+}
+
+function CountryLabels({
+  game,
+  viewer,
+}: {
+  game: GameSnapshot | undefined;
+  viewer: ReturnType<typeof createMapViewer> | undefined;
+}) {
+  const [labels, setLabels] = useState<LabelPosition[]>([]);
+  const frameRef = useRef(0);
+
+  useEffect(() => {
+    if (!game || !viewer) {
+      setLabels([]);
+      return;
+    }
+    let active = true;
+    function updateLabels() {
+      if (!active || !game || !viewer) return;
+      const result: LabelPosition[] = [];
+      const seen = new Set<number>();
+
+      for (const country of game.countries) {
+        if (seen.has(country.id)) continue;
+        seen.add(country.id);
+
+        // Find a province owned by this country to use as label anchor
+        const pid = capitalProvinceForCountry(country.id, game.owners);
+        if (pid === null) continue;
+
+        const pos = viewer.projectProvince(pid);
+        if (!pos) continue;
+
+        // Only show labels that are on screen
+        const rect = viewer.getViewportRect();
+        if (pos.x < rect.left - 50 || pos.x > rect.right + 50 ||
+            pos.y < rect.top - 20 || pos.y > rect.bottom + 20) continue;
+
+        result.push({
+          id: country.id,
+          name: country.name,
+          x: pos.x - rect.left,
+          y: pos.y - rect.top,
+        });
+      }
+      setLabels(result);
+      frameRef.current = requestAnimationFrame(updateLabels);
+    }
+    updateLabels();
+    return () => {
+      active = false;
+      cancelAnimationFrame(frameRef.current);
+    };
+  }, [game, viewer]);
+
+  return (
+    <div className="country-labels-overlay" aria-hidden="true">
+      {labels.map((label) => (
+        <span
+          key={label.id}
+          className="country-label"
+          style={{ left: label.x, top: label.y }}
+        >
+          ★ {label.name.toUpperCase()}
+        </span>
+      ))}
+    </div>
+  );
 }
 
 export function MapPage() {
@@ -226,8 +322,56 @@ export function MapPage() {
   return (
     <main className="map-page" data-map-status={status} data-map-renderer={renderer}>
       <div className="map-viewport" data-map-viewport ref={viewport} />
+      {/* Country labels overlay on the map */}
+      {status === 'ready' && (
+        <CountryLabels game={game ?? undefined} viewer={viewerRef.current} />
+      )}
+      {/* Top bar: game info on the right */}
+      {game && (
+        <nav className="top-bar" aria-label="Game status">
+          <div className="top-bar-left">
+            <span className="top-bar-country">{shownCountry?.name ?? '—'}</span>
+            {shownCountry && (
+              <>
+                <span className="top-bar-ruler">{shownCountry.ruler?.name ?? '—'}</span>
+              </>
+            )}
+          </div>
+          <div className="top-bar-center">
+            <div className="top-bar-stat">
+              <span className="stat-label">Treasury</span>
+              <span className="stat-value">{shownCountry ? fixedText(shownCountry.treasury) : '—'}</span>
+            </div>
+            <div className="top-bar-stat">
+              <span className="stat-label">Monthly income</span>
+              <span className="stat-value">{shownCountry ? fixedText(shownCountry.income) : '—'}</span>
+            </div>
+          </div>
+          <div className="top-bar-right">
+            <time className="top-bar-date" dateTime={game.clock.date}>{game.clock.date}</time>
+            <div className="speed-control">
+              <button type="button" className="btn-pause" disabled={hostGame.pending}
+                onClick={() => void hostGame.send({ type: 'set_paused', paused: !game.clock.paused })}>
+                {game.clock.paused ? '▶' : '❚❚'}
+              </button>
+              <span className="speed-label">Speed</span>
+              <select className="speed-select" value={game.clock.speed}
+                disabled={hostGame.pending || guest}
+                title={guest ? 'The host sets the game speed' : undefined}
+                onChange={(event) => void hostGame.send({ type: 'set_speed', speed: Number(event.target.value) })}>
+                {[1, 2, 3, 4, 5].map((speed) => <option key={speed} value={speed}>{speed}</option>)}
+              </select>
+            </div>
+            <span className="top-bar-speed-text">SPEED {game.clock.speed}</span>
+          </div>
+        </nav>
+      )}
+      {hostGame.commandError && (
+        <p className="game-error-toast map-panel" role="alert">{hostGame.commandError}</p>
+      )}
+      {/* Map header (info overlay) */}
       <header className="map-header map-panel">
-        <h1>Western Europe</h1>
+        <h1>Europe</h1>
         {benchmark ? (
           <>
             <p data-map-benchmark role="status">{status === 'error' ? error : benchmarkResult}</p>
@@ -235,7 +379,7 @@ export function MapPage() {
           </>
         ) : (
           <>
-            <p>Drag to pan · Scroll to zoom · Right-drag to tilt</p>
+            <p>Drag to pan · WASD/arrows · Scroll to zoom · Double-click to focus · Home for region</p>
             <a href="?smoke=1">WebGL smoke test</a>
             <MapSources />
             {lan.status && (
@@ -249,8 +393,6 @@ export function MapPage() {
           </>
         )}
       </header>
-      {game && <HostControls game={game} pending={hostGame.pending} error={hostGame.commandError}
-        canSetSpeed={!guest} send={hostGame.send} />}
       {hostGame.connected && !game && (
         <p className="game-clock map-panel" role={hostGame.connectionError ? 'alert' : 'status'}>
           {hostGame.connectionError || 'Connecting to the game host…'}
@@ -261,6 +403,7 @@ export function MapPage() {
           {status === 'loading' ? 'Loading terrain and provinces…' : error}
         </p>
       )}
+      {/* Right side panel with tabs */}
       <aside className={'map-inspector map-panel' + (game ? ' map-inspector--host' : '')}
         data-map-selected={selected?.id ?? 0}
         hidden={benchmark || status !== 'ready'}>
@@ -274,16 +417,21 @@ export function MapPage() {
             </>
           ) : <p>Click a province to inspect it</p>}
         </div>
-        {militaryEnabled && (
-          <div className="inspector-tabs" role="group" aria-label="Inspector panels">
-            <button type="button" aria-pressed={section === 'country'} onClick={() => {
-              setSection('country');
-              setOrder(null);
-            }}>Country</button>
+        {/* Navigation tabs — EU4-style */}
+        <div className="inspector-tabs" role="group" aria-label="Inspector panels">
+          <button type="button" aria-pressed={section === 'country'} onClick={() => {
+            setSection('country');
+            setOrder(null);
+          }}>Country</button>
+          {game && <button type="button" aria-pressed={false}>Diplomacy</button>}
+          {militaryEnabled && (
             <button type="button" aria-pressed={section === 'military'}
               onClick={() => setSection('military')}>Military</button>
-          </div>
-        )}
+          )}
+          {game && <button type="button" aria-pressed={false}>Technology</button>}
+          {game && <button type="button" aria-pressed={false}>Ideas</button>}
+          {game && <button type="button" aria-pressed={false}>Reforms</button>}
+        </div>
         {game && (!militaryEnabled || section === 'country') && (
           <CountryPanel game={game} country={shownCountry} pending={hostGame.pending}
             onSelect={setInspectedCountry} send={hostGame.send} />
@@ -296,6 +444,16 @@ export function MapPage() {
             send={hostGame.send} readAiLog={hostGame.readAiLog} canReadAiLog={!guest} />
         )}
       </aside>
+      {/* Map mode buttons (bottom-left) */}
+      {status === 'ready' && (
+        <div className="map-modes">
+          <button type="button" className="map-mode-btn active">Game political</button>
+          <button type="button" className="map-mode-btn">Terrain</button>
+          {options.get('debug') && (
+            <button type="button" className="map-mode-btn">Historical 1440</button>
+          )}
+        </div>
+      )}
       {lobbyOpen && lan.status && <LanLobby game={game} lan={lan} onClose={() => setLobbyOpen(false)} />}
     </main>
   );

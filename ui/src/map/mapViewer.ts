@@ -35,6 +35,8 @@ interface MapViewer {
   setOccupationColors(colors: ReadonlyMap<number, Rgba>): void;
   setArmies(armies: readonly ArmyMarker[]): void;
   setArmySelection(id: number, targeting: boolean): void;
+  projectProvince(id: number): { x: number; y: number } | null;
+  getViewportRect(): DOMRect;
   startBenchmark(): void;
   readBenchmark(): BenchmarkSample;
   testControls: MapTestControls;
@@ -137,14 +139,17 @@ export function createMapViewer(
   controls.target.set(width / 2, 0, height / 2);
   controls.minDistance = span * 0.14;
   controls.maxDistance = span * 4;
-  controls.minPolarAngle = 0.10;
-  controls.maxPolarAngle = 1.20;
+  // Lock camera to top-down view — no 3D tilt (EU4 / AoC style flat map)
+  controls.minPolarAngle = 0.001;
+  controls.maxPolarAngle = 0.001;
   controls.enableDamping = true;
   controls.dampingFactor = 0.14;
   controls.zoomToCursor = true;
   controls.screenSpacePanning = false;
-  controls.mouseButtons = { LEFT: THREE.MOUSE.PAN, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: THREE.MOUSE.ROTATE };
-  controls.touches = { ONE: THREE.TOUCH.PAN, TWO: THREE.TOUCH.DOLLY_ROTATE };
+  // Left = pan, middle = zoom, right = pan too (no rotate)
+  controls.mouseButtons = { LEFT: THREE.MOUSE.PAN, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: THREE.MOUSE.PAN };
+  controls.touches = { ONE: THREE.TOUCH.PAN, TWO: THREE.TOUCH.DOLLY_PAN };
+  controls.enableRotate = false;
   controls.listenToKeyEvents(renderer.domElement);
 
   let fitted = false;
@@ -159,12 +164,8 @@ export function createMapViewer(
 
     if (!fitted) {
       const distance = 0.64 * Math.max(height, width / camera.aspect) / Math.tan(camera.fov * Math.PI / 360);
-      const tilt = 0.50;
-      camera.position.copy(controls.target).add(new THREE.Vector3(
-        0,
-        distance * Math.cos(tilt),
-        distance * Math.sin(tilt),
-      ));
+      // Top-down: camera directly above the target
+      camera.position.copy(controls.target).add(new THREE.Vector3(0, distance, 0.001));
       fitted = true;
     }
     controls.update();
@@ -368,6 +369,10 @@ export function createMapViewer(
     setArmySelection(id, orderTargeting) {
       armyLayer.select(id);
       targeting = orderTargeting;
+    },
+    projectProvince,
+    getViewportRect() {
+      return renderer.domElement.getBoundingClientRect();
     },
     startBenchmark,
     readBenchmark,
