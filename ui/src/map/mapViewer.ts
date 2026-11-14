@@ -201,8 +201,8 @@ export function createMapViewer(
     renderFrame(performance.now());
   }
 
-  // Open water beyond the finite regional raster keeps wide windows and
-  // tilted views from exposing the scene background at the map edge.
+  // Open water beyond the finite regional raster keeps wide windows from
+  // exposing the scene background at the map edge.
   const oceanGeometry = new THREE.PlaneGeometry(width * 5, height * 5);
   oceanGeometry.rotateX(-Math.PI / 2);
   oceanGeometry.translate(width / 2, -1, height / 2);
@@ -220,13 +220,13 @@ export function createMapViewer(
   controls.target.set(width / 2, 0, height / 2);
   controls.minZoom = 0.85;
   controls.maxZoom = 6;
-  controls.minPolarAngle = 0.02;
-  controls.maxPolarAngle = 0.72;
+  controls.minPolarAngle = 0.001;
+  controls.maxPolarAngle = 0.001;
   controls.enableDamping = true;
   controls.dampingFactor = 0.14;
   controls.zoomToCursor = true;
   controls.screenSpacePanning = false;
-  controls.mouseButtons = { LEFT: THREE.MOUSE.PAN, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: THREE.MOUSE.ROTATE };
+  controls.mouseButtons = { LEFT: THREE.MOUSE.PAN, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: THREE.MOUSE.PAN };
   controls.touches = { ONE: THREE.TOUCH.PAN, TWO: THREE.TOUCH.DOLLY_ROTATE };
   controls.listenToKeyEvents(renderer.domElement);
 
@@ -250,12 +250,7 @@ export function createMapViewer(
 
     if (!fitted) {
       const distance = span * 1.6;
-      const tilt = 0.12;
-      camera.position.copy(controls.target).add(new THREE.Vector3(
-        0,
-        distance * Math.cos(tilt),
-        distance * Math.sin(tilt),
-      ));
+      camera.position.copy(controls.target).add(new THREE.Vector3(0, distance, 0));
       camera.zoom = fitZoom(w / h);
       camera.updateProjectionMatrix();
       fitted = true;
@@ -585,15 +580,15 @@ export function createMapViewer(
   function setCameraPreset(name: 'whole-region' | 'britain' | 'iberia' | 'province') {
     const london = [...provinces.values()].find((province) => province.key === 'london');
     const presets = {
-      'whole-region': { x: width / 2, z: height / 2, zoom: fitZoom(viewport.clientWidth / Math.max(1, viewport.clientHeight)), tilt: 0.12 },
-      britain: { x: width * 0.39, z: height * 0.27, zoom: 2.1, tilt: 0.15 },
-      iberia: { x: width * 0.38, z: height * 0.72, zoom: 2.1, tilt: 0.15 },
-      province: { x: london?.centroid[0] ?? width / 2, z: london?.centroid[1] ?? height / 2, zoom: 4.2, tilt: 0.23 },
+      'whole-region': { x: width / 2, z: height / 2, zoom: fitZoom(viewport.clientWidth / Math.max(1, viewport.clientHeight)) },
+      britain: { x: width * 0.39, z: height * 0.27, zoom: 2.1 },
+      iberia: { x: width * 0.38, z: height * 0.72, zoom: 2.1 },
+      province: { x: london?.centroid[0] ?? width / 2, z: london?.centroid[1] ?? height / 2, zoom: 4.2 },
     };
     const preset = presets[name];
     const distance = span * 1.6;
     controls.target.set(preset.x, 0, preset.z);
-    camera.position.copy(controls.target).add(new THREE.Vector3(0, distance * Math.cos(preset.tilt), distance * Math.sin(preset.tilt)));
+    camera.position.copy(controls.target).add(new THREE.Vector3(0, distance, 0));
     camera.zoom = preset.zoom;
     camera.updateProjectionMatrix();
     controls.update();
@@ -605,7 +600,7 @@ export function createMapViewer(
     const center = provinceAnchor(id);
     if (!center) return;
     controls.target.set(center.x, 0, center.z);
-    camera.position.set(center.x, span * 1.6, center.z + span * 0.25);
+    camera.position.set(center.x, span * 1.6, center.z);
     camera.zoom = 2.5;
     camera.updateProjectionMatrix();
     controls.update();
