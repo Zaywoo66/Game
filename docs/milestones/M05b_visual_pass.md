@@ -1,5 +1,5 @@
 # M5b Map density and visual/UI pass
-Docs: MAP_SCALE.md, MAP_PIPELINE.md; create docs/UI_STYLE.md in this milestone.
+Docs: MAP_SCALE.md, MAP_PIPELINE.md, UI_DESIGN_GUIDE.md; create/update docs/UI_STYLE.md in this milestone.
 Why: M2-M5 acceptance was technical only. Later systems (diplomacy, naval, AI) are tuned against map density, so the 5b.2 rebuild is verified before M6. The remaining M5b visual/UI work may continue alongside M6–M11. M12 waits for M5b acceptance.
 
 ## A. Province density (tools + data)
@@ -19,12 +19,13 @@ Why: M2-M5 acceptance was technical only. Later systems (diplomacy, naval, AI) a
 - Map modes: political and terrain.
 - Units: readable army/fleet icons with strength number, selection highlight, path preview.
 
-## C. UI
-- Write docs/UI_STYLE.md: color/spacing/typography tokens (Tailwind config), layout grid, panel rules, icon rules.
-- Layout: top bar (date, pause/speed, treasury/income, ruler), collapsible side panels, province panel on selection, optional minimap, toasts for events. Panels overlay the map edges without covering the focus area.
-- Show localized names everywhere (no raw keys such as `london`, `lancaster`). Data linter fails if a displayed key lacks a localization entry.
-- Tooltips on numbers show modifier breakdowns.
-- Works at 1280x720 and 1920x1080.
+## C. UI redesign
+- Follow `docs/UI_DESIGN_GUIDE.md` for design tokens, typography, components,
+  responsive layout, accessibility, map overlays and UI acceptance.
+- UI-1 through UI-8 are separate PRs as defined in the guide. UI-1 replaces
+  the former 5b.6 shell task; 5b.7 and 5b.8 below remain behavior/session tasks.
+- Keep the UI host-driven: it sends commands and renders authoritative updates.
+  Do not change game behavior while implementing visual shells.
 
 ### Interaction progress
 - Camera keyboard pan (WASD/arrows), Home framing, double-click province focus,
@@ -43,6 +44,8 @@ Why: M2-M5 acceptance was technical only. Later systems (diplomacy, naval, AI) a
   the final map density/rendering pass and before release. Repeat only if map
   density or rendering changes; unrelated mechanics edits do not trigger it.
 - Existing tests and AI smoke test still pass.
+- UI redesign acceptance checklist in `docs/UI_DESIGN_GUIDE.md` §11 passes;
+  any unmet item is listed explicitly in the PR and remains open for owner review.
 
 ## Suggested task split (one PR each)
-5b.1 docs patch; 5b.2 map rebuild + ownership; 5b.3 movement calibration + tick, snapshot and delta measurements; 5b.4 camera/water/borders/terrain + native 1080p FPS/RAM after the visual changes; 5b.5 labels, map modes, unit markers, hover/selection feedback; 5b.6 UI layout, UI_STYLE.md, localization of displayed keys; 5b.7 interaction layer; 5b.8 war/peace and playable-session acceptance.
+5b.1 docs patch; 5b.2 map rebuild + ownership; 5b.3 movement calibration + tick, snapshot and delta measurements; 5b.4 camera/water/borders/terrain + native 1080p FPS/RAM after the visual changes; 5b.5 labels, map modes, unit markers, hover/selection feedback; 5b.6 UI-1 through UI-8, each in a separate PR; 5b.7 interaction layer (selection, orders/path feedback, time-control polish, tooltips, notifications, hotkeys and settings); 5b.8 war/peace window and playable-session acceptance.
