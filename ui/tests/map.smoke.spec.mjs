@@ -198,7 +198,7 @@ test('camera presets stay bounded and wide margins render as ocean', async ({ pa
     expect(camera.target[0]).toBeLessThanOrEqual(800);
     expect(camera.target[1]).toBeGreaterThanOrEqual(0);
     expect(camera.target[1]).toBeLessThanOrEqual(744);
-    expect(camera.polarAngle).toBeLessThanOrEqual(0.72);
+    expect(camera.polarAngle).toBeCloseTo(0.001, 3);
   }
   expect(result.samples['whole-region'].zoom).toBeCloseTo(0.96, 2);
   expect(result.samples.province.zoom).toBeGreaterThan(result.samples.britain.zoom);
@@ -222,6 +222,17 @@ test('keyboard camera controls frame, pan, and double-click to focus a province'
   await page.keyboard.press('ArrowRight');
   const afterPan = await page.evaluate(() => window.strategyMapTest.readCamera().target);
   expect(afterPan[0]).toBeGreaterThan(beforePan[0]);
+
+  const beforeRightDrag = await page.evaluate(() => window.strategyMapTest.readCamera());
+  const bounds = await canvas.boundingBox();
+  expect(bounds).toBeTruthy();
+  await page.mouse.move(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2);
+  await page.mouse.down({ button: 'right' });
+  await page.mouse.move(bounds.x + bounds.width / 2 + 60, bounds.y + bounds.height / 2 + 30);
+  await page.mouse.up({ button: 'right' });
+  const afterRightDrag = await page.evaluate(() => window.strategyMapTest.readCamera());
+  expect(afterRightDrag.target).not.toEqual(beforeRightDrag.target);
+  expect(afterRightDrag.polarAngle).toBeCloseTo(0.001, 3);
 
   await page.evaluate(() => window.strategyMapTest.setCameraPreset('whole-region'));
   const point = await page.evaluate((id) => window.strategyMapTest.projectProvince(id), province.id);
