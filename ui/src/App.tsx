@@ -13,7 +13,7 @@ export function App({ directMap = false }: { directMap?: boolean }) {
   const hostGame = useGameHost(true, lan.status?.generation ?? 0,
     campaignStarted && (lan.status?.mode !== 'guest' || lan.status.state === 'connected'),
     lan.status?.mode !== 'guest');
-  const gameError = hostGame.connectionError || (!hostGame.connected
+  const gameError = hostGame.connectionError || hostGame.commandError || (!hostGame.connected
     ? 'Open the desktop game to load its campaign data.' : '');
 
   useEffect(() => {
@@ -24,5 +24,9 @@ export function App({ directMap = false }: { directMap?: boolean }) {
 
   if (campaignStarted) return <MapPage lan={lan} hostGame={hostGame} />;
   return <MainMenu game={hostGame.snapshot} gameError={gameError} lan={lan}
-    onSinglePlayer={() => setSinglePlayerStarted(true)} />;
+    onSinglePlayer={(countryId) => {
+      void hostGame.startSoloCampaign(countryId).then((started) => {
+        if (started) setSinglePlayerStarted(true);
+      });
+    }} />;
 }

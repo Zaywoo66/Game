@@ -21,7 +21,7 @@ async function mockLan(page, { snapshotError = false } = {}) {
     const state = {
       status: solo,
       snapshot: {
-        generation: 0, sequence: 7, clock, countries, local_country_id: null, owners: [],
+        generation: 0, sequence: 7, clock, countries, local_country_id: 1, owners: [],
         max_tax_rate: 200, max_monthly_spending: '2000',
       },
       calls: [],
@@ -77,6 +77,7 @@ async function mockLan(page, { snapshotError = false } = {}) {
           if (name === 'lan_start_campaign') {
             return state.changeStatus({ started: true });
           }
+          if (name === 'solo_start_campaign') return null;
           if (name === 'lan_leave') {
             return state.changeStatus({ ...solo, generation: state.status.generation + 1 });
           }
@@ -92,7 +93,7 @@ async function ipcCall(page, name) {
   return page.evaluate((command) => window.__strategyMockLan.calls.findLast((call) => call.name === command), name);
 }
 
-test('launch opens the title screen and network choices before the campaign', async ({ page }) => {
+test('launch offers solo country selection and opens multiplayer choices before the campaign', async ({ page }) => {
   await mockLan(page);
   await page.goto('/');
   await expect(page.getByRole('heading', { name: 'Strategy' })).toBeVisible();
@@ -104,6 +105,13 @@ test('launch opens the title screen and network choices before the campaign', as
   await expect(page.getByRole('button', { name: /Join a room/ })).toBeVisible();
   await page.getByRole('button', { name: /Main menu/ }).click();
   await page.getByRole('button', { name: /Single player/ }).click();
+  await expect(page.getByRole('heading', { name: 'Choose your country' })).toBeVisible();
+  await expect(page.locator('.map-page')).toHaveCount(0);
+  await page.getByLabel('Your country').selectOption('2');
+  await page.getByRole('button', { name: 'Start campaign' }).click();
+  await expect.poll(() => ipcCall(page, 'solo_start_campaign')).toEqual({
+    name: 'solo_start_campaign', args: { countryId: 2 },
+  });
   await expect(page.locator('.map-page')).toBeVisible();
 });
 
