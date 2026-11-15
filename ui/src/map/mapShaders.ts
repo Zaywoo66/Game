@@ -160,7 +160,9 @@ void main() {
   color = mix(color, color * highlandTint, elevationTint * 0.16);
 
   if (mapMode == 0) {
-    color = mix(color, owner.rgb, owner.a * 0.88);
+    float ownershipLuminance = dot(owner.rgb, vec3(0.2126, 0.7152, 0.0722));
+    vec3 atlasOwnership = mix(vec3(ownershipLuminance), owner.rgb, 0.80);
+    color = mix(color, atlasOwnership, owner.a * 0.84);
     if (sourceCountryFill.a > 0.0 && ownershipChanged < 0.5) {
       vec3 sourceFillColor = sourceCountryFill.rgb / max(sourceCountryFill.a, 0.001);
       color = mix(color, sourceFillColor, sourceCountryFill.a);
@@ -168,7 +170,7 @@ void main() {
     // Keep country ownership clear while letting the underlying relief read
     // through like a printed political atlas instead of a flat board-game map.
     if (owner.a > 0.01 || sourceCountryFill.a > 0.0) {
-      float politicalRelief = 0.90 + 0.18 * clamp(landLight, 0.0, 1.0);
+      float politicalRelief = 0.82 + 0.32 * clamp(landLight, 0.0, 1.0);
       color *= politicalRelief;
     }
   }

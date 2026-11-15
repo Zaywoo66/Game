@@ -113,6 +113,7 @@ test('launch offers solo country selection and opens multiplayer choices before 
     name: 'solo_start_campaign', args: { countryId: 2 },
   });
   await expect(page.locator('.map-page')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Historical 1440' })).toHaveCount(0);
 });
 
 test('host creates an empty room, claims a country and starts after the guest selects theirs', async ({ page }) => {
