@@ -14,7 +14,11 @@
     "ruler": null,
     "heir": null,
     "provinces": [
-      "cologne"
+      "bonn",
+      "cologne",
+      "dusseldorf",
+      "grevenmacher",
+      "wuppertal"
     ],
     "treasury": 50000,
     "tax_rate": 220,

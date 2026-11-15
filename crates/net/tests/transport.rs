@@ -18,7 +18,7 @@ fn identity() -> MapIdentity {
 #[test]
 fn handshake_rejects_each_incompatible_identity_component() {
     let map = identity();
-    assert_eq!(PROTOCOL_VERSION, 15);
+    assert_eq!(PROTOCOL_VERSION, 23);
     assert_eq!(validate_hello(PROTOCOL_VERSION, 2, [42; 32], map), Ok(()));
     assert_eq!(
         validate_hello(3, 2, [42; 32], map),
@@ -99,6 +99,7 @@ async fn clean_eof_is_distinct_from_truncated_or_malformed_frames() {
 async fn oversized_outgoing_message_writes_no_partial_frame() {
     let mut output = Vec::new();
     let message = ClientMessage::ClaimCountry {
+        seq: 1,
         tag: "x".repeat(MAX_CLIENT_FRAME_BYTES),
     };
     assert_eq!(
@@ -174,7 +175,7 @@ fn command_conversion_preserves_raw_fixed_units_and_validates_speed() {
         },
         PlayerCommand::UnlockTechnology {
             country: 1,
-            key: "recordkeeping".into(),
+            key: "digital_government".into(),
         },
         PlayerCommand::UnlockIdea {
             country: 1,

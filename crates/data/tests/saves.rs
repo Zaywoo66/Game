@@ -95,6 +95,31 @@ fn directional_opinions_round_trip_in_version_four_and_reject_invalid_records() 
     ));
 }
 
+#[test]
+fn aggressive_expansion_round_trips_in_save_schema_nineteen() {
+    let mut diplomacy = DiplomacyState::default();
+    diplomacy.add_aggressive_expansion(COUNTRY, 17);
+    let state = setup().with_diplomacy(diplomacy).unwrap();
+    let encoded = save_game(&state).unwrap();
+    let document: Value = serde_json::from_slice(&encoded).unwrap();
+    assert_eq!(document["schema_version"], 19);
+
+    let loaded = load_game(&encoded, parse_provinces(MAP).unwrap()).unwrap();
+    assert_eq!(loaded, state);
+    assert_eq!(save_game(&loaded).unwrap(), encoded);
+    assert_eq!(state_hash(&loaded).unwrap(), state_hash(&state).unwrap());
+
+    let mut invalid: Value = document;
+    invalid["state"]["diplomacy"]["aggressive_expansion"][0]["points"] = json!(0);
+    assert!(matches!(
+        load_game(
+            &serde_json::to_vec(&invalid).unwrap(),
+            parse_provinces(MAP).unwrap()
+        ),
+        Err(SaveError::InvalidDiplomacy(_))
+    ));
+}
+
 fn setup() -> GameState {
     let permanent = ModifierSourceId::new(3);
     let mut modifiers = ModifierStore::default();

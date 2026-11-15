@@ -17,7 +17,9 @@ export interface LanStatus {
   room: string | null;
   address: string | null;
   guest_connected: boolean;
+  host_country_id: number | null;
   guest_country_id: number | null;
+  started: boolean;
   can_takeover: boolean;
   temporary_ai: boolean;
   verified_checksums: number;
@@ -33,7 +35,8 @@ export interface DiscoveredRoom {
   version: number;
 }
 
-type LanAction = 'lan_start' | 'lan_join' | 'lan_leave' | 'lan_takeover';
+type LanAction = 'lan_start' | 'lan_join' | 'lan_leave' | 'lan_takeover'
+  | 'lan_claim_country' | 'lan_start_campaign';
 
 function errorText(error: unknown): string {
   if (error instanceof Error) return error.message;
@@ -144,6 +147,8 @@ export function useLan(enabled: boolean) {
     checking: Boolean(bridge) && !checked, scanning, error, discover,
     start: (config: LanConfig) => action('lan_start', { config }),
     join: (address: string, name: string) => action('lan_join', { address, name }),
+    claimCountry: (countryId: number) => action('lan_claim_country', { countryId }),
+    startCampaign: () => action('lan_start_campaign'),
     leave: () => action('lan_leave'),
     takeover: () => action('lan_takeover'),
   };

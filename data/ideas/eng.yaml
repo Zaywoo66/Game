@@ -3,6 +3,6 @@ country: eng
 ideas:
   - key: english_longbow
     name: english_longbow
-    unlock: {country_has_tech: professional_officers}
+    unlock: {country_has_tech: professional_forces}
     modifiers:
       - {key: army_morale, value: 100, kind: multiplicative}

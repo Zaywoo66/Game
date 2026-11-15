@@ -1,0 +1,18 @@
+schema_version: 1
+country: modern_prt
+ideas:
+  - key: portugal_casa_da_india
+    name: portugal_casa_da_india
+    unlock: {country_has_tech: financial_regulation}
+    modifiers:
+      - {key: tax_income, value: 125, kind: multiplicative}
+  - key: portugal_trading_posts
+    name: portugal_trading_posts
+    unlock: {country_has_tech: global_supply_networks}
+    modifiers:
+      - {key: tax_income, value: 100, kind: multiplicative}
+  - key: portugal_oceanic_routes
+    name: portugal_oceanic_routes
+    unlock: {country_has_tech: professional_forces}
+    modifiers:
+      - {key: army_morale, value: 50, kind: additive}

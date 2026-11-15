@@ -20,13 +20,18 @@ their profile weight. When forecast monthly net balance is negative or the
 treasury is below forecast monthly expenses, administration technologies and
 `tax_income` ideas receive double weight. Other weights are unchanged; reforms
 remain profile-only. Tests cover both need conditions and matching/nonmatching
-weights. The England and France files exercise the mechanic. Technology and
-idea branch structures are common to every country. Country-specific national
-ideas and idea-based modifiers are allowed only for France, Brandenburg, the
-Teutonic Order, Poland, England, Castile, Naples, Florence, Savoy, Austria, the
-Ottoman Empire, Holland, Sweden, Denmark, Moscow, and Ardabil. Every other
-country uses the same generic baseline and receives no unique national-idea
-catalog. M9 acceptance and the AI-only progress run remain open.
+weights. The England and France files exercise the legacy mechanic. Technology
+branches are shared by every country and now use modern administration,
+economy, and military content. Countries without a unique catalog use
+`data/ideas/common.yaml`; a country-tagged file replaces that fallback. The
+2022 unique set is France, Britain, Germany, Italy, Spain, Portugal, the
+Netherlands, Sweden, Denmark, Austria, Poland, Hungary, Greece, Turkey, Russia,
+and Saudi Arabia. Greece's catalog is Byzantine-themed and the Saudi catalog
+retains the Arab Caliphate idea. Legacy English and French catalogs remain for
+the 1440 scenario. Current ideas grant permanent modifiers; forming a new
+country tag or implementing the distinct institutions in the design table is
+not supported by the current idea-effect format. M9 acceptance and the AI-only
+progress run remain open.
 
 ## Tasks
 - Tech DAG loader, research points, unlock effects as modifiers

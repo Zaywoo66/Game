@@ -151,6 +151,7 @@ export interface Province {
   kind: 'land' | 'sea' | 'lake';
   terrain: string;
   centroid: [number, number];
+  development: number;
   neighbors: { id: number; edge: string }[];
   area?: string;
   name_key?: string;
@@ -174,17 +175,29 @@ export interface MapAssets {
   heightmap: Heightmap;
   terrain: Raster;
   rivers: Raster;
+  countryBoundaries2022?: Raster;
+  countryFill2022?: Raster;
+  initialOwnerTags?: ReadonlyMap<number, string>;
 }
 
 export async function loadMapAssets(base: string, signal: AbortSignal): Promise<MapAssets> {
+  const baseParts = base.split('/').filter(Boolean);
+  const isModernMap = baseParts[baseParts.length - 1] === 'europe';
   async function file(name: string): Promise<Response> {
     const response = await fetch(base + name, { signal });
     if (!response.ok) throw new Error('Could not load ' + name + ' (HTTP ' + response.status + ')');
     return response;
   }
 
-  async function raster(name: string): Promise<Raster> {
-    const blob = await (await file(name)).blob();
+  async function raster(name: string): Promise<Raster>;
+  async function raster(name: string, optional: true): Promise<Raster | null>;
+  async function raster(name: string, optional = false): Promise<Raster | null> {
+    const response = await fetch(base + name, { signal });
+    if (!response.ok) {
+      if (optional && response.status === 404) return null;
+      throw new Error('Could not load ' + name + ' (HTTP ' + response.status + ')');
+    }
+    const blob = await response.blob();
     const bitmap = await createImageBitmap(blob, {
       colorSpaceConversion: 'none',
       premultiplyAlpha: 'none',
@@ -202,7 +215,8 @@ export async function loadMapAssets(base: string, signal: AbortSignal): Promise<
     }
   }
 
-  const [metadata, provincesRaster, heightmap, terrain, rivers, rawNames, evidence] = await Promise.all([
+  const [metadata, provincesRaster, heightmap, terrain, rivers, rawNames, evidence,
+    countryBoundaries2022, countryFill2022, initialOwnership] = await Promise.all([
     file('provinces.json').then((response) => response.json()) as Promise<{
       map_version: number; map_hash: string; provinces: Province[];
       projection: { pixels_per_degree: number; origin: [number, number] };
@@ -216,9 +230,17 @@ export async function loadMapAssets(base: string, signal: AbortSignal): Promise<
       schema_version: number; map_version: number; map_hash: string; reference_year: number;
       assignments: PolityAttribution[];
     }>,
+    isModernMap ? raster('country_borders_2022.png', true) : Promise.resolve(null),
+    isModernMap ? raster('country_fill_2022.png', true) : Promise.resolve(null),
+    isModernMap ? file('ownership_2022.json').then((response) => response.json()) as Promise<{
+      schema_version: number; map_version: number; map_hash: string;
+      province_owners: Record<string, string>;
+    }> : Promise.resolve(null),
   ]);
   const { width, height } = provincesRaster;
-  if ([heightmap, terrain, rivers].some((layer) => layer.width !== width || layer.height !== height)) {
+  const rasterLayers = [heightmap, terrain, rivers, countryBoundaries2022, countryFill2022]
+    .filter((layer): layer is Raster => layer !== null);
+  if (rasterLayers.some((layer) => layer.width !== width || layer.height !== height)) {
     throw new Error('Map layers must have the same dimensions');
   }
 
@@ -251,6 +273,27 @@ export async function loadMapAssets(base: string, signal: AbortSignal): Promise<
   if ([...provinces.values()].some((province) => province.kind === 'land' && !polityAttributions.has(province.id))) {
     throw new Error('Historical polity evidence omits a land province');
   }
+  let initialOwnerTags: Map<number, string> | undefined;
+  if (initialOwnership) {
+    if (initialOwnership.schema_version !== 1
+      || initialOwnership.map_version !== metadata.map_version
+      || initialOwnership.map_hash !== metadata.map_hash) {
+      throw new Error('Modern ownership baseline does not match the loaded map identity');
+    }
+    initialOwnerTags = new Map();
+    for (const [rawId, tag] of Object.entries(initialOwnership.province_owners)) {
+      const id = Number(rawId);
+      const province = provinces.get(id);
+      if (!Number.isInteger(id) || !province || province.kind !== 'land'
+        || typeof tag !== 'string' || !tag.trim() || initialOwnerTags.has(id)) {
+        throw new Error('Invalid modern ownership baseline entry for province ' + rawId);
+      }
+      initialOwnerTags.set(id, tag);
+    }
+    if ([...provinces.values()].some((province) => province.kind === 'land' && !initialOwnerTags?.has(province.id))) {
+      throw new Error('Modern ownership baseline omits a land province');
+    }
+  }
   if (Object.values(rawNames).some((name) => typeof name !== 'string' || !name.trim())) {
     throw new Error('Invalid map localization entry');
   }
@@ -259,5 +302,8 @@ export async function loadMapAssets(base: string, signal: AbortSignal): Promise<
     throw new Error('A province has no localized display name');
   }
   return { provinces, projection: metadata.projection, names, polityAttributions,
-    raster: provincesRaster, heightmap, terrain, rivers };
+    raster: provincesRaster, heightmap, terrain, rivers,
+    countryBoundaries2022: countryBoundaries2022 ?? undefined,
+    countryFill2022: countryFill2022 ?? undefined,
+    initialOwnerTags };
 }

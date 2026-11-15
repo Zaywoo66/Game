@@ -50,6 +50,10 @@ pub enum Reason {
     VassalageRejected,
     CallToArmsAccepted,
     CallToArmsRejected,
+    TradeRouteAccepted,
+    TradeRouteRejected,
+    TradeRouteProposed,
+    Stability,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -100,6 +104,10 @@ impl Reason {
             Self::VassalageRejected => "VassalageRejected",
             Self::CallToArmsAccepted => "CallToArmsAccepted",
             Self::CallToArmsRejected => "CallToArmsRejected",
+            Self::TradeRouteAccepted => "TradeRouteAccepted",
+            Self::TradeRouteRejected => "TradeRouteRejected",
+            Self::TradeRouteProposed => "TradeRouteProposed",
+            Self::Stability => "Stability",
             Self::Military { action, .. } => match action {
                 MilitaryReason::RaiseArmy => "RaiseArmy",
                 MilitaryReason::CombineArmies => "CombineArmies",
@@ -155,6 +163,12 @@ pub fn decide(
 
     let actor = CommandActor::Ai(country);
     let mut commands = Vec::with_capacity(2);
+    if nation.stability < 3 && nation.admin_points >= 100 {
+        let command = Command::IncreaseStability { country };
+        if state.validate_command(actor, &command).is_ok() {
+            commands.push((command, Reason::Stability));
+        }
+    }
     if let Some(events) = state.events() {
         if let Some(((_, key), _)) = events
             .pending
@@ -245,10 +259,17 @@ pub fn decide(
                 .ideas()
                 .into_iter()
                 .flat_map(|ideas| {
+                    let has_country_catalog = ideas
+                        .definitions
+                        .values()
+                        .any(|definition| definition.country == nation.tag);
                     ideas
                         .definitions
                         .values()
-                        .filter(|definition| definition.country == nation.tag)
+                        .filter(|definition| {
+                            definition.country == nation.tag
+                                || (definition.country == "common" && !has_country_catalog)
+                        })
                         .filter(|definition| {
                             state
                                 .validate_command(

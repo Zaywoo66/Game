@@ -796,3 +796,15 @@ areas:
   region: europe_extension
   kind: water
   source: null
+- key: africa_middle_east_unclassified
+  name_key: area_africa_middle_east_unclassified
+  name: Africa and Middle East (unclassified)
+  region: africa_middle_east
+  kind: unclassified
+  source: null
+- key: africa_middle_east_water
+  name_key: area_africa_middle_east_water
+  name: Africa and Middle East waters
+  region: africa_middle_east
+  kind: water
+  source: null

@@ -21,6 +21,7 @@ mod war;
 
 pub use diplomacy::{
     AllianceOffer, CallToArmsOffer, DiplomacyError, DiplomacyState, MarriageError, MarriageOffer,
+    TradeRouteOffer,
 };
 pub use effect::{Effect, EffectError, PreparedModifier};
 pub use events::{
@@ -41,13 +42,16 @@ pub use opinion::{Opinion, OpinionError, OpinionStateError};
 pub use polity::{
     AiThresholds, AiWeights, BirthPrecision, CharacterState, CharacterStats, CountryPolity,
     EconomyState, FiscalAiProfile, FiscalError, FiscalPolicy, MonthlyBudget, PolityError,
-    PolityRules, PolityState, PolityTickFailure, Sex, SuccessionState,
+    PolityRules, PolityState, PolityTickFailure, Sex, StabilityError, SuccessionState,
 };
 pub use province_graph::{
     EdgeKind, MapIdentity, MapIdentityMismatch, Province, ProvinceEdge, ProvinceGraph,
     ProvinceGraphError, ProvinceKind,
 };
-pub use reforms::{ReformDefinition, ReformError, ReformState, REFORM_COST};
+pub use reforms::{
+    NewMonarch, PendingGovernmentChange, ReformDefinition, ReformError, ReformState,
+    GOVERNMENT_CHANGE_COST, GOVERNMENT_CHANGE_DAYS, REFORM_COST,
+};
 pub use rng::{derive_ai_rng, SeededRng};
 pub use state::{
     AiCommandRejection, AiProfileKey, Command, CommandActor, CommandError, Controller,
@@ -61,5 +65,5 @@ pub use time::{
 pub use trigger::{Trigger, TriggerView};
 pub use war::{
     Army, ArmyMovement, MilitaryTickFailure, MovementLeg, PeaceOffer, PeaceTreaty, Siege, War,
-    WarError, WarRules, WarSide, WarState,
+    WarError, WarFaction, WarRules, WarSide, WarState,
 };

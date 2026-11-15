@@ -15,11 +15,22 @@
     "heir": null,
     "provinces": [
       "eu_321_186",
+      "eu_321_186_part_02",
+      "eu_321_186_part_03",
+      "eu_321_186_part_04",
       "gda_sk",
+      "gda_sk_part_02",
       "kaliningrad",
+      "kaliningrad_part_02",
       "liepaga",
       "olsztyn",
-      "sovetsk"
+      "olsztyn_part_02",
+      "olsztyn_part_03",
+      "olsztyn_part_04",
+      "sovetsk",
+      "sovetsk_part_02",
+      "sovetsk_part_03",
+      "sovetsk_part_04"
     ],
     "treasury": 70000,
     "tax_rate": 220,

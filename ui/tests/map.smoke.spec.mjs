@@ -20,6 +20,15 @@ test.beforeEach(async ({ page }) => {
   expect(webglErrors, 'WebGL initialization must not report texture or shader errors').toEqual([]);
 });
 
+test('province inspector collapses and reopens without changing map state', async ({ page }) => {
+  const inspector = page.locator('#map-inspector');
+  await expect(inspector).toBeVisible();
+  await inspector.getByRole('button', { name: 'Hide' }).click();
+  await expect(inspector).toBeHidden();
+  await page.getByRole('button', { name: 'Open panel' }).click();
+  await expect(inspector).toBeVisible();
+});
+
 test('projected provinces pick their canonical IDs and representative clicks select them', async ({ page }) => {
   const provinces = await loadProvinces(page);
   const selected = page.locator('[data-map-selected]');
@@ -66,6 +75,7 @@ test('fleet markers show ship counts, movement paths, and select the fleet panel
     window.strategyMapTest.setFleets([{
       id: 77, province, destination, progress: 350, color: '#526f9b', ships: 4,
     }]);
+    window.strategyMapTest.focusProvince(province);
     window.strategyMapTest.renderFrame();
   }, seaIds);
   const fleet = page.getByRole('button', { name: 'Fleet 77, 4 ships' });
@@ -94,7 +104,7 @@ test('country labels stay clear of map controls and panels', async ({ page }) =>
   expect(overlaps).toEqual([]);
 });
 
-test('overview map uses compact controls and army markers at a laptop viewport', async ({ page }) => {
+test('overview hides army markers until the player zooms in', async ({ page }) => {
   await page.setViewportSize({ width: 1100, height: 768 });
   const london = (await loadProvinces(page)).find(({ key }) => key === 'london');
   expect(london).toBeTruthy();
@@ -111,10 +121,13 @@ test('overview map uses compact controls and army markers at a laptop viewport',
     Number.parseFloat(getComputedStyle(element).width));
   expect(headerWidth).toBeLessThanOrEqual(430);
   const badge = page.locator('.map-army-badge[data-army-id="909"]');
+  await expect(badge).toBeHidden();
+  await page.evaluate(() => {
+    window.strategyMapTest.setCameraPreset('province');
+    window.strategyMapTest.renderFrame();
+  });
   await expect(badge).toBeVisible();
-  await expect(badge.locator('.map-army-strength')).toBeHidden();
-  expect(await badge.evaluate((element) => Number.parseFloat(getComputedStyle(element).width)))
-    .toBeLessThanOrEqual(20);
+  await expect(badge.locator('.map-army-strength')).toBeVisible();
   await expect(badge).toHaveAttribute('aria-label', 'Army 909, 1,200 soldiers');
 });
 
@@ -153,6 +166,37 @@ test('owner recoloring changes the rendered province in place', async ({ page })
   expect(otherAfter).toEqual(otherColor);
   expect(await page.evaluate(({ x, y }) => window.strategyMapTest.pickAt(x, y), point))
     .toBe(target.id);
+});
+
+test('modern political map keeps its country layer while a saved province changes owner', async ({ page }) => {
+  await page.goto('/?verify=1&map=europe');
+  await expect(page.locator('main[data-map-status="ready"]')).toBeVisible({ timeout: 60_000 });
+  const provinces = await (await page.request.get('/map/europe/provinces.json')).json().then((data) => data.provinces);
+  const london = provinces.find(({ key }) => key === 'london');
+  const paris = provinces.find(({ key }) => key === 'paris');
+  expect(london).toBeTruthy();
+  expect(paris).toBeTruthy();
+  const points = await page.evaluate(([londonId, parisId]) => {
+    const map = window.strategyMapTest;
+    map.setMapMode('political');
+    map.setCameraPreset('whole-region');
+    map.setPoliticalOwners(new Map(), new Set());
+    map.renderFrame();
+    return [map.projectProvince(londonId), map.projectProvince(parisId)];
+  }, [london.id, paris.id]);
+  expect(points.every(Boolean)).toBe(true);
+  const [londonBefore, parisBefore] = await page.evaluate(([londonPoint, parisPoint]) => {
+    const map = window.strategyMapTest;
+    return [map.readPixel(londonPoint.x, londonPoint.y), map.readPixel(parisPoint.x, parisPoint.y)];
+  }, points);
+  const [londonAfter, parisAfter] = await page.evaluate(({ provinceId, londonPoint, parisPoint }) => {
+    window.strategyMapTest.setPoliticalOwners(new Map([[provinceId, [230, 35, 85, 255]]]), new Set([provinceId]));
+    window.strategyMapTest.renderFrame();
+    const map = window.strategyMapTest;
+    return [map.readPixel(londonPoint.x, londonPoint.y), map.readPixel(parisPoint.x, parisPoint.y)];
+  }, { provinceId: london.id, londonPoint: points[0], parisPoint: points[1] });
+  expect(londonAfter).not.toEqual(londonBefore);
+  expect(parisAfter).toEqual(parisBefore);
 });
 
 test('adjacent historical countries receive clearly separated atlas colors', async ({ page }) => {
@@ -206,7 +250,7 @@ test('camera presets stay bounded and wide margins render as ocean', async ({ pa
   expect(result.margin).not.toEqual([21, 35, 44, 255]);
 });
 
-test('keyboard camera controls frame, pan, and double-click to focus a province', async ({ page }) => {
+test('keyboard camera controls frame and pan while right drag selects a group', async ({ page }) => {
   const province = (await loadProvinces(page)).find(({ kind }) => kind === 'land');
   expect(province).toBeTruthy();
   const canvas = page.locator('[data-map-viewport] canvas');
@@ -229,9 +273,11 @@ test('keyboard camera controls frame, pan, and double-click to focus a province'
   await page.mouse.move(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2);
   await page.mouse.down({ button: 'right' });
   await page.mouse.move(bounds.x + bounds.width / 2 + 60, bounds.y + bounds.height / 2 + 30);
+  await expect(page.locator('.map-selection-box')).toBeVisible();
   await page.mouse.up({ button: 'right' });
+  await expect(page.locator('.map-selection-box')).toBeHidden();
   const afterRightDrag = await page.evaluate(() => window.strategyMapTest.readCamera());
-  expect(afterRightDrag.target).not.toEqual(beforeRightDrag.target);
+  expect(afterRightDrag.target).toEqual(beforeRightDrag.target);
   expect(afterRightDrag.polarAngle).toBeCloseTo(0.001, 3);
 
   await page.evaluate(() => window.strategyMapTest.setCameraPreset('whole-region'));

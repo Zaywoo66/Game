@@ -95,3 +95,59 @@ when effective opinion meets `vassal_min_opinion` and the overlord has strictly
 more active soldiers; the current profiles set the threshold to 20 points. The
 UI forecasts this response with the same factors. Proactive AI vassal proposals
 and full two-player UI acceptance remain open.
+
+## Dynastic life cycle (in progress)
+
+All monarchy additions are one gradual system tied to government changes,
+marriages, children, inheritance, and succession conflicts. A government change
+to monarchy creates the ruler chosen by the player; children and succession
+crises arise later through family state, not as immediate bonuses.
+
+Confirmed owner rules for the implementation:
+
+- A royal marriage may lead to children after roughly five game months; a
+  player-controlled royal family can have at most three children. Children
+  inherit their dynasty name and receive generated given names and ADM/DIP/MIL
+  values. Sibling marriage is allowed; each child of such a marriage has a
+  deterministic 50% risk of losing one point in each stat, floored at zero.
+- A ruler may nominate a younger son over the eldest. When succession causes a
+  civil or claimant war, the player chooses a side. A claimant succession war
+  is won by controlling at least 85% of the disputed country's land provinces
+  and reaching stability 0 or 1; the player may name the aristocratic claimant
+  when that faction forms.
+- Full annexation of the human player's country ends the campaign. A peace that
+  cedes only part of the country does not.
+- The modern start includes the specified existing monarchies and their
+  documented living rulers and children; historical identities are scenario
+  content, while future family growth is deterministic simulation state.
+
+This slice remains in progress until the full checks and two-player acceptance
+are complete. The rules below describe the branch implementation, not release
+acceptance evidence.
+
+### Implementation progress
+
+The current branch adds character parent and marriage-date state, deterministic
+child generation after five calendar months, generated names and stats,
+three-child-per-couple limit, sibling-marriage eligibility and the agreed
+inbreeding penalty. Family data is present for the requested 2022 monarchies;
+the government transition UI accepts a player-created monarch name and dynasty.
+Political points, stability loss from the agreed yearly stressors, heir
+nomination, full-annexation detection, eliminated-country command rejection,
+and a campaign-loss screen are also present. On ruler death, nominating a son
+other than the eldest living son starts a claimant war; if there are no sons,
+the aristocratic faction forms and each eligible daughter's monarchy spouse
+may enter as a claimant faction. The host player controlling the disputed
+country automatically commands the aristocratic faction. The starting armies
+of that country split in half, with an odd extra soldier retained by the
+royalists. The player can set the aristocratic leader's name and dynasty.
+Wars resolve automatically when one faction occupies at least 85% of the
+disputed country's land provinces and its stability is 0 or 1. A claimant is
+installed as ruler; a victorious aristocratic claimant becomes a newly
+generated ruler. Succession-war and faction identity are serialized in save
+schema 23. The human player's military commands are restricted to the
+aristocratic army faction while the crisis is active.
+
+Remaining acceptance: run targeted and workspace checks, exercise succession
+victory through normal movement and sieges, verify host and guest commands and
+save/load, and complete the two-player diplomacy proposal/response acceptance.

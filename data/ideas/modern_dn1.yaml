@@ -1,0 +1,18 @@
+schema_version: 1
+country: modern_dn1
+ideas:
+  - key: denmark_kalmar_union
+    name: denmark_kalmar_union
+    unlock: {country_has_tech: public_services}
+    modifiers:
+      - {key: tax_income, value: 100, kind: multiplicative}
+  - key: denmark_sound_dues
+    name: denmark_sound_dues
+    unlock: {country_has_tech: global_supply_networks}
+    modifiers:
+      - {key: tax_income, value: 125, kind: multiplicative}
+  - key: denmark_hanseatic_competition
+    name: denmark_hanseatic_competition
+    unlock: {country_has_tech: combined_arms}
+    modifiers:
+      - {key: army_combat, value: 50, kind: multiplicative}

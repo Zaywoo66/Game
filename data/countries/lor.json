@@ -14,8 +14,11 @@
     "ruler": null,
     "heir": null,
     "provinces": [
+      "koblenz",
+      "metz",
       "nancy",
-      "saarbrucken"
+      "saarbrucken",
+      "wiesbaden"
     ],
     "treasury": 50000,
     "tax_rate": 220,

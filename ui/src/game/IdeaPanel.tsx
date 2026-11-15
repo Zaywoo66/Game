@@ -20,7 +20,11 @@ function fixed(raw: string): string {
 }
 
 export function IdeaPanel({ game, country, pending, send }: Props) {
-  const ideas = (game.ideas ?? []).filter((idea) => idea.country === country?.tag);
+  const catalog = game.ideas ?? [];
+  const hasUniqueCatalog = catalog.some((idea) => idea.country === country?.tag);
+  const ideas = catalog.filter((idea) => hasUniqueCatalog
+    ? idea.country === country?.tag
+    : idea.country === 'common');
   const known = new Set(country?.known_ideas ?? []);
   const local = country?.id === game.local_country_id;
   const points = country?.research_points ?? 0;

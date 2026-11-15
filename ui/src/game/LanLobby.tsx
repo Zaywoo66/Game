@@ -173,6 +173,8 @@ export function LanLobby({ game, lan, onClose }: Props) {
         lan_join: 'Joining room…',
         lan_leave: 'Leaving room…',
         lan_takeover: 'Updating guest control…',
+        lan_claim_country: 'Reserving country…',
+        lan_start_campaign: 'Starting campaign…',
       }[lan.pendingAction]}</p>}
       {lan.status?.mode === 'solo' ? (
         <div className="lan-layout"><NewRoom game={game} lan={lan} /><JoinRoom lan={lan} /></div>

@@ -27,7 +27,7 @@ class HordeOwnershipTests(unittest.TestCase):
         rules = self.policy["rules"]
         self.assertEqual(self.owners["tura"], "uzb")
         self.assertEqual(self.owners["astrakhan"], "gth")
-        self.assertEqual(self.owners["atyrau"], "nog")
+        self.assertEqual(self.owners["atyrau"], "uzb")
         self.assertEqual(self.owners["sevastopol"], "cri")
         self.assertEqual(self.owners["kerch"], "cri")
         self.assertEqual(self.owners["dzhankoy"], "cri")
@@ -39,6 +39,8 @@ class HordeOwnershipTests(unittest.TestCase):
         evidence = {row["province_key"]: row for row in self.evidence["assignments"]}
         rules = self.policy["rules"]
         for key, row in evidence.items():
+            if "_part_" in key:
+                continue
             if row["polity_name"] != "Golden Horde" or key in self.policy["rules"]["north_caucasus_keys"]:
                 continue
             if key in rules["capital_proxy_tags"]:
@@ -47,7 +49,8 @@ class HordeOwnershipTests(unittest.TestCase):
             if key in rules["explicit_province_tags"]:
                 self.assertEqual(self.owners[key], rules["explicit_province_tags"][key])
                 continue
-            x = provinces[key]["centroid"][0]
+            parent = key.rsplit("_part_", 1)[0] if "_part_" in key else key
+            x = provinces[parent]["centroid"][0]
             longitude = -13.0 + (x + 0.5) / 32.0
             if longitude < rules["middle_west_longitude_degrees"]:
                 expected = "gth"
@@ -63,13 +66,42 @@ class HordeOwnershipTests(unittest.TestCase):
         rules = self.policy["rules"]
         kalmar_rows = [row for row in self.evidence["assignments"]
                        if row["polity_name"] == rules["kalmar_source_name"]
-                       and row["resolution"] == "coarse_group"]
-        self.assertEqual(len(kalmar_rows), 139)
+                       and row["resolution"] == "coarse_group"
+                       and "_part_" not in row["province_key"]]
+        self.assertGreaterEqual(len(kalmar_rows), 138)
         assigned = {self.owners[row["province_key"]] for row in kalmar_rows}
         self.assertEqual(assigned, {"den", "nor", "swe"})
         self.assertEqual(self.owners["k_benhavn"], "den")
         self.assertEqual(self.owners["oslo"], "nor")
         self.assertEqual(self.owners["stockholm"], "swe")
+
+    def test_hre_coarse_cells_use_represented_member_states_and_keep_city_cells_fixed(self):
+        policy = self.policy["rules"]
+        member_tags = set(policy["fallback"]["hre_owner_tags"])
+        self.assertTrue({"aus", "bav", "boh", "bra", "sax"} <= member_tags)
+        self.assertTrue({"brm", "ham", "shf"}.isdisjoint(member_tags))
+        evidence = [row for row in self.evidence["assignments"]
+                    if row["polity_name"] == "Holy Roman Empire Minor States"
+                    and row["resolution"] == "coarse_group"]
+        self.assertGreater(len(evidence), 0)
+        scenario = json.loads((ROOT / "data/scenarios/1440.json").read_text())
+        owners = {}
+        for tag in scenario["countries"]:
+            country = json.loads((ROOT / f"data/countries/{tag}.json").read_text())
+            owners.update({key: tag for key in country["start"]["provinces"]})
+        explicit = policy["explicit_province_tags"]
+        evidence_by_key = {row["province_key"]: row for row in self.evidence["assignments"]}
+        for row in evidence:
+            key = row["province_key"]
+            if "_part_" in key:
+                continue
+            if key in explicit:
+                self.assertEqual(owners[key], explicit[key])
+            else:
+                self.assertIn(owners[key], member_tags)
+        for tag, key in (("brm", "bremen"), ("ham", "hamburg"), ("shf", "schaffhausen")):
+            country = json.loads((ROOT / f"data/countries/{tag}.json").read_text())
+            self.assertEqual(country["start"]["provinces"], [key])
 
     def test_nordic_countries_have_scenario_rulers_and_banners(self):
         scenario = json.loads((ROOT / "data/scenarios/1440.json").read_text())

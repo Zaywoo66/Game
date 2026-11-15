@@ -33,7 +33,11 @@ fn english_idea_requires_unlock_and_spends_shared_points_once() {
     for _ in 0..1100 {
         state.tick(|_, _| vec![]).unwrap();
     }
-    for key in ["recordkeeping", "professional_officers"] {
+    for key in [
+        "digital_government",
+        "professional_forces",
+        "industrial_productivity",
+    ] {
         state
             .apply(
                 actor,
@@ -72,7 +76,8 @@ fn english_idea_requires_unlock_and_spends_shared_points_once() {
             | Err(CommandError::Idea(IdeaError::WrongCountry(_)))
     ));
     let bytes = save_game(&state).unwrap();
-    assert!(String::from_utf8_lossy(&bytes).contains("\"schema_version\":16"));
+    let version: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
+    assert!(version["schema_version"].as_u64().unwrap() >= 22);
     let restored = load_game(&bytes, state.province_graph().clone()).unwrap();
     assert_eq!(state_hash(&restored).unwrap(), state_hash(&state).unwrap());
     assert!(restored
@@ -80,4 +85,33 @@ fn english_idea_requires_unlock_and_spends_shared_points_once() {
         .unwrap()
         .sources
         .contains_key(&(england, "english_longbow".into())));
+}
+
+#[test]
+fn common_ideas_are_fallback_only_for_countries_without_unique_catalogs() {
+    let state = scenario();
+    let find = |tag: &str| {
+        state
+            .polity()
+            .unwrap()
+            .countries
+            .iter()
+            .find(|(_, country)| country.tag == tag)
+            .map(|(&id, _)| id)
+            .unwrap()
+    };
+    let portugal = find("por");
+    let france = find("fra");
+    let common_purchase = |country| Command::UnlockIdea {
+        country,
+        key: "common_infrastructure".into(),
+    };
+    assert!(matches!(
+        state.validate_command(CommandActor::Ai(portugal), &common_purchase(portugal)),
+        Err(CommandError::Idea(IdeaError::Locked(_)))
+    ));
+    assert!(matches!(
+        state.validate_command(CommandActor::Ai(france), &common_purchase(france)),
+        Err(CommandError::Idea(IdeaError::WrongCountry(_)))
+    ));
 }

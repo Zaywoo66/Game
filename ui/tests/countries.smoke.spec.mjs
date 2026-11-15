@@ -4,7 +4,7 @@ import { expect, test } from '@playwright/test';
 const initialClock = { date: '1440-01-31', tick: 30, paused: false, speed: 1 };
 const ruler = {
   id: 9, name: 'Elinor', dynasty: 'House of the Oak', age: 29, adm: 7, dip: 8, mil: 5,
-  sex: 'male', spouse_id: null, traits: ['calm_ruler'], death: null,
+  sex: 'male', spouse_id: null, parents: [], traits: ['calm_ruler'], death: null,
 };
 const local = {
   id: 1, tag: 'tst', name: 'Test Realm', color: '#f70bab', capital_id: 1, capital: 'Capital City',
@@ -12,7 +12,9 @@ const local = {
   monthly_spending: '7000', bankrupt: false, regency: true, ruler,
   heir: { ...ruler, id: 10, name: 'Matilda', age: 4 },
   research_points: 150, known_technologies: [], known_ideas: [],
-  government: 'monarchy', known_reforms: [], chosen_reform_tiers: [],
+  government: 'monarchy', government_options: ['monarchy', 'democracy'], government_change_pending: false,
+  family: [], stability: 1, admin_points: 100, diplomatic_points: 100, military_points: 100, war_exhaustion: 0,
+  known_reforms: [], chosen_reform_tiers: [],
 };
 const other = {
   ...local, id: 2, tag: 'oth', name: 'Other Realm', color: '#2fc953',
@@ -96,11 +98,9 @@ test('full Europe campaign opens on authoritative game ownership', async ({ page
   await page.goto('/?verify=1&map=europe&verifyHost=1');
   await expect(page.locator('main[data-map-status="ready"]')).toBeVisible({ timeout: 60_000 });
   await expect(page.locator('main')).toHaveAttribute('data-map-mode', 'political');
-  await expect.poll(async () => (await page.evaluate((provinceId) =>
-    window.strategyMapTest.readOwnerColor(provinceId), unowned.province_id))[3]).toBe(132);
   const unownedFill = await page.evaluate((provinceId) =>
     window.strategyMapTest.readOwnerColor(provinceId), unowned.province_id);
-  expect(unownedFill[3]).toBe(132);
+  expect(unownedFill).toEqual([0, 0, 0, 0]);
   const ownedFill = await page.evaluate((provinceId) =>
     window.strategyMapTest.readOwnerColor(provinceId), id);
   expect(ownedFill).toEqual([247, 11, 171, 255]);
@@ -126,8 +126,9 @@ test('M6 diplomacy window accepts a LAN proposal and sends a new alliance offer 
     }],
   });
   await page.goto('/?verify=1&map=western_europe&verifyHost=1');
-  await page.getByRole('button', { name: 'Diplomacy', exact: true }).click();
-  const panel = page.getByRole('region', { name: 'Diplomacy' });
+  await page.getByRole('combobox', { name: 'Country', exact: true }).selectOption('2');
+  await page.getByText('Relations and actions with Other Realm', { exact: true }).click();
+  const panel = page.getByRole('region', { name: 'Country relations and actions' });
   await expect(panel.getByRole('region', { name: 'Incoming alliance proposals' }))
     .toContainText('Other Realm · expires 1440-03-01');
   await expect(panel).toContainText('Opinion 10/100');
@@ -169,8 +170,9 @@ test('M6 diplomacy window responds to an eligible royal-marriage proposal', asyn
       toward_character_id: 9, expires_at: '1440-03-01' }],
   });
   await page.goto('/?verify=1&map=western_europe&verifyHost=1');
-  await page.getByRole('button', { name: 'Diplomacy', exact: true }).click();
-  const panel = page.getByRole('region', { name: 'Diplomacy' });
+  await page.getByRole('combobox', { name: 'Country', exact: true }).selectOption('2');
+  await page.getByText('Relations and actions with Other Realm', { exact: true }).click();
+  const panel = page.getByRole('region', { name: 'Country relations and actions' });
   const proposals = panel.getByRole('region', { name: 'Incoming royal-marriage proposals' });
   await expect(proposals).toContainText('Isabella of Other Realm proposes to Elinor');
   await proposals.getByRole('button', { name: 'Accept', exact: true }).click();

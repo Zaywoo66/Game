@@ -15,16 +15,17 @@
     "heir": null,
     "provinces": [
       "berlin",
-      "bremerhaven",
+      "berlin_part_02",
+      "berlin_part_03",
       "eu_261_186",
+      "eu_261_186_part_02",
+      "eu_261_186_part_03",
       "furth",
-      "gottingen",
-      "kiel",
-      "lubeck",
+      "furth_part_02",
       "nurnberg",
+      "nurnberg_part_02",
       "rostock",
-      "schwerin",
-      "szczecin"
+      "rostock_part_02"
     ],
     "treasury": 70000,
     "tax_rate": 220,

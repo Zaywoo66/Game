@@ -30,17 +30,30 @@
 3. AI decisions. The host calls `ai::decide` for AI countries in ascending `CountryId` order, then validates and applies their commands.
 4. Characters (age, death, traits)
 5. Economy
+   - On the first day of each month, each operational bilateral trade route
+     adds 1 whole treasury unit to each participant after tax and before
+     spending. The path is recalculated from current capitals, owned/allied
+     land and sea connections; war or a blocked required port pauses income.
+     Trade income does not count as taxable income for vassal tribute.
    - At the start of a new Gregorian month, after the economy step, each country
      gains 10 whole research points up to a stockpile of 1000. The host-side AI
      chooses at the start of the month before this grant, so the new points are
      spendable on its next monthly choice.
    - A port under an unopposed wartime fleet blockade contributes no tax on a monthly tick; the budget forecast uses the same current fleet positions.
 6. Diplomacy timers
+   - On the first day of each month, each country not participating in an
+     active war loses 1 aggressive-expansion point, down to 0. Countries in a
+     war do not lose points that month.
 7. Armies move
 8. Combat/sieges
 9. Navy
 10. Events/triggers evaluation
 11. Emit deltas
+
+Newly raised armies spend 30 daily ticks recruiting at their capital. They
+cannot move, fight, siege, merge, split, retreat, or embark during recruitment.
+The army becomes operational on the following tick after the countdown reaches
+zero. The UI marks recruiting armies and exposes their remaining days.
 
 ## AI support
 - AI query helpers are read-only. AI uses an RNG derived from `(seed, tick, country_id)`.

@@ -8,6 +8,26 @@ fn packaged_ideas_have_unique_keys_and_permanent_modifiers() {
     let catalog = load_ideas_from_dir(&root).unwrap();
     assert!(catalog.contains_key("english_longbow"));
     assert!(catalog.contains_key("french_crown_lands"));
+    assert_eq!(catalog["common_infrastructure"].country, "common");
+    assert!(catalog.contains_key("byzantine_greek_fire"));
+    for idea in [
+        "france_napoleonic_code",
+        "britain_pax_britannica",
+        "germany_prussian_militarism",
+        "italy_legions",
+        "spain_tercio_infantry",
+        "portugal_casa_da_india",
+        "netherlands_public_credit",
+        "sweden_allotment_system",
+        "denmark_sound_dues",
+        "austria_common_army",
+        "poland_hussars",
+        "hungary_black_army",
+        "turkey_janissaries",
+        "russia_table_of_ranks",
+    ] {
+        assert!(catalog.contains_key(idea), "missing unique idea {idea}");
+    }
     assert!(catalog
         .values()
         .all(|idea| idea.modifiers.iter().all(|effect| {

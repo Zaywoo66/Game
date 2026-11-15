@@ -3,6 +3,7 @@ import { CountryAcceptancePreview, GameCommand, GameSnapshot, ProposalAcceptance
 interface DiplomacyPanelProps {
   game: GameSnapshot;
   pending: boolean;
+  targetCountryId?: number;
   send(command: GameCommand): Promise<void>;
 }
 
@@ -30,7 +31,7 @@ function previewText(preview: ProposalAcceptancePreview): string {
   return `${preview.outcome}${factors ? ` (${factors})` : ''}`;
 }
 
-export function DiplomacyPanel({ game, pending, send }: DiplomacyPanelProps) {
+export function DiplomacyPanel({ game, pending, targetCountryId, send }: DiplomacyPanelProps) {
   const local = game.local_country_id;
   if (local === null) {
     return <section className="diplomacy-panel" aria-label="Diplomacy">
@@ -43,6 +44,8 @@ export function DiplomacyPanel({ game, pending, send }: DiplomacyPanelProps) {
   const callToArms = (game.call_to_arms_offers ?? []).filter((offer) => offer.toward_id === local);
   const marriageOffers = game.marriage_offers ?? [];
   const incomingMarriages = marriageOffers.filter((offer) => offer.toward_country_id === local);
+  const tradeOffers = game.trade_route_offers ?? [];
+  const incomingTradeOffers = tradeOffers.filter((offer) => offer.toward_id === local);
   const ownCountry = nameOf(game, local);
   const wars = game.wars ?? [];
   const atWarWith = (other: number) => wars.some((war) => {
@@ -82,10 +85,10 @@ export function DiplomacyPanel({ game, pending, send }: DiplomacyPanelProps) {
     return null;
   };
 
-  return <section className="diplomacy-panel" aria-label="Diplomacy">
-    <h2>Diplomacy</h2>
-    <p>Playing as {ownCountry}. Treaty decisions are validated by the host and shared with both players.
-      AI forecasts below apply if a legal offer is sent; the host remains authoritative.</p>
+  const target = game.countries.find((country) => country.id === targetCountryId);
+  return <section className="diplomacy-panel" aria-label="Country relations and actions">
+    <h3>{target ? `Relations with ${target.name}` : 'Diplomatic messages'}</h3>
+    <p>Playing as {ownCountry}. Treaty offers are checked by the host and synchronized to both players.</p>
 
     {callToArms.length > 0 && <section aria-label="Calls to arms">
       <h3>Calls to arms</h3>
@@ -114,6 +117,19 @@ export function DiplomacyPanel({ game, pending, send }: DiplomacyPanelProps) {
       </li>)}</ul>
     </section>}
 
+    {incomingTradeOffers.length > 0 && <section aria-label="Incoming trade route proposals">
+      <h3>Trade route proposals</h3>
+      <ul>{incomingTradeOffers.map((offer) => <li key={`${offer.from_id}:${offer.toward_id}`}>
+        <span>{nameOf(game, offer.from_id)} proposes a route · expires {offer.expires_at} · 1 treasury/month each</span>
+        <button type="button" disabled={pending} onClick={() => void send({
+          type: 'accept_trade_route', country_id: local, from_id: offer.from_id,
+        })}>Accept</button>
+        <button type="button" disabled={pending} onClick={() => void send({
+          type: 'reject_trade_route', country_id: local, from_id: offer.from_id,
+        })}>Reject</button>
+      </li>)}</ul>
+    </section>}
+
     {outgoing.length > 0 && <section aria-label="Outgoing alliance proposals">
       <h3>Outgoing proposals</h3>
       <ul>{outgoing.map((offer) => <li key={`${offer.from_id}:${offer.toward_id}`}>
@@ -137,9 +153,10 @@ export function DiplomacyPanel({ game, pending, send }: DiplomacyPanelProps) {
       </li>)}</ul>
     </section>}
 
-    <h3>Countries</h3>
+    {!target && <h3>Countries</h3>}
     <div className="diplomacy-country-list">
-      {game.countries.filter((country) => country.id !== local).map((country) => {
+      {game.countries.filter((country) => country.id !== local
+        && (targetCountryId === undefined || country.id === targetCountryId)).map((country) => {
         const allied = (game.alliances ?? []).some((row) => pairMatches(row.a_id, row.b_id, local, country.id));
         const offer = (game.alliance_offers ?? []).find((row) => pairMatches(
           row.from_id, row.toward_id, local, country.id,
@@ -155,6 +172,8 @@ export function DiplomacyPanel({ game, pending, send }: DiplomacyPanelProps) {
         const vassalOffer = game.vassal_offers.find(
           (row) => row.overlord_id === local && row.subject_id === country.id,
         );
+        const tradeRoute = (game.trade_routes ?? []).find((row) => pairMatches(row.a_id, row.b_id, local, country.id));
+        const tradeOffer = tradeOffers.find((row) => pairMatches(row.from_id, row.toward_id, local, country.id));
         const pair = marriagePair(country.id);
         const acceptancePreview: CountryAcceptancePreview | undefined = game.acceptance_previews?.find(
           (preview) => preview.country_id === country.id,
@@ -173,6 +192,7 @@ export function DiplomacyPanel({ game, pending, send }: DiplomacyPanelProps) {
           protects && 'Guarantees you',
           overlord === country.id && 'Your overlord',
           subject && 'Your subject',
+          tradeRoute && `Trade route ${tradeRoute.operational ? 'active' : 'paused'}`,
           marriagePartner && 'Royal marriage',
           atWarWith(country.id) && 'At war',
         ].filter(Boolean).join(' · ') || 'No active treaty';
@@ -213,6 +233,14 @@ export function DiplomacyPanel({ game, pending, send }: DiplomacyPanelProps) {
               </button>
             )}
             {vassalOffer && <span>Vassalage offer pending · expires {vassalOffer.expires_at}</span>}
+            {tradeRoute ? <button type="button" disabled={pending} onClick={() => void send({
+              type: 'close_trade_route', country_id: local, other_id: country.id,
+            })}>Close trade route</button> : <button type="button"
+              disabled={pending || Boolean(tradeOffer) || atWarWith(country.id)}
+              title={tradeOffer ? 'A trade route proposal is already pending' : undefined}
+              onClick={() => void send({ type: 'offer_trade_route', country_id: local, toward_id: country.id })}>
+              {tradeOffer?.from_id === local ? 'Trade proposal sent' : 'Offer trade route'}
+            </button>}
             <button type="button" disabled={pending || !pair || marriagePending}
               title={marriagePending ? 'A royal-marriage proposal is already pending' : !pair
                 ? 'Requires a living, unmarried adult ruler or heir of the opposite sex' : undefined}

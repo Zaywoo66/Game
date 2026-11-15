@@ -39,6 +39,7 @@ pub struct ClientView {
     pub room: String,
     pub address: SocketAddr,
     pub guest_tag: String,
+    pub started: bool,
     pub verified_checksums: u64,
     pub checksum_mismatches: u64,
     pub detail: Option<String>,
@@ -66,6 +67,7 @@ impl LanClient {
             room: session.room.clone(),
             address,
             guest_tag: session.guest_tag.clone(),
+            started: session.started,
             verified_checksums: 0,
             checksum_mismatches: 0,
             detail: None,
@@ -89,6 +91,14 @@ impl LanClient {
     }
 
     pub async fn command(&self, command: Command) -> Result<(), String> {
+        self.request(RequestAction::Command(command)).await
+    }
+
+    pub async fn claim_country(&self, tag: String) -> Result<(), String> {
+        self.request(RequestAction::ClaimCountry(tag)).await
+    }
+
+    async fn request(&self, action: RequestAction) -> Result<(), String> {
         let (reply, result) = oneshot::channel();
         {
             let view = self.view.borrow();
@@ -96,7 +106,7 @@ impl LanClient {
                 return Err("LAN session is not synchronized".into());
             }
             self.commands
-                .try_send(Request { command, reply })
+                .try_send(Request { action, reply })
                 .map_err(|error| match error {
                     mpsc::error::TrySendError::Full(_) => "Too many LAN commands pending",
                     mpsc::error::TrySendError::Closed(_) => "LAN connection closed",
@@ -116,8 +126,13 @@ impl Drop for LanClient {
 }
 
 struct Request {
-    command: Command,
+    action: RequestAction,
     reply: oneshot::Sender<Result<(), String>>,
+}
+
+enum RequestAction {
+    Command(Command),
+    ClaimCountry(String),
 }
 
 struct Session {
@@ -125,6 +140,7 @@ struct Session {
     resume: [u8; 16],
     room: String,
     guest_tag: String,
+    started: bool,
     replica: Replica,
     game: Arc<GameState>,
 }
@@ -218,7 +234,10 @@ async fn connect(
         return Err("Host did not send Welcome".into());
     };
     let ServerMessage::Lobby {
-        room, guest_tag, ..
+        room,
+        guest_tag,
+        started,
+        ..
     } = socket.handshake_message().await?
     else {
         return Err("Host did not send Lobby".into());
@@ -239,6 +258,7 @@ async fn connect(
         resume,
         room,
         guest_tag,
+        started,
         replica,
         game,
     })
@@ -331,9 +351,10 @@ async fn run_session(
                     continue;
                 }
                 let seq = last_command.checked_add(1).ok_or("LAN command sequence exhausted")?;
-                let message = match &request.command {
-                    Command::Time(TimeCommand::SetPaused(paused)) => ClientMessage::PauseRequest { seq, paused: *paused },
-                    command => ClientMessage::Command { seq, command: PlayerCommand::from(command) },
+                let message = match &request.action {
+                    RequestAction::ClaimCountry(tag) => ClientMessage::ClaimCountry { seq, tag: tag.clone() },
+                    RequestAction::Command(Command::Time(TimeCommand::SetPaused(paused))) => ClientMessage::PauseRequest { seq, paused: *paused },
+                    RequestAction::Command(command) => ClientMessage::Command { seq, command: PlayerCommand::from(command) },
                 };
                 *last_command = seq;
                 session.socket.send(&message).await?;
@@ -392,12 +413,14 @@ async fn run_session(
                             let _ = reply.send(Err(reason));
                         }
                     }
-                    ServerMessage::Lobby { room, guest_tag, .. } => {
+                    ServerMessage::Lobby { room, guest_tag, started, .. } => {
                         session.room = room;
                         session.guest_tag = guest_tag;
+                        session.started = started;
                         view.send_modify(|view| {
                             view.room.clone_from(&session.room);
                             view.guest_tag.clone_from(&session.guest_tag);
+                            view.started = session.started;
                         });
                     }
                     ServerMessage::Ping { nonce } => {
@@ -454,6 +477,7 @@ fn publish_snapshot(view: &watch::Sender<ClientView>, session: &Session, full_sn
         view.phase = ClientPhase::Connected;
         view.room.clone_from(&session.room);
         view.guest_tag.clone_from(&session.guest_tag);
+        view.started = session.started;
         view.detail = None;
     });
 }

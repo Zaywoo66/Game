@@ -12,7 +12,7 @@ fn wartime_fleets_meet_at_sea_in_the_1440_scenario() {
         .countries()
         .find_map(|(id, _)| (state.country_polity(id)?.tag == "ara").then_some(id))
         .unwrap();
-    let goal = state.province_graph().by_key("valencia").unwrap().id;
+    let goal = state.province_graph().by_key("barcelona").unwrap().id;
     let attacker = state
         .navy()
         .unwrap()

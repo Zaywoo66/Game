@@ -1,14 +1,28 @@
 # Strategy
 
-Windows LAN grand-strategy prototype. The current test scenario starts in
-1440 with six countries on a 49-province Western Europe map.
+Windows LAN grand-strategy preview. The default campaign starts on
+2022-01-01 on the Europe–North Africa–Middle East map, with 90 countries and
+3,468 owned land provinces. The historical 1440 campaign remains available
+to tests and content tools; era selection is not part of the current game.
+
+This is an unsigned preview build. Save files and multiplayer protocol may
+change between builds. The full beta remains gated by the two-PC LAN and
+visual acceptance checks in `docs/ROADMAP.md`.
 
 ## Setup
 
-Install Rust 1.99.1 with the MSVC toolchain and the rustfmt and Clippy
-components, Node.js 24.14.1, Visual Studio Build Tools with the Desktop
-development with C++ workload and a Windows SDK, and WebView2 Runtime.
-Python 3.12 is used by the data and map checks.
+To play without a development toolchain, download `strategy-windows-installers`
+from the latest successful run of the
+[Windows CI workflow](https://github.com/Zaywoo66/Game/actions/workflows/ci.yml).
+It contains an MSI installer and an NSIS setup `.exe`. GitHub Actions artifacts
+require repository access and expire; a tagged public release will be provided
+after release acceptance. Windows may show SmartScreen because this preview is
+not signed.
+
+The installed game requires Microsoft Edge WebView2 Runtime.
+For development, install Rust 1.99.1 with the MSVC toolchain and rustfmt and
+Clippy, Node.js 24.14.1, Visual Studio Build Tools with the Desktop development
+with C++ workload and a Windows SDK. Python 3.12 is used by data and map checks.
 
 Run these commands from the repository root in PowerShell.
 
@@ -16,14 +30,14 @@ Run these commands from the repository root in PowerShell.
 rustup override set 1.99.1-x86_64-pc-windows-msvc
 rustup component add rustfmt clippy
 npm --prefix ui ci
-npm --prefix ui run build
-cargo build --locked -p strategy-app --features custom-protocol --bin strategy-app
-.\target\debug\strategy-app.exe
+Push-Location app
+..\ui\node_modules\.bin\tauri.cmd build --bundles msi,nsis
+Pop-Location
 ```
 
-The CI artifact `strategy-windows-x64` contains the same standalone
-executable. The UI, map, model and starting scenario are embedded at build
-time. WebView2 Runtime is required on the receiving PC.
+To install locally, open the generated `.msi` or `*-setup.exe` under
+`target/release/bundle`. The UI, map, models and starting scenario are embedded
+at build time.
 
 ## Local checks
 
@@ -54,10 +68,12 @@ cargo run --locked -p strategy-app --bin ai-smoke -- 3653 1440 1441 1442
 
 ## LAN play
 
-Open LAN in the app. The host creates a room, chooses two different human
-countries, an AI aggressiveness preset and a disconnect grace period.
-The remaining countries run on the host's AI. A new LAN room starts paused.
-Either human can pause or resume. The host controls speed.
+Open LAN in the app. The host creates a room and currently assigns both human
+countries, an AI aggressiveness preset and a disconnect grace period before
+the guest joins. The remaining countries run on the host's AI. A new LAN room
+starts paused. Either human can pause or resume. The host controls speed.
+Country selection after joining, followed by a separate host “Start campaign”
+step, is not implemented yet.
 
 The guest can scan for rooms or enter the host's IPv4 address and TCP port.
 The default port is 47620. Discovered rooms can show multiple endpoints

@@ -1,0 +1,1 @@
+{"schema_version":1,"tag":"modern_lie","name":"Liechtenstein","color":[177,166,211],"capital":"vaduz","ai_profile":"balanced","government":"monarchy","government_options":["communism","democracy","monarchy","nationalism"],"start":{"ruler":"modern_lie_hans_adam","heir":"modern_lie_alois","provinces":["vaduz"],"treasury":120000,"tax_rate":250,"monthly_spending":12500}}

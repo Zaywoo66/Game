@@ -45,6 +45,8 @@ armies, splits oversized armies, and retreats when outnumbered with low
 morale. It offers or accepts cession according to occupation, war score
 and relative strength. A two-year stalemate allows white peace. Every
 military order includes a score and reason in the per-country decision log.
+AI offensive wars are disabled during the first 365 campaign days and require
+negative bilateral opinion afterward; neutral relations never trigger war.
 In a war with supporters, L1 treats all opposing participants as enemies,
 moves and retreats supporter armies using the same validated commands, and
 leaves peace proposals and acceptance to the original war leaders.
@@ -179,6 +181,9 @@ Per-AI-country profile with weights such as `aggression`, `expansion`, `caution`
 
 ## Human/AI interaction
 - A human proposal to an AI country is answered by the same opinion/acceptance formula the AI uses; the UI shows the formula's factors.
+- AI countries answer incoming trade-route proposals through validated commands
+  and may propose a route when the capital-to-capital path is open and opinion
+  meets the existing `alliance_min_opinion` threshold.
 - Disconnected human: country is held (no AI) for a host-defined grace period, then the host may switch it to AI temporarily (DECISIONS D8). Reconnect returns control to the human.
 - Lobby: host picks which countries are human-controlled and the AI aggressiveness preset.
 

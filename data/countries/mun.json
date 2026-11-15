@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "tag": "mun",
-  "name": "Prince-Bishopric of Münster",
+  "name": "Prince-Bishopric of M\u00fcnster",
   "color": [
     161,
     173,
@@ -15,8 +15,14 @@
     "heir": null,
     "provinces": [
       "assen",
+      "dortmund",
+      "emden",
+      "essen",
+      "groningen",
       "munster",
-      "osnabruck"
+      "oldenburg",
+      "osnabruck",
+      "zwolle"
     ],
     "treasury": 50000,
     "tax_rate": 220,

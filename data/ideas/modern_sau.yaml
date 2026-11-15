@@ -1,0 +1,10 @@
+schema_version: 1
+country: modern_sau
+ideas:
+  - key: arab_caliphate_restoration
+    name: arab_caliphate_restoration
+    unlock: {country_has_tech: professional_forces}
+    modifiers:
+      - {key: army_morale, value: 150, kind: multiplicative}
+      - {key: army_combat, value: 100, kind: multiplicative}
+      - {key: tax_income, value: 100, kind: additive}

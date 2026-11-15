@@ -22,6 +22,60 @@ use tokio::{
 const WAIT: Duration = Duration::from_secs(15);
 
 #[tokio::test]
+async fn lobby_assigns_distinct_countries_before_host_starts_campaign() {
+    let scenario = load_embedded_scenario().unwrap();
+    let graph = scenario.province_graph().clone();
+    let host_id = country(&scenario, "por");
+    let guest_id = country(&scenario, "sco");
+    let host = LanHost::start(
+        HostConfig {
+            room: "Country selection".into(),
+            host_country_id: 0,
+            guest_country_id: 0,
+            ai_preset: AiPreset::Balanced,
+            grace_minutes: 0,
+            port: 0,
+        },
+        scenario,
+    )
+    .await
+    .unwrap();
+    assert!(!host.view().started);
+    assert!(host.start_campaign().is_err());
+
+    let guest = LanClient::join(host.address(), "Lobby guest".into(), graph)
+        .await
+        .unwrap();
+    host.select_country(PlayerId::new(1), host_id).unwrap();
+    guest.claim_country("sco".into()).await.unwrap();
+
+    let view = host.view();
+    assert_eq!(view.host_country_id, host_id);
+    assert_eq!(view.guest_country_id, guest_id);
+    assert_eq!(
+        view.game
+            .country(CountryId::new(host_id))
+            .unwrap()
+            .controller(),
+        &Controller::Human(PlayerId::new(1))
+    );
+    assert_eq!(
+        view.game
+            .country(CountryId::new(guest_id))
+            .unwrap()
+            .controller(),
+        &Controller::Human(PlayerId::new(2))
+    );
+    assert!(host.select_country(PlayerId::new(1), guest_id).is_err());
+    assert!(view.game.time().is_paused());
+
+    host.start_campaign().unwrap();
+    assert!(host.view().started);
+    assert!(!host.view().game.time().is_paused());
+    assert!(host.select_country(PlayerId::new(1), host_id).is_err());
+}
+
+#[tokio::test]
 async fn lan_players_can_reject_accept_and_break_alliance_proposals() {
     let scenario = load_embedded_scenario().unwrap();
     let graph = scenario.province_graph().clone();
@@ -804,6 +858,19 @@ async fn host_holds_guest_seat_and_restores_human_control_after_ai_takeover() {
     write_client(&mut peer, &ClientMessage::Confirm { resume })
         .await
         .unwrap();
+    host.start_campaign().unwrap();
+    timeout(WAIT, async {
+        loop {
+            if matches!(
+                receive(&mut peer).await,
+                ServerMessage::Lobby { started: true, .. }
+            ) {
+                break;
+            }
+        }
+    })
+    .await
+    .unwrap();
     let before = save_game(&host.view().game).unwrap();
     write_client(
         &mut peer,
@@ -982,6 +1049,7 @@ async fn handshake(socket: &mut TcpStream, resume: [u8; 16], state: &[u8], seque
             room: "Fault test".into(),
             countries: Vec::new(),
             guest_tag: "sco".into(),
+            started: false,
         },
         snapshot(state, sequence),
     ] {

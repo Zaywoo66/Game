@@ -1,0 +1,18 @@
+schema_version: 1
+country: common
+ideas:
+  - key: common_infrastructure
+    name: common_infrastructure
+    unlock: {country_has_tech: industrial_productivity}
+    modifiers:
+      - {key: tax_income, value: 100, kind: multiplicative}
+  - key: common_public_services
+    name: common_public_services
+    unlock: {country_has_tech: public_services}
+    modifiers:
+      - {key: tax_income, value: 75, kind: multiplicative}
+  - key: common_professional_forces
+    name: common_professional_forces
+    unlock: {country_has_tech: professional_forces}
+    modifiers:
+      - {key: army_morale, value: 50, kind: additive}

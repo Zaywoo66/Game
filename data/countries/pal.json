@@ -14,7 +14,10 @@
     "ruler": null,
     "heir": null,
     "provinces": [
-      "heidelberg"
+      "frankfurt",
+      "heidelberg",
+      "mannheim",
+      "stuttgart"
     ],
     "treasury": 50000,
     "tax_rate": 220,

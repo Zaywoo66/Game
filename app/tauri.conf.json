@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "Strategy Foundation",
+  "productName": "Strategy",
   "version": "0.1.0",
   "identifier": "com.zaywoo66.strategy",
   "build": {
@@ -12,9 +12,13 @@
   "app": {
     "withGlobalTauri": true,
     "windows": [
-      { "title": "Strategy Foundation", "width": 1100, "height": 750 }
+      { "title": "Strategy", "width": 1100, "height": 750 }
     ]
   },
-  "bundle": { "active": false, "icon": ["icons/icon.png", "icons/icon.ico"] }
+  "bundle": {
+    "active": true,
+    "targets": ["msi", "nsis"],
+    "icon": ["icons/icon.png", "icons/icon.ico"]
+  }
 }
 

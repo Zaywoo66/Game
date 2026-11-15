@@ -1,0 +1,18 @@
+schema_version: 1
+country: modern_gb1
+ideas:
+  - key: britain_pax_britannica
+    name: britain_pax_britannica
+    unlock: {country_has_tech: global_supply_networks}
+    modifiers:
+      - {key: tax_income, value: 150, kind: multiplicative}
+  - key: britain_two_power_standard
+    name: britain_two_power_standard
+    unlock: {country_has_tech: professional_forces}
+    modifiers:
+      - {key: army_morale, value: 100, kind: additive}
+  - key: britain_balance_of_power
+    name: britain_balance_of_power
+    unlock: {country_has_tech: financial_regulation}
+    modifiers:
+      - {key: tax_income, value: 50, kind: multiplicative}

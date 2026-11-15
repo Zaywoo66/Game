@@ -44,18 +44,23 @@ uniform sampler2D provinceRaster;
 uniform sampler2D terrainRaster;
 uniform sampler2D riverRaster;
 uniform sampler2D ownerLookup;
+uniform sampler2D changedOwnerLookup;
 uniform sampler2D historicalLookup;
 uniform sampler2D precisionLookup;
 uniform sampler2D occupationLookup;
 uniform sampler2D waterLookup;
 uniform sampler2D areaLookup;
 uniform sampler2D heightRaster;
+uniform sampler2D countryBoundaries2022;
+uniform sampler2D countryFill2022;
 uniform vec2 rasterSize;
 uniform vec2 lookupSize;
 uniform float selectedId;
 uniform float hoveredId;
 uniform float seconds;
+uniform float mapZoom;
 uniform bool hasOccupations;
+uniform bool showCountryBoundaries2022;
 uniform int mapMode;
 
 varying vec2 mapUv;
@@ -84,6 +89,10 @@ float areaAt(float id) {
   return dot(rgb, vec3(65536.0, 256.0, 1.0));
 }
 
+float ownershipChangedAt(vec2 point) {
+  return texture2D(changedOwnerLookup, lookupAt(provinceAt(point))).r;
+}
+
 vec3 boundariesAt(vec2 point, float id, float area, vec4 owner) {
   float neighbor = provinceAt(point);
   float province = step(0.5, abs(id - neighbor));
@@ -102,6 +111,7 @@ void main() {
   vec2 lookup = lookupAt(id);
   float water = texture2D(waterLookup, lookup).r * 255.0;
   vec4 owner = texture2D(ownerLookup, lookup);
+  float ownershipChanged = texture2D(changedOwnerLookup, lookup).r;
   vec4 historical = texture2D(historicalLookup, lookup);
   vec4 borderOwner = mapMode == 2 ? historical : owner;
   float sourceResolution = texture2D(precisionLookup, lookup).r * 255.0;
@@ -109,19 +119,29 @@ void main() {
   float river = texture2D(riverRaster, sampleUv).r;
 
   vec2 pixel = sampleUv * rasterSize;
+  float sourceCountryBorder = showCountryBoundaries2022 && mapMode == 0
+    ? texture2D(countryBoundaries2022, sampleUv).r
+    : 0.0;
+  vec4 sourceCountryFill = showCountryBoundaries2022 && mapMode == 0
+    ? texture2D(countryFill2022, sampleUv)
+    : vec4(0.0);
   vec3 color;
   float landLight = 0.0;
   if (water > 0.5) {
-    vec2 encodedHeight = texture2D(heightRaster, sampleUv).rg;
-    float elevation = (encodedHeight.r * 65280.0 + encodedHeight.g * 255.0) / 65535.0;
-    float depth = clamp((0.5 - elevation) * 7.0, 0.0, 1.0);
-    color = mix(vec3(0.055, 0.118, 0.160), vec3(0.018, 0.048, 0.078), smoothstep(0.02, 0.80, depth));
-    float shelf = (1.0 - smoothstep(0.02, 0.13, depth)) * 0.16;
-    color = mix(color, vec3(0.105, 0.165, 0.188), shelf);
-    if (water > 1.5) color = mix(color, vec3(0.075, 0.133, 0.165), 0.28);
-    float swell = sin(dot(mapUv, vec2(82.0, 55.0)) + seconds * 0.38)
-      * sin(dot(mapUv, vec2(47.0, -69.0)) - seconds * 0.24);
-    color += swell * vec3(0.001, 0.002, 0.0035);
+    if (showCountryBoundaries2022 && mapMode == 0) {
+      color = vec3(0.60, 0.77, 0.85);
+    } else {
+      vec2 encodedHeight = texture2D(heightRaster, sampleUv).rg;
+      float elevation = (encodedHeight.r * 65280.0 + encodedHeight.g * 255.0) / 65535.0;
+      float depth = clamp((0.5 - elevation) * 7.0, 0.0, 1.0);
+      color = mix(vec3(0.055, 0.118, 0.160), vec3(0.018, 0.048, 0.078), smoothstep(0.02, 0.80, depth));
+      float shelf = (1.0 - smoothstep(0.02, 0.13, depth)) * 0.16;
+      color = mix(color, vec3(0.105, 0.165, 0.188), shelf);
+      if (water > 1.5) color = mix(color, vec3(0.075, 0.133, 0.165), 0.28);
+      float swell = sin(dot(mapUv, vec2(82.0, 55.0)) + seconds * 0.38)
+        * sin(dot(mapUv, vec2(47.0, -69.0)) - seconds * 0.24);
+      color += swell * vec3(0.001, 0.002, 0.0035);
+    }
   } else {
     color = vec3(0.245, 0.232, 0.145);
     if (terrain > 1.5) color = vec3(0.310, 0.278, 0.177);
@@ -133,11 +153,17 @@ void main() {
     color = mix(color, vec3(0.045, 0.165, 0.178), river * 0.74);
   }
 
-  if (mapMode == 0) color = mix(color, owner.rgb, owner.a * 0.88);
+  if (mapMode == 0) {
+    color = mix(color, owner.rgb, owner.a * 0.88);
+    if (sourceCountryFill.a > 0.0 && ownershipChanged < 0.5) {
+      vec3 sourceFillColor = sourceCountryFill.rgb / max(sourceCountryFill.a, 0.001);
+      color = mix(color, sourceFillColor, sourceCountryFill.a);
+    }
+  }
   if (mapMode == 2) {
     color = mix(color, historical.rgb, historical.a * 0.88);
   }
-  if (mapMode == 2 || (mapMode == 0 && owner.a < 0.99)) {
+  if (mapMode == 2 || (mapMode == 0 && owner.a > 0.01 && owner.a < 0.99)) {
     if (sourceResolution > 1.5 && sourceResolution < 3.5) {
       float hatch = step(0.94, fract((pixel.x + pixel.y) * 0.13));
       if (sourceResolution > 2.5) {
@@ -153,6 +179,13 @@ void main() {
     color = mix(color, occupier.rgb, hatch * occupier.a * 0.76);
   }
   vec2 stepSize = clamp(fwidth(sampleUv) * 0.48, 0.55 / rasterSize, 1.45 / rasterSize);
+  float changedBoundary = max(ownershipChanged, max(
+    max(ownershipChangedAt(sampleUv + vec2(stepSize.x, 0.0)),
+        ownershipChangedAt(sampleUv - vec2(stepSize.x, 0.0))),
+    max(ownershipChangedAt(sampleUv + vec2(0.0, stepSize.y)),
+        ownershipChangedAt(sampleUv - vec2(0.0, stepSize.y)))
+  ));
+  sourceCountryBorder *= 1.0 - changedBoundary;
   float area = areaAt(id);
   vec3 border = max(
     max(boundariesAt(sampleUv + vec2(stepSize.x, 0.0), id, area, borderOwner),
@@ -169,9 +202,21 @@ void main() {
   ));
   float rasterPixelsPerScreenPixel = max(fwidth(mapUv.x) * rasterSize.x, fwidth(mapUv.y) * rasterSize.y);
   float detail = 1.0 - smoothstep(1.0, 3.5, rasterPixelsPerScreenPixel);
-  float borderOpacity = border.x * (0.075 + 0.065 * detail) + border.y * 0.11 + country * 0.75;
+  float modernProvinceLines = showCountryBoundaries2022
+    ? smoothstep(1.8, 2.8, mapZoom) * detail
+    : 1.0;
+  float liveCountryBorder = country * (showCountryBoundaries2022
+    ? mix(0.16, 0.88, changedBoundary)
+    : 0.75);
+  float provinceBorderOpacity = showCountryBoundaries2022
+    ? border.x * (0.008 + 0.20 * detail * modernProvinceLines)
+      + border.y * (0.035 * modernProvinceLines)
+    : border.x * (0.075 + 0.065 * detail) + border.y * 0.11;
+  float borderOpacity = provinceBorderOpacity
+    + max(liveCountryBorder, sourceCountryBorder * 0.78);
   if (water > 0.5) borderOpacity *= 0.035;
   vec3 borderColor = mix(vec3(0.40, 0.38, 0.32), vec3(0.12, 0.14, 0.15), smoothstep(0.05, 0.8, country));
+  if (showCountryBoundaries2022 && mapMode == 0) borderColor = vec3(0.82, 0.88, 0.88);
   if (water > 0.5) borderColor = vec3(0.34, 0.43, 0.48);
   color = mix(color, borderColor, clamp(borderOpacity, 0.0, 0.74));
   float selected = selectedId > 0.0 ? 1.0 - step(0.5, abs(id - selectedId)) : 0.0;
@@ -184,7 +229,7 @@ void main() {
 
   // Preserve just a touch of relief over opaque political fills so the map
   // remains legible without reverting to the old terrain-colored appearance.
-  if (water < 0.5) {
+  if (water < 0.5 && (sourceCountryFill.a <= 0.0 || ownershipChanged >= 0.5)) {
     color *= 0.84 + 0.20 * clamp(landLight, 0.0, 1.0);
     float grain = fract(sin(dot(floor(pixel * 0.62), vec2(12.9898, 78.233))) * 43758.5453);
     color *= 0.985 + grain * 0.025;
@@ -192,7 +237,10 @@ void main() {
 
   float edgeDistance = min(min(mapUv.x, 1.0 - mapUv.x), min(mapUv.y, 1.0 - mapUv.y));
   float edgeFade = 1.0 - smoothstep(0.0, 0.016, edgeDistance);
-  color = mix(color, openOcean(mapUv, seconds), edgeFade);
+  vec3 edgeOcean = showCountryBoundaries2022 && mapMode == 0
+    ? vec3(0.60, 0.77, 0.85)
+    : openOcean(mapUv, seconds);
+  color = mix(color, edgeOcean, edgeFade);
 
   gl_FragColor = vec4(color, 1.0);
   #include <colorspace_fragment>

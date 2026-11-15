@@ -7,12 +7,13 @@ Host-authoritative. Host runs sim. Client sends `Command`s, receives `Delta`s an
 `tokio` + TCP with Postcard 1.1.3 payloads and a big-endian unsigned 32-bit
 length prefix. Client frames are bounded to 64 KiB and server frames to
 8 MiB. Readers run dedicated tasks so cancellation cannot consume part of
-the next frame. The handshake validates protocol version 15 and both map
+the next frame. The handshake validates protocol version 23 and both map
 identity fields before accepting a guest.
 
-## Messages (v15)
-- Client->Host: `Hello{version,name,map_version,map_hash,resume}`, `Confirm{resume}`, `Command{seq,command}`, `PauseRequest{seq,paused}`, `Ping{nonce}`, `Pong{nonce}`, `Resync`. Commands include validated alliance and royal-marriage actions, `ChooseEvent{country,key,option}`, and `UnlockIdea{country,key}`.
-- Host->Client: `Welcome{player_id}`, `Snapshot{state}` (join/resync), `Delta{tick,changes}`, `CommandRejected{seq,reason}`, `Checksum{tick,hash}`, `Pause{bool}`, `Speed{n}`, `Ping{nonce}`, `Pong{nonce}`.
+## Messages (v23)
+- Client->Host: `Hello{version,name,map_version,map_hash,resume}`, `Confirm{resume}`, `ClaimCountry{seq,tag}`, `Command{seq,command}`, `PauseRequest{seq,paused}`, `Ping{nonce}`, `Pong{nonce}`, `Resync`. Country claims are accepted only for an unclaimed scenario country and only before campaign start.
+- Host->Client: `Welcome{player_id}`, `Lobby{room,guest_tag,started,countries}` (join and seat updates), `Snapshot{state}` (join/resync), `Delta{tick,changes}`, `CommandAccepted{seq}`, `CommandRejected{seq,reason}`, `Checksum{tick,hash}`, `Pause{bool}`, `Speed{n}`, `Ping{nonce}`, `Pong{nonce}`.
+- LAN rooms start paused with both human seats unassigned. Each player claims their own country; the host may start only after the guest is connected and both seats are assigned. The host then unpauses the campaign. Until then the room remains in the lobby and simulation does not advance.
 - Either human player can pause or resume. Only the host sets speed (D2).
 - Either peer may send a `Ping{nonce}` and receive a matching `Pong{nonce}` to measure round-trip time. Older builds are rejected. Use the same build on both PCs.
 - V4 adds coalition participants to the canonical save snapshots; command messages are unchanged.
@@ -37,6 +38,16 @@ identity fields before accepting a guest.
   tribute and independence-war state to canonical snapshots. The host
   validates controller authority and every rule; the client cannot mutate
   diplomacy or treasury locally.
+- V16 adds bilateral trade-route offer, accept, reject, and close commands.
+  Active routes and 30-day offers travel in the canonical host snapshot. Older
+  clients are rejected by the protocol-version handshake.
+- V17 carries aggressive-expansion counters in save schema v19 canonical
+  snapshots. Peaceful countries lose one point on the first day of each month;
+  countries in any active war keep their current value. Older clients are
+  rejected by the protocol-version handshake.
+- V18 adds the host-validated `ChangeGovernment{country,target}` command and
+  save schema v20 government options and pending transitions. The host checks
+  each country's data-defined options, research cost and completion date.
 - V11 carries `UnlockIdea{country,key}` and save schema v13 idea catalogs,
   purchases, and permanent modifier sources in canonical snapshots. Host
   validation enforces country, unlock trigger, one-time purchase, and the
@@ -95,10 +106,16 @@ ignored and run only for release acceptance or changes to the network/AI
 replay path; see GIT_WORKFLOW.md for the command.
 
 ## Lobby and controllers
-- The host chooses which countries are human-controlled. All others use AI. Only the host runs AI.
-- Messages: `Lobby{countries:[{tag,controller}]}`, `ClaimCountry{tag}`, and `SetController{tag,controller}` (host only).
-- When a player disconnects, their country is held for a grace period. The host may then enable temporary AI. Reconnecting restores human control (D8).
+- A room opens paused with the host's chosen country assigned and the guest seat open. The guest claims a playable country after joining; the host can start only after the guest connects and both seats are assigned. Every other country remains AI-controlled.
+- Lobby messages publish seat assignments and start state. Guest country claims use `ClaimCountry{seq,tag}`; the host validates uniqueness and rejects claims after campaign start.
+- When a player disconnects during a campaign, their country is held for a grace period. The host may then enable temporary AI. Reconnecting restores human control (D8).
 - Balanced, cautious and aggressive presets load tuning from
   `data/ai/lan_presets.json`. Country weights remain scenario data.
 
-- V13 adds `BuildShip{country,port,sea}` and save schema v15 shipyard orders. An order spends 5 treasury units (5,000 raw Fixed) immediately and creates one ship at the selected adjacent sea zone after 30 game days. The port must be owned by the ordering country; capture before completion cancels without refund.
+Protocol v22 synchronizes family growth, parent links, heir nomination,
+succession claimant identities and faction commands, including the player's
+aristocratic identity choice, through host-authoritative commands and snapshots.
+Succession wars resolve from the canonical shared occupation and stability
+state. Both peers must use the same protocol version.
+Protocol v23 includes the army recruitment countdown in canonical snapshots;
+new recruits remain unavailable for orders and combat until training completes.

@@ -1,8 +1,21 @@
 {
   "branch.administration": "Administration",
+  "branch.economy": "Economy",
   "branch.military": "Military",
+  "modifier.army_combat": "Army combat strength",
   "modifier.army_morale": "Army morale",
   "modifier.tax_income": "Tax income",
-  "tech.professional_officers": "Professional officers",
-  "tech.recordkeeping": "Recordkeeping"
+  "tech.automated_production": "Automated production",
+  "tech.clean_energy_transition": "Clean energy transition",
+  "tech.combined_arms": "Combined arms",
+  "tech.digital_government": "Digital government",
+  "tech.financial_regulation": "Financial regulation",
+  "tech.global_supply_networks": "Global supply networks",
+  "tech.integrated_air_defense": "Integrated air defense",
+  "tech.industrial_productivity": "Industrial productivity",
+  "tech.precision_warfare": "Precision warfare",
+  "tech.professional_forces": "Professional forces",
+  "tech.public_services": "Public services",
+  "tech.research_universities": "Research universities",
+  "tech.resilient_logistics": "Resilient logistics"
 }

@@ -328,7 +328,9 @@ mod tests {
             defender: enemy.country,
             attacker_supporters: BTreeSet::new(),
             defender_supporters: BTreeSet::new(),
+            factions: BTreeMap::new(),
             goal: ProvinceId::new(1),
+            succession_country: None,
             started_at: Tick::ZERO,
             score: 0,
             occupations: BTreeMap::new(),
@@ -408,6 +410,7 @@ mod tests {
         let nation = |tag: &str, capital, provinces: &[u32]| CountryPolity {
             tag: tag.into(),
             government: "monarchy".into(),
+            government_options: Default::default(),
             name: tag.into(),
             color: [0, 0, 0],
             capital: ProvinceId::new(capital),
@@ -415,6 +418,11 @@ mod tests {
             ai_profile: AiProfileKey::new("test_profile"),
             economy: EconomyState::default(),
             succession: SuccessionState::default(),
+            admin_points: 0,
+            diplomatic_points: 0,
+            military_points: 0,
+            stability: 1,
+            war_exhaustion: 0,
         };
         let naval_profile = FiscalAiProfile {
             idea_priority: 0,
@@ -433,6 +441,8 @@ mod tests {
         let polity = PolityState {
             rules: PolityRules {
                 adulthood_years: 18,
+                male_names: vec!["Alex".to_owned()],
+                female_names: vec!["Alexandra".to_owned()],
                 base_taxable_development_per_province: 0,
                 tax_per_development: Fixed::ONE,
                 max_tax_rate: Fixed::ONE,
@@ -480,7 +490,9 @@ mod tests {
                 defender: b,
                 attacker_supporters: BTreeSet::new(),
                 defender_supporters: BTreeSet::new(),
+                factions: BTreeMap::new(),
                 goal: ProvinceId::new(2),
+                succession_country: None,
                 started_at: Tick::ZERO,
                 score: 0,
                 occupations: BTreeMap::new(),

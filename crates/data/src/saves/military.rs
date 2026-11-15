@@ -2,8 +2,8 @@ use std::collections::BTreeMap;
 
 use serde::{Deserialize, Serialize};
 use strategy_sim::{
-    Army, ArmyId, ArmyMovement, CountryId, EdgeKind, Fixed, MovementLeg, PeaceOffer, PeaceTreaty,
-    ProvinceId, Siege, Tick, War, WarId, WarState,
+    Army, ArmyId, ArmyMovement, CharacterId, CountryId, EdgeKind, Fixed, MovementLeg, PeaceOffer,
+    PeaceTreaty, ProvinceId, Siege, Tick, War, WarFaction, WarId, WarState,
 };
 
 use super::{require_sorted, required_optional, SaveError};
@@ -87,10 +87,18 @@ impl From<&WarState> for WarStateFile {
 }
 
 impl WarStateFile {
+    pub(super) fn has_recruitment(&self) -> bool {
+        self.armies
+            .iter()
+            .any(|army| army.recruitment_days_remaining > 0)
+    }
+
     pub(super) fn has_coalition_history(&self) -> bool {
         !self.coalition_truces.is_empty()
             || self.wars.iter().any(|war| {
-                !war.attacker_supporters.is_empty() || !war.defender_supporters.is_empty()
+                !war.attacker_supporters.is_empty()
+                    || !war.defender_supporters.is_empty()
+                    || !war.factions.is_empty()
             })
     }
 
@@ -166,9 +174,13 @@ impl WarStateFile {
 struct ArmyFile {
     id: u32,
     country: u32,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    faction_override: Option<u32>,
     province: u32,
     soldiers: u32,
     morale: i64,
+    #[serde(default, skip_serializing_if = "is_zero_u16")]
+    recruitment_days_remaining: u16,
     #[serde(deserialize_with = "required_optional")]
     movement: Option<MovementFile>,
 }
@@ -178,9 +190,11 @@ impl ArmyFile {
         Self {
             id: id.get(),
             country: army.country.get(),
+            faction_override: army.faction_override.map(CountryId::get),
             province: army.province.get(),
             soldiers: army.soldiers,
             morale: army.morale.raw(),
+            recruitment_days_remaining: army.recruitment_days_remaining,
             movement: army.movement.as_ref().map(|movement| MovementFile {
                 route: movement
                     .route
@@ -201,9 +215,11 @@ impl ArmyFile {
             ArmyId::new(self.id),
             Army {
                 country: CountryId::new(self.country),
+                faction_override: self.faction_override.map(CountryId::new),
                 province: ProvinceId::new(self.province),
                 soldiers: self.soldiers,
                 morale: Fixed::from_raw(self.morale),
+                recruitment_days_remaining: self.recruitment_days_remaining,
                 movement: self.movement.map(|movement| ArmyMovement {
                     route: movement
                         .route
@@ -219,6 +235,10 @@ impl ArmyFile {
             },
         )
     }
+}
+
+fn is_zero_u16(value: &u16) -> bool {
+    *value == 0
 }
 
 #[derive(Serialize, Deserialize)]
@@ -243,10 +263,14 @@ struct WarFile {
     id: u32,
     attacker: u32,
     defender: u32,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    succession_country: Option<u32>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     attacker_supporters: Vec<u32>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     defender_supporters: Vec<u32>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    factions: Vec<WarFactionFile>,
     goal: u32,
     #[serde(default, skip_serializing_if = "is_false")]
     independence: bool,
@@ -263,8 +287,21 @@ impl WarFile {
             id: id.get(),
             attacker: war.attacker.get(),
             defender: war.defender.get(),
+            succession_country: war.succession_country.map(CountryId::get),
             attacker_supporters: war.attacker_supporters.iter().map(|id| id.get()).collect(),
             defender_supporters: war.defender_supporters.iter().map(|id| id.get()).collect(),
+            factions: war
+                .factions
+                .iter()
+                .map(|(&leader, faction)| WarFactionFile {
+                    leader: leader.get(),
+                    members: faction.members.iter().map(|member| member.get()).collect(),
+                    name: faction.name.clone(),
+                    dynasty: faction.dynasty.clone(),
+                    claimant: faction.claimant.map(CharacterId::get),
+                    country_backed: faction.country_backed,
+                })
+                .collect(),
             goal: war.goal.get(),
             independence: war.independence,
             started_at: war.started_at.get(),
@@ -287,6 +324,10 @@ impl WarFile {
     fn restore(self) -> Result<(WarId, War), SaveError> {
         require_sorted(&self.attacker_supporters, "attacker supporters", |&id| id)?;
         require_sorted(&self.defender_supporters, "defender supporters", |&id| id)?;
+        require_sorted(&self.factions, "war factions", |faction| faction.leader)?;
+        for faction in &self.factions {
+            require_sorted(&faction.members, "war faction members", |&id| id)?;
+        }
         require_sorted(&self.occupations, "war occupations", |record| {
             record.province
         })?;
@@ -295,6 +336,7 @@ impl WarFile {
             War {
                 attacker: CountryId::new(self.attacker),
                 defender: CountryId::new(self.defender),
+                succession_country: self.succession_country.map(CountryId::new),
                 attacker_supporters: self
                     .attacker_supporters
                     .into_iter()
@@ -304,6 +346,22 @@ impl WarFile {
                     .defender_supporters
                     .into_iter()
                     .map(CountryId::new)
+                    .collect(),
+                factions: self
+                    .factions
+                    .into_iter()
+                    .map(|faction| {
+                        (
+                            CountryId::new(faction.leader),
+                            WarFaction {
+                                members: faction.members.into_iter().map(CountryId::new).collect(),
+                                name: faction.name,
+                                dynasty: faction.dynasty,
+                                claimant: faction.claimant.map(CharacterId::new),
+                                country_backed: faction.country_backed,
+                            },
+                        )
+                    })
                     .collect(),
                 goal: ProvinceId::new(self.goal),
                 independence: self.independence,
@@ -326,6 +384,25 @@ impl WarFile {
             },
         ))
     }
+}
+
+#[derive(Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct WarFactionFile {
+    leader: u32,
+    members: Vec<u32>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    name: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    dynasty: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    claimant: Option<u32>,
+    #[serde(default = "default_country_backed")]
+    country_backed: bool,
+}
+
+fn default_country_backed() -> bool {
+    true
 }
 
 #[derive(Serialize, Deserialize)]

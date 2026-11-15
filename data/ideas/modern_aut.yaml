@@ -1,0 +1,18 @@
+schema_version: 1
+country: modern_aut
+ideas:
+  - key: austria_common_army
+    name: austria_common_army
+    unlock: {country_has_tech: professional_forces}
+    modifiers:
+      - {key: army_morale, value: 100, kind: additive}
+  - key: austria_diplomatic_system
+    name: austria_diplomatic_system
+    unlock: {country_has_tech: digital_government}
+    modifiers:
+      - {key: tax_income, value: 100, kind: multiplicative}
+  - key: austria_national_compromise
+    name: austria_national_compromise
+    unlock: {country_has_tech: public_services}
+    modifiers:
+      - {key: tax_income, value: -50, kind: multiplicative}

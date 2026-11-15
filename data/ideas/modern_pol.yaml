@@ -1,0 +1,18 @@
+schema_version: 1
+country: modern_pol
+ideas:
+  - key: poland_hussars
+    name: poland_hussars
+    unlock: {country_has_tech: professional_forces}
+    modifiers:
+      - {key: army_combat, value: 150, kind: multiplicative}
+  - key: poland_liberum_veto
+    name: poland_liberum_veto
+    unlock: {country_has_tech: digital_government}
+    modifiers:
+      - {key: tax_income, value: -50, kind: multiplicative}
+  - key: poland_elective_monarchy
+    name: poland_elective_monarchy
+    unlock: {country_has_tech: public_services}
+    modifiers:
+      - {key: army_morale, value: 50, kind: additive}

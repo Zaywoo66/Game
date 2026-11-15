@@ -2,8 +2,8 @@ use std::collections::BTreeMap;
 
 use serde::{Deserialize, Serialize};
 use strategy_sim::{
-    CountryId, Effect, Fixed, ModKey, ModifierKind, ModifierSourceId, ReformDefinition,
-    ReformError, ReformState,
+    CountryId, Effect, Fixed, ModKey, ModifierKind, ModifierSourceId, NewMonarch,
+    PendingGovernmentChange, ReformDefinition, ReformError, ReformState, Tick,
 };
 
 use super::{require_sorted, SaveError};
@@ -13,6 +13,8 @@ use super::{require_sorted, SaveError};
 pub(super) struct ReformStateFile {
     definitions: Vec<ReformDefinitionFile>,
     sources: Vec<ReformSourceFile>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pending_government_changes: Vec<PendingGovernmentChangeFile>,
     next_source_id: u32,
 }
 
@@ -33,6 +35,16 @@ impl From<&ReformState> for ReformStateFile {
                     source: source.get(),
                 })
                 .collect(),
+            pending_government_changes: state
+                .pending_government_changes
+                .iter()
+                .map(|(&country, pending)| PendingGovernmentChangeFile {
+                    country: country.get(),
+                    target: pending.target.clone(),
+                    completes_at: pending.completes_at.get(),
+                    monarch: pending.monarch.as_ref().map(NewMonarchFile::from),
+                })
+                .collect(),
             next_source_id: state.next_source_id,
         }
     }
@@ -46,6 +58,11 @@ impl ReformStateFile {
         require_sorted(&self.sources, "reform sources", |item| {
             (item.country, item.key.clone())
         })?;
+        require_sorted(
+            &self.pending_government_changes,
+            "pending government changes",
+            |item| item.country,
+        )?;
         let definitions = self
             .definitions
             .into_iter()
@@ -68,6 +85,20 @@ impl ReformStateFile {
             definitions,
             choices: BTreeMap::new(),
             sources,
+            pending_government_changes: self
+                .pending_government_changes
+                .into_iter()
+                .map(|item| {
+                    (
+                        CountryId::new(item.country),
+                        PendingGovernmentChange {
+                            target: item.target,
+                            completes_at: Tick::new(item.completes_at),
+                            monarch: item.monarch.map(Into::into),
+                        },
+                    )
+                })
+                .collect(),
             next_source_id: self.next_source_id,
         })
     }
@@ -117,6 +148,53 @@ struct ReformSourceFile {
     country: u32,
     key: String,
     source: u32,
+}
+
+#[derive(Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct PendingGovernmentChangeFile {
+    country: u32,
+    target: String,
+    completes_at: u64,
+    #[serde(default)]
+    monarch: Option<NewMonarchFile>,
+}
+
+#[derive(Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct NewMonarchFile {
+    name: String,
+    dynasty: String,
+    sex: String,
+}
+
+impl From<&NewMonarch> for NewMonarchFile {
+    fn from(value: &NewMonarch) -> Self {
+        Self {
+            name: value.name.clone(),
+            dynasty: value.dynasty.clone(),
+            sex: match value.sex {
+                strategy_sim::Sex::Male => "male",
+                strategy_sim::Sex::Female => "female",
+                strategy_sim::Sex::Unknown => "unknown",
+            }
+            .into(),
+        }
+    }
+}
+
+impl From<NewMonarchFile> for NewMonarch {
+    fn from(value: NewMonarchFile) -> Self {
+        Self {
+            name: value.name,
+            dynasty: value.dynasty,
+            sex: match value.sex.as_str() {
+                "male" => strategy_sim::Sex::Male,
+                "female" => strategy_sim::Sex::Female,
+                _ => strategy_sim::Sex::Unknown,
+            },
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize)]

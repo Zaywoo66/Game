@@ -6,6 +6,7 @@ from collections import Counter
 from copy import deepcopy
 import json
 from pathlib import Path
+import re
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -104,6 +105,9 @@ def owner_directed_assignments(map_data, evidence, policy):
         raise ValueError("Kalmar partition must map to the independent Denmark/Norway/Sweden tags")
     resolved = {}
     for key, row in assignments.items():
+        match = re.fullmatch(r"(.+)_part_\d{2}", key)
+        if match and match.group(1) in province_by_key:
+            continue
         polity = row["polity_name"]
         if polity == rules["golden_horde_source_name"]:
             if key in north_caucasus:
@@ -130,6 +134,12 @@ def owner_directed_assignments(map_data, evidence, policy):
         if key not in province_by_key or province_by_key[key]["kind"] != "land":
             raise ValueError(f"ownership override is not an existing land province: {key}")
         resolved[key] = tag
+    # Generated refinement children retain the reviewed owner's decision for
+    # their original cell; a child must not drift across a coarse map band.
+    for key in sorted(province_by_key):
+        match = re.fullmatch(r"(.+)_part_\d{2}", key)
+        if match and match.group(1) in resolved:
+            resolved.setdefault(key, resolved[match.group(1)])
     return resolved
 
 
@@ -180,6 +190,29 @@ def nearest_owner_updates(scenario, countries, map_data, evidence, rules):
         for tag, country in updated_countries.items()
         for key in country["start"]["provinces"]
     }
+    if len(existing_owner) != sum(len(country["start"]["provinces"])
+                                  for country in updated_countries.values()):
+        raise ValueError("a province has multiple owners before fallback assignment")
+    frontier = rules.get("northern_russia_frontier", {})
+    frontier_tags = set(frontier.get("owner_tags", []))
+    colonizable_keys = set()
+    if frontier_tags:
+        for key, row in provinces.items():
+            if row.get("kind", "land") != "land" or "centroid" not in row:
+                continue
+            x, y = row["centroid"]
+            longitude = -13.0 + (x + 0.5) / 32.0
+            latitude = 72.0 - (y + 0.5) / 32.0
+            tag = existing_owner.get(key)
+            if (tag in frontier_tags
+                    and latitude >= frontier.get("minimum_latitude", float("inf"))
+                    and longitude >= frontier.get("minimum_longitude", float("inf"))):
+                colonizable_keys.add(key)
+    for country in updated_countries.values():
+        country["start"]["provinces"] = [
+            key for key in country["start"]["provinces"] if key not in colonizable_keys
+        ]
+
     hre_member_tags = set(rules["fallback"]["hre_owner_tags"])
     hre_keys = {
         row["province_key"]
@@ -187,7 +220,6 @@ def nearest_owner_updates(scenario, countries, map_data, evidence, rules):
         if row.get("resolution") == "coarse_group"
         and row.get("polity_name") == "Holy Roman Empire Minor States"
         and row["province_key"] not in rules.get("explicit_province_tags", {})
-        and existing_owner.get(row["province_key"]) not in hre_member_tags
     }
     for country in updated_countries.values():
         country["start"]["provinces"] = [
@@ -207,6 +239,8 @@ def nearest_owner_updates(scenario, countries, map_data, evidence, rules):
     evidence_by_key = {row["province_key"]: row for row in evidence["assignments"]}
     named = Counter()
     for key in updated_scenario["unowned_provinces"]:
+        if key in colonizable_keys:
+            continue
         row = evidence_by_key.get(key, {})
         tag = polity_to_tag.get(row.get("polity_name"))
         if (tag and row.get("resolution") == "polygon"
@@ -249,7 +283,7 @@ def nearest_owner_updates(scenario, countries, map_data, evidence, rules):
     hre_tags = set(rules["fallback"]["hre_owner_tags"])
     hre_nearest = nearest_tags(hre_tags)
     assigned_nearest = Counter()
-    unresolved = (set(updated_scenario["unowned_provinces"]) - set(owner)) | hre_keys
+    unresolved = ((set(updated_scenario["unowned_provinces"]) - set(owner)) | hre_keys) - colonizable_keys
     for key in sorted(unresolved):
         row = evidence_by_key.get(key, {})
         province_id = provinces[key]["id"]
@@ -272,7 +306,9 @@ def nearest_owner_updates(scenario, countries, map_data, evidence, rules):
         country["start"]["provinces"] = sorted(set(country["start"]["provinces"]))
         if country["capital"] not in country["start"]["provinces"]:
             raise ValueError(f"{country['tag']} capital is not among its owned provinces")
-    updated_scenario["unowned_provinces"] = []
+    updated_scenario["unowned_provinces"] = sorted(
+        colonizable_keys | (set(updated_scenario["unowned_provinces"]) - set(owner))
+    )
     return updated_scenario, updated_countries, named, assigned_nearest
 
 
@@ -291,10 +327,27 @@ def main() -> int:
     map_identity = (map_data["map_version"], map_data["map_hash"])
     if map_identity != (evidence["map_version"], evidence["map_hash"]):
         raise SystemExit("1440 evidence does not match the current Europe map identity")
-    if map_identity != (policy["map_version"], policy["map_hash"]):
+    policy_input_identity = (
+        policy.get("base_map_version", policy["map_version"]),
+        policy.get("base_map_hash", policy["map_hash"]),
+    )
+    if map_identity != policy_input_identity:
         raise SystemExit("1440 ownership policy does not match the current Europe map identity")
 
     countries = {tag: read_json(COUNTRY_DIR / f"{tag}.json") for tag in scenario["countries"]}
+    # A reproducible base-map rebuild can leave child keys from the previous
+    # refined map in the checked-in country files. Drop those before applying
+    # v6 ownership so this command can be rerun from the generated base map.
+    valid_keys = {row["key"] for row in map_data["provinces"]}
+    land_keys = {row["key"] for row in map_data["provinces"] if row["kind"] == "land"}
+    for country in countries.values():
+        country["start"]["provinces"] = [
+            key for key in country["start"]["provinces"] if key in valid_keys
+        ]
+    claimed = {
+        key for country in countries.values() for key in country["start"]["provinces"]
+    }
+    scenario["unowned_provinces"] = sorted(land_keys - claimed)
     try:
         scenario, countries, assigned = majority_owner_updates(
             scenario, countries, evidence["assignments"], args.threshold

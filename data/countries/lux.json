@@ -15,11 +15,8 @@
     "heir": null,
     "provinces": [
       "arlon",
-      "bonn",
       "diekirch",
-      "grevenmacher",
-      "luxembourg",
-      "wuppertal"
+      "luxembourg"
     ],
     "treasury": 50000,
     "tax_rate": 220,

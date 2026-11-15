@@ -19,19 +19,20 @@ async function landPoints(page) {
 async function mockWarHost(page, capitalId, enemyId) {
   const character = {
     id: 1, name: 'Eleanor', dynasty: 'House of the Oak', age: 35, adm: 5, dip: 7, mil: 6,
-    traits: ['resolute'], death: '1460-01-01',
+    traits: ['resolute'], parents: [], death: '1460-01-01',
   };
   const local = {
     id: 1, tag: 'tst', name: 'Test Realm', color: '#f70bab', capital_id: capitalId, capital: 'Capital City',
     treasury: '25000', income: '1700', expenses: '900', tax_rate: 100, monthly_spending: '1000',
     bankrupt: false, regency: false, ruler: character, heir: null,
+    family: [], government_options: ['monarchy', 'democracy'], government_change_pending: false,
   };
   const enemy = {
     ...local, id: 2, name: 'Other Realm', color: '#2fc953', capital_id: enemyId,
     ruler: null, capital: 'Other Capital',
   };
   const army = {
-    id: 1, country_id: 1, province_id: capitalId, soldiers: 400, morale: 1000,
+    id: 1, country_id: 1, province_id: capitalId, soldiers: 400, morale: 1000, recruitment_days_remaining: 0,
     to_province_id: null, progress: 0,
   };
   await page.addInitScript(({ clock, local, enemy, army }) => {
@@ -163,7 +164,9 @@ test('M4 renders armies and applies only authoritative land-war updates', async 
     type: 'declare_war', country_id: 1, defender_id: 2, goal_province_id: enemy.id,
   });
   await expect(panel.getByText('No active wars')).toBeVisible();
-  const war = { id: 4, attacker_id: 1, defender_id: 2, goal_province_id: enemy.id, score: 30, occupations: [], offer: null };
+  const war = { id: 4, attacker_id: 1, defender_id: 2, goal_province_id: enemy.id, score: 30,
+    attacker_supporters: [], defender_supporters: [], factions: [], succession_country_id: null,
+    occupations: [], offer: null };
   await page.evaluate(({ war, provinceId }) => {
     window.__strategyMockWar.emit({
       sequence: 12, wars: [war],

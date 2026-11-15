@@ -1,6 +1,7 @@
 import { FormEvent, useState } from 'react';
 import { CharacterView, CountryView, GameCommand, GameSnapshot } from './host';
 import { flagUrl } from './flags';
+import { DiplomacyPanel } from './DiplomacyPanel';
 
 /** Money is an i64 in thousandths. Keep all three digits without Number conversion. */
 function fixedText(raw: string | bigint): string {
@@ -42,7 +43,10 @@ export function HostControls({ game, pending, error, canSetSpeed = true, send }:
       </div>
       {localCountry && (
         <dl className="game-clock-country" aria-label={`${localCountry.name} overview`}>
-          <div><dt>{localCountry.name}</dt><dd>{localCountry.ruler?.name ?? 'No ruler recorded'}</dd></div>
+          <div className="game-clock-ruler">
+            <dt>{flagUrl(localCountry.tag) && <img src={flagUrl(localCountry.tag)} alt="" />}{localCountry.name}</dt>
+            <dd>{localCountry.ruler?.name ?? 'No ruler recorded'}</dd>
+          </div>
           <div><dt>Treasury</dt><dd>{fixedText(localCountry.treasury)}</dd></div>
           <div><dt>Monthly income</dt><dd>{fixedText(localCountry.income)}</dd></div>
         </dl>
@@ -168,6 +172,9 @@ export function CountryPanel({ game, country, pending, onSelect, send }: Country
       </label>
       {country && (
         <>
+          {country.eliminated && country.id === local && (
+            <p className="game-error" role="alert">Campaign lost · your country has been fully annexed.</p>
+          )}
           <h2 className="country-name">
             <span aria-hidden="true" style={{ backgroundColor: country.color }} />
             {flag && <img className="country-flag" src={flag} alt="" />}
@@ -199,6 +206,21 @@ export function CountryPanel({ game, country, pending, onSelect, send }: Country
             <div><dt>Tribute received</dt><dd>{fixedText(country.tribute_received)}</dd></div>
             <div><dt>Monthly expenses</dt><dd>{fixedText(country.expenses)}</dd></div>
           </dl>
+          <details className="country-relations">
+            <summary>Relations and actions with {country.name}</summary>
+            <DiplomacyPanel game={game} pending={pending} targetCountryId={country.id} send={send} />
+          </details>
+          {country.id === game.local_country_id && (
+            <section aria-label="Domestic stability">
+              <h3>Domestic stability</h3>
+              <p>Stability · {country.stability}/3 · Administrative points · {country.admin_points}</p>
+              <p>War exhaustion · {country.war_exhaustion}</p>
+              <button type="button" disabled={pending || country.stability >= 3 || country.admin_points < 100}
+                onClick={() => void send({ type: 'increase_stability', country_id: country.id })}>
+                Increase stability · 100 ADM
+              </button>
+            </section>
+          )}
           {country.bankrupt && <p className="game-error">Bankrupt</p>}
           {country.id === game.local_country_id && (
             <FiscalPolicyForm key={country.id + ':' + country.tax_rate + ':' + country.monthly_spending}
@@ -233,6 +255,50 @@ export function CountryPanel({ game, country, pending, onSelect, send }: Country
           {country.regency && <p className="game-regency">Regency in effect</p>}
           <CharacterPanel title="Ruler" character={country.ruler} date={game.clock.date} />
           <CharacterPanel title="Heir" character={country.heir} date={game.clock.date} />
+          {local === country.id && country.government === 'monarchy' && (
+            <section aria-label="Dynasty">
+              <h3>Dynasty</h3>
+              {country.family.length > 0 ? country.family.map((child) => (
+                <p key={child.id}>
+                  {child.name} · {child.dynasty} · {child.sex ?? 'unknown'} · ADM {child.adm} / DIP {child.dip} / MIL {child.mil}
+                </p>
+              )) : <p>No children recorded yet. Royal marriages can produce children over time.</p>}
+              {(() => {
+                const royalIds = new Set([country.ruler?.id, country.heir?.id].filter((id): id is number => id !== undefined));
+                const relatives = [...new Map([country.ruler, country.heir, ...country.family]
+                  .filter((person): person is CharacterView => person !== null)
+                  .map((person) => [person.id, person])).values()];
+                const siblingPairs = relatives.flatMap((first, index) => relatives.slice(index + 1)
+                  .filter((second) => first.parents.length === 2 && second.parents.length === 2
+                    && [...first.parents].sort((a, b) => a - b).join(':') === [...second.parents].sort((a, b) => a - b).join(':')
+                    && (royalIds.has(first.id) || royalIds.has(second.id))
+                    && first.sex !== second.sex && first.sex !== 'unknown' && second.sex !== 'unknown'
+                    && first.age >= (game.marriage_adulthood_years ?? 18)
+                    && second.age >= (game.marriage_adulthood_years ?? 18)
+                    && !first.spouse_id && !second.spouse_id && !first.death && !second.death)
+                  .map((second) => [first, second] as const));
+                return siblingPairs.map(([first, second]) => (
+                  <button key={'sibling-marriage-' + first.id + '-' + second.id} type="button" disabled={pending
+                    || (game.marriage_offers ?? []).some((offer) => offer.from_character_id === first.id && offer.toward_character_id === second.id)}
+                    onClick={() => void send({ type: 'offer_royal_marriage', country_id: country.id,
+                      character_id: first.id, toward_id: country.id, partner_id: second.id })}>
+                    Propose sibling marriage · {first.name} + {second.name}
+                  </button>
+                ));
+              })()}
+              <label>
+                Designate male heir
+                <select value={country.heir?.id ?? ''} disabled={pending}
+                  onChange={(event) => void send({ type: 'nominate_heir', country_id: country.id,
+                    character_id: event.target.value ? Number(event.target.value) : null })}>
+                  <option value="">No designated heir</option>
+                  {country.family.filter((person) => person.sex === 'male').map((person) => (
+                    <option key={person.id} value={person.id}>{person.name} · {person.dynasty}</option>
+                  ))}
+                </select>
+              </label>
+            </section>
+          )}
         </>
       )}
     </section>
