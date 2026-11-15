@@ -36,7 +36,7 @@ fn host_ai_resolves_pending_event_by_legal_command() {
     let snapshot = save_game(&state).unwrap();
     let version: serde_json::Value = serde_json::from_slice(&snapshot).unwrap();
     // The event-only scenario has family data, but no v23 faction war data.
-    assert_eq!(version["schema_version"], 22);
+    assert_eq!(version["schema_version"], 24);
     assert_eq!(
         load_game(&snapshot, state.province_graph().clone()).unwrap(),
         state

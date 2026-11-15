@@ -4372,6 +4372,7 @@ impl GameState {
         }
         self.advance_military(&mut report);
         self.resolve_succession_wars(&mut report.delta.changes);
+        self.sync_war_flags();
         let invalid_call_offers = self
             .diplomacy
             .as_ref()

@@ -27,7 +27,7 @@ class HordeOwnershipTests(unittest.TestCase):
         rules = self.policy["rules"]
         self.assertEqual(self.owners["tura"], "uzb")
         self.assertEqual(self.owners["astrakhan"], "gth")
-        self.assertEqual(self.owners["atyrau"], "nog")
+        self.assertEqual(self.owners["atyrau"], "uzb")
         self.assertEqual(self.owners["sevastopol"], "cri")
         self.assertEqual(self.owners["kerch"], "cri")
         self.assertEqual(self.owners["dzhankoy"], "cri")

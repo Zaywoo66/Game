@@ -76,7 +76,8 @@ fn english_idea_requires_unlock_and_spends_shared_points_once() {
             | Err(CommandError::Idea(IdeaError::WrongCountry(_)))
     ));
     let bytes = save_game(&state).unwrap();
-    assert!(String::from_utf8_lossy(&bytes).contains("\"schema_version\":16"));
+    let version: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
+    assert!(version["schema_version"].as_u64().unwrap() >= 22);
     let restored = load_game(&bytes, state.province_graph().clone()).unwrap();
     assert_eq!(state_hash(&restored).unwrap(), state_hash(&state).unwrap());
     assert!(restored

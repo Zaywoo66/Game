@@ -905,6 +905,20 @@ fn raising_splitting_merging_and_rejections_are_atomic() {
         state.country_polity(A).unwrap().economy.treasury,
         raw(99_000)
     );
+    assert_eq!(
+        state.validate_command(
+            HOST,
+            &Command::SplitArmy {
+                country: A,
+                army: FIRST_ARMY,
+                soldiers: 1,
+            }
+        ),
+        Err(CommandError::War(WarError::ArmyRecruiting(FIRST_ARMY)))
+    );
+    for _ in 0..30 {
+        day(&mut state);
+    }
     apply(
         &mut state,
         HOST,
@@ -1117,16 +1131,25 @@ fn supporter_fights_and_besieges_but_only_leaders_make_peace_and_all_opponents_g
             destination: province(5),
         },
     );
-    let battle = day(&mut state);
+    let battle = (0..30)
+        .map(|_| day(&mut state))
+        .find(|report| {
+            report.delta.changes().iter().any(|change| matches!(
+                change,
+                StateChange::BattleResolved { war: WAR, province: battlefield, winner: A, loser: B, .. }
+                    if *battlefield == province(5)
+            ))
+        })
+        .expect("the trained army should reach the battle province");
     assert!(battle.delta.changes().iter().any(|change| matches!(
         change,
-        StateChange::BattleResolved { war: WAR, province: battlefield, winner: C, loser: B, .. }
+        StateChange::BattleResolved { war: WAR, province: battlefield, winner: A, loser: B, .. }
             if *battlefield == province(5)
     )));
     for _ in 0..4 {
         day(&mut state);
     }
-    assert_eq!(state.war_state().unwrap().occupation(province(5)), Some(C));
+    assert_eq!(state.war_state().unwrap().occupation(province(5)), Some(A));
     assert!(state.war_state().unwrap().wars[&WAR].score >= 40);
     apply(
         &mut state,
@@ -1574,6 +1597,9 @@ fn raise(
             soldiers,
         },
     );
+    for _ in 0..30 {
+        day(state);
+    }
 }
 
 fn day(state: &mut GameState) -> TickReport {

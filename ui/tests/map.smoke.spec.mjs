@@ -75,6 +75,7 @@ test('fleet markers show ship counts, movement paths, and select the fleet panel
     window.strategyMapTest.setFleets([{
       id: 77, province, destination, progress: 350, color: '#526f9b', ships: 4,
     }]);
+    window.strategyMapTest.focusProvince(province);
     window.strategyMapTest.renderFrame();
   }, seaIds);
   const fleet = page.getByRole('button', { name: 'Fleet 77, 4 ships' });
@@ -249,7 +250,7 @@ test('camera presets stay bounded and wide margins render as ocean', async ({ pa
   expect(result.margin).not.toEqual([21, 35, 44, 255]);
 });
 
-test('keyboard camera controls frame, pan, and double-click to focus a province', async ({ page }) => {
+test('keyboard camera controls frame and pan while right drag selects a group', async ({ page }) => {
   const province = (await loadProvinces(page)).find(({ kind }) => kind === 'land');
   expect(province).toBeTruthy();
   const canvas = page.locator('[data-map-viewport] canvas');
@@ -272,9 +273,11 @@ test('keyboard camera controls frame, pan, and double-click to focus a province'
   await page.mouse.move(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2);
   await page.mouse.down({ button: 'right' });
   await page.mouse.move(bounds.x + bounds.width / 2 + 60, bounds.y + bounds.height / 2 + 30);
+  await expect(page.locator('.map-selection-box')).toBeVisible();
   await page.mouse.up({ button: 'right' });
+  await expect(page.locator('.map-selection-box')).toBeHidden();
   const afterRightDrag = await page.evaluate(() => window.strategyMapTest.readCamera());
-  expect(afterRightDrag.target).not.toEqual(beforeRightDrag.target);
+  expect(afterRightDrag.target).toEqual(beforeRightDrag.target);
   expect(afterRightDrag.polarAngle).toBeCloseTo(0.001, 3);
 
   await page.evaluate(() => window.strategyMapTest.setCameraPreset('whole-region'));

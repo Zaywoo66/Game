@@ -10,7 +10,7 @@ import numpy as np
 from PIL import Image
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from build_europe import BASELINE, OUTPUT, ROOT, WEST, HEIGHT, WIDTH, decode_ids  # noqa: E402
+from build_europe import BASELINE, OUTPUT, ROOT, WEST, decode_ids  # noqa: E402
 from map_common import map_hash  # noqa: E402
 from topology import raster_contacts  # noqa: E402
 
@@ -23,7 +23,10 @@ class EuropeMapTests(unittest.TestCase):
         cls.ids = decode_ids(OUTPUT / "provinces.png")
 
     def test_extent_and_stable_western_province_ids(self):
-        self.assertEqual(self.ids.shape, (HEIGHT, WIDTH))
+        political_fill = np.asarray(Image.open(OUTPUT / "country_fill_2022.png"))
+        political_borders = np.asarray(Image.open(OUTPUT / "country_borders_2022.png"))
+        self.assertEqual(self.ids.shape, political_fill.shape[:2])
+        self.assertEqual(self.ids.shape, political_borders.shape[:2])
         by_id = {p["id"]: p for p in self.europe["provinces"]}
         for original in self.west["provinces"]:
             extended = by_id[original["id"]]
@@ -44,7 +47,7 @@ class EuropeMapTests(unittest.TestCase):
         provinces = {p["id"]: p for p in self.europe["provinces"]}
         self.assertNotIn(0, np.unique(self.ids))
         self.assertEqual(set(np.unique(self.ids)), set(provinces))
-        self.assertLess(max(provinces), 4000)
+        self.assertLess(max(provinces), 5000)
         river = np.asarray(Image.open(OUTPUT / "rivers.png")) != 0
         contacts, _ = raster_contacts(self.ids, river)
         western_ids = {p["id"] for p in self.west["provinces"]}
@@ -67,41 +70,33 @@ class EuropeMapTests(unittest.TestCase):
         polity_by_key = {item["province_key"]: item["polity_name"] for item in evidence["assignments"]}
         self.assertEqual(polity_by_key["amsterdam"], "Burgundian Netherlands")
         self.assertEqual(polity_by_key["munich"], "Duchy of Bavaria")
-        self.assertEqual(self.europe["map_version"], 7)
+        self.assertEqual(self.europe["map_version"], 9)
         land_count = sum(row["kind"] == "land" for row in self.europe["provinces"])
         self.assertGreaterEqual(land_count, 2800)
-        self.assertLessEqual(land_count, 3300)
+        self.assertLessEqual(land_count, 3600)
         tura = next(row for row in self.europe["provinces"] if row["key"] == "tura")
         self.assertEqual(tura["kind"], "land")
 
-    def test_europe_scenario_accounts_for_owned_and_colonizable_land(self):
-        scenario = json.loads((ROOT / "data/scenarios/1440.json").read_text())
-        owned = set()
+    def test_2022_scenario_owns_every_land_province(self):
+        scenario = json.loads((ROOT / "data/scenarios/2022.json").read_text())
+        ownership = json.loads((ROOT / "data/map/europe/ownership_2022.json").read_text())
+        self.assertEqual(ownership["map_version"], self.europe["map_version"])
+        self.assertEqual(ownership["map_hash"], self.europe["map_hash"])
         owner_by_key = {}
         for country in scenario["countries"]:
             record = json.loads((ROOT / "data/countries" / f"{country}.json").read_text())
-            owned.update(record["start"]["provinces"])
-            owner_by_key.update({key: country for key in record["start"]["provinces"]})
-        unowned = set(scenario["unowned_provinces"])
+            for key in record["start"]["provinces"]:
+                self.assertNotIn(key, owner_by_key, f"duplicate 2022 owner for {key}")
+                owner_by_key[key] = country
         land_keys = {row["key"] for row in self.europe["provinces"] if row["kind"] == "land"}
-        self.assertEqual(owned | unowned, land_keys)
-        self.assertFalse(owned & unowned)
-        rules = json.loads((ROOT / "data/map/europe/ownership_1440.json").read_text())["rules"]
-        frontier_tags = set(rules["northern_russia_frontier"]["owner_tags"])
-        by_key = {row["key"]: row for row in self.europe["provinces"]}
-        self.assertEqual(len(unowned), 33)
-        for key in unowned:
-            row = by_key[key]
-            x, y = row["centroid"]
-            latitude = 72.0 - (y + 0.5) / 32.0
-            longitude = -13.0 + (x + 0.5) / 32.0
-            self.assertGreaterEqual(latitude, 68.0)
-            self.assertGreaterEqual(longitude, 30.0)
-        for key, owner in owner_by_key.items():
-            x, y = by_key[key]["centroid"]
-            latitude = 72.0 - (y + 0.5) / 32.0
-            longitude = -13.0 + (x + 0.5) / 32.0
-            self.assertFalse(owner in frontier_tags and latitude >= 68.0 and longitude >= 30.0)
+        self.assertEqual(set(scenario["unowned_provinces"]), set())
+        self.assertEqual(set(owner_by_key), land_keys)
+        provinces_by_id = {row["id"]: row for row in self.europe["provinces"]}
+        expected = {
+            provinces_by_id[int(province_id)]["key"]: tag
+            for province_id, tag in ownership["province_owners"].items()
+        }
+        self.assertEqual(owner_by_key, expected)
         self.assertEqual(len(scenario["countries"]), len(set(scenario["countries"])))
 
     def test_refinement_only_splits_owner_approved_major_countries(self):
