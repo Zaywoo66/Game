@@ -171,6 +171,7 @@ individual province cells.
 
 ## Rendering (`/ui/src/map`, three.js WebGL2)
 - Terrain mesh from heightmap (chunked), custom shaders: terrain blend, hillshade, rivers, depth-colored water, province/area/country borders, owner color via lookup texture (`provinceId -> ownerColor`).
+- Political fills retain subtle height-based hillshade, with a restrained highland tint and lighter province/area lines; this adds relief and a printed-atlas finish without changing ownership colors or map data.
 - An orthographic camera clamps zoom, tilt and pan. A low ocean skirt and a short edge fade cover the finite raster edge in wide or tilted views; land outside the regional source extent is not inferred.
 - Picking: CPU copy of provinces raster, read pixel under cursor -> province id.
 - Units: `InstancedMesh`, < 500 triangles each, shared texture palette. Sea units same approach.

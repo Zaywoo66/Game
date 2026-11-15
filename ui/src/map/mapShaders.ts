@@ -153,11 +153,23 @@ void main() {
     color = mix(color, vec3(0.045, 0.165, 0.178), river * 0.74);
   }
 
+  float reliefLight = 0.78 + 0.30 * clamp(landLight, 0.0, 1.0);
+  float elevationTint = smoothstep(2.5, 18.0, mapHeight);
+  vec3 highlandTint = vec3(0.78, 0.79, 0.73);
+  color *= reliefLight;
+  color = mix(color, color * highlandTint, elevationTint * 0.16);
+
   if (mapMode == 0) {
     color = mix(color, owner.rgb, owner.a * 0.88);
     if (sourceCountryFill.a > 0.0 && ownershipChanged < 0.5) {
       vec3 sourceFillColor = sourceCountryFill.rgb / max(sourceCountryFill.a, 0.001);
       color = mix(color, sourceFillColor, sourceCountryFill.a);
+    }
+    // Keep country ownership clear while letting the underlying relief read
+    // through like a printed political atlas instead of a flat board-game map.
+    if (owner.a > 0.01 || sourceCountryFill.a > 0.0) {
+      float politicalRelief = 0.90 + 0.18 * clamp(landLight, 0.0, 1.0);
+      color *= politicalRelief;
     }
   }
   if (mapMode == 2) {
@@ -211,7 +223,7 @@ void main() {
   float provinceBorderOpacity = showCountryBoundaries2022
     ? border.x * (0.008 + 0.20 * detail * modernProvinceLines)
       + border.y * (0.035 * modernProvinceLines)
-    : border.x * (0.075 + 0.065 * detail) + border.y * 0.11;
+    : border.x * (0.055 + 0.050 * detail) + border.y * 0.085;
   float borderOpacity = provinceBorderOpacity
     + max(liveCountryBorder, sourceCountryBorder * 0.78);
   if (water > 0.5) borderOpacity *= 0.035;

@@ -73,6 +73,11 @@ only for owned provinces; unowned northern frontier cells display physical
 terrain/relief without political tint. Historical 1440 source colors remain a
 separate inspection mode.
 
+2026-11-15 visual pass: political ownership fills now retain restrained relief
+shading and elevation tint, while province and area lines are lighter. Map
+ownership and source geometry are unchanged; owner visual acceptance remains
+open.
+
 AI levels L0–L3 are delivered inside M3, M4, M6, M7–M9 (see each milestone's AI slice); M10 only completes L4.
 
 After the 5b.2 dense-map rebuild passes CI, M6–M11 may proceed while physical two-PC M5 acceptance and the remaining M5b visual/UI checks are open. M12 cannot start until M5 and M5b are accepted. Local loopback and accelerated runs support development but do not close the two-PC acceptance.
