@@ -1067,7 +1067,8 @@ pub(crate) fn setup(app: &mut App) -> Result<(), Box<dyn std::error::Error>> {
         log: Mutex::new(lan_log),
     });
     app.manage(Arc::clone(&lifecycle));
-    let game = load_embedded_modern_scenario().map_err(std::io::Error::other)?;
+    let mut game = load_embedded_modern_scenario().map_err(std::io::Error::other)?;
+    pause_solo_menu(&mut game).map_err(std::io::Error::other)?;
     let visible_countries = country_views(&game);
     let visible_events = event_views(&game, HOST);
     let visible_owners = owner_views(&game);
@@ -1245,6 +1246,23 @@ pub(crate) fn game_snapshot(state: State<'_, Mutex<Session>>) -> Result<Snapshot
         min_raise_soldiers: 1,
         max_raise_soldiers: war.map_or(0, |war| war.rules.max_army_size),
     })
+}
+
+#[tauri::command]
+pub(crate) fn solo_start_campaign(
+    app: AppHandle,
+    state: State<'_, Mutex<Session>>,
+    country_id: u32,
+) -> Result<(), String> {
+    let mut session = state
+        .lock()
+        .map_err(|_| "The game session is unavailable.")?;
+    if !matches!(session.mode, Mode::Solo) {
+        return Err("Leave the network room before starting a solo campaign.".into());
+    }
+    start_solo_campaign(&mut session.game, country_id)?;
+    publish(&app, &mut session);
+    Ok(())
 }
 
 #[tauri::command]
@@ -1593,6 +1611,52 @@ pub(crate) fn on_app_event(app: &AppHandle, event: tauri::RunEvent) {
         }),
         _ => {}
     }
+}
+
+fn pause_solo_menu(game: &mut GameState) -> Result<(), String> {
+    game.apply(
+        CommandActor::Host(HOST),
+        &Command::Time(TimeCommand::SetPaused(true)),
+    )
+    .map_err(|error| format!("Could not pause the solo campaign menu ({error:?})."))?;
+    Ok(())
+}
+
+fn start_solo_campaign(game: &mut GameState, country_id: u32) -> Result<(), String> {
+    let selected = CountryId::new(country_id);
+    let polity = game.polity().ok_or("The scenario is unavailable.")?;
+    if !polity.countries.contains_key(&selected) {
+        return Err("Choose a playable country.".into());
+    }
+    let controllers = polity
+        .countries
+        .iter()
+        .map(|(&id, country)| {
+            let controller = if id == selected {
+                Controller::Human(HOST)
+            } else {
+                Controller::Ai(country.ai_profile.clone())
+            };
+            (id, controller)
+        })
+        .collect::<Vec<_>>();
+
+    for (country, controller) in controllers {
+        game.apply(
+            CommandActor::Host(HOST),
+            &Command::SetController {
+                country,
+                controller,
+            },
+        )
+        .map_err(|error| format!("Could not assign solo campaign control ({error:?})."))?;
+    }
+    game.apply(
+        CommandActor::Host(HOST),
+        &Command::Time(TimeCommand::SetPaused(false)),
+    )
+    .map_err(|error| format!("Could not start the solo campaign ({error:?})."))?;
+    Ok(())
 }
 
 fn reset_game(session: &mut Session, game: &GameState, sequence: u64) {
@@ -2573,19 +2637,65 @@ fn money(value: Fixed) -> String {
 #[cfg(test)]
 mod tests {
     use super::{
-        acceptance_preview_views, collect_truce_views, event_views, technology_views, Startup,
-        TruceView, UiCommand, GUEST, HOST,
+        acceptance_preview_views, collect_truce_views, event_views, pause_solo_menu,
+        start_solo_campaign, technology_views, Startup, TruceView, UiCommand, GUEST, HOST,
     };
     use std::{
         collections::{BTreeMap, BTreeSet},
         num::{NonZeroU32, NonZeroU64},
     };
-    use strategy_app::load_embedded_scenario;
+    use strategy_app::{load_embedded_modern_scenario, load_embedded_scenario};
     use strategy_data::parse_event_yaml;
     use strategy_sim::{
         Command, Controller, CountryId, CountryState, Date, GameState, MapIdentity, ModifierStore,
         PeaceTreaty, PlayerId, ProvinceGraph, SimTime, Speed, Tick, Trigger, WarId,
     };
+
+    #[test]
+    fn solo_campaign_stays_paused_until_a_country_is_selected_and_starts_with_ai_opponents() {
+        let mut game = load_embedded_modern_scenario().unwrap();
+        pause_solo_menu(&mut game).unwrap();
+        assert!(game.time().is_paused());
+
+        let france = game
+            .countries()
+            .find_map(|(id, _)| {
+                (game.country_polity(id).unwrap().tag == "modern_fr1").then_some(id)
+            })
+            .unwrap();
+        let britain = game
+            .countries()
+            .find_map(|(id, _)| {
+                (game.country_polity(id).unwrap().tag == "modern_gb1").then_some(id)
+            })
+            .unwrap();
+
+        start_solo_campaign(&mut game, france.get()).unwrap();
+
+        assert!(!game.time().is_paused());
+        assert_eq!(
+            game.country(france).unwrap().controller(),
+            &Controller::Human(HOST)
+        );
+        assert!(matches!(
+            game.country(britain).unwrap().controller(),
+            Controller::Ai(_)
+        ));
+        assert!(game.countries().all(|(id, country)| {
+            id == france || matches!(country.controller(), Controller::Ai(_))
+        }));
+    }
+
+    #[test]
+    fn solo_campaign_rejects_an_unknown_country_without_unpausing() {
+        let mut game = load_embedded_modern_scenario().unwrap();
+        pause_solo_menu(&mut game).unwrap();
+        let initial_hash = strategy_data::state_hash(&game).unwrap();
+
+        assert!(start_solo_campaign(&mut game, u32::MAX).is_err());
+        assert!(game.time().is_paused());
+        assert_eq!(strategy_data::state_hash(&game).unwrap(), initial_hash);
+    }
 
     #[test]
     fn acceptance_preview_projection_covers_ai_countries_and_their_factors() {

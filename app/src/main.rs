@@ -6,6 +6,7 @@ fn main() {
     let benchmark = std::env::args_os().any(|argument| argument == "--map-benchmark");
     let builder = tauri::Builder::default().invoke_handler(tauri::generate_handler![
         session::game_snapshot,
+        session::solo_start_campaign,
         session::game_command,
         session::game_ai_log,
         session::lan_status,

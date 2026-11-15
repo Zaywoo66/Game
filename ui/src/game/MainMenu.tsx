@@ -6,12 +6,12 @@ interface Props {
   game: GameSnapshot | null;
   gameError: string;
   lan: LanController;
-  onSinglePlayer(): void;
+  onSinglePlayer(countryId: number): void;
 }
 
 type CountryOption = Pick<CountryView, 'id' | 'tag' | 'name' | 'color'>;
 
-type MenuPage = 'home' | 'network' | 'create' | 'join';
+type MenuPage = 'home' | 'solo' | 'network' | 'create' | 'join';
 
 function RoomLobby({ game, lan, status }: { game: GameSnapshot | null; lan: LanController; status: LanStatus }) {
   const host = status.mode === 'host';
@@ -168,6 +168,58 @@ function CreateRoom({ lan, game, gameError, onBack }: {
   );
 }
 
+function SoloCampaignSetup({ game, gameError, onBack, onStart }: {
+  game: GameSnapshot | null;
+  gameError: string;
+  onBack(): void;
+  onStart(countryId: number): void;
+}) {
+  const [countryQuery, setCountryQuery] = useState('');
+  const [chosenCountryId, setChosenCountryId] = useState('');
+  const countries = (game?.countries ?? [])
+    .filter((country) => `${country.name} ${country.tag}`.toLocaleLowerCase()
+      .includes(countryQuery.trim().toLocaleLowerCase()))
+    .sort((left, right) => left.name.localeCompare(right.name));
+  const countryId = chosenCountryId || game?.local_country_id?.toString() || '';
+  const selected = game?.countries.find((country) => country.id === Number(countryId));
+  const error = gameError || (game && game.countries.length === 0
+    ? 'The loaded scenario contains no playable countries.' : '');
+
+  return (
+    <section className="menu-card" aria-label="Start a solo campaign">
+      <button className="menu-back" type="button" onClick={onBack}>← Main menu</button>
+      <p className="menu-eyebrow">Local campaign · 2022</p>
+      <h1>Choose your country</h1>
+      <p className="menu-copy">You will control one country; every other country is AI-controlled.</p>
+      <div className="menu-form">
+        <label className="menu-field">Filter countries
+          <input value={countryQuery} maxLength={48} onChange={(event) => setCountryQuery(event.target.value)}
+            placeholder="Search by country name or tag" />
+        </label>
+        <label className="menu-field">Your country
+          <select className="menu-country-list" size={Math.min(7, Math.max(4, countries.length + 1))}
+            aria-label="Your country" value={countryId}
+            onChange={(event) => setChosenCountryId(event.target.value)}
+            disabled={!game || Boolean(error)}>
+            {!game && <option value="">Loading countries…</option>}
+            {game && countries.map((country) => <option key={country.id} value={country.id}>
+              {country.name}
+            </option>)}
+            {game && countries.length === 0 && <option value="">No countries match this filter</option>}
+          </select>
+        </label>
+        {selected && <p className="menu-hint">Selected: <strong>{selected.name}</strong></p>}
+        {error && <p className="menu-error" role="alert">Could not load the country list: {error}</p>}
+        <button className="menu-button menu-button--primary" type="button"
+          disabled={!game || Boolean(error) || !selected}
+          onClick={() => selected && onStart(selected.id)}>
+          Start campaign <span aria-hidden="true">→</span>
+        </button>
+      </div>
+    </section>
+  );
+}
+
 function JoinRoom({ lan, onBack }: { lan: LanController; onBack(): void }) {
   const [name, setName] = useState('Player 2');
   const [address, setAddress] = useState('');
@@ -230,7 +282,7 @@ export function MainMenu({ game, gameError, lan, onSinglePlayer }: Props) {
         {page === 'home' && <nav className="menu-card menu-navigation" aria-label="Main menu">
           <p className="menu-eyebrow">Main menu</p>
           <h2>Choose how to play</h2>
-          <button className="menu-button menu-button--primary" type="button" onClick={onSinglePlayer}>
+          <button className="menu-button menu-button--primary" type="button" onClick={() => setPage('solo')}>
             Single player <span aria-hidden="true">→</span>
           </button>
           <button className="menu-button menu-button--secondary" type="button" onClick={() => setPage('network')}>
@@ -238,6 +290,9 @@ export function MainMenu({ game, gameError, lan, onSinglePlayer }: Props) {
           </button>
           <p className="menu-footnote">One campaign start · 1 January 2022</p>
         </nav>}
+
+        {page === 'solo' && <SoloCampaignSetup game={game} gameError={gameError}
+          onBack={() => setPage('home')} onStart={onSinglePlayer} />}
 
         {page === 'network' && <section className="menu-card menu-navigation" aria-label="Network game options">
           <button className="menu-back" type="button" onClick={() => setPage('home')}>← Main menu</button>

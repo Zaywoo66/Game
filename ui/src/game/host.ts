@@ -513,10 +513,30 @@ export function useGameHost(enabled: boolean, generation = 0, canCommand = true,
     }
   }
 
+  async function startSoloCampaign(countryId: number): Promise<boolean> {
+    if (!bridge || !snapshot || pending || !Number.isInteger(countryId) || countryId < 1) return false;
+    const request = Symbol();
+    inFlight.current = request;
+    setPending(true);
+    setCommandError('');
+    try {
+      await bridge.core.invoke<null>('solo_start_campaign', { countryId });
+      return true;
+    } catch (reason) {
+      if (inFlight.current === request) setCommandError(errorText(reason));
+      return false;
+    } finally {
+      if (inFlight.current === request) {
+        inFlight.current = undefined;
+        setPending(false);
+      }
+    }
+  }
+
   function readAiLog(): Promise<AiLogEntry[]> {
     return bridge ? bridge.core.invoke<AiLogEntry[]>('game_ai_log') : Promise.resolve([]);
   }
 
   return { connected: Boolean(bridge), snapshot, connectionError, commandError,
-    pending: pending || !canCommand, send, sendMany, readAiLog };
+    pending: pending || !canCommand, send, sendMany, startSoloCampaign, readAiLog };
 }
