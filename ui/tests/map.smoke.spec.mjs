@@ -54,6 +54,23 @@ test('projected provinces pick their canonical IDs and representative clicks sel
   }
 });
 
+test('sea selection uses a readable zone label and never reports a land owner', async ({ page }) => {
+  const sea = (await loadProvinces(page)).find(({ kind }) => kind === 'sea');
+  expect(sea).toBeTruthy();
+  const point = await page.evaluate((id) => {
+    window.strategyMapTest.focusProvince(id);
+    window.strategyMapTest.renderFrame();
+    return window.strategyMapTest.projectProvince(id);
+  }, sea.id);
+  expect(point).toBeTruthy();
+  await page.mouse.click(point.x, point.y);
+  const inspector = page.locator('#map-inspector');
+  const heading = inspector.getByRole('heading', { level: 2 });
+  await expect(heading).toContainText(/sea/i);
+  await expect(heading).not.toContainText(/_/);
+  await expect(inspector.getByText(/Owner ·/)).toHaveCount(0);
+});
+
 test('province hover shows a delayed name tooltip and selection remains available', async ({ page }) => {
   const provinces = await loadProvinces(page);
   const province = provinces.find(({ kind }) => kind === 'land');
@@ -112,7 +129,7 @@ test('overview hides army markers until the player zooms in', async ({ page }) =
     const map = window.strategyMapTest;
     map.setCameraPreset('whole-region');
     map.setArmies([{ id: 909, province: provinceId, destination: null,
-      progress: 0, color: '#526f9b', soldiers: 1200 }]);
+      progress: 0, color: '#526f9b', soldiers: 1200, recruitingDays: 9 }]);
     map.renderFrame();
   }, london.id);
   const viewport = page.locator('[data-map-viewport]');
@@ -128,7 +145,10 @@ test('overview hides army markers until the player zooms in', async ({ page }) =
   });
   await expect(badge).toBeVisible();
   await expect(badge.locator('.map-army-strength')).toBeVisible();
-  await expect(badge).toHaveAttribute('aria-label', 'Army 909, 1,200 soldiers');
+  await expect(badge.locator('.map-army-icon')).toHaveText('⚔');
+  await expect(badge.locator('.map-army-readiness')).toBeVisible();
+  await expect(badge.locator('.map-army-strength')).toHaveText('9d');
+  await expect(badge).toHaveAttribute('aria-label', 'Army 909, recruiting, 9 days remaining');
 });
 
 test('owner recoloring changes the rendered province in place', async ({ page }) => {

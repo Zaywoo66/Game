@@ -159,13 +159,20 @@ export function createArmyLayer(
         badge.dataset.armyId = String(marker.id);
         const icon = document.createElement('span');
         icon.className = 'map-army-icon';
-        icon.textContent = marker.recruitingDays > 0 ? '⌛' : '⚔';
+        icon.textContent = '⚔';
+        const readiness = document.createElement('span');
+        readiness.className = 'map-army-readiness';
+        readiness.setAttribute('aria-hidden', 'true');
         const strength = document.createElement('span');
         strength.className = 'map-army-strength';
-        badge.append(icon, strength);
+        badge.append(icon, readiness, strength);
         overlay.appendChild(badge);
         badges.set(marker.id, badge);
       }
+      const readiness = badge.querySelector<HTMLSpanElement>('.map-army-readiness');
+      if (readiness) readiness.hidden = marker.recruitingDays <= 0;
+      const color = /^#[a-f\d]{6}$/i.test(marker.color) ? marker.color : '#c7b88d';
+      badge.style.setProperty('--army-color', color);
       const strength = badge.querySelector('.map-army-strength');
       if (strength) strength.textContent = marker.recruitingDays > 0
         ? `${marker.recruitingDays}d` : marker.soldiers.toLocaleString('en-US');

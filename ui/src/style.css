@@ -41,9 +41,12 @@ p { font-size: 14px; color: #a8b6cf; }
 .map-viewport[data-map-scale='local'] .map-label[data-kind='province'] { font-size: 11px; font-weight: 600; }
 .map-army-overlay { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
 .map-selection-box { position: absolute; z-index: 4; border: 1px solid #ffe2a0; background: #d7b76c22; box-shadow: 0 0 0 1px #17283299; pointer-events: none; }
-.map-army-badge { position: absolute; z-index: 2; transform: translate(-50%, -135%); padding: 3px 6px; border: 1px solid #c7b88d; border-radius: 5px; background: #142329ed; color: #fdf2d8; white-space: nowrap; font: 700 12px/1 system-ui, sans-serif; text-shadow: 0 1px #000; box-shadow: 0 2px 5px #0008; }
+.map-army-badge { position: absolute; z-index: 2; transform: translate(-50%, -135%); padding: 3px 6px; border: 1px solid var(--army-color, #c7b88d); border-radius: 5px; background: linear-gradient(145deg, #24343aef, #101a20f2); color: #fdf2d8; white-space: nowrap; font: 700 12px/1 system-ui, sans-serif; text-shadow: 0 1px #000; box-shadow: 0 2px 5px #0008; }
 .map-army-badge[hidden], .map-fleet-badge[hidden] { display: none !important; }
 .map-army-icon, .map-fleet-icon { display: inline-block; }
+.map-army-icon { color: #f4e4bf; }
+.map-army-readiness { position: absolute; top: -3px; right: -3px; width: 6px; height: 6px; border: 1px solid #162126; border-radius: 50%; background: #e8a34c; box-shadow: 0 0 4px #e8a34c99; }
+.map-army-readiness[hidden] { display: none; }
 .map-army-badge[data-selected='true'] { border-color: #ffdf80; background: #564723; }
 .map-army-path { position: absolute; height: 0; border-top: 2px dashed #ffd778; opacity: .85; transform-origin: left center; }
 .map-army-path::after { content: ''; position: absolute; right: -1px; top: -5px; border-left: 7px solid #ffd778; border-top: 4px solid transparent; border-bottom: 4px solid transparent; }
@@ -136,7 +139,7 @@ p { font-size: 14px; color: #a8b6cf; }
 .game-clock-actions { display: flex; align-items: center; gap: 12px; }
 .game-clock-actions label { display: flex; align-items: center; gap: 6px; }
 .map-inspector--host {
-  width: min(330px, calc(100% - 36px));
+  width: min(390px, calc(100% - 36px));
   max-height: none;
   overflow: auto;
   pointer-events: auto;
@@ -183,8 +186,8 @@ p { font-size: 14px; color: #a8b6cf; }
 .character-panel .character-name { color: #f5ebd5; }
 .map-panel .game-error, .map-panel .game-regency { margin-top: 6px; color: #f0b28a; }
 
-.inspector-tabs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; margin-top: 9px; }
-.inspector-tabs button { display: flex; align-items: center; justify-content: center; gap: 6px; min-width: 0; min-height: 36px; padding: 5px 4px; border-color: #66838d77; background: linear-gradient(145deg, #213943, #172a34); font-size: 12px; line-height: 1.2; overflow-wrap: anywhere; }
+.inspector-tabs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; margin-top: 10px; }
+.inspector-tabs button { display: flex; align-items: center; justify-content: flex-start; gap: 8px; min-width: 0; min-height: 40px; padding: 7px 10px; border-color: #66838d77; background: linear-gradient(145deg, #213943, #172a34); font-size: 13px; line-height: 1.2; white-space: nowrap; }
 .inspector-tab-icon { color: var(--ui-color-accent); font-size: 15px; line-height: 1; }
 .inspector-tabs button[aria-pressed="true"] { border-color: var(--ui-color-accent); background: linear-gradient(145deg, #49372f, #293940); color: #f0c4a1; }
 .military-panel { margin-top: 11px; padding-top: 8px; border-top: 1px solid #78918d55; }

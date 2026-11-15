@@ -265,7 +265,7 @@ export function createMapViewer(
   let fitted = false;
   const fitZoom = (aspect: number) => Math.min(
     1,
-    (height * 1.08 * aspect) / width,
+    (height * 0.96 * aspect) / width,
   ) * 0.96;
   function resize() {
     const w = viewport.clientWidth;
@@ -273,7 +273,9 @@ export function createMapViewer(
     if (w === 0 || h === 0) return;
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.setSize(w, h, false);
-    const frameHeight = height * 1.08;
+    // Keep a full-height region overview. The previous 1.08 factor left
+    // conspicuous unused bands around the map on 16:9 desktop windows.
+    const frameHeight = height * 0.96;
     camera.left = -frameHeight * w / h / 2;
     camera.right = -camera.left;
     camera.top = frameHeight / 2;

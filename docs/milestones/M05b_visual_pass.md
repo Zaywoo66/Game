@@ -35,6 +35,13 @@ Why: M2-M5 acceptance was technical only. Later systems (diplomacy, naval, AI) a
   full strength text for screen readers and tooltips. A 1100×768 browser check
   covers these responsive rules; owner review and native target-hardware review
   remain required.
+- 2026-11-15 screenshot follow-up: the first view now uses the full map height
+  instead of leaving large unused bands, ownership fills retain more terrain
+  relief and use a muted atlas treatment, recruiting status is a small marker
+  instead of replacing every army symbol, and sea provinces no longer display
+  raw internal keys or a misleading unowned-land row. The modern campaign also
+  hides the unrelated 1440 reference mode. These are implementation fixes only;
+  owner visual acceptance remains open.
 
 ## Acceptance (evidence required)
 - Add a dev command capturing screenshots at named camera presets (whole region, Britain close-up, Iberian coast, single province close-up) at 1080p. PR must attach them; the owner reviews. No screenshots = not accepted.

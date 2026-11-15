@@ -4,7 +4,9 @@ import { MapAssets, pickProvinceId } from './mapData';
 const sampleStep = 6;
 const chunkCells = 32;
 const seaLevel = 32768;
-const metersToMapUnits = 0.012;
+// A restrained vertical exaggeration makes the public DEM legible at country
+// scale while keeping the map readable as a political atlas.
+const metersToMapUnits = 0.018;
 
 export function createTerrain(
   assets: MapAssets,

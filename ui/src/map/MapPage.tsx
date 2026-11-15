@@ -183,6 +183,10 @@ export function MapPage({ lan, hostGame }: { lan: LanController; hostGame: Retur
   const technologyEnabled = Boolean(game?.technologies?.length);
   const ideasEnabled = Boolean(game?.ideas?.length);
   const reformsEnabled = Boolean(game?.reforms?.length);
+  const modernCampaign = Number.parseInt(game?.clock.date.slice(0, 4) ?? '0', 10) >= 2000;
+  const mapModes: readonly MapMode[] = modernCampaign
+    ? ['political', 'terrain']
+    : ['political', 'terrain', 'historical'];
   const colors = useMemo(
     () => provinceColors(game?.owners, game?.countries),
     [game?.owners, game?.countries],
@@ -334,7 +338,11 @@ export function MapPage({ lan, hostGame }: { lan: LanController; hostGame: Retur
   const occupier = game?.countries.find((country) => country.id === occupierId);
   const provinceName = (id: number) => {
     const province = provinceNames.get(id);
-    return province ? mapAssets?.names.get(province.name_key ?? '') ?? 'Province ' + id : 'Province ' + id;
+    const localized = province && mapAssets?.names.get(province.name_key ?? '');
+    if (localized) return localized;
+    if (province?.kind === 'sea') return `Sea zone ${id}`;
+    if (province?.kind === 'lake') return `Lake ${id}`;
+    return `Province ${id}`;
   };
   const attribution = selected && mapAssets?.polityAttributions.get(selected.id);
 
@@ -445,7 +453,7 @@ export function MapPage({ lan, hostGame }: { lan: LanController; hostGame: Retur
               <MapSources />
             </>}
             <nav className="map-modes" aria-label="Map mode">
-              {(['political', 'terrain', 'historical'] as const).map((mode) => (
+              {mapModes.map((mode) => (
                 <button key={mode} type="button" aria-pressed={mapMode === mode}
                   onClick={() => { modeChosenByUser.current = true; setMapMode(mode); }}>
                   {mode === 'political' ? 'Game political' : mode === 'terrain' ? 'Terrain' : 'Historical 1440'}
@@ -510,8 +518,10 @@ export function MapPage({ lan, hostGame }: { lan: LanController; hostGame: Retur
           {selected ? (
             <>
               <h2>{provinceName(selected.id)}</h2>
-              <p>Province {selected.id} · {nameOf(selected.kind)} · {nameOf(selected.terrain)}</p>
-              {game && <p>Owner · {provinceOwner?.name ?? 'Unowned'}</p>}
+              <p>{selected.kind === 'sea'
+                ? `Sea zone · Province ${selected.id}`
+                : `Province ${selected.id} · ${nameOf(selected.kind)} · ${nameOf(selected.terrain)}`}</p>
+              {game && selected.kind === 'land' && <p>Owner · {provinceOwner?.name ?? 'Unowned'}</p>}
               {game?.blockaded_ports?.includes(selected.id) && <p>Blockaded · port tax income closed</p>}
               {mapMode === 'historical' && selected.kind === 'land' && (
                 <p data-historical-resolution={attribution?.resolution ?? 'unmatched'}>
