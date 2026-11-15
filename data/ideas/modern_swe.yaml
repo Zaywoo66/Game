@@ -1,0 +1,18 @@
+schema_version: 1
+country: modern_swe
+ideas:
+  - key: sweden_baltic_dominion
+    name: sweden_baltic_dominion
+    unlock: {country_has_tech: global_supply_networks}
+    modifiers:
+      - {key: tax_income, value: 100, kind: multiplicative}
+  - key: sweden_allotment_system
+    name: sweden_allotment_system
+    unlock: {country_has_tech: professional_forces}
+    modifiers:
+      - {key: army_morale, value: 100, kind: additive}
+  - key: sweden_window_of_superiority
+    name: sweden_window_of_superiority
+    unlock: {country_has_tech: combined_arms}
+    modifiers:
+      - {key: army_combat, value: 100, kind: multiplicative}

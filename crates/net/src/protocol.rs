@@ -5,7 +5,7 @@ use strategy_sim::MapIdentity;
 
 use crate::StateDelta;
 
-pub const PROTOCOL_VERSION: u16 = 15;
+pub const PROTOCOL_VERSION: u16 = 23;
 pub type ResumeToken = [u8; 16];
 
 /// A private token issued by the host when reserving a player's slot.
@@ -51,6 +51,7 @@ pub enum ClientMessage {
     },
     Resync,
     ClaimCountry {
+        seq: u64,
         tag: String,
     },
     SetController {
@@ -75,6 +76,7 @@ pub enum ServerMessage {
         room: String,
         countries: Vec<LobbyCountry>,
         guest_tag: String,
+        started: bool,
     },
     Snapshot {
         sequence: u64,

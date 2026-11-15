@@ -6,10 +6,12 @@
 - **Region** = group of ~4-8 areas (AI strategic goals, events). **Superregion/continent** above.
 - A country owns provinces; its capital is a province. Files: `data/map/<region>/areas.yaml`, `regions.yaml`.
 
-## Density targets (INDICATIVE, confirm by measurement in M5b and log in DECISIONS.md)
+## Density targets
 - Pace rule: moving between two adjacent land provinces at base speed takes ~3-10 game days. Density and movement speed are calibrated together (M5b).
 - Rough counts: England 25-35, France 40-60, Portugal 8-12, city-state 1-2.
-- Western Europe + British Isles slice: ~400-600. Beta region (Europe + Mediterranean + Near East): ~1,200-1,800. World: ~4,000-5,000.
+- The owner-approved 1440 Europe campaign uses about 3,000 land provinces. Fine subdivisions target 350 latitude-adjusted raster-area units, measured against the mean British Isles cell area. They apply only to the major-country tags in `tools/map/inputs/europe/major_density_1440.json`.
+- Countries outside that roster keep their existing province geometry. Do not subdivide microstates or one-cell city-state approximations such as San Marino, Frankfurt, or Ansbach. HRE source cells still receive an owner through the separate HRE member fallback policy. Northern Russian land north of 68°N and east of 30°E is an owner-approved unowned frontier for later colonization; Norway and Sweden are excluded by their country tags. In Game political mode, unowned frontier cells retain physical atlas terrain and relief without a political fill.
+- Western Europe + British Isles slice: ~400-600. World: ~4,000-5,000.
 - Sea zones are coarser than land (about one third of land density).
 
 ## Generation rules (tools/map)
@@ -20,8 +22,8 @@
 - Pipeline must work for N up to ~6,000 provinces without code changes.
 
 ## World readiness (do now, even though only one region is generated)
-- One global coordinate system: equirectangular (linear lon/lat), fixed pixels-per-degree. Every region is a crop with an origin offset, so regions merge without regeneration.
-- Province ids allocated per region from reserved ranges (e.g. Europe 1-1999, next regions after). Adding a region never renumbers existing ids. Map version/hash is stored in saves (saves from other map versions are rejected).
+- One global coordinate system: equirectangular (linear lon/lat), fixed pixels-per-degree. Every region is a crop with an origin offset, so regions merge without regeneration. The current combined campaign canvas spans lon −18…68 and lat 10…72 at 32 pixels/degree.
+- Province ids allocated from reserved ranges (existing Europe IDs 1–3999; appended North Africa and Middle East IDs 4000–5999; later regions start at 6000). Adding a region never renumbers existing IDs. Map version/hash is stored in saves; saves from other map versions are rejected.
 - Terrain is chunked (e.g. 512x512 tiles); no code assumes the whole heightmap is one mesh.
 - Memory targets (confirm by measurement): beta region map rasters <= 64 MB resident; world <= 150 MB.
 - The owner decides whether the world map wraps horizontally at the end of M12, before M13 begins (DECISIONS D13). M13 implements that decision.

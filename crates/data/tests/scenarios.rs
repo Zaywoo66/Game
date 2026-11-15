@@ -447,6 +447,39 @@ fn guarantee_save_round_trip_preserves_direction_order_and_hash() {
 }
 
 #[test]
+fn trade_route_save_round_trip_preserves_active_routes_and_pending_offers() {
+    let base = original();
+    let country = |tag| {
+        *base
+            .polity()
+            .unwrap()
+            .countries
+            .iter()
+            .find(|(_, country)| country.tag == tag)
+            .unwrap()
+            .0
+    };
+    let castile = country("cas");
+    let portugal = country("por");
+    let england = country("eng");
+    let expires_at = base.time().date().checked_add_days(30).unwrap();
+    let pair = |a, b| if a < b { (a, b) } else { (b, a) };
+    let diplomacy = DiplomacyState {
+        trade_routes: BTreeSet::from([pair(castile, portugal)]),
+        trade_route_offers: BTreeMap::from([((england, portugal), expires_at)]),
+        ..DiplomacyState::default()
+    };
+    let state = base.with_diplomacy(diplomacy).unwrap();
+
+    let bytes = save_game(&state).unwrap();
+    let saved: Value = serde_json::from_slice(&bytes).unwrap();
+    assert_eq!(saved["schema_version"], json!(18));
+    let restored = load_game(&bytes, graph()).unwrap();
+    assert_eq!(restored, state);
+    assert_eq!(save_game(&restored).unwrap(), bytes);
+}
+
+#[test]
 fn call_to_arms_save_v17_round_trips_and_keeps_competing_offers_ordered() {
     let base = m3_state();
     let original = original();
@@ -478,7 +511,9 @@ fn call_to_arms_save_v17_round_trips_and_keeps_competing_offers_ordered() {
             defender: portugal,
             attacker_supporters: BTreeSet::new(),
             defender_supporters: BTreeSet::new(),
+            factions: BTreeMap::new(),
             goal,
+            succession_country: None,
             independence: false,
             started_at: Tick::new(0),
             score: 0,
@@ -1006,9 +1041,11 @@ fn save_v3_preserves_active_armies_movement_sieges_and_treaties() {
             ArmyId::new(1),
             Army {
                 country: attacker,
+                faction_override: None,
                 province: from,
                 soldiers: 400,
                 morale: Fixed::ONE,
+                recruitment_days_remaining: 0,
                 movement: Some(ArmyMovement {
                     route: vec![MovementLeg {
                         to: first_leg,
@@ -1023,9 +1060,11 @@ fn save_v3_preserves_active_armies_movement_sieges_and_treaties() {
             ArmyId::new(2),
             Army {
                 country: attacker,
+                faction_override: None,
                 province: siege_province,
                 soldiers: 250,
                 morale: Fixed::from_raw(600),
+                recruitment_days_remaining: 0,
                 movement: None,
             },
         ),
@@ -1036,8 +1075,10 @@ fn save_v3_preserves_active_armies_movement_sieges_and_treaties() {
         War {
             attacker,
             defender,
+            succession_country: None,
             attacker_supporters: Default::default(),
             defender_supporters: Default::default(),
+            factions: BTreeMap::new(),
             goal,
             independence: false,
             started_at: Tick::ZERO,
@@ -1203,7 +1244,7 @@ fn city_map_scenario_loads_with_explicit_land_partition_and_round_trips() {
         .map(|province| province.key.as_str())
         .collect();
     assert_eq!(declared, neutral);
-    assert_eq!(map.identity().version.get(), 6);
+    assert_eq!(map.identity().version.get(), 9);
     assert_eq!(
         state.polity().unwrap().countries.len(),
         scenario["countries"].as_array().unwrap().len()

@@ -623,9 +623,11 @@ fn common_threat_requires_borders_to_both_and_strictly_more_soldiers() {
         ArmyId::new(1),
         Army {
             country: C,
+            faction_override: None,
             province: province(3),
             soldiers: 200,
             morale: Fixed::ONE,
+            recruitment_days_remaining: 0,
             movement: None,
         },
     );
@@ -633,9 +635,11 @@ fn common_threat_requires_borders_to_both_and_strictly_more_soldiers() {
         ArmyId::new(2),
         Army {
             country: A,
+            faction_override: None,
             province: province(1),
             soldiers: 100,
             morale: Fixed::ONE,
+            recruitment_days_remaining: 0,
             movement: None,
         },
     );
@@ -643,9 +647,11 @@ fn common_threat_requires_borders_to_both_and_strictly_more_soldiers() {
         ArmyId::new(3),
         Army {
             country: B,
+            faction_override: None,
             province: province(4),
             soldiers: 100,
             morale: Fixed::ONE,
+            recruitment_days_remaining: 0,
             movement: None,
         },
     );
@@ -1169,6 +1175,48 @@ fn supporter_fights_and_besieges_but_only_leaders_make_peace_and_all_opponents_g
 }
 
 #[test]
+fn aggressive_expansion_decays_monthly_only_for_countries_at_peace() {
+    let mut state = setup_guarantee(|_| {});
+    let mut diplomacy = DiplomacyState::default();
+    diplomacy.add_aggressive_expansion(A, 2);
+    diplomacy.add_aggressive_expansion(B, 2);
+    diplomacy.add_aggressive_expansion(C, 2);
+    state = state.with_diplomacy(diplomacy).unwrap();
+    apply(
+        &mut state,
+        HOST,
+        Command::DeclareWar {
+            country: A,
+            defender: B,
+            goal: province(5),
+        },
+    );
+
+    let mut monthly_delta = Vec::new();
+    for _ in 0..31 {
+        monthly_delta.extend(day(&mut state).delta.changes().iter().cloned());
+    }
+
+    let ae = &state.diplomacy().unwrap().aggressive_expansion;
+    assert_eq!(ae.get(&A), Some(&2));
+    assert_eq!(ae.get(&B), Some(&2));
+    assert_eq!(ae.get(&C), Some(&1));
+    assert!(
+        monthly_delta.contains(&StateChange::AggressiveExpansionChanged {
+            country: C,
+            points: 1,
+        })
+    );
+
+    for _ in 0..29 {
+        day(&mut state);
+    }
+    let ae = &state.diplomacy().unwrap().aggressive_expansion;
+    assert_eq!(ae.get(&C), None, "AE cannot decay below zero");
+    assert_eq!(ae.get(&A), Some(&2), "countries at war do not decay");
+}
+
+#[test]
 fn guarantee_is_directed_indefinite_and_revocation_has_one_way_penalty_without_cooldown() {
     let mut state = setup_guarantee(|_| {});
     let c_actor = CommandActor::Host(PlayerId::new(3));
@@ -1619,6 +1667,7 @@ fn setup_internal(
     let polity_country = |name: &str, capital, provinces: &[u32]| CountryPolity {
         tag: name.to_owned(),
         government: "monarchy".into(),
+        government_options: BTreeSet::new(),
         name: name.to_owned(),
         color: [0, 0, 0],
         capital: province(capital),
@@ -1629,6 +1678,11 @@ fn setup_internal(
             ..EconomyState::default()
         },
         succession: SuccessionState::default(),
+        admin_points: 0,
+        diplomatic_points: 0,
+        military_points: 0,
+        stability: 1,
+        war_exhaustion: 0,
     };
     let mut polity_countries = BTreeMap::from([
         (A, polity_country("first", 1, &[1, 2, 3])),
@@ -1654,6 +1708,8 @@ fn setup_internal(
     let polity = PolityState {
         rules: PolityRules {
             adulthood_years: 18,
+            male_names: vec!["Alex".to_owned()],
+            female_names: vec!["Alexandra".to_owned()],
             base_taxable_development_per_province: 1,
             tax_per_development: Fixed::ONE,
             max_tax_rate: Fixed::ONE,
@@ -1711,8 +1767,10 @@ fn setup_internal(
             War {
                 attacker: A,
                 defender: B,
+                succession_country: None,
                 attacker_supporters: BTreeSet::from([C]),
                 defender_supporters: BTreeSet::new(),
+                factions: BTreeMap::new(),
                 goal: province(5),
                 independence: false,
                 started_at: strategy_sim::Tick::new(0),

@@ -15,11 +15,18 @@
     "heir": null,
     "provinces": [
       "bergamo",
+      "bergamo_part_02",
       "ermoupoli",
       "pula",
       "udine",
+      "udine_part_02",
+      "udine_part_03",
+      "udine_part_04",
       "venice",
-      "verona"
+      "venice_part_02",
+      "verona",
+      "verona_part_02",
+      "verona_part_03"
     ],
     "treasury": 80000,
     "tax_rate": 200,

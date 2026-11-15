@@ -1,0 +1,18 @@
+schema_version: 1
+country: modern_esp
+ideas:
+  - key: spain_american_silver
+    name: spain_american_silver
+    unlock: {country_has_tech: industrial_productivity}
+    modifiers:
+      - {key: tax_income, value: 150, kind: multiplicative}
+  - key: spain_tercio_infantry
+    name: spain_tercio_infantry
+    unlock: {country_has_tech: professional_forces}
+    modifiers:
+      - {key: army_morale, value: 100, kind: additive}
+  - key: spain_spanish_road
+    name: spain_spanish_road
+    unlock: {country_has_tech: resilient_logistics}
+    modifiers:
+      - {key: army_combat, value: 75, kind: multiplicative}

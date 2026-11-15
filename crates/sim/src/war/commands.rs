@@ -4,7 +4,7 @@ use crate::{
 
 use super::{Army, ArmyMovement, PeaceOffer, PeaceTreaty, War, WarError, WarState};
 
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 pub(crate) enum MilitaryOrder {
     Raise(ProvinceId, u32),
     Merge(ArmyId, ArmyId),
@@ -15,6 +15,18 @@ pub(crate) enum MilitaryOrder {
     DeclareIndependence(CountryId, ProvinceId),
     Offer(WarId, bool),
     Accept(WarId),
+    /// Starts a separate country-backed faction in an active war.
+    CreateFaction(WarId),
+    /// Joins an existing leader's side in an active war.
+    JoinFaction {
+        war: WarId,
+        leader: CountryId,
+    },
+    RenameInternalFaction {
+        war: WarId,
+        name: String,
+        dynasty: String,
+    },
 }
 
 pub(crate) enum MilitaryAction {
@@ -25,6 +37,9 @@ pub(crate) enum MilitaryAction {
     Declare(WarId, War),
     Offer(WarId, PeaceOffer),
     Accept(WarId, PeaceTreaty),
+    CreateFaction(WarId, CountryId),
+    JoinFaction(WarId, CountryId, CountryId),
+    RenameInternalFaction(WarId, CountryId, String, String),
 }
 
 impl WarState {
@@ -41,7 +56,7 @@ impl WarState {
             .countries
             .get(&country)
             .ok_or(WarError::UnknownCountry(country))?;
-        match order {
+        match order.clone() {
             MilitaryOrder::Raise(province, soldiers) => {
                 if soldiers == 0 || soldiers > self.rules.max_army_size {
                     return Err(WarError::InvalidArmySize);
@@ -75,9 +90,11 @@ impl WarState {
                     id,
                     Army {
                         country,
+                        faction_override: None,
                         province,
                         soldiers,
                         morale,
+                        recruitment_days_remaining: super::ARMY_RECRUITMENT_DAYS,
                         movement: None,
                     },
                     treasury,
@@ -86,7 +103,10 @@ impl WarState {
             MilitaryOrder::Merge(into, from) => {
                 let mut army = self.idle_army(country, into)?.clone();
                 let other = self.idle_army(country, from)?;
-                if into == from || army.province != other.province {
+                if into == from
+                    || army.province != other.province
+                    || army.faction_override != other.faction_override
+                {
                     return Err(WarError::ArmiesNotCoLocated);
                 }
                 let total = army
@@ -117,7 +137,7 @@ impl WarState {
                 Ok(MilitaryAction::Split(id, army, new_id, child))
             }
             MilitaryOrder::Move(id, destination) => {
-                let mut army = self.owned_army(country, id)?.clone();
+                let mut army = self.idle_army(country, id)?.clone();
                 if army
                     .movement
                     .as_ref()
@@ -136,22 +156,23 @@ impl WarState {
                 Ok(MilitaryAction::Update(id, army))
             }
             MilitaryOrder::Retreat(id, destination) => {
-                let mut army = self.owned_army(country, id)?.clone();
+                let mut army = self.idle_army(country, id)?.clone();
                 let war = self.war_for(country).map(|(_, war)| war);
                 let contact = war.is_some_and(|war| {
                     self.armies.values().any(|other| {
-                        war.opposed(country, other.country) && other.province == army.province
+                        war.side_for_army(&army) != war.side_for_army(other)
+                            && other.province == army.province
                     })
                 });
                 let outside_safe_land = !state.provinces.contains(&army.province)
                     || self.occupation(army.province).is_some_and(|occupier| {
-                        war.is_none_or(|war| war.side(occupier) != war.side(country))
+                        war.is_none_or(|war| war.side(occupier) != war.side_for_army(&army))
                     });
                 let under_threat = contact
                     || (outside_safe_land && army.morale <= self.rules.retreat_morale_threshold);
                 if war.is_none()
                     || !under_threat
-                    || !self.can_retreat(polity, graph, country, army.province, destination)
+                    || !self.can_retreat(polity, graph, &army, destination)
                 {
                     return Err(WarError::InvalidRetreat(destination));
                 }
@@ -199,8 +220,10 @@ impl WarState {
                 let war = War {
                     attacker: country,
                     defender,
+                    succession_country: None,
                     attacker_supporters: Default::default(),
                     defender_supporters: Default::default(),
+                    factions: Default::default(),
                     goal,
                     independence,
                     started_at: tick,
@@ -212,6 +235,9 @@ impl WarState {
             }
             MilitaryOrder::Offer(id, cede_goal) => {
                 let war = self.leader_war(country, id)?;
+                if war.has_independent_factions() {
+                    return Err(WarError::UnsupportedMultiSidePeace);
+                }
                 if cede_goal && !self.valid_cession(polity, war) {
                     return Err(WarError::InvalidPeaceTerms);
                 }
@@ -225,6 +251,9 @@ impl WarState {
             }
             MilitaryOrder::Accept(id) => {
                 let war = self.leader_war(country, id)?;
+                if war.has_independent_factions() {
+                    return Err(WarError::UnsupportedMultiSidePeace);
+                }
                 let offer = war.offer.ok_or(WarError::NoPeaceOffer)?;
                 if offer.offered_by == country {
                     return Err(WarError::CannotAcceptOwnOffer);
@@ -240,6 +269,53 @@ impl WarState {
                         ceded: (offer.cede_goal && !war.independence).then_some(war.goal),
                         concluded_at: tick,
                     },
+                ))
+            }
+            MilitaryOrder::CreateFaction(id) => {
+                let war = self.wars.get(&id).ok_or(WarError::UnknownWar(id))?;
+                if self.war_for(country).is_some() || war.side(country).is_some() {
+                    return Err(WarError::AlreadyAtWar);
+                }
+                if !self.no_active_truce_with_opponents(country, None, war, tick) {
+                    return Err(WarError::TruceActive);
+                }
+                Ok(MilitaryAction::CreateFaction(id, country))
+            }
+            MilitaryOrder::JoinFaction { war: id, leader } => {
+                let war = self.wars.get(&id).ok_or(WarError::UnknownWar(id))?;
+                if !war.is_leader(leader) {
+                    return Err(WarError::InvalidWarFaction(leader));
+                }
+                if self.war_for(country).is_some() || war.side(country).is_some() {
+                    return Err(WarError::AlreadyAtWar);
+                }
+                let joining_side = war.side(leader).expect("war leader has a side");
+                if !self.no_active_truce_with_opponents(country, Some(joining_side), war, tick) {
+                    return Err(WarError::TruceActive);
+                }
+                Ok(MilitaryAction::JoinFaction(id, leader, country))
+            }
+            MilitaryOrder::RenameInternalFaction {
+                war: id,
+                name,
+                dynasty,
+            } => {
+                let war = self.wars.get(&id).ok_or(WarError::UnknownWar(id))?;
+                if war.succession_country != Some(country)
+                    || name.trim().is_empty()
+                    || dynasty.trim().is_empty()
+                    || name.chars().any(char::is_control)
+                    || dynasty.chars().any(char::is_control)
+                {
+                    return Err(WarError::InvalidWarFaction(country));
+                }
+                let faction = war
+                    .factions
+                    .iter()
+                    .find_map(|(&leader, faction)| (!faction.country_backed).then_some(leader))
+                    .ok_or(WarError::InvalidWarFaction(country))?;
+                Ok(MilitaryAction::RenameInternalFaction(
+                    id, faction, name, dynasty,
                 ))
             }
         }
@@ -303,6 +379,53 @@ impl WarState {
             MilitaryAction::Accept(id, treaty) => {
                 self.conclude_peace(polity, id, treaty, &mut changes)
             }
+            MilitaryAction::CreateFaction(id, leader) => {
+                let war = self.wars.get_mut(&id).expect("faction creation validated");
+                war.factions
+                    .entry(leader)
+                    .or_insert_with(|| super::WarFaction {
+                        members: Default::default(),
+                        name: None,
+                        dynasty: None,
+                        claimant: None,
+                        country_backed: true,
+                    });
+                changes.push(StateChange::WarChanged {
+                    war: id,
+                    state: Some(war.clone()),
+                });
+            }
+            MilitaryAction::JoinFaction(id, leader, country) => {
+                let war = self.wars.get_mut(&id).expect("faction joining validated");
+                if leader == war.attacker {
+                    war.attacker_supporters.insert(country);
+                } else if leader == war.defender {
+                    war.defender_supporters.insert(country);
+                } else {
+                    war.factions
+                        .get_mut(&leader)
+                        .expect("additional faction leader validated")
+                        .members
+                        .insert(country);
+                }
+                changes.push(StateChange::WarChanged {
+                    war: id,
+                    state: Some(war.clone()),
+                });
+            }
+            MilitaryAction::RenameInternalFaction(id, faction_id, name, dynasty) => {
+                let war = self.wars.get_mut(&id).expect("succession war validated");
+                let faction = war
+                    .factions
+                    .get_mut(&faction_id)
+                    .expect("internal faction validated");
+                faction.name = Some(name);
+                faction.dynasty = Some(dynasty);
+                changes.push(StateChange::WarChanged {
+                    war: id,
+                    state: Some(war.clone()),
+                });
+            }
         }
         self.prune_abandoned_sieges(&mut changes);
         changes
@@ -316,20 +439,25 @@ impl WarState {
         changes: &mut Vec<StateChange>,
     ) {
         let war = self.wars.remove(&id).expect("war validated");
-        for attacker in std::iter::once(war.attacker).chain(war.attacker_supporters.iter().copied())
-        {
-            for defender in
-                std::iter::once(war.defender).chain(war.defender_supporters.iter().copied())
-            {
-                if attacker == treaty.attacker && defender == treaty.defender {
-                    continue;
+        let side_ids = std::iter::once(super::WarSide::Attacker)
+            .chain(std::iter::once(super::WarSide::Defender))
+            .chain(war.factions.keys().copied().map(super::WarSide::Faction))
+            .collect::<Vec<_>>();
+        for (index, &first_side) in side_ids.iter().enumerate() {
+            for &second_side in &side_ids[index + 1..] {
+                for first in war.countries_on_side(first_side) {
+                    for second in war.countries_on_side(second_side) {
+                        if first == treaty.attacker && second == treaty.defender {
+                            continue;
+                        }
+                        let pair = if first < second {
+                            (first, second)
+                        } else {
+                            (second, first)
+                        };
+                        self.coalition_truces.insert(pair, treaty.concluded_at);
+                    }
                 }
-                let pair = if attacker < defender {
-                    (attacker, defender)
-                } else {
-                    (defender, attacker)
-                };
-                self.coalition_truces.insert(pair, treaty.concluded_at);
             }
         }
         changes.push(StateChange::WarChanged {
@@ -337,26 +465,65 @@ impl WarState {
             state: None,
         });
         if let Some(province) = treaty.ceded {
+            let annexed_provinces: Vec<_> = if !war.independence
+                && polity
+                    .countries
+                    .get(&treaty.defender)
+                    .is_some_and(|defender| {
+                        defender.provinces.iter().all(|province| {
+                            war.occupations.get(province).is_some_and(|occupier| {
+                                war.side(*occupier) == Some(super::WarSide::Attacker)
+                            })
+                        })
+                    }) {
+                polity.countries[&treaty.defender]
+                    .provinces
+                    .iter()
+                    .copied()
+                    .collect()
+            } else {
+                vec![province]
+            };
+            let annexed =
+                annexed_provinces.len() == polity.countries[&treaty.defender].provinces.len();
+            let former_capital = polity.countries[&treaty.defender].capital;
             let defender = polity
                 .countries
                 .get_mut(&treaty.defender)
                 .expect("war party validated");
-            defender.provinces.remove(&province);
-            if defender.capital == province {
+            for province in &annexed_provinces {
+                defender.provinces.remove(province);
+            }
+            if !defender.provinces.is_empty() && annexed_provinces.contains(&former_capital) {
                 defender.capital = *defender
                     .provinces
                     .first()
-                    .expect("cession preserves a province");
+                    .expect("remaining province exists");
             }
             let attacker = polity
                 .countries
                 .get_mut(&treaty.attacker)
                 .expect("war party validated");
-            attacker.provinces.insert(province);
-            changes.push(StateChange::ProvinceOwnershipChanged {
-                province,
-                owner: treaty.attacker,
-            });
+            for province in annexed_provinces {
+                attacker.provinces.insert(province);
+                changes.push(StateChange::ProvinceOwnershipChanged {
+                    province,
+                    owner: treaty.attacker,
+                });
+            }
+            if annexed {
+                let armies: Vec<_> = self
+                    .armies
+                    .iter()
+                    .filter_map(|(&army_id, army)| {
+                        (army.country == treaty.defender).then_some(army_id)
+                    })
+                    .collect();
+                for army in armies {
+                    self.armies.remove(&army);
+                    changes.push(StateChange::ArmyChanged { army, state: None });
+                }
+            }
         }
         for (&army_id, army) in &mut self.armies {
             if war.side(army.country).is_none() {
@@ -422,7 +589,7 @@ impl WarState {
         }
     }
 
-    fn allocate_army_id(&self) -> Result<ArmyId, WarError> {
+    pub(super) fn allocate_army_id(&self) -> Result<ArmyId, WarError> {
         self.next_army_id
             .checked_add(1)
             .ok_or(WarError::IdExhausted)?;
@@ -439,6 +606,9 @@ impl WarState {
 
     fn idle_army(&self, country: CountryId, id: ArmyId) -> Result<&Army, WarError> {
         let army = self.owned_army(country, id)?;
+        if army.recruitment_days_remaining > 0 {
+            return Err(WarError::ArmyRecruiting(id));
+        }
         if army.movement.is_some() {
             return Err(WarError::ArmyInMotion(id));
         }
@@ -454,5 +624,48 @@ impl WarState {
             return Err(WarError::NotWarParty);
         }
         Ok(war)
+    }
+
+    fn no_active_truce_with_opponents(
+        &self,
+        country: CountryId,
+        joining_side: Option<super::WarSide>,
+        war: &War,
+        tick: Tick,
+    ) -> bool {
+        war.countries_on_side(war.side(war.attacker).expect("attacker has a side"))
+            .into_iter()
+            .chain(war.countries_on_side(war.side(war.defender).expect("defender has a side")))
+            .chain(
+                war.factions
+                    .keys()
+                    .flat_map(|&leader| war.countries_on_side(super::WarSide::Faction(leader))),
+            )
+            .filter(|&other| other != country)
+            .all(|other| {
+                let other_side = war.side(other).expect("war participant has a side");
+                if joining_side == Some(other_side) {
+                    return true;
+                }
+                let pair = if country < other {
+                    (country, other)
+                } else {
+                    (other, country)
+                };
+                let coalition_truce =
+                    self.coalition_truces
+                        .get(&pair)
+                        .is_some_and(|concluded_at| {
+                            tick.get().saturating_sub(concluded_at.get())
+                                < u64::from(self.rules.truce_ticks)
+                        });
+                let leader_truce = self.treaties.values().any(|treaty| {
+                    ((treaty.attacker == country && treaty.defender == other)
+                        || (treaty.defender == country && treaty.attacker == other))
+                        && tick.get().saturating_sub(treaty.concluded_at.get())
+                            < u64::from(self.rules.truce_ticks)
+                });
+                !coalition_truce && !leader_truce
+            })
     }
 }

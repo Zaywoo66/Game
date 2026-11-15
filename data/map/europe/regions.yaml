@@ -33,3 +33,6 @@ regions:
 - key: europe_extension
   name_key: region_europe_extension
   name: Europe extension
+- key: africa_middle_east
+  name_key: region_africa_middle_east
+  name: Africa and Middle East

@@ -10,14 +10,14 @@ const local = {
 };
 const technologies = [
   {
-    key: 'recordkeeping', branch: 'administration', cost: 100, requires: [],
+    key: 'digital_government', branch: 'administration', cost: 100, requires: [],
     pos_x: -2, pos_y: 3,
-    effects: [{ key: 'tax_income', value: '100', kind: 'multiplicative', source_key: 'recordkeeping' }],
+    effects: [{ key: 'tax_income', value: '100', kind: 'multiplicative', source_key: 'digital_government' }],
   },
   {
-    key: 'professional_officers', branch: 'military', cost: 250,
-    requires: ['recordkeeping'], pos_x: 1, pos_y: -1,
-    effects: [{ key: 'army_morale', value: '50', kind: 'additive', source_key: 'professional_officers' }],
+    key: 'professional_forces', branch: 'military', cost: 250,
+    requires: ['digital_government'], pos_x: 1, pos_y: -1,
+    effects: [{ key: 'army_morale', value: '50', kind: 'additive', source_key: 'professional_forces' }],
   },
 ];
 
@@ -57,28 +57,28 @@ test('M9 technology tree uses data positions and waits for authoritative researc
   await page.goto('/?verify=1&map=western_europe&verifyHost=1');
   await page.getByRole('button', { name: 'Technology', exact: true }).click();
   const tree = page.getByRole('region', { name: 'Technology tree' });
-  const root = tree.locator('[data-tech-key="recordkeeping"]');
-  const military = tree.locator('[data-tech-key="professional_officers"]');
-  await expect(root.getByRole('heading', { name: 'Recordkeeping' })).toBeVisible();
-  await expect(military.getByRole('heading', { name: 'Professional officers' })).toBeVisible();
+  const root = tree.locator('[data-tech-key="digital_government"]');
+  const military = tree.locator('[data-tech-key="professional_forces"]');
+  await expect(root.getByRole('heading', { name: 'Digital government' })).toBeVisible();
+  await expect(military.getByRole('heading', { name: 'Professional forces' })).toBeVisible();
   await expect(root).toHaveAttribute('data-tech-x', '-2');
   await expect(root).toHaveAttribute('data-tech-y', '3');
   await expect(military).toHaveAttribute('data-tech-x', '1');
   await expect(military).toHaveAttribute('data-tech-y', '-1');
   expect(await root.evaluate((element) => element.style.left)).not.toBe(
     await military.evaluate((element) => element.style.left));
-  await expect(military.getByText('Requires: Recordkeeping')).toBeVisible();
+  await expect(military.getByText('Requires: Digital government')).toBeVisible();
   await expect(military.getByRole('button', { name: 'Research' })).toBeDisabled();
-  await expect(root).toHaveAttribute('title', /Tax income \+0\.1 multiplicative · Source: Recordkeeping/);
+  await expect(root).toHaveAttribute('title', /Tax income \+0\.1 multiplicative · Source: Digital government/);
 
   await root.getByRole('button', { name: 'Research' }).click();
   await expect.poll(() => page.evaluate(() => window.__strategyTechHost.commands)).toEqual([
-    { type: 'unlock_technology', country_id: 1, key: 'recordkeeping' },
+    { type: 'unlock_technology', country_id: 1, key: 'digital_government' },
   ]);
   await expect(root).toHaveAttribute('data-tech-status', 'ready');
   await page.evaluate(({ clock, local }) => window.__strategyTechHost.emit({
     sequence: 2, clock, countries: [{ ...local, research_points: 20,
-      known_technologies: ['recordkeeping'] }], guarantees: [], owners: [],
+      known_technologies: ['digital_government'] }], guarantees: [], owners: [],
   }), { clock, local });
   await expect(root).toHaveAttribute('data-tech-status', 'known');
   await expect(military).toHaveAttribute('data-tech-status', 'locked');
@@ -86,11 +86,11 @@ test('M9 technology tree uses data positions and waits for authoritative researc
 
   await page.evaluate(({ clock, local }) => window.__strategyTechHost.emit({
     sequence: 3, clock, countries: [{ ...local, research_points: 300,
-      known_technologies: ['recordkeeping'] }], guarantees: [], owners: [],
+      known_technologies: ['digital_government'] }], guarantees: [], owners: [],
   }), { clock, local });
   await expect(military).toHaveAttribute('data-tech-status', 'ready');
   await military.getByRole('button', { name: 'Research' }).click();
   await expect.poll(() => page.evaluate(() => window.__strategyTechHost.commands.at(-1))).toEqual(
-    { type: 'unlock_technology', country_id: 1, key: 'professional_officers' },
+    { type: 'unlock_technology', country_id: 1, key: 'professional_forces' },
   );
 });

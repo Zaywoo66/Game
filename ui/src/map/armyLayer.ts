@@ -3,11 +3,13 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
 export interface ArmyMarker {
   id: number;
+  countryId: number;
   province: number;
   destination: number | null;
   progress: number;
   color: string;
   soldiers: number;
+  recruitingDays: number;
 }
 
 interface Motion {
@@ -26,7 +28,7 @@ export function createArmyLayer(
   scene: THREE.Scene,
   viewport: HTMLElement,
   provinceAnchor: (id: number) => THREE.Vector3 | null,
-  camera: THREE.Camera,
+  camera: THREE.OrthographicCamera,
 ) {
   let disposed = false;
   let requested = false;
@@ -34,10 +36,11 @@ export function createArmyLayer(
   let material: THREE.MeshStandardMaterial | undefined;
   let mesh: THREE.InstancedMesh | undefined;
   let capacity = 0;
-  let selected = 0;
+  let selected = new Set<number>();
   let dirty = false;
   let ids: number[] = [];
   let motions = new Map<number, Motion>();
+  let recruiting = new Set<number>();
   const dummy = new THREE.Object3D();
   dummy.scale.setScalar(markerScale);
   const white = new THREE.Color('#ffffff');
@@ -108,6 +111,7 @@ export function createArmyLayer(
 
   function setMarkers(markers: readonly ArmyMarker[]) {
     const next = new Map<number, Motion>();
+    recruiting = new Set(markers.filter((marker) => marker.recruitingDays > 0).map((marker) => marker.id));
     const now = performance.now();
     const stacks = new Map<number, number>();
     for (const marker of markers) {
@@ -155,7 +159,7 @@ export function createArmyLayer(
         badge.dataset.armyId = String(marker.id);
         const icon = document.createElement('span');
         icon.className = 'map-army-icon';
-        icon.textContent = '⚔';
+        icon.textContent = marker.recruitingDays > 0 ? '⌛' : '⚔';
         const strength = document.createElement('span');
         strength.className = 'map-army-strength';
         badge.append(icon, strength);
@@ -163,9 +167,14 @@ export function createArmyLayer(
         badges.set(marker.id, badge);
       }
       const strength = badge.querySelector('.map-army-strength');
-      if (strength) strength.textContent = marker.soldiers.toLocaleString('en-US');
-      badge.setAttribute('aria-label', `Army ${marker.id}, ${marker.soldiers.toLocaleString('en-US')} soldiers`);
-      badge.title = `Army ${marker.id} · ${marker.soldiers.toLocaleString('en-US')} soldiers`;
+      if (strength) strength.textContent = marker.recruitingDays > 0
+        ? `${marker.recruitingDays}d` : marker.soldiers.toLocaleString('en-US');
+      badge.setAttribute('aria-label', marker.recruitingDays > 0
+        ? `Army ${marker.id}, recruiting, ${marker.recruitingDays} days remaining`
+        : `Army ${marker.id}, ${marker.soldiers.toLocaleString('en-US')} soldiers`);
+      badge.title = marker.recruitingDays > 0
+        ? `Army ${marker.id} · recruiting · ${marker.recruitingDays} days remaining`
+        : `Army ${marker.id} · ${marker.soldiers.toLocaleString('en-US')} soldiers`;
     }
     if (ids.length > 0) loadModel();
     rebuildInstances();
@@ -173,6 +182,8 @@ export function createArmyLayer(
 
   function update(now: number) {
     const rect = viewport.getBoundingClientRect();
+    const showMarkers = camera.zoom >= 2.2 || selected.size > 0;
+    if (mesh) mesh.visible = showMarkers;
     const projected = new THREE.Vector3();
     let selectedPoint: THREE.Vector3 | null = null;
     let selectedTarget: THREE.Vector3 | null = null;
@@ -181,14 +192,14 @@ export function createArmyLayer(
       if (!badge) continue;
       currentPosition(motion, now, projected).project(camera);
       const visible = Math.abs(projected.x) <= 1 && Math.abs(projected.y) <= 1 && Math.abs(projected.z) <= 1;
-      badge.hidden = !visible;
+      badge.hidden = !showMarkers || !visible;
       if (!visible) continue;
       const x = (projected.x + 1) * rect.width / 2;
       const y = (1 - projected.y) * rect.height / 2;
       badge.style.left = `${x}px`;
       badge.style.top = `${y}px`;
-      badge.dataset.selected = String(id === selected);
-      if (id === selected && motion.destination) {
+      badge.dataset.selected = String(selected.has(id));
+      if (selected.has(id) && motion.destination) {
         selectedPoint = new THREE.Vector3(x, y, 0);
         const target = motion.destination.clone().project(camera);
         selectedTarget = new THREE.Vector3((target.x + 1) * rect.width / 2, (1 - target.y) * rect.height / 2, 0);
@@ -212,7 +223,7 @@ export function createArmyLayer(
       dummy.rotation.y = motion.angle;
       dummy.updateMatrix();
       mesh.setMatrixAt(index, dummy.matrix);
-      mesh.setColorAt(index, ids[index] === selected ? selectedColor : motion.color);
+      mesh.setColorAt(index, selected.has(ids[index]) ? selectedColor : motion.color);
       if (now - motion.started < transitionMs) moving = true;
     }
     mesh.boundingSphere = null;
@@ -224,11 +235,28 @@ export function createArmyLayer(
   return {
     setMarkers,
     update,
-    select(id: number) {
-      if (selected !== id) {
-        selected = id;
+    select(ids: readonly number[]) {
+      const next = new Set(ids);
+      if (next.size !== selected.size || [...next].some((id) => !selected.has(id))) {
+        selected = next;
         dirty = true;
       }
+    },
+    selectInRect(x1: number, y1: number, x2: number, y2: number): number[] {
+      const rect = viewport.getBoundingClientRect();
+      const left = Math.min(x1, x2);
+      const right = Math.max(x1, x2);
+      const top = Math.min(y1, y2);
+      const bottom = Math.max(y1, y2);
+      const point = new THREE.Vector3();
+      return [...motions].flatMap(([id, motion]) => {
+        if (recruiting.has(id)) return [];
+        currentPosition(motion, performance.now(), point).project(camera);
+        if (Math.abs(point.z) > 1) return [];
+        const x = rect.left + (point.x + 1) * rect.width / 2;
+        const y = rect.top + (1 - point.y) * rect.height / 2;
+        return x >= left && x <= right && y >= top && y <= bottom ? [id] : [];
+      });
     },
     pick(raycaster: THREE.Raycaster): number {
       if (!mesh || !ids.length) return 0;

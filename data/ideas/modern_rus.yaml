@@ -1,0 +1,18 @@
+schema_version: 1
+country: modern_rus
+ideas:
+  - key: russia_table_of_ranks
+    name: russia_table_of_ranks
+    unlock: {country_has_tech: digital_government}
+    modifiers:
+      - {key: tax_income, value: 100, kind: multiplicative}
+  - key: russia_strategic_depth
+    name: russia_strategic_depth
+    unlock: {country_has_tech: resilient_logistics}
+    modifiers:
+      - {key: army_morale, value: 100, kind: additive}
+  - key: russia_serfdom
+    name: russia_serfdom
+    unlock: {country_has_tech: industrial_productivity}
+    modifiers:
+      - {key: tax_income, value: -50, kind: multiplicative}

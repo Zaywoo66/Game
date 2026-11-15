@@ -10,6 +10,7 @@ interface MilitaryProps {
   provinceIsLand: boolean;
   portSeaIds?: number[];
   army: ArmyView | undefined;
+  selectedArmyCount?: number;
   order: ArmyOrder | null;
   selectArmy(id: number): void;
   selectedFleetId?: number;
@@ -22,8 +23,8 @@ interface MilitaryProps {
 }
 
 function ArmyOrders({
-  army, armies, pending, chooseOrder, send,
-}: Pick<MilitaryProps, 'pending' | 'chooseOrder' | 'send'> & { army: ArmyView; armies: ArmyView[] }) {
+  army, armies, pending, chooseOrder, send, groupSize,
+}: Pick<MilitaryProps, 'pending' | 'chooseOrder' | 'send'> & { army: ArmyView; armies: ArmyView[]; groupSize: number }) {
   const [split, setSplit] = useState('1');
   const [mergeFrom, setMergeFrom] = useState('');
   const country_id = army.country_id;
@@ -51,7 +52,9 @@ function ArmyOrders({
   return (
     <>
       <div className="military-actions">
-        <button type="button" disabled={pending} onClick={() => chooseOrder('move_army')}>Choose move destination</button>
+        <button type="button" disabled={pending} onClick={() => chooseOrder('move_army')}>
+          {groupSize > 1 ? `Move selected group (${groupSize})` : 'Choose move destination'}
+        </button>
         <button type="button" disabled={pending} onClick={() => chooseOrder('retreat_army')}>Choose retreat destination</button>
       </div>
       <form className="military-form" aria-label="Split army" onSubmit={splitArmy}>
@@ -95,7 +98,7 @@ function RaiseArmy({
         <input type="number" min={min} max={max} step={1} value={quantity}
           onChange={(event) => setQuantity(event.target.value)} disabled={pending} required />
       </label>
-      <button type="submit" disabled={pending}>Raise army</button>
+      <button type="submit" disabled={pending}>Recruit army · ready in 30 days</button>
     </form>
   );
 }
@@ -107,7 +110,11 @@ function ActiveWar({
   local: number | null;
   countryName(id: number): string;
 }) {
-  const involved = local !== null && (local === war.attacker_id || local === war.defender_id);
+  const involved = local !== null && (local === war.attacker_id || local === war.defender_id
+    || war.attacker_supporters.includes(local) || war.defender_supporters.includes(local)
+    || war.factions.some((faction) => faction.id === local || faction.members.includes(local)));
+  const hasIndependentFactions = war.factions.length > 0;
+  const aristocrats = war.factions.find((faction) => !faction.country_backed);
   function offer(cede_goal: boolean) {
     if (local !== null) void send({ type: 'offer_peace', country_id: local, war_id: war.id, cede_goal });
   }
@@ -115,12 +122,25 @@ function ActiveWar({
     <section className="active-war" aria-label={'War ' + war.id}>
       <h4>{countryName(war.attacker_id)} vs {countryName(war.defender_id)}</h4>
       <p>Goal · {provinceName(war.goal_province_id)}</p>
-      <p>Attacker war score · {war.score}</p>
+      {!hasIndependentFactions && <p>Attacker war score · {war.score}</p>}
+      {hasIndependentFactions && <section aria-label="Independent factions">
+        <h5>Independent factions</h5>
+        <ul>{war.factions.map((faction) => (
+          <li key={faction.id}>{faction.name ?? countryName(faction.id)}
+            {faction.dynasty && ` · House ${faction.dynasty}`}
+            {faction.members.length > 0 && ` · ${faction.members.map(countryName).join(', ')}`}
+          </li>
+        ))}</ul>
+      </section>}
+      {local !== null && local === war.succession_country_id && aristocrats && (
+        <AristocratIdentity war={war} country={local} factionName={aristocrats.name ?? ''}
+          dynastyName={aristocrats.dynasty ?? ''} pending={pending} send={send} />
+      )}
       {war.occupations.length > 0 && <p>Occupied provinces · {war.occupations.length}</p>}
       {war.offer && (
         <p>{countryName(war.offer.offered_by)} offered {war.offer.cede_goal ? (war.independence ? 'independence' : 'cession of the war goal') : 'white peace'}.</p>
       )}
-      {involved && (
+      {involved && !hasIndependentFactions && (
         <div className="military-actions">
           <button type="button" disabled={pending} onClick={() => offer(false)}>Offer white peace</button>
           <button type="button" disabled={pending} onClick={() => offer(true)}>
@@ -134,7 +154,54 @@ function ActiveWar({
           )}
         </div>
       )}
+      {local !== null && !involved && (
+        <div className="military-actions" aria-label="Join an independent faction">
+          <button type="button" disabled={pending}
+            onClick={() => void send({ type: 'create_war_faction', country_id: local, war_id: war.id })}>
+            Enter as independent faction
+          </button>
+          {war.factions.map((faction) => (
+            <button key={'join-' + faction.id} type="button" disabled={pending}
+              onClick={() => void send({ type: 'join_war_faction', country_id: local,
+                war_id: war.id, leader_id: faction.id })}>
+              Join {faction.name ?? countryName(faction.id)}
+            </button>
+          ))}
+        </div>
+      )}
     </section>
+  );
+}
+
+function AristocratIdentity({
+  war, country, factionName, dynastyName, pending, send,
+}: Pick<MilitaryProps, 'pending' | 'send'> & {
+  war: WarView;
+  country: number;
+  factionName: string;
+  dynastyName: string;
+}) {
+  const [name, setName] = useState(factionName);
+  const [dynasty, setDynasty] = useState(dynastyName);
+  function submit(event: FormEvent) {
+    event.preventDefault();
+    const trimmedName = name.trim();
+    const trimmedDynasty = dynasty.trim();
+    if (trimmedName && trimmedDynasty) {
+      void send({ type: 'rename_war_faction', country_id: country, war_id: war.id,
+        name: trimmedName, dynasty: trimmedDynasty });
+    }
+  }
+  return (
+    <form className="military-form" aria-label="Name aristocratic claimant" onSubmit={submit}>
+      <label>Aristocratic leader
+        <input value={name} maxLength={48} onChange={(event) => setName(event.target.value)} disabled={pending} required />
+      </label>
+      <label>Dynasty
+        <input value={dynasty} maxLength={48} onChange={(event) => setDynasty(event.target.value)} disabled={pending} required />
+      </label>
+      <button type="submit" disabled={pending || !name.trim() || !dynasty.trim()}>Set claimant name</button>
+    </form>
   );
 }
 
@@ -181,7 +248,7 @@ function AiDebug({
 
 export function MilitaryPanel(props: MilitaryProps) {
   const {
-    game, pending, provinceId, provinceIsLand, army, order, selectArmy, chooseOrder, cancelOrder,
+    game, pending, provinceId, provinceIsLand, army, selectedArmyCount = 1, order, selectArmy, chooseOrder, cancelOrder,
     provinceName, send, readAiLog, canReadAiLog = true,
   } = props;
   const selectedFleetId = props.selectedFleetId ?? 0;
@@ -191,6 +258,10 @@ export function MilitaryPanel(props: MilitaryProps) {
   const fleets = game.fleets ?? [];
   const shipyards = game.shipyards ?? [];
   const wars = game.wars ?? [];
+  const successionWar = wars.find((war) => war.succession_country_id === localId);
+  const aristocratFaction = successionWar?.factions.find((faction) => !faction.country_backed);
+  const playerArmy = (row: ArmyView) => !successionWar
+    || (aristocratFaction !== undefined && row.faction_override === aristocratFaction.id);
   const countryName = (id: number) => game.countries.find((country) => country.id === id)?.name ?? 'Country ' + id;
   const owner = game.owners.find((row) => row.province_id === provinceId)?.country_id;
   const enemy = owner === undefined || owner === localId ? undefined : owner;
@@ -214,10 +285,13 @@ export function MilitaryPanel(props: MilitaryProps) {
   return (
     <section className="military-panel" aria-label="Military">
       <h3>Armies</h3>
+      {successionWar && <p className="succession-command-banner" role="status">
+        Succession crisis · you command the aristocrats
+      </p>}
       <label className="army-picker">Army
         <select value={army?.id ?? ''} onChange={(event) => selectArmy(Number(event.target.value))}>
           <option value="">Choose an army</option>
-          {armies.map((row) => (
+          {armies.filter(playerArmy).map((row) => (
             <option key={row.id} value={row.id}>{countryName(row.country_id)} · Army {row.id}</option>
           ))}
         </select>
@@ -225,16 +299,21 @@ export function MilitaryPanel(props: MilitaryProps) {
       {army && (
         <section aria-label="Selected army">
           <h4>{countryName(army.country_id)} · Army {army.id}</h4>
-          <p>{army.soldiers.toLocaleString()} soldiers · Morale {army.morale / 10}%</p>
+          <p>{army.recruitment_days_remaining > 0
+            ? `Recruiting · ${army.recruitment_days_remaining} days remaining`
+            : `${army.soldiers.toLocaleString()} soldiers · Morale ${army.morale / 10}%`}</p>
           <p>{provinceName(army.province_id)}</p>
           {army.embarked_on && <p>Aboard fleet {army.embarked_on}</p>}
           {army.to_province_id !== null && (
             <p>Moving to {provinceName(army.to_province_id)} · {army.progress / 10}%</p>
           )}
-          {army.country_id === localId && !army.embarked_on && (
-            <ArmyOrders key={army.id} army={army} armies={armies} pending={pending} chooseOrder={chooseOrder} send={send} />
+          {army.country_id === localId && playerArmy(army) && !army.embarked_on
+            && army.recruitment_days_remaining === 0 && (
+            <ArmyOrders key={army.id} army={army} armies={armies} pending={pending} chooseOrder={chooseOrder}
+              send={send} groupSize={selectedArmyCount} />
           )}
-          {order && army.country_id === localId && (
+          {order && army.country_id === localId && playerArmy(army)
+            && army.recruitment_days_remaining === 0 && (
             <div className="military-target">
               <p role="status">Click a land province to {order === 'move_army' ? 'move' : 'retreat'}.</p>
               <button type="button" onClick={cancelOrder}>Cancel destination</button>
@@ -242,7 +321,7 @@ export function MilitaryPanel(props: MilitaryProps) {
           )}
         </section>
       )}
-      {local && game.min_raise_soldiers !== undefined && game.max_raise_soldiers !== undefined && (
+      {local && !successionWar && game.min_raise_soldiers !== undefined && game.max_raise_soldiers !== undefined && (
         controlsCapital ? (
           <RaiseArmy key={local.id} country={local.id} capital={local.capital_id}
             min={game.min_raise_soldiers} max={game.max_raise_soldiers} pending={pending} send={send} />

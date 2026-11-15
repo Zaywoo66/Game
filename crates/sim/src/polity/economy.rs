@@ -85,6 +85,7 @@ pub(super) fn monthly_economy(
     ruler_traits: Option<&ModifierStore>,
     policy: FiscalPolicy,
     tribute: Tribute,
+    trade_income: Fixed,
 ) -> Result<EconomyState, FiscalError> {
     let income = monthly_tax_income(
         rules,
@@ -94,7 +95,9 @@ pub(super) fn monthly_economy(
         country_modifiers,
         ruler_traits,
         policy,
-    )?;
+    )?
+    .checked_add(trade_income)
+    .ok_or(FiscalError::ArithmeticOverflow)?;
     let net_income = income
         .checked_sub(tribute.paid)
         .and_then(|value| value.checked_add(tribute.received))

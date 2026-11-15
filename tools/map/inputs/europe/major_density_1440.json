@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "input_map_version": 6,
+  "input_map_hash": "3e1fc544b192940b83e19d3741cd9ad9caec49230be4dc3e6b4fc96f0fd213c9",
+  "output_map_version": 7,
+  "target_physical_pixel_area": 350,
+  "refined_country_tags": [
+    "ara", "aus", "bra", "bur", "cas", "den", "eng", "fra", "gth", "hun",
+    "kaz", "liv", "mos", "nap", "nog", "nor", "nov", "ott", "pap",
+    "pol", "por", "qar", "sav", "swe", "teu", "tim", "ven"
+  ],
+  "rule": "Subdivide only land provinces owned by the listed 1440 major-country tags. Target size is latitude-adjusted raster pixel area; countries outside this roster keep their existing province geometry. Explicit city-state overrides remain pinned, while the separate HRE fallback policy assigns its coarse cells among represented members. Holland and Zeeland are part of Burgundy in this campaign and use tag bur. The map label Golden Horde resolves to the existing Great Horde tag gth."
+}

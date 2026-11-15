@@ -38,6 +38,63 @@ governments:
           ai_weight: 450
           effects:
             - {key: tax_income, value: 150, kind: multiplicative}
+  democracy:
+    - reforms:
+        - key: democratic_councils
+          ai_weight: 600
+          effects:
+            - {key: tax_income, value: 100, kind: multiplicative}
+        - key: civic_defense
+          ai_weight: 350
+          effects:
+            - {key: army_morale, value: 100, kind: multiplicative}
+    - reforms:
+        - key: public_accountability
+          ai_weight: 500
+          effects:
+            - {key: tax_income, value: 150, kind: multiplicative}
+        - key: civilian_command
+          ai_weight: 450
+          effects:
+            - {key: army_combat, value: 100, kind: multiplicative}
+  nationalism:
+    - reforms:
+        - key: national_service
+          ai_weight: 600
+          effects:
+            - {key: army_morale, value: 100, kind: multiplicative}
+        - key: national_industry
+          ai_weight: 350
+          effects:
+            - {key: tax_income, value: 100, kind: multiplicative}
+    - reforms:
+        - key: centralized_command
+          ai_weight: 500
+          effects:
+            - {key: army_combat, value: 100, kind: multiplicative}
+        - key: patriotic_contributions
+          ai_weight: 450
+          effects:
+            - {key: tax_income, value: 150, kind: multiplicative}
+  communism:
+    - reforms:
+        - key: workers_councils
+          ai_weight: 600
+          effects:
+            - {key: tax_income, value: 100, kind: multiplicative}
+        - key: peoples_militia
+          ai_weight: 350
+          effects:
+            - {key: army_morale, value: 100, kind: multiplicative}
+    - reforms:
+        - key: planned_industry
+          ai_weight: 500
+          effects:
+            - {key: tax_income, value: 150, kind: multiplicative}
+        - key: unified_staff
+          ai_weight: 450
+          effects:
+            - {key: army_combat, value: 100, kind: multiplicative}
   theocracy:
     - reforms:
         - key: diocesan_administration

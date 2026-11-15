@@ -1,0 +1,18 @@
+schema_version: 1
+country: modern_ita
+ideas:
+  - key: italy_roman_roads
+    name: italy_roman_roads
+    unlock: {country_has_tech: industrial_productivity}
+    modifiers:
+      - {key: tax_income, value: 100, kind: multiplicative}
+  - key: italy_legions
+    name: italy_legions
+    unlock: {country_has_tech: professional_forces}
+    modifiers:
+      - {key: army_combat, value: 100, kind: multiplicative}
+  - key: italy_bread_and_circuses
+    name: italy_bread_and_circuses
+    unlock: {country_has_tech: public_services}
+    modifiers:
+      - {key: army_morale, value: 75, kind: additive}

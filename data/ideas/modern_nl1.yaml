@@ -1,0 +1,18 @@
+schema_version: 1
+country: modern_nl1
+ideas:
+  - key: netherlands_chartered_companies
+    name: netherlands_chartered_companies
+    unlock: {country_has_tech: global_supply_networks}
+    modifiers:
+      - {key: tax_income, value: 150, kind: multiplicative}
+  - key: netherlands_public_credit
+    name: netherlands_public_credit
+    unlock: {country_has_tech: financial_regulation}
+    modifiers:
+      - {key: tax_income, value: 100, kind: multiplicative}
+  - key: netherlands_polders
+    name: netherlands_polders
+    unlock: {country_has_tech: industrial_productivity}
+    modifiers:
+      - {key: tax_income, value: 75, kind: multiplicative}

@@ -6,10 +6,10 @@ use std::{
 use strategy_sim::{
     AiProfileKey, AiThresholds, AiWeights, CharacterId, CharacterState, CharacterStats, Command,
     CommandActor, CommandError, Controller, CountryId, CountryPolity, CountryState, Date,
-    EconomyState, FiscalAiProfile, FiscalError, FiscalPolicy, Fixed, GameState, MapIdentity,
-    ModKey, Modifier, ModifierKind, ModifierSourceId, ModifierStore, MonthlyBudget, PlayerId,
-    PolityError, PolityRules, PolityState, PolityTickFailure, Province, ProvinceGraph, ProvinceId,
-    ProvinceKind, SimTime, Speed, StateChange, SuccessionState,
+    EconomyState, EdgeKind, FiscalAiProfile, FiscalError, FiscalPolicy, Fixed, GameState,
+    MapIdentity, ModKey, Modifier, ModifierKind, ModifierSourceId, ModifierStore, MonthlyBudget,
+    PlayerId, PolityError, PolityRules, PolityState, PolityTickFailure, Province, ProvinceEdge,
+    ProvinceGraph, ProvinceId, ProvinceKind, SimTime, Speed, StateChange, SuccessionState,
 };
 
 const ALPHA: CountryId = CountryId::new(1);
@@ -154,6 +154,65 @@ fn fiscal_and_heir_commands_require_the_country_controller() {
     assert_eq!(
         state.validate_command(OWNER, &beta_policy),
         Err(CommandError::NotCountryController(BETA))
+    );
+}
+
+#[test]
+fn fully_annexed_country_cannot_issue_gameplay_commands() {
+    let state = setup(date(1440, 1, 30), |polity| {
+        polity.countries.get_mut(&ALPHA).unwrap().provinces.clear();
+    })
+    .unwrap();
+    let command = Command::SetFiscalPolicy {
+        country: ALPHA,
+        policy: FiscalPolicy {
+            tax_rate: raw(500),
+            monthly_spending: raw(900),
+        },
+    };
+    assert_eq!(
+        state.validate_command(OWNER, &command),
+        Err(CommandError::CountryEliminated(ALPHA))
+    );
+}
+
+#[test]
+fn ruler_death_starts_claimant_crisis_and_records_the_disputed_claim() {
+    let eldest = CharacterId::new(11);
+    let nominated = CharacterId::new(12);
+    let mut state = setup(date(1440, 1, 1), |polity| {
+        let ruler = polity.characters.get_mut(&ALPHA_RULER).unwrap();
+        ruler.death = Some(date(1440, 1, 2));
+        let mut first_son = character(ALPHA, "first_house", date(1405, 1, 1));
+        first_son.parents = [Some(ALPHA_RULER), None];
+        let mut second_son = character(ALPHA, "first_house", date(1410, 1, 1));
+        second_son.parents = [Some(ALPHA_RULER), None];
+        polity.characters.insert(eldest, first_son);
+        polity.characters.insert(nominated, second_son);
+        let country = polity.countries.get_mut(&ALPHA).unwrap();
+        country.government = "monarchy".to_owned();
+        country.succession.heir = Some(nominated);
+    })
+    .unwrap();
+    let military = strategy_sim::WarState::new(test_war_rules(), BTreeMap::new());
+    state = state.with_war_state(military).unwrap();
+
+    advance_to(&mut state, date(1440, 1, 2));
+
+    let war = state
+        .war_state()
+        .unwrap()
+        .wars
+        .values()
+        .find(|war| war.succession_country == Some(ALPHA))
+        .expect("a younger nominated son should trigger a succession conflict");
+    assert!(war
+        .factions
+        .values()
+        .any(|faction| faction.claimant == Some(eldest)));
+    assert_eq!(
+        state.country(ALPHA).unwrap().controller(),
+        &Controller::Human(PlayerId::new(7))
     );
 }
 
@@ -537,6 +596,62 @@ fn royal_marriage_offer_acceptance_opinion_and_death() {
 }
 
 #[test]
+fn royal_marriage_generates_named_child_after_five_calendar_months() {
+    let mut state = setup(date(1440, 1, 1), |polity| {
+        polity.characters.get_mut(&BETA_RULER).unwrap().sex = strategy_sim::Sex::Female;
+    })
+    .unwrap();
+    state
+        .apply(
+            OWNER,
+            &Command::OfferRoyalMarriage {
+                country: ALPHA,
+                character: ALPHA_RULER,
+                toward: BETA,
+                partner: BETA_RULER,
+            },
+        )
+        .unwrap();
+    state
+        .apply(
+            CommandActor::Ai(BETA),
+            &Command::AcceptRoyalMarriage {
+                country: BETA,
+                from: ALPHA,
+                character: ALPHA_RULER,
+                partner: BETA_RULER,
+            },
+        )
+        .unwrap();
+
+    advance_to(&mut state, date(1440, 5, 31));
+    assert_eq!(state.country_polity(ALPHA).unwrap().succession.heir, None);
+    let report = state.tick(|_, _| Vec::new()).unwrap();
+    let child_id = report
+        .delta
+        .changes()
+        .iter()
+        .find_map(|change| match change {
+            StateChange::CharacterAdded {
+                character,
+                country: ALPHA,
+            } => Some(character),
+            _ => None,
+        })
+        .expect("royal marriage should produce a child after five months");
+    let child_id = *child_id;
+    let child = state.character(child_id).unwrap();
+    assert_eq!(child.parents, [Some(ALPHA_RULER), Some(BETA_RULER)]);
+    assert_eq!(child.country, ALPHA);
+    assert_eq!(child.dynasty, state.character(ALPHA_RULER).unwrap().dynasty);
+    assert!(!child.name.trim().is_empty());
+    assert_eq!(
+        state.country_polity(ALPHA).unwrap().succession.heir,
+        (child.sex == strategy_sim::Sex::Male).then_some(child_id)
+    );
+}
+
+#[test]
 fn royal_marriage_rejects_legacy_unknown_sex_and_expires() {
     let mut legacy = setup(date(1440, 1, 1), |polity| {
         polity.characters.get_mut(&BETA_RULER).unwrap().sex = strategy_sim::Sex::Unknown;
@@ -615,10 +730,18 @@ fn royal_marriage_rejects_minor_and_same_sex_with_typed_reasons() {
 }
 
 fn setup(start: Date, edit: impl FnOnce(&mut PolityState)) -> Result<GameState, PolityError> {
+    setup_with_graph(start, graph(), edit)
+}
+
+fn setup_with_graph(
+    start: Date,
+    province_graph: ProvinceGraph,
+    edit: impl FnOnce(&mut PolityState),
+) -> Result<GameState, PolityError> {
     let base = GameState::new(
         SimTime::new(start, Speed::One, false),
         42,
-        graph(),
+        province_graph,
         BTreeMap::from([
             (
                 ALPHA,
@@ -657,6 +780,8 @@ fn setup(start: Date, edit: impl FnOnce(&mut PolityState)) -> Result<GameState, 
     let mut polity = PolityState {
         rules: PolityRules {
             adulthood_years: 18,
+            male_names: vec!["Alex".to_owned()],
+            female_names: vec!["Alexandra".to_owned()],
             base_taxable_development_per_province: 1,
             tax_per_development: Fixed::ONE,
             max_tax_rate: Fixed::ONE,
@@ -684,10 +809,147 @@ fn setup(start: Date, edit: impl FnOnce(&mut PolityState)) -> Result<GameState, 
     base.with_polity(polity)
 }
 
+#[test]
+fn trade_route_offer_acceptance_and_monthly_income_work() {
+    let mut state = setup_with_graph(date(1440, 1, 31), trade_graph(), |_| {}).unwrap();
+    let without_route = state.clone();
+
+    let offered = state
+        .apply(
+            OWNER,
+            &Command::OfferTradeRoute {
+                country: ALPHA,
+                toward: BETA,
+            },
+        )
+        .unwrap();
+    assert!(offered.changes().iter().any(|change| matches!(
+        change,
+        StateChange::TradeRouteOffered { from: ALPHA, toward: BETA, expires_at }
+            if *expires_at == date(1440, 3, 1)
+    )));
+
+    state
+        .apply(
+            CommandActor::Ai(BETA),
+            &Command::AcceptTradeRoute {
+                country: BETA,
+                from: ALPHA,
+            },
+        )
+        .unwrap();
+    assert!(state.has_trade_route(ALPHA, BETA));
+    assert!(state.trade_route_operational(ALPHA, BETA));
+    assert_eq!(state.monthly_trade_income()[&ALPHA], Fixed::ONE);
+    assert_eq!(state.monthly_trade_income()[&BETA], Fixed::ONE);
+
+    // Jan 31 -> Feb 1 crosses the monthly settlement boundary.
+    state.tick(|_, _| Vec::new()).unwrap();
+    state.tick(|_, _| Vec::new()).unwrap();
+    for country in [ALPHA, BETA] {
+        let policy = without_route
+            .country_polity(country)
+            .unwrap()
+            .economy
+            .policy;
+        let baseline = without_route
+            .preview_monthly_economy(country, policy)
+            .unwrap()
+            .last_month
+            .unwrap()
+            .income;
+        assert_eq!(
+            state
+                .country_polity(country)
+                .unwrap()
+                .economy
+                .last_month
+                .unwrap()
+                .income,
+            baseline.checked_add(Fixed::ONE).unwrap()
+        );
+    }
+}
+
+fn trade_graph() -> ProvinceGraph {
+    ProvinceGraph::try_new(
+        MapIdentity {
+            version: NonZeroU32::new(1).unwrap(),
+            sha256: [1; 32],
+        },
+        [
+            Province {
+                id: ALPHA_LAND,
+                key: "alpha_capital".to_owned(),
+                kind: ProvinceKind::Land,
+                terrain: "test_terrain".to_owned(),
+                centroid: [0, 0],
+                development: 2,
+                neighbors: vec![ProvinceEdge {
+                    to: BETA_LAND,
+                    kind: EdgeKind::Normal,
+                    cost: 1,
+                }],
+                ports: Vec::new(),
+            },
+            Province {
+                id: BETA_LAND,
+                key: "beta_capital".to_owned(),
+                kind: ProvinceKind::Land,
+                terrain: "test_terrain".to_owned(),
+                centroid: [1, 0],
+                development: 4,
+                neighbors: vec![ProvinceEdge {
+                    to: ALPHA_LAND,
+                    kind: EdgeKind::Normal,
+                    cost: 1,
+                }],
+                ports: Vec::new(),
+            },
+            Province {
+                id: SEA,
+                key: "test_sea".to_owned(),
+                kind: ProvinceKind::Sea,
+                terrain: "test_sea".to_owned(),
+                centroid: [0, 1],
+                development: 0,
+                neighbors: Vec::new(),
+                ports: Vec::new(),
+            },
+        ],
+    )
+    .unwrap()
+}
+
+fn test_war_rules() -> strategy_sim::WarRules {
+    strategy_sim::WarRules {
+        raise_cost_per_soldier: Fixed::ZERO,
+        max_army_size: 10_000,
+        max_morale: Fixed::ONE,
+        morale_recovery_per_tick: Fixed::ZERO,
+        retreat_morale_threshold: Fixed::ZERO,
+        winner_casualty_rate: raw(50),
+        loser_casualty_rate: raw(200),
+        battle_morale_loss: Fixed::ZERO,
+        base_supply: 10_000,
+        supply_per_development: 0,
+        attrition_rate: Fixed::ZERO,
+        siege_days_per_level: 1,
+        battle_score: 1,
+        occupation_score: 1,
+        peace_score: 1,
+        truce_ticks: 180,
+        combat_modifier: ModKey::new("army_combat"),
+        morale_modifier: ModKey::new("army_morale"),
+    }
+}
+
 fn character(country: CountryId, dynasty: &str, birth: Date) -> CharacterState {
     CharacterState {
         sex: strategy_sim::Sex::Male,
         spouse: None,
+        parents: [None, None],
+        married_at: None,
         name: "Test Character".to_owned(),
         country,
         dynasty: dynasty.to_owned(),
@@ -722,6 +984,7 @@ fn country(tag: &str, capital: ProvinceId, ruler: CharacterId) -> CountryPolity 
     CountryPolity {
         tag: tag.to_owned(),
         government: "monarchy".into(),
+        government_options: BTreeSet::new(),
         name: tag.to_owned(),
         color: [0, 0, 0],
         capital,
@@ -738,6 +1001,11 @@ fn country(tag: &str, capital: ProvinceId, ruler: CharacterId) -> CountryPolity 
             ruler: Some(ruler),
             heir: None,
         },
+        admin_points: 0,
+        diplomatic_points: 0,
+        military_points: 0,
+        stability: 1,
+        war_exhaustion: 0,
     }
 }
 

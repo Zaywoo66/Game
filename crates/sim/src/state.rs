@@ -1,10 +1,11 @@
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::{BTreeMap, BTreeSet, VecDeque};
 
 use crate::modifiers::effective_value_from;
 use crate::province_graph::is_content_key;
 use crate::war::{MilitaryAction, MilitaryBonuses, MilitaryOrder};
 use crate::{
-    Army, ArmyId, MilitaryTickFailure, MovementLeg, Siege, War, WarError, WarId, WarState,
+    Army, ArmyId, MilitaryTickFailure, MovementLeg, Siege, War, WarError, WarFaction, WarId,
+    WarState,
 };
 use crate::{
     Fleet, FleetId, FleetMovement, NavyError, NavyState, ProvinceEdge, ShipBuildOrder,
@@ -15,11 +16,13 @@ use crate::{
     CharacterId, CharacterState, CountryId, CountryPolity, Date, DiplomacyError, DiplomacyState,
     EconomyState, EdgeKind, Effect, EffectError, EventDefinition, EventError, EventState,
     FiscalError, FiscalPolicy, Fixed, IdeaDefinition, IdeaError, IdeaState, MapIdentity,
-    MarriageError, ModKey, Modifier, ModifierInsertError, ModifierSourceId, ModifierStore, Opinion,
-    OpinionStateError, PlayerId, PolityError, PolityState, PolityTickFailure, PreparedModifier,
-    ProvinceGraph, ProvinceId, ReformDefinition, ReformError, ReformState, SeededRng, Sex, SimTime,
-    Speed, SuccessionState, TechnologyDefinition, TechnologyError, TechnologyState, Tick,
-    TimeActor, TimeCommand, TimeError, Trigger, TriggerView, IDEA_COST, REFORM_COST,
+    MarriageError, ModKey, Modifier, ModifierInsertError, ModifierSourceId, ModifierStore,
+    NewMonarch, Opinion, OpinionStateError, PendingGovernmentChange, PlayerId, PolityError,
+    PolityState, PolityTickFailure, PreparedModifier, ProvinceGraph, ProvinceId, ProvinceKind,
+    ReformDefinition, ReformError, ReformState, SeededRng, Sex, SimTime, Speed, StabilityError,
+    SuccessionState, TechnologyDefinition, TechnologyError, TechnologyState, Tick, TimeActor,
+    TimeCommand, TimeError, Trigger, TriggerView, GOVERNMENT_CHANGE_COST, GOVERNMENT_CHANGE_DAYS,
+    IDEA_COST, REFORM_COST,
 };
 
 /// Reference to a scenario's data-driven AI profile.
@@ -73,6 +76,9 @@ pub enum Command {
     SetFiscalPolicy {
         country: CountryId,
         policy: FiscalPolicy,
+    },
+    IncreaseStability {
+        country: CountryId,
     },
     NominateHeir {
         country: CountryId,
@@ -150,6 +156,21 @@ pub enum Command {
         country: CountryId,
         war: WarId,
     },
+    CreateWarFaction {
+        country: CountryId,
+        war: WarId,
+    },
+    JoinWarFaction {
+        country: CountryId,
+        war: WarId,
+        leader: CountryId,
+    },
+    RenameWarFaction {
+        country: CountryId,
+        war: WarId,
+        name: String,
+        dynasty: String,
+    },
     OfferAlliance {
         country: CountryId,
         toward: CountryId,
@@ -161,6 +182,22 @@ pub enum Command {
     RejectAlliance {
         country: CountryId,
         from: CountryId,
+    },
+    OfferTradeRoute {
+        country: CountryId,
+        toward: CountryId,
+    },
+    AcceptTradeRoute {
+        country: CountryId,
+        from: CountryId,
+    },
+    RejectTradeRoute {
+        country: CountryId,
+        from: CountryId,
+    },
+    CloseTradeRoute {
+        country: CountryId,
+        other: CountryId,
     },
     BreakAlliance {
         country: CountryId,
@@ -182,6 +219,11 @@ pub enum Command {
     UnlockReform {
         country: CountryId,
         key: String,
+    },
+    ChangeGovernment {
+        country: CountryId,
+        target: String,
+        monarch: Option<NewMonarch>,
     },
     OfferRoyalMarriage {
         country: CountryId,
@@ -234,6 +276,7 @@ pub enum CommandError {
     UnknownCountry(CountryId),
     PolityUnavailable,
     NotCountryController(CountryId),
+    CountryEliminated(CountryId),
     UnknownAiProfile(CountryId),
     Fiscal(FiscalError),
     War(WarError),
@@ -243,6 +286,7 @@ pub enum CommandError {
     Technology(TechnologyError),
     Idea(IdeaError),
     Reform(ReformError),
+    Stability(StabilityError),
     Marriage(MarriageError),
     InvalidHeir {
         country: CountryId,
@@ -274,6 +318,20 @@ pub enum StateChange {
         country: CountryId,
         points: u32,
     },
+    PoliticalPointsChanged {
+        country: CountryId,
+        admin: u32,
+        diplomatic: u32,
+        military: u32,
+    },
+    StabilityChanged {
+        country: CountryId,
+        stability: u8,
+    },
+    WarExhaustionChanged {
+        country: CountryId,
+        points: u32,
+    },
     TechnologyUnlocked {
         country: CountryId,
         key: String,
@@ -290,6 +348,25 @@ pub enum StateChange {
         tier: u16,
         source: ModifierSourceId,
     },
+    GovernmentChangeStarted {
+        country: CountryId,
+        target: String,
+        completes_at: Tick,
+    },
+    GovernmentChanged {
+        country: CountryId,
+        previous: String,
+        current: String,
+    },
+    ReformRemoved {
+        country: CountryId,
+        key: String,
+        tier: u16,
+    },
+    ModifierSourceRemoved {
+        country: CountryId,
+        source: ModifierSourceId,
+    },
     FiscalPolicyChanged {
         country: CountryId,
         policy: FiscalPolicy,
@@ -299,6 +376,10 @@ pub enum StateChange {
         economy: EconomyState,
     },
     CharacterDied {
+        character: CharacterId,
+        country: CountryId,
+    },
+    CharacterAdded {
         character: CharacterId,
         country: CountryId,
     },
@@ -336,6 +417,13 @@ pub enum StateChange {
         winner_casualties: u64,
         loser_casualties: u64,
     },
+    MultiSideBattleResolved {
+        war: WarId,
+        province: ProvinceId,
+        winner: CountryId,
+        winner_casualties: u64,
+        losers: Vec<(CountryId, u64)>,
+    },
     ProvinceOwnershipChanged {
         province: ProvinceId,
         owner: CountryId,
@@ -356,6 +444,20 @@ pub enum StateChange {
         toward: CountryId,
     },
     AllianceChanged {
+        a: CountryId,
+        b: CountryId,
+        active: bool,
+    },
+    TradeRouteOffered {
+        from: CountryId,
+        toward: CountryId,
+        expires_at: Date,
+    },
+    TradeRouteOfferRemoved {
+        from: CountryId,
+        toward: CountryId,
+    },
+    TradeRouteChanged {
         a: CountryId,
         b: CountryId,
         active: bool,
@@ -399,6 +501,10 @@ pub enum StateChange {
         from: CountryId,
         toward: CountryId,
         opinion: Opinion,
+    },
+    AggressiveExpansionChanged {
+        country: CountryId,
+        points: u32,
     },
     EventFired {
         country: CountryId,
@@ -560,6 +666,7 @@ enum PreparedCommand<'a> {
     Time(SimTime),
     SetController(CountryId, &'a Controller),
     SetFiscalPolicy(CountryId, FiscalPolicy),
+    IncreaseStability(CountryId),
     NominateHeir(CountryId, Option<CharacterId>),
     Military(
         MilitaryAction,
@@ -582,6 +689,7 @@ enum PreparedCommand<'a> {
     UnlockTechnology(CountryId, &'a str, ModifierSourceId, Vec<Modifier>),
     UnlockIdea(CountryId, &'a str, ModifierSourceId, Vec<Modifier>),
     UnlockReform(CountryId, &'a str, u16, ModifierSourceId, Vec<Modifier>),
+    ChangeGovernment(CountryId, &'a str, Tick, Option<NewMonarch>),
 }
 
 enum DiplomacyAction {
@@ -595,6 +703,10 @@ enum DiplomacyAction {
     AcceptVassalage(CountryId, CountryId),
     RejectVassalage(CountryId, CountryId),
     ReleaseVassal(CountryId, CountryId),
+    OfferTradeRoute(CountryId, CountryId, Date),
+    AcceptTradeRoute(CountryId, CountryId),
+    RejectTradeRoute(CountryId, CountryId),
+    CloseTradeRoute(CountryId, CountryId),
 }
 
 enum MarriageAction {
@@ -779,9 +891,6 @@ impl GameState {
         partner: CharacterId,
     ) -> Result<(), MarriageError> {
         let polity = self.polity.as_ref().ok_or(MarriageError::InvalidState)?;
-        if from == toward {
-            return Err(MarriageError::SameCountry);
-        }
         let a = polity
             .characters
             .get(&character)
@@ -795,6 +904,15 @@ impl GameState {
         }
         if b.country != toward {
             return Err(MarriageError::WrongCountry(partner));
+        }
+        if from == toward
+            && (!polity.are_siblings(character, partner)
+                || polity
+                    .countries
+                    .get(&from)
+                    .is_none_or(|nation| nation.government != "monarchy"))
+        {
+            return Err(MarriageError::SameCountry);
         }
         let now = self.time.date();
         for (id, person) in [(character, a), (partner, b)] {
@@ -828,7 +946,9 @@ impl GameState {
                 .into_iter()
                 .any(|(country, id)| {
                     polity.countries.get(&country).is_some_and(|nation| {
-                        nation.succession.ruler == Some(id) || nation.succession.heir == Some(id)
+                        nation.government == "monarchy"
+                            && (nation.succession.ruler == Some(id)
+                                || nation.succession.heir == Some(id))
                     })
                 });
         if !is_dynastic {
@@ -1111,10 +1231,11 @@ impl GameState {
                 || !is_content_key(key)
                 || !is_content_key(&idea.name_key)
                 || idea.modifiers.is_empty()
-                || !polity
-                    .countries
-                    .values()
-                    .any(|country| country.tag == idea.country)
+                || (idea.country != "common"
+                    && !polity
+                        .countries
+                        .values()
+                        .any(|country| country.tag == idea.country))
                 || !valid_trigger(&idea.unlock, technology)
                 || idea.modifiers.iter().any(|modifier| {
                     let Effect::AddModifier {
@@ -1172,7 +1293,11 @@ impl GameState {
             let Some(polity) = self.polity.as_ref().and_then(|p| p.countries.get(country)) else {
                 return Err(IdeaError::InvalidSavedState);
             };
-            if idea.country != polity.tag
+            let has_country_catalog = ideas
+                .definitions
+                .values()
+                .any(|definition| definition.country == polity.tag);
+            if (idea.country != polity.tag && (idea.country != "common" || has_country_catalog))
                 || source.get() == 0
                 || source.get() >= ideas.next_source_id
                 || !unique.insert(*source)
@@ -1229,7 +1354,10 @@ impl GameState {
         let governments: BTreeSet<_> = polity
             .countries
             .values()
-            .map(|country| country.government.as_str())
+            .flat_map(|country| {
+                std::iter::once(country.government.as_str())
+                    .chain(country.government_options.iter().map(String::as_str))
+            })
             .collect();
         for (key, definition) in &definitions {
             if key != &definition.key
@@ -1280,6 +1408,7 @@ impl GameState {
             definitions,
             choices: BTreeMap::new(),
             sources: BTreeMap::new(),
+            pending_government_changes: BTreeMap::new(),
             next_source_id,
         });
         Ok(self)
@@ -1331,6 +1460,21 @@ impl GameState {
                     .sources()
                     .find(|(id, _, _)| id == source)
                     .and_then(|(_, expiry, modifiers)| expiry.is_none().then_some(modifiers))
+            {
+                return Err(ReformError::InvalidSavedState);
+            }
+        }
+        for (&country, pending) in &reforms.pending_government_changes {
+            let Some(nation) = self
+                .polity
+                .as_ref()
+                .and_then(|polity| polity.countries.get(&country))
+            else {
+                return Err(ReformError::InvalidSavedState);
+            };
+            if !nation.government_options.contains(&pending.target)
+                || nation.government == pending.target
+                || pending.completes_at <= self.time.tick()
             {
                 return Err(ReformError::InvalidSavedState);
             }
@@ -1459,9 +1603,15 @@ impl GameState {
         navy.validate(
             &self.province_graph,
             self.countries.keys().copied(),
-            war.armies
-                .iter()
-                .map(|(&id, army)| (id, army.country, army.soldiers, army.movement.is_some())),
+            war.armies.iter().map(|(&id, army)| {
+                (
+                    id,
+                    army.country,
+                    army.soldiers,
+                    army.movement.is_some(),
+                    army.recruitment_days_remaining,
+                )
+            }),
         )?;
         self.navy = Some(navy);
         Ok(self)
@@ -1507,6 +1657,134 @@ impl GameState {
             .countries
             .iter()
             .find_map(|(&country, state)| state.provinces.contains(&province).then_some(country))
+    }
+
+    /// Whether a saved bilateral route currently has a usable capital-to-capital path.
+    /// Routes pause during war or when every possible connection is blocked.
+    pub fn trade_route_operational(&self, a: CountryId, b: CountryId) -> bool {
+        let (Some(polity), Some(pa), Some(pb)) = (
+            self.polity(),
+            self.country_polity(a),
+            self.country_polity(b),
+        ) else {
+            return false;
+        };
+        if a == b || self.country_at_war(a) || self.country_at_war(b) {
+            return false;
+        }
+
+        let owners: BTreeMap<_, _> = polity
+            .countries
+            .iter()
+            .flat_map(|(&country, nation)| {
+                nation
+                    .provinces
+                    .iter()
+                    .map(move |&province| (province, country))
+            })
+            .collect();
+        if owners.get(&pa.capital) != Some(&a) || owners.get(&pb.capital) != Some(&b) {
+            return false;
+        }
+
+        let blocked = self.blockaded_ports();
+        let land_accessible = |province: ProvinceId| {
+            let Some(owner) = owners.get(&province).copied() else {
+                return false;
+            };
+            owner == a
+                || owner == b
+                || (self.allied(owner, a) && !self.directly_at_war(owner, a))
+                || (self.allied(owner, b) && !self.directly_at_war(owner, b))
+        };
+        let mut sea_to_land = BTreeMap::<ProvinceId, Vec<ProvinceId>>::new();
+        for province in self
+            .province_graph
+            .iter()
+            .filter(|p| p.kind == ProvinceKind::Land)
+        {
+            if !blocked.contains(&province.id) && land_accessible(province.id) {
+                for &sea in &province.ports {
+                    sea_to_land.entry(sea).or_default().push(province.id);
+                }
+            }
+        }
+        let mut queue = VecDeque::from([pa.capital]);
+        let mut visited = BTreeSet::from([pa.capital]);
+        while let Some(current) = queue.pop_front() {
+            if current == pb.capital {
+                return true;
+            }
+            let Some(province) = self.province_graph.get(current) else {
+                continue;
+            };
+            let mut next = Vec::new();
+            match province.kind {
+                ProvinceKind::Land if land_accessible(current) => {
+                    next.extend(province.neighbors.iter().filter_map(|edge| {
+                        (matches!(
+                            edge.kind,
+                            EdgeKind::Normal | EdgeKind::River | EdgeKind::Strait
+                        ) && self
+                            .province_graph
+                            .get(edge.to)
+                            .is_some_and(|p| p.kind == ProvinceKind::Land)
+                            && land_accessible(edge.to))
+                        .then_some(edge.to)
+                    }));
+                    next.extend(province.ports.iter().copied().filter(|sea| {
+                        !blocked.contains(&current)
+                            && self
+                                .province_graph
+                                .get(*sea)
+                                .is_some_and(|p| p.kind == ProvinceKind::Sea)
+                    }));
+                }
+                ProvinceKind::Sea => {
+                    next.extend(province.neighbors.iter().filter_map(|edge| {
+                        (matches!(edge.kind, EdgeKind::Normal | EdgeKind::Strait)
+                            && self
+                                .province_graph
+                                .get(edge.to)
+                                .is_some_and(|p| p.kind == ProvinceKind::Sea))
+                        .then_some(edge.to)
+                    }));
+                    next.extend(sea_to_land.get(&current).into_iter().flatten().copied());
+                }
+                ProvinceKind::Land | ProvinceKind::Lake => {}
+            }
+            for target in next {
+                if visited.insert(target) {
+                    queue.push_back(target);
+                }
+            }
+        }
+        false
+    }
+
+    pub fn has_trade_route(&self, a: CountryId, b: CountryId) -> bool {
+        self.diplomacy
+            .as_ref()
+            .is_some_and(|d| d.trade_routes.contains(&crate::diplomacy::pair(a, b)))
+    }
+
+    /// Monthly trade income in raw Fixed units, keyed by country.
+    pub fn monthly_trade_income(&self) -> BTreeMap<CountryId, Fixed> {
+        let mut income = BTreeMap::new();
+        let Some(diplomacy) = &self.diplomacy else {
+            return income;
+        };
+        for &(a, b) in &diplomacy.trade_routes {
+            if self.trade_route_operational(a, b) {
+                for country in [a, b] {
+                    let current = income.get(&country).copied().unwrap_or(Fixed::ZERO);
+                    if let Some(next) = current.checked_add(Fixed::ONE) {
+                        income.insert(country, next);
+                    }
+                }
+            }
+        }
+        income
     }
 
     /// Returns port provinces whose taxable development is closed by an
@@ -1625,6 +1903,10 @@ impl GameState {
                     .diplomacy
                     .as_ref()
                     .map_or_else(BTreeMap::new, |state| state.vassals.clone()),
+                self.monthly_trade_income()
+                    .get(&country)
+                    .copied()
+                    .unwrap_or(Fixed::ZERO),
             )
             .map_err(CommandError::Fiscal)
     }
@@ -1706,6 +1988,27 @@ impl GameState {
                         .changes
                         .push(StateChange::FiscalPolicyChanged { country, policy });
                 }
+            }
+            PreparedCommand::IncreaseStability(country) => {
+                let state = self
+                    .polity
+                    .as_mut()
+                    .expect("polity validated")
+                    .countries
+                    .get_mut(&country)
+                    .expect("country validated");
+                state.admin_points -= 100;
+                state.stability += 1;
+                delta.changes.push(StateChange::PoliticalPointsChanged {
+                    country,
+                    admin: state.admin_points,
+                    diplomatic: state.diplomatic_points,
+                    military: state.military_points,
+                });
+                delta.changes.push(StateChange::StabilityChanged {
+                    country,
+                    stability: state.stability,
+                });
             }
             PreparedCommand::NominateHeir(country, heir) => {
                 let regency = self.is_in_regency(country).expect("polity validated");
@@ -1903,6 +2206,11 @@ impl GameState {
                         }
                         crate::WarSide::Defender => {
                             war.defender_supporters.insert(country);
+                        }
+                        crate::WarSide::Faction(leader) => {
+                            if let Some(faction) = war.factions.get_mut(&leader) {
+                                faction.members.insert(country);
+                            }
                         }
                     }
                     delta.changes.push(StateChange::WarChanged {
@@ -2135,6 +2443,42 @@ impl GameState {
                             active: false,
                         });
                     }
+                    DiplomacyAction::OfferTradeRoute(from, toward, expires_at) => {
+                        diplomacy
+                            .trade_route_offers
+                            .insert((from, toward), expires_at);
+                        delta.changes.push(StateChange::TradeRouteOffered {
+                            from,
+                            toward,
+                            expires_at,
+                        });
+                    }
+                    DiplomacyAction::AcceptTradeRoute(from, toward) => {
+                        diplomacy.trade_route_offers.remove(&(from, toward));
+                        let (a, b) = crate::diplomacy::pair(from, toward);
+                        diplomacy.trade_routes.insert((a, b));
+                        delta
+                            .changes
+                            .push(StateChange::TradeRouteOfferRemoved { from, toward });
+                        delta
+                            .changes
+                            .push(StateChange::TradeRouteChanged { a, b, active: true });
+                    }
+                    DiplomacyAction::RejectTradeRoute(from, toward) => {
+                        diplomacy.trade_route_offers.remove(&(from, toward));
+                        delta
+                            .changes
+                            .push(StateChange::TradeRouteOfferRemoved { from, toward });
+                    }
+                    DiplomacyAction::CloseTradeRoute(a, b) => {
+                        let (a, b) = crate::diplomacy::pair(a, b);
+                        diplomacy.trade_routes.remove(&(a, b));
+                        delta.changes.push(StateChange::TradeRouteChanged {
+                            a,
+                            b,
+                            active: false,
+                        });
+                    }
                 }
             }
             PreparedCommand::ChooseEvent(country, key, option, prepared) => {
@@ -2182,6 +2526,7 @@ impl GameState {
                         });
                     }
                     MarriageAction::Accept(from, toward) => {
+                        let married_at = self.time.date();
                         let removed: Vec<_> = diplomacy
                             .marriage_offers
                             .keys()
@@ -2202,9 +2547,19 @@ impl GameState {
                             .spouse = Some(toward);
                         polity
                             .characters
+                            .get_mut(&from)
+                            .expect("proposer validated")
+                            .married_at = Some(married_at);
+                        polity
+                            .characters
                             .get_mut(&toward)
                             .expect("partner validated")
                             .spouse = Some(from);
+                        polity
+                            .characters
+                            .get_mut(&toward)
+                            .expect("partner validated")
+                            .married_at = Some(married_at);
                         delta.changes.push(StateChange::MarriageChanged {
                             a: from,
                             b: toward,
@@ -2347,6 +2702,35 @@ impl GameState {
                     source,
                 });
             }
+            PreparedCommand::ChangeGovernment(country, target, completes_at, monarch) => {
+                let technology = self
+                    .technology
+                    .as_mut()
+                    .expect("validated research balance");
+                let points = technology
+                    .points
+                    .get_mut(&country)
+                    .expect("validated country");
+                *points -= GOVERNMENT_CHANGE_COST;
+                let reforms = self.reforms.as_mut().expect("validated reform catalog");
+                reforms.pending_government_changes.insert(
+                    country,
+                    PendingGovernmentChange {
+                        target: target.into(),
+                        completes_at,
+                        monarch,
+                    },
+                );
+                delta.changes.push(StateChange::ResearchPointsChanged {
+                    country,
+                    points: *points,
+                });
+                delta.changes.push(StateChange::GovernmentChangeStarted {
+                    country,
+                    target: target.into(),
+                    completes_at,
+                });
+            }
         }
         Ok(delta)
     }
@@ -2387,6 +2771,34 @@ impl GameState {
                     .check_policy(*policy)
                     .map_err(CommandError::Fiscal)?;
                 Ok(PreparedCommand::SetFiscalPolicy(*country, *policy))
+            }
+            Command::IncreaseStability { country } => {
+                self.authorized_country(actor, *country)?;
+                let state = self
+                    .polity
+                    .as_ref()
+                    .and_then(|polity| polity.countries.get(country))
+                    .ok_or(CommandError::PolityUnavailable)?;
+                if state.stability >= 3 {
+                    return Err(CommandError::Stability(StabilityError::AlreadyAtMaximum));
+                }
+                if state.admin_points < 100 {
+                    return Err(CommandError::Stability(
+                        StabilityError::InsufficientAdminPoints {
+                            available: state.admin_points,
+                        },
+                    ));
+                }
+                if state.stability == 0
+                    && (state.economy.policy.tax_rate.raw() > 500
+                        || state.war_exhaustion >= 10
+                        || self.diplomacy.as_ref().is_some_and(|diplomacy| {
+                            diplomacy.aggressive_expansion_of(*country) >= 100
+                        }))
+                {
+                    return Err(CommandError::Stability(StabilityError::RebellionActive));
+                }
+                Ok(PreparedCommand::IncreaseStability(*country))
             }
             Command::NominateHeir { country, heir } => {
                 let polity = self.authorized_polity(actor, *country)?;
@@ -2500,6 +2912,40 @@ impl GameState {
             } => self.prepare_military(actor, *country, MilitaryOrder::Offer(*war, *cede_goal)),
             Command::AcceptPeace { country, war } => {
                 self.prepare_military(actor, *country, MilitaryOrder::Accept(*war))
+            }
+            Command::CreateWarFaction { country, war } => {
+                self.prepare_military(actor, *country, MilitaryOrder::CreateFaction(*war))
+            }
+            Command::JoinWarFaction {
+                country,
+                war,
+                leader,
+            } => self.prepare_military(
+                actor,
+                *country,
+                MilitaryOrder::JoinFaction {
+                    war: *war,
+                    leader: *leader,
+                },
+            ),
+            Command::RenameWarFaction {
+                country,
+                war,
+                name,
+                dynasty,
+            } => {
+                if self.player_aristocrat_faction(actor, *country).is_none() {
+                    return Err(CommandError::War(WarError::NotWarParty));
+                }
+                self.prepare_military(
+                    actor,
+                    *country,
+                    MilitaryOrder::RenameInternalFaction {
+                        war: *war,
+                        name: name.clone(),
+                        dynasty: dynasty.clone(),
+                    },
+                )
             }
             Command::AcceptCallToArms { country, war, from } => {
                 self.prepare_call_to_arms(actor, *country, *war, *from, true)
@@ -2621,7 +3067,11 @@ impl GameState {
                     .as_ref()
                     .and_then(|polity| polity.countries.get(country))
                     .ok_or(CommandError::PolityUnavailable)?;
-                if polity.tag != idea.country {
+                let has_country_catalog = ideas
+                    .definitions
+                    .values()
+                    .any(|definition| definition.country == polity.tag);
+                if polity.tag != idea.country && (idea.country != "common" || has_country_catalog) {
                     return Err(CommandError::Idea(IdeaError::WrongCountry(key.clone())));
                 }
                 if ideas.sources.contains_key(&(*country, key.clone())) {
@@ -2745,6 +3195,77 @@ impl GameState {
                     modifiers,
                 ))
             }
+            Command::ChangeGovernment {
+                country,
+                target,
+                monarch,
+            } => {
+                self.authorized_country(actor, *country)?;
+                let polity = self
+                    .polity
+                    .as_ref()
+                    .and_then(|polity| polity.countries.get(country))
+                    .ok_or(CommandError::PolityUnavailable)?;
+                if !polity.government_options.contains(target) {
+                    return Err(CommandError::Reform(ReformError::GovernmentUnavailable(
+                        target.clone(),
+                    )));
+                }
+                if polity.government == *target {
+                    return Err(CommandError::Reform(ReformError::SameGovernment));
+                }
+                if target == "monarchy" {
+                    let candidate = monarch
+                        .as_ref()
+                        .ok_or(CommandError::Reform(ReformError::InvalidMonarch))?;
+                    let valid_text = |text: &str, max: usize| {
+                        !text.trim().is_empty()
+                            && text.trim().len() <= max
+                            && !text.chars().any(char::is_control)
+                    };
+                    if !valid_text(&candidate.name, 64)
+                        || !valid_text(&candidate.dynasty, 64)
+                        || !matches!(candidate.sex, Sex::Male | Sex::Female)
+                    {
+                        return Err(CommandError::Reform(ReformError::InvalidMonarch));
+                    }
+                    if self
+                        .polity
+                        .as_ref()
+                        .and_then(|polity| polity.characters.keys().map(|id| id.get()).max())
+                        .unwrap_or(0)
+                        == u32::MAX
+                    {
+                        return Err(CommandError::Reform(ReformError::InvalidSavedState));
+                    }
+                } else if monarch.is_some() {
+                    return Err(CommandError::Reform(ReformError::InvalidMonarch));
+                }
+                let reforms = self
+                    .reforms
+                    .as_ref()
+                    .ok_or(CommandError::Reform(ReformError::InvalidSavedState))?;
+                if reforms.pending_government_changes.contains_key(country) {
+                    return Err(CommandError::Reform(ReformError::GovernmentChangePending));
+                }
+                let available = self.research_points(*country).unwrap_or(0);
+                if available < GOVERNMENT_CHANGE_COST {
+                    return Err(CommandError::Reform(ReformError::InsufficientPoints {
+                        available,
+                    }));
+                }
+                let completes_at = self
+                    .time
+                    .tick()
+                    .checked_add(GOVERNMENT_CHANGE_DAYS)
+                    .ok_or(CommandError::Reform(ReformError::ScheduleOverflow))?;
+                Ok(PreparedCommand::ChangeGovernment(
+                    *country,
+                    target,
+                    completes_at,
+                    monarch.clone(),
+                ))
+            }
             Command::OfferRoyalMarriage {
                 country,
                 character,
@@ -2780,6 +3301,18 @@ impl GameState {
             }
             Command::ReleaseVassal { country, subject } => {
                 self.prepare_diplomacy(actor, *country, *subject, 9)
+            }
+            Command::OfferTradeRoute { country, toward } => {
+                self.prepare_diplomacy(actor, *country, *toward, 10)
+            }
+            Command::AcceptTradeRoute { country, from } => {
+                self.prepare_diplomacy(actor, *country, *from, 11)
+            }
+            Command::RejectTradeRoute { country, from } => {
+                self.prepare_diplomacy(actor, *country, *from, 12)
+            }
+            Command::CloseTradeRoute { country, other } => {
+                self.prepare_diplomacy(actor, *country, *other, 13)
             }
         }
     }
@@ -2939,7 +3472,7 @@ impl GameState {
         kind: u8,
     ) -> Result<PreparedCommand<'static>, CommandError> {
         self.authorized_polity(actor, country)?;
-        if matches!(kind, 0 | 1 | 4 | 6)
+        if matches!(kind, 0 | 1 | 4 | 6 | 10)
             && self
                 .diplomacy
                 .as_ref()
@@ -3085,6 +3618,52 @@ impl GameState {
                 }
                 DiplomacyAction::ReleaseVassal(country, other)
             }
+            10 => {
+                if diplomacy.is_some_and(|d| {
+                    d.trade_routes
+                        .contains(&crate::diplomacy::pair(country, other))
+                }) {
+                    return Err(CommandError::Diplomacy(DiplomacyError::TradeRouteExists));
+                }
+                if diplomacy.is_some_and(|d| {
+                    d.trade_route_offers.contains_key(&(country, other))
+                        || d.trade_route_offers.contains_key(&(other, country))
+                }) {
+                    return Err(CommandError::Diplomacy(DiplomacyError::OfferAlreadyPending));
+                }
+                if !self.trade_route_operational(country, other) {
+                    return Err(CommandError::Diplomacy(DiplomacyError::NoTradeRoute));
+                }
+                let expires = now
+                    .checked_add_days(30)
+                    .ok_or(CommandError::Diplomacy(DiplomacyError::DateOverflow))?;
+                DiplomacyAction::OfferTradeRoute(country, other, expires)
+            }
+            11 | 12 => {
+                if diplomacy
+                    .and_then(|d| d.trade_route_offer(other, country))
+                    .is_none_or(|offer| offer.expires_at <= now)
+                {
+                    return Err(CommandError::Diplomacy(DiplomacyError::NoOffer));
+                }
+                if kind == 11 {
+                    if !self.trade_route_operational(country, other) {
+                        return Err(CommandError::Diplomacy(DiplomacyError::NoTradeRoute));
+                    }
+                    DiplomacyAction::AcceptTradeRoute(other, country)
+                } else {
+                    DiplomacyAction::RejectTradeRoute(other, country)
+                }
+            }
+            13 => {
+                if !diplomacy.is_some_and(|d| {
+                    d.trade_routes
+                        .contains(&crate::diplomacy::pair(country, other))
+                }) {
+                    return Err(CommandError::Diplomacy(DiplomacyError::NoTradeRoute));
+                }
+                DiplomacyAction::CloseTradeRoute(country, other)
+            }
             _ => unreachable!("known diplomacy command"),
         };
         Ok(PreparedCommand::Diplomacy(action))
@@ -3097,6 +3676,40 @@ impl GameState {
         order: MilitaryOrder,
     ) -> Result<PreparedCommand<'static>, CommandError> {
         let polity = self.authorized_polity(actor, country)?;
+        if self.player_aristocrat_faction(actor, country).is_some() {
+            if let Some((war_id, war)) = self.war_state().and_then(|state| state.war_for(country)) {
+                if war.succession_country == Some(country) {
+                    let aristocrat = war
+                        .factions
+                        .iter()
+                        .find_map(|(&id, faction)| (!faction.country_backed).then_some(id));
+                    let commanded = match order {
+                        MilitaryOrder::Merge(a, b) => [Some(a), Some(b)],
+                        MilitaryOrder::Split(a, _)
+                        | MilitaryOrder::Move(a, _)
+                        | MilitaryOrder::Retreat(a, _) => [Some(a), None],
+                        _ => [None, None],
+                    };
+                    if matches!(
+                        order,
+                        MilitaryOrder::Raise(..)
+                            | MilitaryOrder::Declare(..)
+                            | MilitaryOrder::DeclareIndependence(..)
+                            | MilitaryOrder::Offer(..)
+                            | MilitaryOrder::Accept(..)
+                            | MilitaryOrder::CreateFaction(..)
+                            | MilitaryOrder::JoinFaction { .. }
+                    ) || commanded.into_iter().flatten().any(|id| {
+                        self.war_state()
+                            .and_then(|state| state.armies.get(&id))
+                            .is_none_or(|army| army.faction_override != aristocrat)
+                    }) {
+                        let _ = war_id;
+                        return Err(CommandError::War(WarError::NotWarParty));
+                    }
+                }
+            }
+        }
         if let Some(navy) = &self.navy {
             let armies = match order {
                 MilitaryOrder::Merge(a, b) => [Some(a), Some(b)],
@@ -3184,6 +3797,27 @@ impl GameState {
         ))
     }
 
+    fn player_aristocrat_faction(
+        &self,
+        actor: CommandActor,
+        country: CountryId,
+    ) -> Option<CountryId> {
+        let player = match actor {
+            CommandActor::Host(player) | CommandActor::Guest(player) => player,
+            CommandActor::Ai(_) => return None,
+        };
+        if self.countries.get(&country)?.controller != Controller::Human(player) {
+            return None;
+        }
+        let (_, war) = self.war_state()?.war_for(country)?;
+        if war.succession_country != Some(country) {
+            return None;
+        }
+        war.factions
+            .iter()
+            .find_map(|(&id, faction)| (!faction.country_backed).then_some(id))
+    }
+
     fn prepare_independence(
         &self,
         actor: CommandActor,
@@ -3230,6 +3864,7 @@ impl GameState {
         fleet_id: FleetId,
     ) -> Result<PreparedCommand<'static>, CommandError> {
         self.authorized_polity(actor, country)?;
+        let player_faction = self.player_aristocrat_faction(actor, country);
         let war = self
             .war_state()
             .ok_or(CommandError::Navy(NavyError::Unavailable))?;
@@ -3247,8 +3882,14 @@ impl GameState {
         if army.country != country || fleet.country != country {
             return Err(CommandError::Navy(NavyError::NotFleetOwner(fleet_id)));
         }
+        if player_faction.is_some() && army.faction_override != player_faction {
+            return Err(CommandError::War(WarError::NotWarParty));
+        }
         if army.movement.is_some() {
             return Err(CommandError::Navy(NavyError::ArmyInMotion(army_id)));
+        }
+        if army.recruitment_days_remaining > 0 {
+            return Err(CommandError::War(WarError::ArmyRecruiting(army_id)));
         }
         if fleet.movement.is_some() {
             return Err(CommandError::Navy(NavyError::FleetInMotion(fleet_id)));
@@ -3297,6 +3938,7 @@ impl GameState {
         destination: ProvinceId,
     ) -> Result<PreparedCommand<'static>, CommandError> {
         self.authorized_polity(actor, country)?;
+        let player_faction = self.player_aristocrat_faction(actor, country);
         let navy = self
             .navy()
             .ok_or(CommandError::Navy(NavyError::Unavailable))?;
@@ -3318,6 +3960,14 @@ impl GameState {
         let army_id = fleet
             .cargo
             .ok_or(CommandError::Navy(NavyError::NoCargo(fleet_id)))?;
+        if player_faction.is_some()
+            && self
+                .war_state()
+                .and_then(|war| war.armies.get(&army_id))
+                .is_none_or(|army| army.faction_override != player_faction)
+        {
+            return Err(CommandError::War(WarError::NotWarParty));
+        }
         let owner = self
             .owner_of_province(destination)
             .ok_or(CommandError::Navy(NavyError::InvalidPort(destination)))?;
@@ -3399,6 +4049,13 @@ impl GameState {
         if !authorized {
             return Err(CommandError::NotCountryController(country));
         }
+        if self
+            .polity()
+            .and_then(|polity| polity.countries.get(&country))
+            .is_some_and(|state| state.provinces.is_empty())
+        {
+            return Err(CommandError::CountryEliminated(country));
+        }
         Ok(())
     }
 
@@ -3433,11 +4090,32 @@ impl GameState {
         }
 
         self.activate_scheduled_effects(tick, &mut report);
+        self.complete_government_changes(tick, &mut report);
+        let current_date = self.time.date();
+        if let Some(diplomacy) = &mut self.diplomacy {
+            let expired = diplomacy.expire_trade_route_offers(current_date);
+            report
+                .delta
+                .changes
+                .extend(
+                    expired
+                        .into_iter()
+                        .map(|offer| StateChange::TradeRouteOfferRemoved {
+                            from: offer.from,
+                            toward: offer.toward,
+                        }),
+                );
+        }
 
         let ai_countries: Vec<_> = self
             .countries()
             .filter_map(|(country, state)| {
-                matches!(state.controller(), Controller::Ai(_)).then_some(country)
+                (matches!(state.controller(), Controller::Ai(_))
+                    && self
+                        .polity()
+                        .and_then(|polity| polity.countries.get(&country))
+                        .is_none_or(|nation| !nation.provinces.is_empty()))
+                .then_some(country)
             })
             .collect();
         for country in ai_countries {
@@ -3457,6 +4135,23 @@ impl GameState {
         } else {
             BTreeSet::new()
         };
+        let trade_income = if self.time.date().components().2 == 1 {
+            self.monthly_trade_income()
+        } else {
+            BTreeMap::new()
+        };
+        let rulers_before = self
+            .polity()
+            .map(|polity| {
+                polity
+                    .countries
+                    .iter()
+                    .filter_map(|(&country, state)| {
+                        state.succession.ruler.map(|ruler| (country, ruler))
+                    })
+                    .collect::<BTreeMap<_, _>>()
+            })
+            .unwrap_or_default();
         if let Some(polity) = &mut self.polity {
             let (changes, failures) = polity.advance(
                 previous_date,
@@ -3468,11 +4163,73 @@ impl GameState {
                     .diplomacy
                     .as_ref()
                     .map_or_else(BTreeMap::new, |state| state.vassals.clone()),
+                &trade_income,
+                &mut self.rng,
             );
             report.delta.changes.extend(changes);
             report.polity_failures = failures;
         }
+        self.start_succession_conflicts(&rulers_before, &mut report.delta.changes);
         if previous_date.components().1 != self.time.date().components().1 {
+            let political_points: Vec<_> = self
+                .polity()
+                .into_iter()
+                .flat_map(|polity| {
+                    polity.countries.iter().map(|(&country, state)| {
+                        let stats = state
+                            .succession
+                            .ruler
+                            .and_then(|ruler| polity.characters.get(&ruler))
+                            .filter(|ruler| ruler.is_alive_on(self.time.date()))
+                            .map_or(crate::CharacterStats::default(), |ruler| ruler.stats);
+                        (
+                            country,
+                            (
+                                state
+                                    .admin_points
+                                    .saturating_add(3 + u32::from(stats.adm))
+                                    .min(1000),
+                                state
+                                    .diplomatic_points
+                                    .saturating_add(3 + u32::from(stats.dip))
+                                    .min(1000),
+                                state
+                                    .military_points
+                                    .saturating_add(3 + u32::from(stats.mil))
+                                    .min(1000),
+                            ),
+                        )
+                    })
+                })
+                .collect();
+            if let Some(polity) = &mut self.polity {
+                for (country, (admin, diplomatic, military)) in political_points {
+                    let state = polity
+                        .countries
+                        .get_mut(&country)
+                        .expect("country captured");
+                    if (admin, diplomatic, military)
+                        != (
+                            state.admin_points,
+                            state.diplomatic_points,
+                            state.military_points,
+                        )
+                    {
+                        state.admin_points = admin;
+                        state.diplomatic_points = diplomatic;
+                        state.military_points = military;
+                        report
+                            .delta
+                            .changes
+                            .push(StateChange::PoliticalPointsChanged {
+                                country,
+                                admin,
+                                diplomatic,
+                                military,
+                            });
+                    }
+                }
+            }
             if let Some(technology) = &mut self.technology {
                 for (&country, points) in &mut technology.points {
                     let next = points.saturating_add(10).min(1000);
@@ -3485,6 +4242,93 @@ impl GameState {
                                 country,
                                 points: next,
                             });
+                    }
+                }
+            }
+        }
+        if self.time.date().components().2 == 1 {
+            let peaceful_countries = self
+                .countries
+                .keys()
+                .copied()
+                .filter(|country| {
+                    self.war_state
+                        .as_ref()
+                        .is_none_or(|military| military.war_for(*country).is_none())
+                })
+                .collect::<Vec<_>>();
+            if let Some(diplomacy) = &mut self.diplomacy {
+                for (country, points) in diplomacy.decay_aggressive_expansion(peaceful_countries) {
+                    report
+                        .delta
+                        .changes
+                        .push(StateChange::AggressiveExpansionChanged { country, points });
+                }
+            }
+            let exhausted: Vec<_> = self
+                .countries
+                .keys()
+                .copied()
+                .map(|country| {
+                    let at_war = self
+                        .war_state
+                        .as_ref()
+                        .is_some_and(|military| military.war_for(country).is_some());
+                    let value = self
+                        .polity()
+                        .and_then(|polity| polity.countries.get(&country))
+                        .map_or(0, |state| {
+                            if at_war {
+                                state.war_exhaustion.saturating_add(1).min(1000)
+                            } else {
+                                state.war_exhaustion.saturating_sub(1)
+                            }
+                        });
+                    (country, value)
+                })
+                .collect();
+            if let Some(polity) = &mut self.polity {
+                for (country, points) in exhausted {
+                    let state = polity.countries.get_mut(&country).expect("country exists");
+                    if state.war_exhaustion != points {
+                        state.war_exhaustion = points;
+                        report
+                            .delta
+                            .changes
+                            .push(StateChange::WarExhaustionChanged { country, points });
+                    }
+                }
+            }
+        }
+        if self.time.date().components().1 == 1 && self.time.date().components().2 == 1 {
+            let adverse: Vec<_> = self
+                .polity()
+                .into_iter()
+                .flat_map(|polity| {
+                    polity.countries.iter().filter_map(|(&country, state)| {
+                        let ae = self.diplomacy.as_ref().is_some_and(|diplomacy| {
+                            diplomacy.aggressive_expansion_of(country) >= 100
+                        });
+                        (state.economy.bankrupt
+                            || state.economy.policy.tax_rate.raw() > 500
+                            || state.war_exhaustion >= 10
+                            || ae)
+                            .then_some(country)
+                    })
+                })
+                .collect();
+            if let Some(polity) = &mut self.polity {
+                for country in adverse {
+                    let state = polity
+                        .countries
+                        .get_mut(&country)
+                        .expect("country captured");
+                    if state.stability > 0 {
+                        state.stability -= 1;
+                        report.delta.changes.push(StateChange::StabilityChanged {
+                            country,
+                            stability: state.stability,
+                        });
                     }
                 }
             }
@@ -3527,6 +4371,7 @@ impl GameState {
             }
         }
         self.advance_military(&mut report);
+        self.resolve_succession_wars(&mut report.delta.changes);
         let invalid_call_offers = self
             .diplomacy
             .as_ref()
@@ -3684,6 +4529,272 @@ impl GameState {
         Ok(report)
     }
 
+    fn start_succession_conflicts(
+        &mut self,
+        previous_rulers: &BTreeMap<CountryId, CharacterId>,
+        changes: &mut Vec<StateChange>,
+    ) {
+        let deceased_rulers: Vec<_> = changes
+            .iter()
+            .filter_map(|change| match change {
+                StateChange::CharacterDied { character, country }
+                    if previous_rulers.get(country) == Some(character) =>
+                {
+                    Some((*country, *character))
+                }
+                _ => None,
+            })
+            .collect();
+        for (country, deceased) in deceased_rulers {
+            let Some(polity) = self.polity.as_ref() else {
+                continue;
+            };
+            let Some(nation) = polity.countries.get(&country) else {
+                continue;
+            };
+            if nation.government != "monarchy" || nation.provinces.is_empty() {
+                continue;
+            }
+            let mut sons: Vec<_> = polity
+                .characters
+                .iter()
+                .filter_map(|(&id, person)| {
+                    (person.country == country
+                        && person.sex == Sex::Male
+                        && person.parents.contains(&Some(deceased))
+                        && person.is_alive_on(self.time.date()))
+                    .then_some((person.birth, id))
+                })
+                .collect();
+            sons.sort_unstable();
+            let eldest_son = sons.first().map(|(_, id)| *id);
+            let nominated = nation.succession.ruler;
+            let heir_dispute = eldest_son.is_some() && nominated != eldest_son;
+            let daughters: Vec<_> = polity
+                .characters
+                .iter()
+                .filter_map(|(&id, person)| {
+                    (person.country == country
+                        && person.sex == Sex::Female
+                        && person.parents.contains(&Some(deceased))
+                        && person.is_alive_on(self.time.date()))
+                    .then_some((id, person.spouse))
+                })
+                .collect();
+            let daughter_dispute = eldest_son.is_none();
+            if !heir_dispute && !daughter_dispute {
+                continue;
+            }
+
+            let name_index = (self.rng.next_u64() % polity.rules.male_names.len() as u64) as usize;
+            let leader_name = polity.rules.male_names[name_index].clone();
+            let dynasty = format!("House of {}", nation.name);
+            let capital = nation.capital;
+            let sponsors: Vec<_> = daughters
+                .iter()
+                .filter_map(|(daughter, spouse)| {
+                    let spouse = spouse.and_then(|spouse| polity.characters.get(&spouse))?;
+                    let sponsor = spouse.country;
+                    (sponsor != country
+                        && polity
+                            .countries
+                            .get(&sponsor)
+                            .is_some_and(|state| state.government == "monarchy"))
+                    .then_some((sponsor, *daughter))
+                })
+                .collect();
+            let claimant = eldest_son;
+            let Some(wars) = self.war_state.as_mut() else {
+                continue;
+            };
+            let Ok((war_id, aristocrats, mut war_changes)) = wars.begin_succession_conflict(
+                polity,
+                country,
+                capital,
+                self.time.tick(),
+                leader_name,
+                dynasty.clone(),
+            ) else {
+                continue;
+            };
+            if let Some(faction) = wars
+                .wars
+                .get_mut(&war_id)
+                .and_then(|war| war.factions.get_mut(&aristocrats))
+            {
+                faction.claimant = claimant;
+            }
+            for (sponsor, daughter) in sponsors {
+                if wars.war_for(sponsor).is_some() || wars.wars[&war_id].side(sponsor).is_some() {
+                    continue;
+                }
+                wars.wars
+                    .get_mut(&war_id)
+                    .expect("new succession war exists")
+                    .factions
+                    .insert(
+                        sponsor,
+                        WarFaction {
+                            members: BTreeSet::new(),
+                            name: None,
+                            dynasty: None,
+                            claimant: Some(daughter),
+                            country_backed: true,
+                        },
+                    );
+            }
+            if let Some(war) = wars.wars.get(&war_id) {
+                if let Some(change) = war_changes.iter_mut().find(|change| matches!(change, StateChange::WarChanged { war: id, .. } if *id == war_id)) {
+                    *change = StateChange::WarChanged { war: war_id, state: Some(war.clone()) };
+                }
+            }
+            changes.extend(war_changes);
+        }
+    }
+
+    fn resolve_succession_wars(&mut self, changes: &mut Vec<StateChange>) {
+        let Some(polity) = self.polity.as_ref() else {
+            return;
+        };
+        let Some(wars) = self.war_state.as_ref() else {
+            return;
+        };
+        let mut outcomes = Vec::new();
+        for (&war_id, war) in &wars.wars {
+            let Some(country) = war.succession_country else {
+                continue;
+            };
+            let Some(nation) = polity.countries.get(&country) else {
+                continue;
+            };
+            if nation.stability > 1 || nation.provinces.is_empty() {
+                continue;
+            }
+            let required = nation.provinces.len().saturating_mul(85).div_ceil(100);
+            let sides = std::iter::once(crate::WarSide::Attacker)
+                .chain(war.factions.keys().copied().map(crate::WarSide::Faction));
+            let winner = sides
+                .filter_map(|side| {
+                    let occupied = nation
+                        .provinces
+                        .iter()
+                        .filter(|province| {
+                            war.occupations
+                                .get(province)
+                                .is_some_and(|occupier| war.side(*occupier) == Some(side))
+                        })
+                        .count();
+                    (occupied >= required).then_some((side, occupied))
+                })
+                .max_by(|(side_a, occupied_a), (side_b, occupied_b)| {
+                    occupied_a
+                        .cmp(occupied_b)
+                        .then_with(|| war.side_leader(*side_b).cmp(&war.side_leader(*side_a)))
+                });
+            if let Some((side, _)) = winner {
+                let faction = match side {
+                    crate::WarSide::Faction(leader) => war.factions.get(&leader),
+                    _ => None,
+                };
+                outcomes.push((
+                    war_id,
+                    country,
+                    faction.and_then(|faction| faction.claimant),
+                    faction.and_then(|faction| faction.name.clone()),
+                    faction.and_then(|faction| faction.dynasty.clone()),
+                    matches!(side, crate::WarSide::Faction(leader)
+                        if war.factions.get(&leader).is_some_and(|faction| !faction.country_backed)),
+                ));
+            }
+        }
+        for (war_id, country, claimant, leader_name, dynasty, aristocrat_won) in outcomes {
+            let Some(wars) = self.war_state.as_mut() else {
+                continue;
+            };
+            let cleared = wars.clear_faction_overrides(war_id);
+            for (army, state) in cleared {
+                changes.push(StateChange::ArmyChanged {
+                    army,
+                    state: Some(state),
+                });
+            }
+            wars.wars.remove(&war_id);
+            wars.sieges.retain(|_, siege| siege.war != war_id);
+            changes.push(StateChange::WarChanged {
+                war: war_id,
+                state: None,
+            });
+
+            let new_ruler = if let Some(claimant) = claimant {
+                Some(claimant)
+            } else if aristocrat_won {
+                let Some(polity) = self.polity.as_mut() else {
+                    continue;
+                };
+                let Some(next_id) = polity
+                    .characters
+                    .keys()
+                    .map(|id| id.get())
+                    .max()
+                    .unwrap_or(0)
+                    .checked_add(1)
+                else {
+                    continue;
+                };
+                let date = self.time.date();
+                let (year, month, day) = date.components();
+                let birth = Date::new(year.saturating_sub(25).max(1), month, day).unwrap_or(date);
+                let name = leader_name.unwrap_or_else(|| "Aristocratic claimant".to_owned());
+                let house = dynasty
+                    .unwrap_or_else(|| format!("House of {}", polity.countries[&country].name));
+                let character = CharacterId::new(next_id);
+                polity.characters.insert(
+                    character,
+                    CharacterState {
+                        name,
+                        country,
+                        dynasty: house,
+                        sex: Sex::Male,
+                        spouse: None,
+                        parents: [None, None],
+                        married_at: None,
+                        birth,
+                        birth_precision: crate::BirthPrecision::Day,
+                        death: None,
+                        stats: crate::CharacterStats {
+                            adm: (self.rng.next_u64() % 6) as u8,
+                            dip: (self.rng.next_u64() % 6) as u8,
+                            mil: (self.rng.next_u64() % 6) as u8,
+                        },
+                        traits: BTreeSet::new(),
+                        modifiers: ModifierStore::default(),
+                    },
+                );
+                changes.push(StateChange::CharacterAdded { character, country });
+                Some(character)
+            } else {
+                None
+            };
+            if let Some(ruler) = new_ruler {
+                if let Some(nation) = self
+                    .polity
+                    .as_mut()
+                    .and_then(|polity| polity.countries.get_mut(&country))
+                {
+                    nation.succession = SuccessionState {
+                        ruler: Some(ruler),
+                        heir: None,
+                    };
+                    changes.push(StateChange::SuccessionChanged {
+                        country,
+                        succession: nation.succession,
+                        regency: false,
+                    });
+                }
+            }
+        }
+    }
+
     fn advance_military(&mut self, report: &mut TickReport) {
         let Some(war) = self.war_state() else { return };
         if war.armies.is_empty() {
@@ -3722,8 +4833,54 @@ impl GameState {
             .collect();
         let (changes, failures) = war.advance(&self.province_graph, polity, &bonuses);
         war.armies.extend(embarked);
+        let defeated: BTreeSet<_> = changes
+            .iter()
+            .flat_map(|change| match change {
+                StateChange::BattleResolved { loser, .. } => vec![*loser],
+                StateChange::MultiSideBattleResolved {
+                    war: war_id,
+                    losers,
+                    ..
+                } => {
+                    let succession_country = war
+                        .wars
+                        .get(war_id)
+                        .and_then(|state| state.succession_country);
+                    losers
+                        .iter()
+                        .map(|(country, _)| {
+                            let internal_claimant = war
+                                .wars
+                                .get(war_id)
+                                .and_then(|state| state.factions.get(country))
+                                .is_some_and(|faction| !faction.country_backed);
+                            if internal_claimant {
+                                succession_country.unwrap_or(*country)
+                            } else {
+                                *country
+                            }
+                        })
+                        .collect()
+                }
+                _ => Vec::new(),
+            })
+            .collect();
         report.delta.changes.extend(changes);
         report.military_failures = failures;
+        if let Some(polity) = &mut self.polity {
+            for country in defeated {
+                if let Some(state) = polity.countries.get_mut(&country) {
+                    state.war_exhaustion = state.war_exhaustion.saturating_add(1).min(1000);
+                    report
+                        .delta
+                        .changes
+                        .push(StateChange::WarExhaustionChanged {
+                            country,
+                            points: state.war_exhaustion,
+                        });
+                }
+            }
+        }
     }
 
     fn activate_scheduled_effects(&mut self, tick: Tick, report: &mut TickReport) {
@@ -3754,4 +4911,147 @@ impl GameState {
             }
         }
     }
+
+    fn complete_government_changes(&mut self, tick: Tick, report: &mut TickReport) {
+        let due: Vec<_> = self
+            .reforms
+            .as_ref()
+            .into_iter()
+            .flat_map(|reforms| reforms.pending_government_changes.iter())
+            .filter_map(|(&country, pending)| {
+                (pending.completes_at <= tick).then_some((
+                    country,
+                    pending.target.clone(),
+                    pending.monarch.clone(),
+                ))
+            })
+            .collect();
+
+        for (country, target, monarch) in due {
+            let Some(previous) = self
+                .polity
+                .as_ref()
+                .and_then(|polity| polity.countries.get(&country))
+                .map(|country| country.government.clone())
+            else {
+                continue;
+            };
+            let removals: Vec<_> = self
+                .reforms
+                .as_ref()
+                .into_iter()
+                .flat_map(|reforms| reforms.sources.iter())
+                .filter_map(|(&(owner, ref key), &source)| {
+                    let definition = self.reforms.as_ref()?.definitions.get(key)?;
+                    (owner == country && definition.government == previous).then_some((
+                        key.clone(),
+                        definition.tier,
+                        source,
+                    ))
+                })
+                .collect();
+
+            for (key, tier, source) in removals {
+                if let Some(reforms) = &mut self.reforms {
+                    reforms.sources.remove(&(country, key.clone()));
+                    if reforms.choices.get(&(country, tier)) == Some(&key) {
+                        reforms.choices.remove(&(country, tier));
+                    }
+                }
+                if self
+                    .countries
+                    .get_mut(&country)
+                    .is_some_and(|state| state.modifiers.remove_source(source))
+                {
+                    report
+                        .delta
+                        .changes
+                        .push(StateChange::ModifierSourceRemoved { country, source });
+                }
+                report
+                    .delta
+                    .changes
+                    .push(StateChange::ReformRemoved { country, key, tier });
+            }
+
+            if let Some(polity) = &mut self.polity {
+                if let Some(state) = polity.countries.get_mut(&country) {
+                    state.government = target.clone();
+                }
+                if let Some(monarch) = monarch {
+                    if target == "monarchy" {
+                        let next_id = polity
+                            .characters
+                            .keys()
+                            .map(|id| id.get())
+                            .max()
+                            .unwrap_or(0)
+                            .checked_add(1)
+                            .map(CharacterId::new);
+                        if let Some(character) = next_id {
+                            let date = self.time.date();
+                            let birth = date_years_before(date, 18).unwrap_or(date);
+                            polity.characters.insert(
+                                character,
+                                CharacterState {
+                                    name: monarch.name.trim().to_owned(),
+                                    country,
+                                    dynasty: monarch.dynasty.trim().to_owned(),
+                                    sex: monarch.sex,
+                                    spouse: None,
+                                    parents: [None, None],
+                                    married_at: None,
+                                    birth,
+                                    birth_precision: crate::BirthPrecision::Day,
+                                    death: None,
+                                    stats: crate::CharacterStats {
+                                        adm: 3,
+                                        dip: 3,
+                                        mil: 3,
+                                    },
+                                    traits: Default::default(),
+                                    modifiers: ModifierStore::default(),
+                                },
+                            );
+                            if let Some(state) = polity.countries.get_mut(&country) {
+                                state.succession = SuccessionState {
+                                    ruler: Some(character),
+                                    heir: None,
+                                };
+                            }
+                            report
+                                .delta
+                                .changes
+                                .push(StateChange::CharacterAdded { character, country });
+                            report.delta.changes.push(StateChange::SuccessionChanged {
+                                country,
+                                succession: SuccessionState {
+                                    ruler: Some(character),
+                                    heir: None,
+                                },
+                                regency: false,
+                            });
+                        }
+                    }
+                }
+            }
+            if let Some(reforms) = &mut self.reforms {
+                reforms.pending_government_changes.remove(&country);
+            }
+            report.delta.changes.push(StateChange::GovernmentChanged {
+                country,
+                previous,
+                current: target,
+            });
+        }
+    }
+}
+
+fn date_years_before(date: Date, years: u32) -> Option<Date> {
+    let (year, month, day) = date.components();
+    let year = year.checked_sub(years)?;
+    (1..=31)
+        .rev()
+        .take_while(|candidate| *candidate >= day)
+        .find_map(|candidate| Date::new(year, month, candidate).ok())
 }

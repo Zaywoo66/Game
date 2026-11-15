@@ -15,7 +15,7 @@ use strategy_ai::{
 use strategy_app::{
     embedded_technologies,
     lan::{ClientPhase, HostConfig, LanClient, LanHost, LanMetrics},
-    load_embedded_scenario, tick_host_with_log, AiDecisionLog,
+    load_embedded_modern_scenario, tick_host_with_log, AiDecisionLog,
 };
 use strategy_net::discover_rooms;
 use strategy_sim::{
@@ -65,7 +65,9 @@ pub(crate) struct LanStatus {
     room: Option<String>,
     address: Option<String>,
     guest_connected: bool,
+    host_country_id: Option<u32>,
     guest_country_id: Option<u32>,
+    started: bool,
     can_takeover: bool,
     temporary_ai: bool,
     verified_checksums: u64,
@@ -98,6 +100,7 @@ struct CharacterView {
     age: u32,
     sex: &'static str,
     spouse_id: Option<u32>,
+    parents: Vec<u32>,
     adm: u8,
     dip: u8,
     mil: u8,
@@ -113,6 +116,7 @@ struct CountryView {
     color: String,
     capital_id: u32,
     capital: String,
+    eliminated: bool,
     treasury: String,
     income: String,
     tribute_paid: String,
@@ -124,10 +128,18 @@ struct CountryView {
     regency: bool,
     ruler: Option<CharacterView>,
     heir: Option<CharacterView>,
+    family: Vec<CharacterView>,
     research_points: Option<u32>,
     known_technologies: Vec<String>,
     known_ideas: Vec<String>,
     government: String,
+    government_options: Vec<String>,
+    government_change_pending: bool,
+    stability: u8,
+    admin_points: u32,
+    diplomatic_points: u32,
+    military_points: u32,
+    war_exhaustion: u32,
     known_reforms: Vec<String>,
     chosen_reform_tiers: Vec<u16>,
 }
@@ -220,9 +232,11 @@ struct OwnerView {
 struct ArmyView {
     id: u32,
     country_id: u32,
+    faction_override: Option<u32>,
     province_id: u32,
     soldiers: u32,
     morale: i64,
+    recruitment_days_remaining: u16,
     to_province_id: Option<u32>,
     progress: i64,
     embarked_on: Option<u32>,
@@ -258,13 +272,25 @@ struct WarView {
     id: u32,
     attacker_id: u32,
     defender_id: u32,
+    succession_country_id: Option<u32>,
     attacker_supporters: Vec<u32>,
     defender_supporters: Vec<u32>,
+    factions: Vec<WarFactionView>,
     goal_province_id: u32,
     independence: bool,
     score: i32,
     occupations: Vec<OwnerView>,
     offer: Option<PeaceView>,
+}
+
+#[derive(Clone, PartialEq, Eq, Serialize)]
+struct WarFactionView {
+    id: u32,
+    members: Vec<u32>,
+    name: Option<String>,
+    dynasty: Option<String>,
+    claimant_id: Option<u32>,
+    country_backed: bool,
 }
 
 #[derive(Clone, PartialEq, Eq, Serialize)]
@@ -340,6 +366,20 @@ struct VassalOfferView {
 }
 
 #[derive(Clone, PartialEq, Eq, Serialize)]
+struct TradeRouteView {
+    a_id: u32,
+    b_id: u32,
+    operational: bool,
+}
+
+#[derive(Clone, PartialEq, Eq, Serialize)]
+struct TradeRouteOfferView {
+    from_id: u32,
+    toward_id: u32,
+    expires_at: String,
+}
+
+#[derive(Clone, PartialEq, Eq, Serialize)]
 struct CallToArmsOfferView {
     war_id: u32,
     from_id: u32,
@@ -381,6 +421,8 @@ pub(crate) struct Snapshot {
     blockaded_ports: Vec<u32>,
     vassals: Vec<VassalView>,
     vassal_offers: Vec<VassalOfferView>,
+    trade_routes: Vec<TradeRouteView>,
+    trade_route_offers: Vec<TradeRouteOfferView>,
     call_to_arms_offers: Vec<CallToArmsOfferView>,
     armies: Vec<ArmyView>,
     fleets: Vec<FleetView>,
@@ -397,6 +439,7 @@ struct Update {
     sequence: u64,
     generation: u64,
     clock: ClockView,
+    local_country_id: Option<u32>,
     countries: Vec<CountryView>,
     acceptance_previews: Vec<CountryAcceptancePreviewView>,
     pending_events: Option<Vec<EventView>>,
@@ -410,6 +453,8 @@ struct Update {
     blockaded_ports: Vec<u32>,
     vassals: Vec<VassalView>,
     vassal_offers: Vec<VassalOfferView>,
+    trade_routes: Vec<TradeRouteView>,
+    trade_route_offers: Vec<TradeRouteOfferView>,
     call_to_arms_offers: Vec<CallToArmsOfferView>,
     owners: Vec<OwnerView>,
     armies: Vec<ArmyView>,
@@ -447,6 +492,13 @@ pub(crate) enum UiCommand {
         country_id: u32,
         tax_rate: i64,
         monthly_spending: String,
+    },
+    IncreaseStability {
+        country_id: u32,
+    },
+    NominateHeir {
+        country_id: u32,
+        character_id: Option<u32>,
     },
     RaiseArmy {
         country_id: u32,
@@ -510,6 +562,21 @@ pub(crate) enum UiCommand {
         country_id: u32,
         war_id: u32,
     },
+    CreateWarFaction {
+        country_id: u32,
+        war_id: u32,
+    },
+    JoinWarFaction {
+        country_id: u32,
+        war_id: u32,
+        leader_id: u32,
+    },
+    RenameWarFaction {
+        country_id: u32,
+        war_id: u32,
+        name: String,
+        dynasty: String,
+    },
     AcceptCallToArms {
         country_id: u32,
         war_id: u32,
@@ -566,6 +633,13 @@ pub(crate) enum UiCommand {
         country_id: u32,
         key: String,
     },
+    ChangeGovernment {
+        country_id: u32,
+        target: String,
+        monarch_name: Option<String>,
+        dynasty: Option<String>,
+        monarch_sex: Option<String>,
+    },
     ChooseEvent {
         country_id: u32,
         key: String,
@@ -595,6 +669,22 @@ pub(crate) enum UiCommand {
         country_id: u32,
         subject_id: u32,
     },
+    OfferTradeRoute {
+        country_id: u32,
+        toward_id: u32,
+    },
+    AcceptTradeRoute {
+        country_id: u32,
+        from_id: u32,
+    },
+    RejectTradeRoute {
+        country_id: u32,
+        from_id: u32,
+    },
+    CloseTradeRoute {
+        country_id: u32,
+        other_id: u32,
+    },
 }
 
 impl UiCommand {
@@ -618,6 +708,16 @@ impl UiCommand {
                             .map_err(|_| "Spending is outside the allowed numeric range.")?,
                     ),
                 },
+            },
+            Self::IncreaseStability { country_id } => Command::IncreaseStability {
+                country: CountryId::new(country_id),
+            },
+            Self::NominateHeir {
+                country_id,
+                character_id,
+            } => Command::NominateHeir {
+                country: CountryId::new(country_id),
+                heir: character_id.map(strategy_sim::CharacterId::new),
             },
             Self::RaiseArmy {
                 country_id,
@@ -725,6 +825,30 @@ impl UiCommand {
                 country: CountryId::new(country_id),
                 war: WarId::new(war_id),
             },
+            Self::CreateWarFaction { country_id, war_id } => Command::CreateWarFaction {
+                country: CountryId::new(country_id),
+                war: WarId::new(war_id),
+            },
+            Self::JoinWarFaction {
+                country_id,
+                war_id,
+                leader_id,
+            } => Command::JoinWarFaction {
+                country: CountryId::new(country_id),
+                war: WarId::new(war_id),
+                leader: CountryId::new(leader_id),
+            },
+            Self::RenameWarFaction {
+                country_id,
+                war_id,
+                name,
+                dynasty,
+            } => Command::RenameWarFaction {
+                country: CountryId::new(country_id),
+                war: WarId::new(war_id),
+                name,
+                dynasty,
+            },
             Self::AcceptCallToArms {
                 country_id,
                 war_id,
@@ -816,6 +940,28 @@ impl UiCommand {
                 country: CountryId::new(country_id),
                 key,
             },
+            Self::ChangeGovernment {
+                country_id,
+                target,
+                monarch_name,
+                dynasty,
+                monarch_sex,
+            } => Command::ChangeGovernment {
+                country: CountryId::new(country_id),
+                target,
+                monarch: match (monarch_name, dynasty, monarch_sex) {
+                    (Some(name), Some(dynasty), Some(sex)) => Some(strategy_sim::NewMonarch {
+                        name,
+                        dynasty,
+                        sex: match sex.as_str() {
+                            "male" => strategy_sim::Sex::Male,
+                            "female" => strategy_sim::Sex::Female,
+                            _ => strategy_sim::Sex::Unknown,
+                        },
+                    }),
+                    _ => None,
+                },
+            },
             Self::ChooseEvent {
                 country_id,
                 key,
@@ -867,6 +1013,34 @@ impl UiCommand {
                 country: CountryId::new(country_id),
                 subject: CountryId::new(subject_id),
             },
+            Self::OfferTradeRoute {
+                country_id,
+                toward_id,
+            } => Command::OfferTradeRoute {
+                country: CountryId::new(country_id),
+                toward: CountryId::new(toward_id),
+            },
+            Self::AcceptTradeRoute {
+                country_id,
+                from_id,
+            } => Command::AcceptTradeRoute {
+                country: CountryId::new(country_id),
+                from: CountryId::new(from_id),
+            },
+            Self::RejectTradeRoute {
+                country_id,
+                from_id,
+            } => Command::RejectTradeRoute {
+                country: CountryId::new(country_id),
+                from: CountryId::new(from_id),
+            },
+            Self::CloseTradeRoute {
+                country_id,
+                other_id,
+            } => Command::CloseTradeRoute {
+                country: CountryId::new(country_id),
+                other: CountryId::new(other_id),
+            },
         })
     }
 }
@@ -893,7 +1067,7 @@ pub(crate) fn setup(app: &mut App) -> Result<(), Box<dyn std::error::Error>> {
         log: Mutex::new(lan_log),
     });
     app.manage(Arc::clone(&lifecycle));
-    let game = load_embedded_scenario().map_err(std::io::Error::other)?;
+    let game = load_embedded_modern_scenario().map_err(std::io::Error::other)?;
     let visible_countries = country_views(&game);
     let visible_events = event_views(&game, HOST);
     let visible_owners = owner_views(&game);
@@ -1052,6 +1226,8 @@ pub(crate) fn game_snapshot(state: State<'_, Mutex<Session>>) -> Result<Snapshot
             .collect(),
         vassals: vassal_views(&session.game),
         vassal_offers: vassal_offer_views(&session.game),
+        trade_routes: trade_route_views(&session.game),
+        trade_route_offers: trade_route_offer_views(&session.game),
         call_to_arms_offers: call_to_arms_offer_views(&session.game),
         armies: session.military.armies.values().cloned().collect(),
         fleets: session.military.fleets.values().cloned().collect(),
@@ -1136,7 +1312,7 @@ pub(crate) async fn lan_start(
         return Err("Enter a TCP port from 1 to 65535.".into());
     }
     let operation = begin_operation(&state)?;
-    let host = Arc::new(LanHost::start(config, load_embedded_scenario()?).await?);
+    let host = Arc::new(LanHost::start(config, load_embedded_modern_scenario()?).await?);
     let view = host.view();
     let mut session = state
         .lock()
@@ -1147,6 +1323,59 @@ pub(crate) async fn lan_start(
     session.mode = Mode::Host(host);
     reset_game(&mut session, &view.game, view.sequence);
     start_lan_log(&session, "host");
+    Ok(emit_lan_status(&app, &mut session))
+}
+
+#[tauri::command]
+pub(crate) async fn lan_claim_country(
+    app: AppHandle,
+    state: State<'_, Mutex<Session>>,
+    country_id: u32,
+) -> Result<LanStatus, String> {
+    let guest_claim = {
+        let session = state
+            .lock()
+            .map_err(|_| "The game session is unavailable.")?;
+        match &session.mode {
+            Mode::Host(host) => {
+                host.select_country(HOST, country_id)?;
+                None
+            }
+            Mode::Guest(client) => {
+                let tag = session
+                    .game
+                    .country_polity(CountryId::new(country_id))
+                    .ok_or("Choose a playable country.")?
+                    .tag
+                    .clone();
+                Some((Arc::clone(client), tag))
+            }
+            Mode::Solo => return Err("Create or join a room before choosing a country.".into()),
+        }
+    };
+    if let Some((client, tag)) = guest_claim {
+        client.claim_country(tag).await?;
+    }
+    let mut session = state
+        .lock()
+        .map_err(|_| "The game session is unavailable.")?;
+    refresh_network_game(&app, &mut session);
+    Ok(emit_lan_status(&app, &mut session))
+}
+
+#[tauri::command]
+pub(crate) fn lan_start_campaign(
+    app: AppHandle,
+    state: State<'_, Mutex<Session>>,
+) -> Result<LanStatus, String> {
+    let mut session = state
+        .lock()
+        .map_err(|_| "The game session is unavailable.")?;
+    let Mode::Host(host) = session.mode.clone() else {
+        return Err("Only the room host can start the campaign.".into());
+    };
+    host.start_campaign()?;
+    refresh_network_game(&app, &mut session);
     Ok(emit_lan_status(&app, &mut session))
 }
 
@@ -1162,7 +1391,7 @@ pub(crate) async fn lan_join(
         .parse()
         .map_err(|_| "Enter the host's IP address and port, for example 192.168.1.10:47620.")?;
     let operation = begin_operation(&state)?;
-    let graph = load_embedded_scenario()?.province_graph().clone();
+    let graph = load_embedded_modern_scenario()?.province_graph().clone();
     let client = Arc::new(LanClient::join(address, name, graph).await?);
     let view = client.subscribe().borrow().clone();
     let mut session = state
@@ -1183,7 +1412,7 @@ pub(crate) fn lan_leave(
     app: AppHandle,
     state: State<'_, Mutex<Session>>,
 ) -> Result<LanStatus, String> {
-    let game = load_embedded_scenario()?;
+    let game = load_embedded_modern_scenario()?;
     let mut session = state
         .lock()
         .map_err(|_| "The game session is unavailable.")?;
@@ -1412,7 +1641,9 @@ fn status(session: &Session) -> LanStatus {
         room: None,
         address: None,
         guest_connected: false,
+        host_country_id: None,
         guest_country_id: None,
+        started: false,
         can_takeover: false,
         temporary_ai: false,
         verified_checksums: 0,
@@ -1429,7 +1660,9 @@ fn status(session: &Session) -> LanStatus {
             status.room = Some(view.room);
             status.address = Some(view.address.to_string());
             status.guest_connected = view.guest_connected;
-            status.guest_country_id = Some(view.guest_country_id);
+            status.host_country_id = (view.host_country_id != 0).then_some(view.host_country_id);
+            status.guest_country_id = (view.guest_country_id != 0).then_some(view.guest_country_id);
+            status.started = view.started;
             status.can_takeover = view.can_takeover;
             status.temporary_ai = view.temporary_ai;
             status.detail = view.detail;
@@ -1445,12 +1678,13 @@ fn status(session: &Session) -> LanStatus {
             status.room = Some(view.room);
             status.address = Some(view.address.to_string());
             status.guest_connected = view.phase == ClientPhase::Connected;
-            status.guest_country_id = view.game.polity().and_then(|polity| {
-                polity
-                    .countries
-                    .iter()
-                    .find_map(|(id, country)| (country.tag == view.guest_tag).then_some(id.get()))
+            status.host_country_id = view.game.countries().find_map(|(id, country)| {
+                (country.controller() == &Controller::Human(HOST)).then_some(id.get())
             });
+            status.guest_country_id = view.game.countries().find_map(|(id, country)| {
+                (country.controller() == &Controller::Human(GUEST)).then_some(id.get())
+            });
+            status.started = view.started;
             status.verified_checksums = view.verified_checksums;
             status.checksum_mismatches = view.checksum_mismatches;
             status.detail = view.detail;
@@ -1494,6 +1728,10 @@ fn publish(app: &AppHandle, session: &mut Session) {
         sequence: session.sequence,
         generation: session.generation,
         clock: clock_view(&session.game),
+        local_country_id: session.game.countries().find_map(|(id, country)| {
+            (country.controller() == &Controller::Human(local_player(&session.mode)))
+                .then_some(id.get())
+        }),
         countries: changed_rows(&session.visible_countries, &countries),
         acceptance_previews: acceptance_preview_views(
             &session.game,
@@ -1521,6 +1759,8 @@ fn publish(app: &AppHandle, session: &mut Session) {
             .collect(),
         vassals: vassal_views(&session.game),
         vassal_offers: vassal_offer_views(&session.game),
+        trade_routes: trade_route_views(&session.game),
+        trade_route_offers: trade_route_offer_views(&session.game),
         call_to_arms_offers: call_to_arms_offer_views(&session.game),
         owners: owners
             .iter()
@@ -1699,6 +1939,30 @@ fn vassal_offer_views(game: &GameState) -> Vec<VassalOfferView> {
         .collect()
 }
 
+fn trade_route_views(game: &GameState) -> Vec<TradeRouteView> {
+    game.diplomacy()
+        .into_iter()
+        .flat_map(|d| &d.trade_routes)
+        .map(|&(a, b)| TradeRouteView {
+            a_id: a.get(),
+            b_id: b.get(),
+            operational: game.trade_route_operational(a, b),
+        })
+        .collect()
+}
+
+fn trade_route_offer_views(game: &GameState) -> Vec<TradeRouteOfferView> {
+    game.diplomacy()
+        .into_iter()
+        .flat_map(|d| &d.trade_route_offers)
+        .map(|(&(from, toward), &expires)| TradeRouteOfferView {
+            from_id: from.get(),
+            toward_id: toward.get(),
+            expires_at: format_date(expires),
+        })
+        .collect()
+}
+
 fn call_to_arms_offer_views(game: &GameState) -> Vec<CallToArmsOfferView> {
     game.diplomacy()
         .into_iter()
@@ -1711,6 +1975,7 @@ fn call_to_arms_offer_views(game: &GameState) -> Vec<CallToArmsOfferView> {
                 side: match side {
                     strategy_sim::WarSide::Attacker => "attacker",
                     strategy_sim::WarSide::Defender => "defender",
+                    strategy_sim::WarSide::Faction(_) => "claimant",
                 }
                 .to_owned(),
                 expires_at: format_date(expires_at),
@@ -1774,9 +2039,11 @@ fn military_view(game: &GameState) -> MilitaryView {
                     ArmyView {
                         id: id.get(),
                         country_id: army.country.get(),
+                        faction_override: army.faction_override.map(|faction| faction.get()),
                         province_id: army.province.get(),
                         soldiers: army.soldiers,
                         morale: army.morale.raw(),
+                        recruitment_days_remaining: army.recruitment_days_remaining,
                         to_province_id: movement
                             .and_then(|movement| movement.route.first())
                             .map(|leg| leg.to.get()),
@@ -1800,6 +2067,7 @@ fn military_view(game: &GameState) -> MilitaryView {
                         id: id.get(),
                         attacker_id: war.attacker.get(),
                         defender_id: war.defender.get(),
+                        succession_country_id: war.succession_country.map(|country| country.get()),
                         attacker_supporters: war
                             .attacker_supporters
                             .iter()
@@ -1809,6 +2077,22 @@ fn military_view(game: &GameState) -> MilitaryView {
                             .defender_supporters
                             .iter()
                             .map(|id| id.get())
+                            .collect(),
+                        factions: war
+                            .factions
+                            .iter()
+                            .map(|(&id, faction)| WarFactionView {
+                                id: id.get(),
+                                members: faction
+                                    .members
+                                    .iter()
+                                    .map(|member| member.get())
+                                    .collect(),
+                                name: faction.name.clone(),
+                                dynasty: faction.dynasty.clone(),
+                                claimant_id: faction.claimant.map(|claimant| claimant.get()),
+                                country_backed: faction.country_backed,
+                            })
                             .collect(),
                         goal_province_id: war.goal.get(),
                         independence: war.independence,
@@ -1914,6 +2198,12 @@ fn country_views(game: &GameState) -> BTreeMap<u32, CountryView> {
                         strategy_sim::Sex::Unknown => "unknown",
                     },
                     spouse_id: character.spouse.map(|spouse| spouse.get()),
+                    parents: character
+                        .parents
+                        .iter()
+                        .flatten()
+                        .map(|parent| parent.get())
+                        .collect(),
                     adm: character.stats.adm,
                     dip: character.stats.dip,
                     mil: character.stats.mil,
@@ -1938,6 +2228,7 @@ fn country_views(game: &GameState) -> BTreeMap<u32, CountryView> {
                         .province_graph()
                         .get(country.capital)
                         .map_or_else(String::new, |province| province.key.replace('_', " ")),
+                    eliminated: country.provinces.is_empty(),
                     treasury: money(economy.treasury),
                     income: money(
                         economy
@@ -1965,6 +2256,14 @@ fn country_views(game: &GameState) -> BTreeMap<u32, CountryView> {
                     regency: game.is_in_regency(id).unwrap_or_default(),
                     ruler: country.succession.ruler.and_then(character_view),
                     heir: country.succession.heir.and_then(character_view),
+                    family: polity
+                        .characters
+                        .iter()
+                        .filter(|(_, person)| {
+                            person.country == id && person.parents.iter().any(Option::is_some)
+                        })
+                        .filter_map(|(&character_id, _)| character_view(character_id))
+                        .collect(),
                     research_points: game.research_points(id),
                     known_technologies: game
                         .country(id)
@@ -1978,6 +2277,15 @@ fn country_views(game: &GameState) -> BTreeMap<u32, CountryView> {
                         .map(|(_, key)| key.clone())
                         .collect(),
                     government: country.government.clone(),
+                    government_options: country.government_options.iter().cloned().collect(),
+                    government_change_pending: game.reforms().is_some_and(|reforms| {
+                        reforms.pending_government_changes.contains_key(&id)
+                    }),
+                    stability: country.stability,
+                    admin_points: country.admin_points,
+                    diplomatic_points: country.diplomatic_points,
+                    military_points: country.military_points,
+                    war_exhaustion: country.war_exhaustion,
                     known_reforms: game
                         .reforms()
                         .into_iter()
@@ -2371,10 +2679,10 @@ mod tests {
         assert_eq!(nodes.len(), game.technologies().unwrap().definitions.len());
         let military = nodes
             .iter()
-            .find(|node| node.key == "professional_officers")
+            .find(|node| node.key == "professional_forces")
             .unwrap();
-        assert_eq!((military.pos_x, military.pos_y), (1, 0));
-        assert_eq!(military.requires, ["recordkeeping"]);
+        assert_eq!((military.pos_x, military.pos_y), (0, 0));
+        assert!(military.requires.is_empty());
         assert_eq!(military.effects.len(), 1);
         assert_eq!(military.effects[0].source_key, military.key);
         assert_eq!(military.effects[0].value, "50");

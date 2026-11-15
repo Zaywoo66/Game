@@ -1,6 +1,6 @@
 use std::collections::{BTreeMap, BTreeSet};
 
-use crate::{CharacterId, CountryId, Date, ModifierStore, StateChange};
+use crate::{CharacterId, CountryId, Date, ModifierStore, SeededRng, StateChange};
 
 use super::{CountryPolity, PolityState};
 
@@ -34,6 +34,8 @@ pub struct CharacterState {
     pub dynasty: String,
     pub sex: Sex,
     pub spouse: Option<CharacterId>,
+    pub parents: [Option<CharacterId>; 2],
+    pub married_at: Option<Date>,
     pub birth: Date,
     pub birth_precision: BirthPrecision,
     pub death: Option<Date>,
@@ -71,6 +73,13 @@ pub struct SuccessionState {
 }
 
 impl PolityState {
+    pub(crate) fn are_siblings(&self, a: CharacterId, b: CharacterId) -> bool {
+        self.characters
+            .get(&a)
+            .zip(self.characters.get(&b))
+            .is_some_and(|(a, b)| is_sibling_pair(a, b))
+    }
+
     pub(crate) fn character_is_available(
         &self,
         country: CountryId,
@@ -121,7 +130,12 @@ impl PolityState {
         project(&self.characters, country, state.succession, date)
     }
 
-    pub(super) fn advance_characters(&mut self, previous: Date, date: Date) -> Vec<StateChange> {
+    pub(super) fn advance_characters(
+        &mut self,
+        previous: Date,
+        date: Date,
+        rng: &mut SeededRng,
+    ) -> Vec<StateChange> {
         let mut changes = Vec::new();
         let ended: BTreeSet<_> = self
             .characters
@@ -136,9 +150,11 @@ impl PolityState {
         for (a, b) in ended {
             if let Some(state) = self.characters.get_mut(&a) {
                 state.spouse = None;
+                state.married_at = None;
             }
             if let Some(state) = self.characters.get_mut(&b) {
                 state.spouse = None;
+                state.married_at = None;
             }
             changes.push(StateChange::MarriageChanged {
                 a,
@@ -178,8 +194,172 @@ impl PolityState {
                 });
             }
         }
+        self.advance_births(date, rng, &mut changes);
         changes
     }
+
+    fn advance_births(&mut self, date: Date, rng: &mut SeededRng, changes: &mut Vec<StateChange>) {
+        let couples: Vec<_> = self
+            .characters
+            .iter()
+            .filter_map(|(&id, person)| {
+                let spouse = person.spouse?;
+                let married_at = person.married_at?;
+                (id < spouse).then_some((id, spouse, married_at))
+            })
+            .collect();
+        for (first_id, second_id, married_at) in couples {
+            let royal_marriage = [first_id, second_id].into_iter().any(|character| {
+                self.characters.get(&character).is_some_and(|person| {
+                    self.countries.get(&person.country).is_some_and(|nation| {
+                        nation.government == "monarchy"
+                            && (nation.succession.ruler == Some(character)
+                                || nation.succession.heir == Some(character))
+                    })
+                })
+            });
+            if !royal_marriage {
+                continue;
+            }
+            if child_due(married_at, date).is_none() {
+                continue;
+            }
+            let Some(first) = self.characters.get(&first_id).cloned() else {
+                continue;
+            };
+            let Some(second) = self.characters.get(&second_id).cloned() else {
+                continue;
+            };
+            if !first.is_alive_on(date) || !second.is_alive_on(date) {
+                continue;
+            }
+            let children = self
+                .characters
+                .values()
+                .filter(|child| {
+                    child.parents.contains(&Some(first_id))
+                        || child.parents.contains(&Some(second_id))
+                })
+                .count();
+            if children >= 3 {
+                continue;
+            }
+            let Some(next_id) = self
+                .characters
+                .keys()
+                .map(|id| id.get())
+                .max()
+                .unwrap_or(0)
+                .checked_add(1)
+            else {
+                continue;
+            };
+            let sex = if rng.next_u64() & 1 == 0 {
+                Sex::Male
+            } else {
+                Sex::Female
+            };
+            let names = if sex == Sex::Male {
+                &self.rules.male_names
+            } else {
+                &self.rules.female_names
+            };
+            let name = names[(rng.next_u64() % names.len() as u64) as usize].clone();
+            let mut stats = CharacterStats {
+                adm: (rng.next_u64() % 6) as u8,
+                dip: (rng.next_u64() % 6) as u8,
+                mil: (rng.next_u64() % 6) as u8,
+            };
+            if is_sibling_pair(&first, &second) && rng.next_u64() & 1 == 0 {
+                stats.adm = stats.adm.saturating_sub(1);
+                stats.dip = stats.dip.saturating_sub(1);
+                stats.mil = stats.mil.saturating_sub(1);
+            }
+            let id = CharacterId::new(next_id);
+            let royal_parent = |person: &CharacterState| {
+                self.countries.get(&person.country).is_some_and(|nation| {
+                    nation.succession.ruler == Some(first_id)
+                        || nation.succession.heir == Some(first_id)
+                })
+            };
+            let child_country = if royal_parent(&first) {
+                first.country
+            } else if self.countries.get(&second.country).is_some_and(|nation| {
+                nation.succession.ruler == Some(second_id)
+                    || nation.succession.heir == Some(second_id)
+            }) {
+                second.country
+            } else {
+                first.country
+            };
+            let dynasty = if first.sex == Sex::Male {
+                first.dynasty
+            } else {
+                second.dynasty
+            };
+            let country = child_country;
+            self.characters.insert(
+                id,
+                CharacterState {
+                    name,
+                    country,
+                    dynasty,
+                    sex,
+                    spouse: None,
+                    parents: [Some(first_id), Some(second_id)],
+                    married_at: None,
+                    birth: date,
+                    birth_precision: BirthPrecision::Day,
+                    death: None,
+                    stats,
+                    traits: BTreeSet::new(),
+                    modifiers: ModifierStore::default(),
+                },
+            );
+            changes.push(StateChange::CharacterAdded {
+                character: id,
+                country,
+            });
+            if sex == Sex::Male {
+                if let Some(nation) = self.countries.get_mut(&country) {
+                    if nation.succession.heir.is_none() {
+                        nation.succession.heir = Some(id);
+                        changes.push(StateChange::SuccessionChanged {
+                            country,
+                            succession: nation.succession,
+                            regency: false,
+                        });
+                    }
+                }
+            }
+        }
+    }
+}
+
+fn is_sibling_pair(a: &CharacterState, b: &CharacterState) -> bool {
+    let mut a_parents = a.parents;
+    let mut b_parents = b.parents;
+    a_parents.sort();
+    b_parents.sort();
+    a.country == b.country && a_parents == b_parents && a_parents.iter().all(Option::is_some)
+}
+
+fn child_due(married_at: Date, date: Date) -> Option<u8> {
+    let first = married_at.checked_add_months(5)?;
+    if date < first {
+        return None;
+    }
+    let mut due = first;
+    let mut ordinal = 1;
+    while ordinal < 3 {
+        let next = due.checked_add_months(12)?;
+        if next > date {
+            break;
+        }
+        due = next;
+        ordinal += 1;
+    }
+    (date == due).then_some(ordinal)
 }
 
 fn available(

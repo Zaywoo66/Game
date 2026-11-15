@@ -12,6 +12,8 @@ fn main() {
         session::lan_discover,
         session::lan_start,
         session::lan_join,
+        session::lan_claim_country,
+        session::lan_start_campaign,
         session::lan_leave,
         session::lan_takeover
     ]);

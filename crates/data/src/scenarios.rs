@@ -200,6 +200,8 @@ struct CountryFile {
     schema_version: u32,
     tag: String,
     government: String,
+    #[serde(default)]
+    government_options: BTreeSet<String>,
     name: String,
     color: [u8; 3],
     capital: String,
@@ -216,6 +218,20 @@ struct CountryStart {
     treasury: i64,
     tax_rate: i64,
     monthly_spending: i64,
+    #[serde(default = "default_stability")]
+    stability: u8,
+    #[serde(default)]
+    admin_points: u32,
+    #[serde(default)]
+    diplomatic_points: u32,
+    #[serde(default)]
+    military_points: u32,
+    #[serde(default)]
+    war_exhaustion: u32,
+}
+
+fn default_stability() -> u8 {
+    1
 }
 
 #[derive(Deserialize)]
@@ -228,6 +244,8 @@ struct CharacterFile {
     dynasty: String,
     sex: CharacterSexFile,
     spouse: Option<String>,
+    #[serde(default)]
+    parents: Vec<String>,
     birth: DateFields,
     #[serde(default)]
     birth_precision: BirthPrecisionFile,
@@ -303,22 +321,42 @@ pub fn load_scenario(graph: ProvinceGraph, scenario_path: impl AsRef<Path>) -> R
     }
     let idea_dir = root.join("ideas");
     if idea_dir.is_dir() {
-        let definitions = crate::load_ideas_from_dir(&idea_dir)
+        let active_tags: BTreeSet<_> = state
+            .countries()
+            .filter_map(|(country, _)| state.country_polity(country))
+            .map(|polity| polity.tag.as_str())
+            .collect();
+        let definitions: BTreeMap<_, _> = crate::load_ideas_from_dir(&idea_dir)
             .map_err(|error| invalid(error.to_string()))?
             .into_iter()
+            .filter(|(_, definition)| {
+                definition.country == "common" || active_tags.contains(definition.country.as_str())
+            })
             .map(|(key, definition)| (key, definition.into()))
             .collect();
-        state = state
-            .with_ideas(definitions)
-            .map_err(|error| invalid(format!("invalid idea catalog: {error:?}")))?;
+        if !definitions.is_empty() {
+            state = state
+                .with_ideas(definitions)
+                .map_err(|error| invalid(format!("invalid idea catalog: {error:?}")))?;
+        }
     }
     let reform_path = root.join("reforms/governments.yaml");
     if reform_path.is_file() {
-        let definitions =
-            crate::load_reforms(&reform_path).map_err(|error| invalid(error.to_string()))?;
-        state = state
-            .with_reforms(definitions)
-            .map_err(|error| invalid(format!("invalid reform catalog: {error:?}")))?;
+        let governments: BTreeSet<_> = state
+            .countries()
+            .filter_map(|(country, _)| state.country_polity(country))
+            .map(|polity| polity.government.as_str())
+            .collect();
+        let definitions: BTreeMap<_, _> = crate::load_reforms(&reform_path)
+            .map_err(|error| invalid(error.to_string()))?
+            .into_iter()
+            .filter(|(_, definition)| governments.contains(definition.government.as_str()))
+            .collect();
+        if !definitions.is_empty() {
+            state = state
+                .with_reforms(definitions)
+                .map_err(|error| invalid(format!("invalid reform catalog: {error:?}")))?;
+        }
     }
     Ok(state)
 }
@@ -414,6 +452,26 @@ pub fn load_scenario_from_reader(
                 .ok_or_else(|| invalid(format!("{path}: unknown spouse {spouse_key}")))?;
             spouses.insert(id, spouse);
         }
+        let parents = file
+            .parents
+            .iter()
+            .map(|parent| {
+                characters
+                    .get(parent.as_str())
+                    .copied()
+                    .ok_or_else(|| invalid(format!("{path}: unknown parent {parent}")))
+            })
+            .collect::<Result<Vec<_>>>()?;
+        if parents.len() > 2
+            || parents
+                .iter()
+                .any(|parent| parents.iter().filter(|other| *other == parent).count() > 1)
+        {
+            return Err(invalid(format!(
+                "{path}: parents must contain zero, one or two distinct character keys"
+            )));
+        }
+        let parent_ids = [parents.first().copied(), parents.get(1).copied()];
 
         let mut modifier_store = ModifierStore::default();
         let mut trait_keys = BTreeSet::new();
@@ -441,6 +499,8 @@ pub fn load_scenario_from_reader(
                     CharacterSexFile::Female => strategy_sim::Sex::Female,
                 },
                 spouse: None,
+                parents: parent_ids,
+                married_at: None,
                 birth,
                 birth_precision: match file.birth_precision {
                     BirthPrecisionFile::Day => strategy_sim::BirthPrecision::Day,
@@ -556,6 +616,7 @@ pub fn load_scenario_from_reader(
             CountryPolity {
                 tag: file.tag,
                 government: file.government,
+                government_options: file.government_options,
                 name: file.name,
                 color: file.color,
                 capital,
@@ -570,6 +631,11 @@ pub fn load_scenario_from_reader(
                     bankrupt: false,
                 },
                 succession: SuccessionState { ruler, heir },
+                admin_points: file.start.admin_points,
+                diplomatic_points: file.start.diplomatic_points,
+                military_points: file.start.military_points,
+                stability: file.start.stability,
+                war_exhaustion: file.start.war_exhaustion,
                 ai_profile: profile_key,
             },
         );

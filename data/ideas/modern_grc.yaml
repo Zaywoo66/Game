@@ -1,0 +1,18 @@
+schema_version: 1
+country: modern_grc
+ideas:
+  - key: byzantine_thematic_armies
+    name: byzantine_thematic_armies
+    unlock: {country_has_tech: professional_forces}
+    modifiers:
+      - {key: army_morale, value: 100, kind: additive}
+  - key: byzantine_greek_fire
+    name: byzantine_greek_fire
+    unlock: {country_has_tech: combined_arms}
+    modifiers:
+      - {key: army_combat, value: 100, kind: multiplicative}
+  - key: byzantine_orthodox_diplomacy
+    name: byzantine_orthodox_diplomacy
+    unlock: {country_has_tech: digital_government}
+    modifiers:
+      - {key: tax_income, value: 75, kind: multiplicative}

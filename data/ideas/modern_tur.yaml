@@ -1,0 +1,18 @@
+schema_version: 1
+country: modern_tur
+ideas:
+  - key: turkey_janissaries
+    name: turkey_janissaries
+    unlock: {country_has_tech: professional_forces}
+    modifiers:
+      - {key: army_combat, value: 125, kind: multiplicative}
+  - key: turkey_millet_administration
+    name: turkey_millet_administration
+    unlock: {country_has_tech: public_services}
+    modifiers:
+      - {key: tax_income, value: 75, kind: multiplicative}
+  - key: turkey_timar_system
+    name: turkey_timar_system
+    unlock: {country_has_tech: financial_regulation}
+    modifiers:
+      - {key: army_morale, value: 75, kind: additive}

@@ -1,0 +1,18 @@
+schema_version: 1
+country: modern_deu
+ideas:
+  - key: germany_bismarckian_alliances
+    name: germany_bismarckian_alliances
+    unlock: {country_has_tech: digital_government}
+    modifiers:
+      - {key: tax_income, value: 100, kind: multiplicative}
+  - key: germany_prussian_militarism
+    name: germany_prussian_militarism
+    unlock: {country_has_tech: professional_forces}
+    modifiers:
+      - {key: army_combat, value: 100, kind: multiplicative}
+  - key: germany_weltpolitik
+    name: germany_weltpolitik
+    unlock: {country_has_tech: global_supply_networks}
+    modifiers:
+      - {key: army_combat, value: 50, kind: multiplicative}

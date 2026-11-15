@@ -2,7 +2,8 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use crate::{
     province_graph::is_content_key, AiProfileKey, CharacterId, Controller, CountryId, CountryState,
-    Date, Fixed, ModKey, ModifierSourceId, ProvinceGraph, ProvinceId, ProvinceKind, StateChange,
+    Date, Fixed, ModKey, ModifierSourceId, ProvinceGraph, ProvinceId, ProvinceKind, SeededRng,
+    StateChange,
 };
 
 mod economy;
@@ -15,6 +16,8 @@ pub use succession::{BirthPrecision, CharacterState, CharacterStats, Sex, Succes
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct PolityRules {
     pub adulthood_years: u16,
+    pub male_names: Vec<String>,
+    pub female_names: Vec<String>,
     pub base_taxable_development_per_province: u32,
     pub tax_per_development: Fixed,
     pub max_tax_rate: Fixed,
@@ -78,6 +81,8 @@ pub struct FiscalAiProfile {
 pub struct CountryPolity {
     pub tag: String,
     pub government: String,
+    /// Data-listed government types this country may adopt through a transition.
+    pub government_options: BTreeSet<String>,
     pub name: String,
     pub color: [u8; 3],
     pub capital: ProvinceId,
@@ -85,6 +90,11 @@ pub struct CountryPolity {
     pub ai_profile: AiProfileKey,
     pub economy: EconomyState,
     pub succession: SuccessionState,
+    pub admin_points: u32,
+    pub diplomatic_points: u32,
+    pub military_points: u32,
+    pub stability: u8,
+    pub war_exhaustion: u32,
 }
 
 /// Scenario inputs and authoritative country data. GameState exposes this read-only.
@@ -103,6 +113,7 @@ pub enum PolityError {
     MissingCountry(CountryId),
     UnknownCountry(CountryId),
     DuplicateTag(String),
+    InvalidGovernmentOptions(CountryId),
     InvalidCapital {
         country: CountryId,
         capital: ProvinceId,
@@ -122,6 +133,10 @@ pub enum PolityError {
     },
     InvalidCharacterDates(CharacterId),
     InvalidSpouse(CharacterId),
+    InvalidParent {
+        character: CharacterId,
+        parent: CharacterId,
+    },
     TimedTrait {
         character: CharacterId,
         source: ModifierSourceId,
@@ -135,12 +150,20 @@ pub enum PolityError {
         heir: CharacterId,
     },
     InvalidFiscalPolicy(CountryId),
+    InvalidStability(CountryId),
     InvalidEconomy(CountryId),
     InvalidProfile(String),
     UnknownProfile {
         country: CountryId,
         profile: String,
     },
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum StabilityError {
+    InsufficientAdminPoints { available: u32 },
+    AlreadyAtMaximum,
+    RebellionActive,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -157,6 +180,14 @@ impl PolityState {
         date: Date,
     ) -> Result<(), PolityError> {
         if self.rules.adulthood_years == 0
+            || self.rules.male_names.is_empty()
+            || self.rules.female_names.is_empty()
+            || self
+                .rules
+                .male_names
+                .iter()
+                .chain(&self.rules.female_names)
+                .any(|name| name.trim().is_empty() || name.chars().any(char::is_control))
             || self.rules.tax_per_development < Fixed::ZERO
             || self.rules.max_tax_rate < Fixed::ZERO
             || self.rules.max_monthly_spending < Fixed::ZERO
@@ -199,14 +230,59 @@ impl PolityState {
             if state.death.is_some_and(|death| death <= state.birth) {
                 return Err(PolityError::InvalidCharacterDates(character));
             }
+            if state.parents.iter().flatten().any(|parent| {
+                *parent == character
+                    || self
+                        .characters
+                        .get(parent)
+                        .is_none_or(|parent_state| parent_state.birth >= state.birth)
+            }) {
+                let parent = state
+                    .parents
+                    .iter()
+                    .flatten()
+                    .copied()
+                    .find(|parent| {
+                        *parent == character
+                            || self
+                                .characters
+                                .get(parent)
+                                .is_none_or(|parent_state| parent_state.birth >= state.birth)
+                    })
+                    .expect("invalid parent was found");
+                return Err(PolityError::InvalidParent { character, parent });
+            }
+            if state.married_at.is_some_and(|married_at| married_at > date) {
+                return Err(PolityError::InvalidSpouse(character));
+            }
+            if state.spouse.is_none() && state.married_at.is_some() {
+                return Err(PolityError::InvalidSpouse(character));
+            }
             if let Some(spouse) = state.spouse {
                 let partner = self
                     .characters
                     .get(&spouse)
                     .ok_or(PolityError::InvalidSpouse(character))?;
+                let sibling_marriage = partner.country == state.country
+                    && self.are_siblings(character, spouse)
+                    && self
+                        .countries
+                        .get(&state.country)
+                        .is_some_and(|nation| nation.government == "monarchy");
+                let starting_consort_pair = partner.country == state.country
+                    && state.married_at.is_none()
+                    && self.countries.get(&state.country).is_some_and(|nation| {
+                        nation.succession.ruler == Some(character)
+                            || nation.succession.heir == Some(character)
+                            || nation.succession.ruler == Some(spouse)
+                            || nation.succession.heir == Some(spouse)
+                    });
                 if spouse == character
                     || partner.spouse != Some(character)
-                    || partner.country == state.country
+                    || partner.married_at != state.married_at
+                    || (partner.country == state.country
+                        && !sibling_marriage
+                        && !starting_consort_pair)
                     || state.sex == Sex::Unknown
                     || partner.sex == Sex::Unknown
                     || partner.sex == state.sex
@@ -241,7 +317,16 @@ impl PolityState {
             if !tags.insert(&state.tag) {
                 return Err(PolityError::DuplicateTag(state.tag.clone()));
             }
-            if !state.provinces.contains(&state.capital) {
+            if !state.government_options.is_empty()
+                && (!state.government_options.contains(&state.government)
+                    || state.government_options.iter().any(|government| {
+                        !["monarchy", "democracy", "nationalism", "communism"]
+                            .contains(&government.as_str())
+                    }))
+            {
+                return Err(PolityError::InvalidGovernmentOptions(country));
+            }
+            if !state.provinces.is_empty() && !state.provinces.contains(&state.capital) {
                 return Err(PolityError::InvalidCapital {
                     country,
                     capital: state.capital,
@@ -272,6 +357,13 @@ impl PolityState {
             if !state.economy.is_valid(&self.rules) {
                 return Err(PolityError::InvalidEconomy(country));
             }
+            if state.stability > 3
+                || state.admin_points > 1000
+                || state.diplomatic_points > 1000
+                || state.military_points > 1000
+            {
+                return Err(PolityError::InvalidStability(country));
+            }
             if let Some(ruler) = state.succession.ruler {
                 if !self.character_is_available(country, ruler, date) {
                     return Err(PolityError::InvalidRuler { country, ruler });
@@ -301,6 +393,10 @@ impl PolityState {
         }
     }
 
+    #[expect(
+        clippy::too_many_arguments,
+        reason = "monthly simulation inputs stay explicit and deterministic"
+    )]
     pub(crate) fn advance(
         &mut self,
         previous_date: Date,
@@ -309,8 +405,10 @@ impl PolityState {
         blockaded_ports: &BTreeSet<ProvinceId>,
         base_countries: &BTreeMap<CountryId, CountryState>,
         vassals: &BTreeMap<CountryId, CountryId>,
+        trade_income: &BTreeMap<CountryId, Fixed>,
+        rng: &mut SeededRng,
     ) -> (Vec<StateChange>, Vec<PolityTickFailure>) {
-        let mut changes = self.advance_characters(previous_date, date);
+        let mut changes = self.advance_characters(previous_date, date, rng);
         let mut failures = Vec::new();
         if date.components().2 != 1 {
             return (changes, failures);
@@ -379,6 +477,7 @@ impl PolityState {
                     paid: paid.get(&country).copied().unwrap_or(Fixed::ZERO),
                     received: received.get(&country).copied().unwrap_or(Fixed::ZERO),
                 },
+                trade_income.get(&country).copied().unwrap_or(Fixed::ZERO),
             ) {
                 Ok(economy) => {
                     computed.insert(country, economy);
@@ -416,6 +515,7 @@ impl PolityState {
         policy: FiscalPolicy,
         base_countries: &BTreeMap<CountryId, CountryState>,
         vassals: &BTreeMap<CountryId, CountryId>,
+        trade_income: Fixed,
     ) -> Result<EconomyState, FiscalError> {
         let state = &self.countries[&country];
         let modifiers = base_countries[&country].modifiers();
@@ -469,6 +569,7 @@ impl PolityState {
             ruler_traits,
             policy,
             Tribute { paid, received },
+            trade_income,
         )
     }
 }

@@ -80,6 +80,8 @@ struct CountryFile {
     tag: String,
     #[serde(default, skip_serializing_if = "String::is_empty")]
     government: String,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    government_options: Vec<String>,
     name: String,
     color: [u8; 3],
     capital: u32,
@@ -87,6 +89,20 @@ struct CountryFile {
     ai_profile: String,
     economy: EconomyFile,
     succession: SuccessionFile,
+    #[serde(default)]
+    admin_points: u32,
+    #[serde(default)]
+    diplomatic_points: u32,
+    #[serde(default)]
+    military_points: u32,
+    #[serde(default = "default_stability")]
+    stability: u8,
+    #[serde(default)]
+    war_exhaustion: u32,
+}
+
+fn default_stability() -> u8 {
+    1
 }
 
 impl CountryFile {
@@ -95,6 +111,7 @@ impl CountryFile {
             id: id.get(),
             tag: country.tag.clone(),
             government: country.government.clone(),
+            government_options: country.government_options.iter().cloned().collect(),
             name: country.name.clone(),
             color: country.color,
             capital: country.capital.get(),
@@ -105,16 +122,29 @@ impl CountryFile {
                 ruler: country.succession.ruler.map(CharacterId::get),
                 heir: country.succession.heir.map(CharacterId::get),
             },
+            admin_points: country.admin_points,
+            diplomatic_points: country.diplomatic_points,
+            military_points: country.military_points,
+            stability: country.stability,
+            war_exhaustion: country.war_exhaustion,
         }
     }
 
     fn restore(self) -> Result<(CountryId, CountryPolity), SaveError> {
         require_sorted(&self.provinces, "country provinces", |id| *id)?;
+        if self
+            .government_options
+            .windows(2)
+            .any(|pair| pair[0] >= pair[1])
+        {
+            return Err(SaveError::UnorderedRecords("government options"));
+        }
         Ok((
             CountryId::new(self.id),
             CountryPolity {
                 tag: self.tag,
                 government: self.government,
+                government_options: self.government_options.into_iter().collect(),
                 name: self.name,
                 color: self.color,
                 capital: ProvinceId::new(self.capital),
@@ -125,6 +155,11 @@ impl CountryFile {
                     ruler: self.succession.ruler.map(CharacterId::new),
                     heir: self.succession.heir.map(CharacterId::new),
                 },
+                admin_points: self.admin_points,
+                diplomatic_points: self.diplomatic_points,
+                military_points: self.military_points,
+                stability: self.stability,
+                war_exhaustion: self.war_exhaustion,
             },
         ))
     }
@@ -221,6 +256,10 @@ struct CharacterFile {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     spouse: Option<u32>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    parents: Option<[Option<u32>; 2]>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    married_at: Option<(u32, u8, u8)>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     birth_precision: Option<BirthPrecisionFile>,
     birth: (u32, u8, u8),
     #[serde(deserialize_with = "required_optional")]
@@ -257,6 +296,12 @@ impl CharacterFile {
                 strategy_sim::Sex::Female => Some(CharacterSexFile::Female),
             },
             spouse: character.spouse.map(CharacterId::get),
+            parents: character
+                .parents
+                .iter()
+                .any(Option::is_some)
+                .then_some(character.parents.map(|parent| parent.map(CharacterId::get))),
+            married_at: character.married_at.map(Date::components),
             birth_precision: (character.birth_precision == strategy_sim::BirthPrecision::Year)
                 .then_some(BirthPrecisionFile::Year),
             birth: character.birth.components(),
@@ -284,6 +329,11 @@ impl CharacterFile {
                     Some(CharacterSexFile::Female) => strategy_sim::Sex::Female,
                 },
                 spouse: self.spouse.map(CharacterId::new),
+                parents: self
+                    .parents
+                    .unwrap_or([None, None])
+                    .map(|parent| parent.map(CharacterId::new)),
+                married_at: self.married_at.map(date).transpose()?,
                 birth: date(self.birth)?,
                 birth_precision: match self.birth_precision {
                     None => strategy_sim::BirthPrecision::Day,

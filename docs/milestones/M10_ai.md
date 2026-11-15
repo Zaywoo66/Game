@@ -32,6 +32,12 @@ multi-seed soak or remaining L4 acceptance.
 - AI never bypasses validation; every decision has a reason code
 - Determinism test with AI passes (state hash identical across runs and save/load)
 
+Aggressive-expansion counters are stored in diplomacy state and decay by one
+point on each monthly tick for countries at peace; active belligerents retain
+their points. Save schema v19 and LAN protocol v17 carry the counter. Sources
+that add AE and AI decisions about sanctions remain unimplemented and require
+their own rules and tests.
+
 Fast AI unit and command-validation tests run in ordinary CI. The 101-year
 single-seed replay, three-seed 10-year smoke and 100-year/five-seed soak are
 opt-in release or AI-balance checks; see GIT_WORKFLOW.md. Do not rerun them for

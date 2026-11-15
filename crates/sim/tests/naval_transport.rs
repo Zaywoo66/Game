@@ -88,6 +88,7 @@ fn setup_with_enemy(ships: u32, enemy_at_port: bool) -> GameState {
     let nation = |tag: &str, capital: u32, provinces: &[u32]| CountryPolity {
         tag: tag.into(),
         government: "monarchy".into(),
+        government_options: BTreeSet::new(),
         name: tag.into(),
         color: [0, 0, 0],
         capital: ProvinceId::new(capital),
@@ -98,10 +99,17 @@ fn setup_with_enemy(ships: u32, enemy_at_port: bool) -> GameState {
             ..EconomyState::default()
         },
         succession: SuccessionState::default(),
+        admin_points: 0,
+        diplomatic_points: 0,
+        military_points: 0,
+        stability: 1,
+        war_exhaustion: 0,
     };
     let polity = PolityState {
         rules: PolityRules {
             adulthood_years: 18,
+            male_names: vec!["Alex".to_owned()],
+            female_names: vec!["Alexandra".to_owned()],
             base_taxable_development_per_province: 1,
             tax_per_development: Fixed::ONE,
             max_tax_rate: Fixed::ONE,
@@ -152,9 +160,11 @@ fn setup_with_enemy(ships: u32, enemy_at_port: bool) -> GameState {
         ARMY,
         Army {
             country: A,
+            faction_override: None,
             province: ProvinceId::new(1),
             soldiers: 1000,
             morale: Fixed::ONE,
+            recruitment_days_remaining: 0,
             movement: None,
         },
     );
@@ -162,9 +172,11 @@ fn setup_with_enemy(ships: u32, enemy_at_port: bool) -> GameState {
         ArmyId::new(2),
         Army {
             country: B,
+            faction_override: None,
             province: ProvinceId::new(2),
             soldiers: 500,
             morale: Fixed::ONE,
+            recruitment_days_remaining: 0,
             movement: None,
         },
     );

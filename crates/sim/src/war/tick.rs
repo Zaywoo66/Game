@@ -38,6 +38,9 @@ impl WarState {
         }
         self.resolve_battles(graph, polity, bonuses, &mut changes, &mut failures);
         self.advance_sieges(polity);
+        for army in self.armies.values_mut() {
+            army.recruitment_days_remaining = army.recruitment_days_remaining.saturating_sub(1);
+        }
 
         for &id in old_armies
             .keys()
@@ -88,6 +91,9 @@ impl WarState {
 
     fn move_armies(&mut self) {
         for army in self.armies.values_mut() {
+            if army.recruitment_days_remaining > 0 {
+                continue;
+            }
             let Some(movement) = &mut army.movement else {
                 continue;
             };
@@ -107,8 +113,11 @@ impl WarState {
     fn apply_supply(&mut self, graph: &ProvinceGraph) {
         let mut remaining = BTreeMap::new();
         self.armies.retain(|_, army| {
+            if army.recruitment_days_remaining > 0 {
+                return true;
+            }
             let capacity = remaining
-                .entry((army.country, army.province))
+                .entry((army.country, army.faction_override, army.province))
                 .or_insert_with(|| {
                     let development = graph
                         .get(army.province)
@@ -134,80 +143,201 @@ impl WarState {
     ) {
         let wars: Vec<_> = self.wars.keys().copied().collect();
         for war_id in wars {
-            let mut locations: BTreeMap<ProvinceId, (Vec<ArmyId>, Vec<ArmyId>)> = BTreeMap::new();
             let war = self.wars.get(&war_id).expect("active war exists").clone();
+            let mut sides_by_location =
+                BTreeMap::<ProvinceId, BTreeMap<super::WarSide, Vec<ArmyId>>>::new();
             for (&id, army) in &self.armies {
-                match war.side(army.country) {
-                    Some(super::WarSide::Attacker) => {
-                        locations.entry(army.province).or_default().0.push(id);
-                    }
-                    Some(super::WarSide::Defender) => {
-                        locations.entry(army.province).or_default().1.push(id);
-                    }
-                    None => {}
+                if army.recruitment_days_remaining > 0 {
+                    continue;
+                }
+                if let Some(side) = war.side_for_army(army) {
+                    sides_by_location
+                        .entry(army.province)
+                        .or_default()
+                        .entry(side)
+                        .or_default()
+                        .push(id);
                 }
             }
-            for (province, (attackers, defenders)) in locations {
-                if attackers.is_empty() || defenders.is_empty() {
+            for (province, sides) in sides_by_location {
+                if sides.len() < 2 {
                     continue;
                 }
-                let attack = self.strength(&attackers, bonuses);
-                let defense = self.strength(&defenders, bonuses);
-                if attack.is_none() {
-                    failures.extend(attackers.iter().map(|id| self.armies[id].country));
-                }
-                if defense.is_none() {
-                    failures.extend(defenders.iter().map(|id| self.armies[id].country));
-                }
-                let (Some(attack), Some(defense)) = (attack, defense) else {
-                    continue;
-                };
-                // The defending war party wins ties.
-                let (won, lost) = if attack > defense {
-                    (attackers, defenders)
+                if war.factions.is_empty() {
+                    let mut iterator = sides.into_iter();
+                    let (first_side, first_ids) = iterator.next().expect("two sides checked");
+                    let (second_side, second_ids) = iterator.next().expect("two sides checked");
+                    self.resolve_binary_battle(
+                        graph,
+                        polity,
+                        bonuses,
+                        war_id,
+                        province,
+                        first_side,
+                        first_ids,
+                        second_side,
+                        second_ids,
+                        changes,
+                        failures,
+                    );
                 } else {
-                    (defenders, attackers)
-                };
-                let winner = self.armies[&won[0]].country;
-                let loser = self.armies[&lost[0]].country;
-                let winner_casualties =
-                    self.apply_battle_losses(&won, self.rules.winner_casualty_rate, false);
-                let mut loser_casualties =
-                    self.apply_battle_losses(&lost, self.rules.loser_casualty_rate, true);
-                for id in lost {
-                    let Some(army) = self.armies.get(&id) else {
-                        continue;
-                    };
-                    let retreat = graph
-                        .neighbors(army.province)
-                        .into_iter()
-                        .flatten()
-                        .find(|edge| {
-                            self.can_retreat(polity, graph, army.country, army.province, edge.to)
-                        })
-                        .map(|edge| edge.to);
-                    if let Some(destination) = retreat {
-                        let army = self.armies.get_mut(&id).expect("losing army exists");
-                        army.province = destination;
-                        army.movement = None;
-                    } else if let Some(disbanded) = self.armies.remove(&id) {
-                        loser_casualties += u64::from(disbanded.soldiers);
-                    }
+                    self.resolve_multiside_battle(
+                        graph, polity, bonuses, war_id, province, sides, changes, failures,
+                    );
                 }
-                let war = self
-                    .wars
-                    .get_mut(&war_id)
-                    .expect("active battle war exists");
-                add_score(war, winner, self.rules.battle_score);
-                changes.push(StateChange::BattleResolved {
-                    war: war_id,
-                    province,
-                    winner,
-                    loser,
-                    winner_casualties,
-                    loser_casualties,
-                });
             }
+        }
+    }
+
+    #[expect(
+        clippy::too_many_arguments,
+        reason = "combat inputs mirror the deterministic tick state"
+    )]
+    fn resolve_binary_battle(
+        &mut self,
+        graph: &ProvinceGraph,
+        polity: &PolityState,
+        bonuses: &BTreeMap<CountryId, MilitaryBonuses>,
+        war_id: crate::WarId,
+        province: ProvinceId,
+        first_side: super::WarSide,
+        first_ids: Vec<ArmyId>,
+        second_side: super::WarSide,
+        second_ids: Vec<ArmyId>,
+        changes: &mut Vec<StateChange>,
+        failures: &mut BTreeSet<CountryId>,
+    ) {
+        let first_strength = self.strength(&first_ids, bonuses);
+        let second_strength = self.strength(&second_ids, bonuses);
+        if first_strength.is_none() {
+            failures.extend(first_ids.iter().map(|id| self.armies[id].country));
+        }
+        if second_strength.is_none() {
+            failures.extend(second_ids.iter().map(|id| self.armies[id].country));
+        }
+        let (Some(first_strength), Some(second_strength)) = (first_strength, second_strength)
+        else {
+            return;
+        };
+        // Preserve the established binary rule: defenders win ties.
+        let (winner_side, winners, losers) = if first_strength > second_strength {
+            (first_side, first_ids, second_ids)
+        } else {
+            (second_side, second_ids, first_ids)
+        };
+        let winner = self.wars[&war_id].side_leader(winner_side);
+        let loser = self.wars[&war_id].side_leader(if winner_side == first_side {
+            second_side
+        } else {
+            first_side
+        });
+        let winner_casualties =
+            self.apply_battle_losses(&winners, self.rules.winner_casualty_rate, false);
+        let loser_casualties =
+            self.apply_battle_losses(&losers, self.rules.loser_casualty_rate, true);
+        let mut loser_casualties = loser_casualties;
+        for id in losers {
+            self.retreat_or_disband(graph, polity, id, winner_side, &mut loser_casualties);
+        }
+        let war = self
+            .wars
+            .get_mut(&war_id)
+            .expect("active battle war exists");
+        add_score(war, winner, self.rules.battle_score);
+        changes.push(StateChange::BattleResolved {
+            war: war_id,
+            province,
+            winner,
+            loser,
+            winner_casualties,
+            loser_casualties,
+        });
+    }
+
+    #[expect(
+        clippy::too_many_arguments,
+        reason = "multi-side combat keeps the resolved state explicit"
+    )]
+    fn resolve_multiside_battle(
+        &mut self,
+        graph: &ProvinceGraph,
+        polity: &PolityState,
+        bonuses: &BTreeMap<CountryId, MilitaryBonuses>,
+        war_id: crate::WarId,
+        province: ProvinceId,
+        sides: BTreeMap<super::WarSide, Vec<ArmyId>>,
+        changes: &mut Vec<StateChange>,
+        failures: &mut BTreeSet<CountryId>,
+    ) {
+        let war = self
+            .wars
+            .get(&war_id)
+            .expect("active battle war exists")
+            .clone();
+        let strengths: BTreeMap<_, _> = sides
+            .iter()
+            .map(|(&side, armies)| (side, self.strength(armies, bonuses)))
+            .collect();
+        if strengths.values().any(Option::is_none) {
+            failures.extend(sides.values().flatten().map(|id| self.armies[id].country));
+            return;
+        }
+        let strengths: BTreeMap<_, _> = strengths
+            .into_iter()
+            .map(|(side, strength)| (side, strength.expect("checked strength")))
+            .collect();
+        let winner_side = war
+            .strongest_side(&strengths)
+            .expect("at least two factions are present");
+        let winner = war.side_leader(winner_side);
+        let winner_ids = sides.get(&winner_side).expect("winning side is present");
+        let winner_casualties =
+            self.apply_battle_losses(winner_ids, self.rules.winner_casualty_rate, false);
+        let mut losers = Vec::new();
+        for (&side, army_ids) in &sides {
+            if side == winner_side {
+                continue;
+            }
+            let leader = war.side_leader(side);
+            let mut casualties =
+                self.apply_battle_losses(army_ids, self.rules.loser_casualty_rate, true);
+            for &id in army_ids {
+                self.retreat_or_disband(graph, polity, id, winner_side, &mut casualties);
+            }
+            losers.push((leader, casualties));
+        }
+        changes.push(StateChange::MultiSideBattleResolved {
+            war: war_id,
+            province,
+            winner,
+            winner_casualties,
+            losers,
+        });
+    }
+
+    fn retreat_or_disband(
+        &mut self,
+        graph: &ProvinceGraph,
+        polity: &PolityState,
+        id: ArmyId,
+        winner_side: super::WarSide,
+        casualties: &mut u64,
+    ) {
+        let Some(army) = self.armies.get(&id) else {
+            return;
+        };
+        let retreat = graph
+            .neighbors(army.province)
+            .into_iter()
+            .flatten()
+            .find(|edge| self.can_retreat_as(polity, graph, army, winner_side, edge.to))
+            .map(|edge| edge.to);
+        if let Some(destination) = retreat {
+            let army = self.armies.get_mut(&id).expect("losing army exists");
+            army.province = destination;
+            army.movement = None;
+        } else if let Some(disbanded) = self.armies.remove(&id) {
+            *casualties += u64::from(disbanded.soldiers);
         }
     }
 
@@ -248,45 +378,44 @@ impl WarState {
     }
 
     fn advance_sieges(&mut self, polity: &PolityState) {
-        let mut locations: BTreeMap<ProvinceId, BTreeSet<CountryId>> = BTreeMap::new();
-        for army in self.armies.values() {
-            locations
-                .entry(army.province)
-                .or_default()
-                .insert(army.country);
-        }
-
+        let locations: BTreeSet<_> = self.armies.values().map(|army| army.province).collect();
         let mut ongoing = BTreeMap::new();
-        for (&province, countries) in &locations {
-            let Some((&first, (war_id, war))) = countries
-                .iter()
-                .filter_map(|country| self.war_for(*country).map(|pair| (country, pair)))
-                .next()
-            else {
-                continue;
-            };
-            if countries.iter().any(|&country| war.opposed(first, country)) {
-                continue;
-            }
-            let Some(country) = countries.iter().copied().find(|&country| {
-                war.side(country) == war.side(first)
-                    && self.armies.values().any(|army| {
+        for province in locations {
+            let Some((war_id, side, country)) = self.wars.iter().find_map(|(&war_id, war)| {
+                let stationary: Vec<_> = self
+                    .armies
+                    .values()
+                    .filter(|army| {
                         army.province == province
-                            && army.country == country
                             && army.movement.is_none()
+                            && army.recruitment_days_remaining == 0
                     })
+                    .filter_map(|army| {
+                        war.side_for_army(army)
+                            .map(|side| (side, army.country, army))
+                    })
+                    .collect();
+                let sides: BTreeSet<_> = stationary.iter().map(|(side, _, _)| *side).collect();
+                if sides.len() > 1 {
+                    return None;
+                }
+                let side = *sides.iter().next()?;
+                let army = stationary.first()?.2;
+                let controller = war
+                    .occupations
+                    .get(&province)
+                    .copied()
+                    .or_else(|| owner(polity, province));
+                let hostile = controller
+                    .and_then(|holder| war.side(holder))
+                    .is_some_and(|holder_side| holder_side != side);
+                hostile.then_some((war_id, side, army.country))
             }) else {
                 continue;
             };
+            let occupation_owner = self.wars[&war_id].side_leader(side);
             let territorial_owner = owner(polity, province);
-            let controller = war
-                .occupations
-                .get(&province)
-                .copied()
-                .or(territorial_owner);
-            if !controller.is_some_and(|holder| war.opposed(country, holder)) {
-                continue;
-            }
+            let has_factions = !self.wars[&war_id].factions.is_empty();
             let previous = self
                 .sieges
                 .get(&province)
@@ -294,12 +423,14 @@ impl WarState {
             let progress_days = previous.map_or(1, |siege| siege.progress_days.saturating_add(1));
             if progress_days >= self.siege_required(province) {
                 let war = self.wars.get_mut(&war_id).expect("siege war exists");
-                if territorial_owner.is_some_and(|owner| war.side(owner) == war.side(country)) {
+                if territorial_owner.is_some_and(|owner| war.side(owner) == Some(side)) {
                     war.occupations.remove(&province);
                 } else {
-                    war.occupations.insert(province, country);
+                    war.occupations.insert(province, occupation_owner);
                 }
-                add_score(war, country, self.rules.occupation_score);
+                if !has_factions {
+                    add_score(war, occupation_owner, self.rules.occupation_score);
+                }
             } else {
                 ongoing.insert(
                     province,
@@ -326,4 +457,166 @@ fn add_score(war: &mut super::War, winner: CountryId, amount: i32) {
     } else {
         war.score.saturating_sub(amount)
     };
+}
+
+#[cfg(test)]
+mod multiside_tests {
+    use std::{collections::BTreeMap, num::NonZeroU32};
+
+    use crate::{
+        CountryId, MapIdentity, ModKey, PolityRules, ProvinceGraph, StateChange, Tick, WarId,
+    };
+
+    use super::{MilitaryBonuses, WarState};
+    use crate::{Army, Fixed, PolityState, ProvinceId, War, WarFaction, WarRules, WarSide};
+
+    #[test]
+    fn strongest_of_three_factions_wins_and_every_other_side_is_reported() {
+        let country = CountryId::new(1);
+        let first_claimant = CountryId::new(u32::MAX - 1);
+        let second_claimant = CountryId::new(u32::MAX);
+        let war_id = WarId::new(1);
+        let rules = WarRules {
+            raise_cost_per_soldier: Fixed::ZERO,
+            max_army_size: 1_000,
+            max_morale: Fixed::ONE,
+            morale_recovery_per_tick: Fixed::ZERO,
+            retreat_morale_threshold: Fixed::ZERO,
+            winner_casualty_rate: Fixed::from_raw(100),
+            loser_casualty_rate: Fixed::from_raw(200),
+            battle_morale_loss: Fixed::ZERO,
+            base_supply: 10_000,
+            supply_per_development: 0,
+            attrition_rate: Fixed::ZERO,
+            siege_days_per_level: 1,
+            battle_score: 10,
+            occupation_score: 10,
+            peace_score: 10,
+            truce_ticks: 1,
+            combat_modifier: ModKey::new("army_combat"),
+            morale_modifier: ModKey::new("army_morale"),
+        };
+        let mut military = WarState::new(rules, BTreeMap::new());
+        military.wars.insert(
+            war_id,
+            War {
+                attacker: country,
+                defender: country,
+                succession_country: Some(country),
+                attacker_supporters: Default::default(),
+                defender_supporters: Default::default(),
+                factions: BTreeMap::from([
+                    (
+                        first_claimant,
+                        WarFaction {
+                            members: Default::default(),
+                            name: Some("First claimant".to_owned()),
+                            dynasty: Some("House A".to_owned()),
+                            claimant: None,
+                            country_backed: false,
+                        },
+                    ),
+                    (
+                        second_claimant,
+                        WarFaction {
+                            members: Default::default(),
+                            name: Some("Second claimant".to_owned()),
+                            dynasty: Some("House B".to_owned()),
+                            claimant: None,
+                            country_backed: false,
+                        },
+                    ),
+                ]),
+                goal: ProvinceId::new(1),
+                independence: false,
+                started_at: Tick::new(1),
+                score: 0,
+                occupations: BTreeMap::new(),
+                offer: None,
+            },
+        );
+        for (id, soldiers, faction_override) in [
+            (1, 100, None),
+            (2, 200, Some(first_claimant)),
+            (3, 300, Some(second_claimant)),
+        ] {
+            military.armies.insert(
+                crate::ArmyId::new(id),
+                Army {
+                    country,
+                    faction_override,
+                    province: ProvinceId::new(1),
+                    soldiers,
+                    morale: Fixed::ONE,
+                    recruitment_days_remaining: 0,
+                    movement: None,
+                },
+            );
+        }
+        let polity = PolityState {
+            rules: PolityRules {
+                adulthood_years: 18,
+                male_names: Vec::new(),
+                female_names: Vec::new(),
+                base_taxable_development_per_province: 0,
+                tax_per_development: Fixed::ZERO,
+                max_tax_rate: Fixed::ONE,
+                max_monthly_spending: Fixed::ZERO,
+                debt_limit: Fixed::ZERO,
+                income_modifier: ModKey::new("income"),
+            },
+            countries: BTreeMap::new(),
+            characters: BTreeMap::new(),
+            ai_profiles: BTreeMap::new(),
+        };
+        let graph = ProvinceGraph::try_new(
+            MapIdentity {
+                version: NonZeroU32::new(1).expect("nonzero map version"),
+                sha256: [0; 32],
+            },
+            [],
+        )
+        .expect("empty graph is sufficient; all retreats disband");
+        let bonuses = BTreeMap::from([(
+            country,
+            MilitaryBonuses {
+                morale: Some(Fixed::ONE),
+                combat: Some(Fixed::ONE),
+            },
+        )]);
+        let mut changes = Vec::<StateChange>::new();
+        let mut failures = Default::default();
+        military.resolve_multiside_battle(
+            &graph,
+            &polity,
+            &bonuses,
+            war_id,
+            ProvinceId::new(1),
+            BTreeMap::from([
+                (WarSide::Attacker, vec![crate::ArmyId::new(1)]),
+                (
+                    WarSide::Faction(first_claimant),
+                    vec![crate::ArmyId::new(2)],
+                ),
+                (
+                    WarSide::Faction(second_claimant),
+                    vec![crate::ArmyId::new(3)],
+                ),
+            ]),
+            &mut changes,
+            &mut failures,
+        );
+        assert!(failures.is_empty());
+        assert!(matches!(
+            &changes[..],
+            [StateChange::MultiSideBattleResolved {
+                winner,
+                winner_casualties: 30,
+                losers,
+                ..
+            }] if *winner == second_claimant
+                && losers == &vec![(country, 100), (first_claimant, 200)]
+        ));
+        assert_eq!(military.armies[&crate::ArmyId::new(3)].soldiers, 270);
+    }
 }

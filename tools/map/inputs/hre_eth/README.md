@@ -14,7 +14,8 @@ It is not a verified political-boundary snapshot for 1440. Accordingly,
 `hre_overlay_1440.json` is a candidate crosswalk for review, not game ownership
 or a historical claim. It leaves a coarse province unassigned unless one
 source territory covers at least 50% of its raster pixels and leads the runner
-up by at least 15 percentage points. Uncovered and ambiguous cells remain null.
+up by at least 15 percentage points. On the 2026-11-14 v7 map, 10 of 84 coarse
+cells pass; 74 remain ambiguous. Uncovered and ambiguous cells remain null.
 
 Reproduce from the repository root after installing the pinned map tools:
 

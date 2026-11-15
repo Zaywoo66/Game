@@ -1,9 +1,33 @@
 schema_version: 1
 branch: military
 technologies:
-  - key: professional_officers
-    cost: 250
-    requires: [recordkeeping]
-    pos: {x: 1, y: 0}
+  - key: professional_forces
+    cost: 150
+    requires: []
+    pos: {x: 0, y: 0}
     effects:
       - add_modifier: {key: army_morale, value: 50, kind: additive}
+  - key: combined_arms
+    cost: 200
+    requires: [professional_forces]
+    pos: {x: 1, y: 0}
+    effects:
+      - add_modifier: {key: army_combat, value: 75, kind: multiplicative}
+  - key: resilient_logistics
+    cost: 200
+    requires: [professional_forces]
+    pos: {x: 1, y: 1}
+    effects:
+      - add_modifier: {key: army_morale, value: 50, kind: additive}
+  - key: precision_warfare
+    cost: 250
+    requires: [combined_arms]
+    pos: {x: 2, y: 0}
+    effects:
+      - add_modifier: {key: army_combat, value: 100, kind: multiplicative}
+  - key: integrated_air_defense
+    cost: 300
+    requires: [precision_warfare, resilient_logistics]
+    pos: {x: 3, y: 0}
+    effects:
+      - add_modifier: {key: army_morale, value: 75, kind: additive}

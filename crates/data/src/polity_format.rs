@@ -9,6 +9,10 @@ use strategy_sim::{
 #[serde(deny_unknown_fields)]
 pub(super) struct RulesFile {
     pub adulthood_years: u16,
+    #[serde(default = "default_male_names")]
+    pub male_names: Vec<String>,
+    #[serde(default = "default_female_names")]
+    pub female_names: Vec<String>,
     pub base_taxable_development_per_province: u32,
     pub tax_per_development: i64,
     pub max_tax_rate: i64,
@@ -17,10 +21,44 @@ pub(super) struct RulesFile {
     pub income_modifier: String,
 }
 
+fn default_male_names() -> Vec<String> {
+    [
+        "Alexander",
+        "Arthur",
+        "Charles",
+        "Edward",
+        "Henry",
+        "James",
+        "Louis",
+        "Philip",
+    ]
+    .into_iter()
+    .map(str::to_owned)
+    .collect()
+}
+
+fn default_female_names() -> Vec<String> {
+    [
+        "Alice",
+        "Anne",
+        "Catherine",
+        "Elizabeth",
+        "Isabella",
+        "Margaret",
+        "Mary",
+        "Sophie",
+    ]
+    .into_iter()
+    .map(str::to_owned)
+    .collect()
+}
+
 impl From<RulesFile> for PolityRules {
     fn from(file: RulesFile) -> Self {
         Self {
             adulthood_years: file.adulthood_years,
+            male_names: file.male_names,
+            female_names: file.female_names,
             base_taxable_development_per_province: file.base_taxable_development_per_province,
             tax_per_development: Fixed::from_raw(file.tax_per_development),
             max_tax_rate: Fixed::from_raw(file.max_tax_rate),
@@ -35,6 +73,8 @@ impl From<&PolityRules> for RulesFile {
     fn from(rules: &PolityRules) -> Self {
         Self {
             adulthood_years: rules.adulthood_years,
+            male_names: rules.male_names.clone(),
+            female_names: rules.female_names.clone(),
             base_taxable_development_per_province: rules.base_taxable_development_per_province,
             tax_per_development: rules.tax_per_development.raw(),
             max_tax_rate: rules.max_tax_rate.raw(),

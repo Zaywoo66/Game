@@ -11,6 +11,7 @@ const ORDER_PERIOD: u64 = 3;
 const STRATEGY_PERIOD: u64 = 31;
 const MAX_WAR_TARGET_COUNTRIES: usize = 32;
 const WAR_TIMEOUT_DAYS: u64 = 365 * 2;
+const OPENING_PEACE_DAYS: u64 = 365;
 
 pub(super) fn decide(
     state: &GameState,
@@ -70,7 +71,9 @@ impl Planner<'_> {
         self.military
             .armies
             .iter()
-            .filter(move |(_, army)| army.country == self.country)
+            .filter(move |(_, army)| {
+                army.country == self.country && army.recruitment_days_remaining == 0
+            })
             .map(|(&id, army)| (id, army))
     }
 
@@ -78,7 +81,7 @@ impl Planner<'_> {
         self.military
             .armies
             .values()
-            .filter(|army| army.country == country)
+            .filter(|army| army.country == country && army.recruitment_days_remaining == 0)
             .map(|army| u64::from(army.soldiers))
             .sum()
     }
@@ -118,7 +121,12 @@ impl Planner<'_> {
     }
 
     fn raise(&self) -> Option<(Command, Reason)> {
-        if self.armies().next().is_some() {
+        if self
+            .military
+            .armies
+            .values()
+            .any(|army| army.country == self.country)
+        {
             return None;
         }
         let desired = self.levies(self.nation);
@@ -143,6 +151,9 @@ impl Planner<'_> {
     }
 
     fn declare_war(&self, ctx: &mut AiContext) -> Option<(Command, Reason)> {
+        if self.state.time().tick().get() < OPENING_PEACE_DAYS {
+            return None;
+        }
         let strength = self.strength(self.country);
         if strength == 0 || self.nation.economy.treasury < Fixed::ZERO {
             return None;
@@ -171,6 +182,15 @@ impl Planner<'_> {
             .take(MAX_WAR_TARGET_COUNTRIES)
             .filter_map(|defender| {
                 let enemy = self.state.country_polity(defender)?;
+                // Neutral relations are not a casus belli. AI may only start
+                // an offensive war after diplomacy has made relations hostile.
+                if self
+                    .state
+                    .effective_opinion(self.country, defender)
+                    .is_none_or(|opinion| opinion.points() >= 0)
+                {
+                    return None;
+                }
                 let opposition = self.defensive_coalition_strength(defender, self.country);
                 if strength <= opposition {
                     return None;
@@ -206,7 +226,7 @@ impl Planner<'_> {
     }
 
     fn peace(&self, id: WarId, war: &War) -> Option<(Command, Reason)> {
-        if !war.is_leader(self.country) {
+        if !war.is_leader(self.country) || war.succession_country.is_some() {
             return None;
         }
         let attacking = war.side(self.country) == Some(WarSide::Attacker);
@@ -276,6 +296,9 @@ impl Planner<'_> {
     }
 
     fn orders(&self, war: &War) -> Option<(Command, Reason)> {
+        if war.succession_country.is_some() {
+            return self.succession_orders(war);
+        }
         let attacking = war.side(self.country) == Some(WarSide::Attacker);
         let target = if attacking {
             war.goal
@@ -304,13 +327,26 @@ impl Planner<'_> {
         })
     }
 
+    fn succession_orders(&self, war: &War) -> Option<(Command, Reason)> {
+        let target = war.goal;
+        self.armies().find_map(|(id, army)| {
+            let side = war.side_for_army(army)?;
+            self.retreat(id, army, war)
+                .or_else(|| self.reorganize(id, army))
+                .or_else(|| {
+                    let attacking = side != WarSide::Attacker;
+                    self.move_towards(id, army, target, attacking)
+                })
+        })
+    }
+
     fn retreat(&self, id: ArmyId, army: &Army, war: &War) -> Option<(Command, Reason)> {
         let threat: u64 = self
             .military
             .armies
             .values()
             .filter(|unit| {
-                war.opposed(self.country, unit.country) && unit.province == army.province
+                war.side_for_army(unit) != war.side_for_army(army) && unit.province == army.province
             })
             .map(|unit| u64::from(unit.soldiers))
             .sum();
@@ -357,6 +393,7 @@ impl Planner<'_> {
             .filter(|(other_id, other)| {
                 *other_id > id
                     && other.province == army.province
+                    && other.faction_override == army.faction_override
                     && army.soldiers.saturating_add(other.soldiers) <= supply
             })
             .find_map(|(from, other)| {

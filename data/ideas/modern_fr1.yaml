@@ -1,0 +1,18 @@
+schema_version: 1
+country: modern_fr1
+ideas:
+  - key: france_napoleonic_code
+    name: france_napoleonic_code
+    unlock: {country_has_tech: digital_government}
+    modifiers:
+      - {key: tax_income, value: 100, kind: multiplicative}
+  - key: france_mass_conscription
+    name: france_mass_conscription
+    unlock: {country_has_tech: professional_forces}
+    modifiers:
+      - {key: army_morale, value: 125, kind: additive}
+  - key: france_continental_system
+    name: france_continental_system
+    unlock: {country_has_tech: global_supply_networks}
+    modifiers:
+      - {key: tax_income, value: 50, kind: multiplicative}

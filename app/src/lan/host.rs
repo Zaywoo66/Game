@@ -57,8 +57,10 @@ pub struct HostView {
     pub sequence: u64,
     pub room: String,
     pub address: SocketAddr,
+    pub host_country_id: u32,
     pub guest_country_id: u32,
     pub guest_connected: bool,
+    pub started: bool,
     pub can_takeover: bool,
     pub temporary_ai: bool,
     pub detail: Option<String>,
@@ -85,6 +87,9 @@ struct RoomState {
     canonical: Vec<u8>,
     ai_log: AiDecisionLog,
     last_checksum_tick: u64,
+    host_country_id: u32,
+    guest_country_id: u32,
+    started: bool,
     guest: GuestSlot,
     advertisement: Option<RoomAdvertisement>,
     detail: Option<String>,
@@ -131,6 +136,8 @@ impl LanHost {
             .and_then(|addresses| addresses.first().copied())
             .unwrap_or_else(|| SocketAddr::from((Ipv4Addr::LOCALHOST, bound.port())));
         let canonical = save_game(&game).map_err(|error| error.to_string())?;
+        let host_country_id = config.host_country_id;
+        let guest_country_id = config.guest_country_id;
         let (updates, _) = broadcast::channel(64);
         let (shutdown, _) = watch::channel(false);
         let (view, _) = watch::channel(HostView {
@@ -138,8 +145,10 @@ impl LanHost {
             sequence: 0,
             room: config.room.clone(),
             address,
+            host_country_id: config.host_country_id,
             guest_country_id: config.guest_country_id,
             guest_connected: false,
+            started: false,
             can_takeover: false,
             temporary_ai: false,
             detail: detail.clone(),
@@ -153,6 +162,9 @@ impl LanHost {
                 canonical,
                 ai_log: AiDecisionLog::default(),
                 last_checksum_tick: 0,
+                host_country_id,
+                guest_country_id,
+                started: false,
                 guest: GuestSlot::default(),
                 advertisement,
                 detail,
@@ -192,7 +204,10 @@ impl LanHost {
     pub fn view(&self) -> HostView {
         let mut view = self.shared.view.borrow().clone();
         if let Ok(state) = self.shared.state.lock() {
-            view.can_takeover = self.shared.can_takeover(&state.guest);
+            view.host_country_id = state.host_country_id;
+            view.guest_country_id = state.guest_country_id;
+            view.started = state.started;
+            view.can_takeover = self.shared.can_takeover(&state);
         }
         view
     }
@@ -208,6 +223,32 @@ impl LanHost {
         let mut state = self.shared.lock()?;
         self.shared
             .apply(&mut state, CommandActor::Host(HOST), command)
+    }
+
+    pub fn select_country(&self, player: PlayerId, country_id: u32) -> Result<(), String> {
+        self.shared.select_country(player, country_id)
+    }
+
+    pub fn start_campaign(&self) -> Result<(), String> {
+        let mut state = self.shared.lock()?;
+        if state.started {
+            return Err("The campaign has already started.".into());
+        }
+        if state.host_country_id == 0 || state.guest_country_id == 0 {
+            return Err("Both players must choose a country first.".into());
+        }
+        if !state.guest.active {
+            return Err("The guest must be in the room before the campaign starts.".into());
+        }
+        state.started = true;
+        self.shared.apply(
+            &mut state,
+            CommandActor::Host(HOST),
+            Command::Time(TimeCommand::SetPaused(false)),
+        )?;
+        self.shared.broadcast_room_state(&state);
+        self.shared.refresh(&state);
+        Ok(())
     }
 
     pub fn tick(&self) -> Result<(), String> {
@@ -232,12 +273,12 @@ impl LanHost {
 
     pub fn take_over(&self) -> Result<(), String> {
         let mut state = self.shared.lock()?;
-        if !self.shared.can_takeover(&state.guest) {
+        if !self.shared.can_takeover(&state) {
             return Err(
                 "Temporary AI is available after the disconnected player's grace period.".into(),
             );
         }
-        let country = CountryId::new(self.shared.config.guest_country_id);
+        let country = CountryId::new(state.guest_country_id);
         let profile = state
             .game
             .country_polity(country)
@@ -302,12 +343,142 @@ impl Shared {
             .map_err(|_| "The LAN room is unavailable.".into())
     }
 
-    fn can_takeover(&self, guest: &GuestSlot) -> bool {
-        !guest.active
-            && !guest.temporary_ai
-            && guest.disconnected_at.is_some_and(|since| {
+    fn can_takeover(&self, state: &RoomState) -> bool {
+        state.started
+            && state.guest_country_id != 0
+            && !state.guest.active
+            && !state.guest.temporary_ai
+            && state.guest.disconnected_at.is_some_and(|since| {
                 since.elapsed() >= Duration::from_secs(u64::from(self.config.grace_minutes) * 60)
             })
+    }
+
+    fn select_country(&self, player: PlayerId, country_id: u32) -> Result<(), String> {
+        if player != HOST && player != GUEST {
+            return Err("Unknown room player.".into());
+        }
+        let country = CountryId::new(country_id);
+        let mut state = self.lock()?;
+        if state.started {
+            return Err("Countries cannot be changed after the campaign starts.".into());
+        }
+        if country_id == 0 || state.game.country_polity(country).is_none() {
+            return Err("Choose a playable country.".into());
+        }
+        let (selected, other) = if player == HOST {
+            (state.host_country_id, state.guest_country_id)
+        } else {
+            if !state.guest.active {
+                return Err("Join the room before choosing a country.".into());
+            }
+            (state.guest_country_id, state.host_country_id)
+        };
+        if country_id == other {
+            return Err("That country is already claimed by the other player.".into());
+        }
+        if selected == country_id {
+            return Ok(());
+        }
+        if selected != 0 {
+            let previous = CountryId::new(selected);
+            let profile = state
+                .game
+                .country_polity(previous)
+                .ok_or("The current country assignment is unavailable.")?
+                .ai_profile
+                .clone();
+            state
+                .game
+                .apply(
+                    CommandActor::Host(HOST),
+                    &Command::SetController {
+                        country: previous,
+                        controller: Controller::Ai(profile),
+                    },
+                )
+                .map_err(|error| format!("Could not release the previous country ({error:?})."))?;
+        }
+        state
+            .game
+            .apply(
+                CommandActor::Host(HOST),
+                &Command::SetController {
+                    country,
+                    controller: Controller::Human(player),
+                },
+            )
+            .map_err(|error| format!("Could not claim the selected country ({error:?})."))?;
+        if player == HOST {
+            state.host_country_id = country_id;
+        } else {
+            state.guest_country_id = country_id;
+        }
+        self.publish(&mut state)?;
+        self.broadcast_room_state(&state);
+        self.refresh(&state);
+        Ok(())
+    }
+
+    fn claim_guest_country(&self, seq: u64, tag: &str) -> Result<(), String> {
+        let country_id = {
+            let mut state = self.lock()?;
+            if seq <= state.guest.last_command {
+                return Err("Command sequence was already processed.".into());
+            }
+            state.guest.last_command = seq;
+            state
+                .game
+                .polity()
+                .and_then(|polity| {
+                    polity
+                        .countries
+                        .iter()
+                        .find_map(|(id, country)| (country.tag == tag).then_some(id.get()))
+                })
+                .ok_or("Choose a playable country.")?
+        };
+        self.select_country(GUEST, country_id)
+    }
+
+    fn room_message(&self, state: &RoomState) -> ServerMessage {
+        let polity = state.game.polity().expect("room has playable countries");
+        let guest_tag = if state.guest_country_id == 0 {
+            String::new()
+        } else {
+            polity.countries[&CountryId::new(state.guest_country_id)]
+                .tag
+                .clone()
+        };
+        ServerMessage::Lobby {
+            room: self.config.room.clone(),
+            guest_tag,
+            started: state.started,
+            countries: state
+                .game
+                .countries()
+                .map(|(id, country)| {
+                    let nation = &polity.countries[&id];
+                    let controller = match country.controller() {
+                        Controller::Human(player) => LobbyController::Human {
+                            player_id: player.get(),
+                        },
+                        Controller::Ai(profile) => LobbyController::Ai {
+                            profile: profile.as_str().into(),
+                        },
+                    };
+                    LobbyCountry {
+                        id: id.get(),
+                        tag: nation.tag.clone(),
+                        name: nation.name.clone(),
+                        controller,
+                    }
+                })
+                .collect(),
+        }
+    }
+
+    fn broadcast_room_state(&self, state: &RoomState) {
+        let _ = self.updates.send(Arc::new(self.room_message(state)));
     }
 
     fn refresh(&self, state: &RoomState) {
@@ -316,9 +487,11 @@ impl Shared {
             sequence: state.sequence,
             room: self.config.room.clone(),
             address: self.address,
-            guest_country_id: self.config.guest_country_id,
+            host_country_id: state.host_country_id,
+            guest_country_id: state.guest_country_id,
             guest_connected: state.guest.active,
-            can_takeover: self.can_takeover(&state.guest),
+            started: state.started,
+            can_takeover: self.can_takeover(state),
             temporary_ai: state.guest.temporary_ai,
             detail: state.detail.clone(),
         });
@@ -397,7 +570,7 @@ impl Shared {
             _ => return Err("The guest seat is reserved for the original player.".into()),
         };
         if state.guest.temporary_ai {
-            let country = CountryId::new(self.config.guest_country_id);
+            let country = CountryId::new(state.guest_country_id);
             self.apply(
                 &mut state,
                 CommandActor::Host(HOST),
@@ -416,40 +589,10 @@ impl Shared {
         Ok(PeerStart {
             guard: PeerGuard(Arc::clone(self)),
             resume,
-            lobby: self.lobby(&state),
+            lobby: self.room_message(&state),
             snapshot: snapshot(&state),
             updates: self.updates.subscribe(),
         })
-    }
-
-    fn lobby(&self, state: &RoomState) -> ServerMessage {
-        let polity = state.game.polity().expect("room has playable countries");
-        let guest = CountryId::new(self.config.guest_country_id);
-        ServerMessage::Lobby {
-            room: self.config.room.clone(),
-            guest_tag: polity.countries[&guest].tag.clone(),
-            countries: state
-                .game
-                .countries()
-                .map(|(id, country)| {
-                    let nation = &polity.countries[&id];
-                    let controller = match country.controller() {
-                        Controller::Human(player) => LobbyController::Human {
-                            player_id: player.get(),
-                        },
-                        Controller::Ai(profile) => LobbyController::Ai {
-                            profile: profile.as_str().into(),
-                        },
-                    };
-                    LobbyCountry {
-                        id: id.get(),
-                        tag: nation.tag.clone(),
-                        name: nation.name.clone(),
-                        controller,
-                    }
-                })
-                .collect(),
-        }
     }
 
     fn player_command(&self, seq: u64, command: PlayerCommand) -> ServerMessage {
@@ -618,13 +761,17 @@ async fn serve_peer(shared: Arc<Shared>, mut socket: TcpStream) -> Result<(), St
                     continue;
                 }
                 Some(ClientMessage::Resync) => snapshot(&*shared.lock()?),
-                Some(ClientMessage::ClaimCountry { tag }) => {
-                    let state = shared.lock()?;
-                    let country = CountryId::new(shared.config.guest_country_id);
-                    if state.game.country_polity(country).is_some_and(|nation| nation.tag == tag) {
-                        shared.lobby(&state)
-                    } else {
-                        ServerMessage::Rejected { reason: "The host assigned a different guest country.".into() }
+                Some(ClientMessage::ClaimCountry { seq, tag }) => {
+                    match shared.claim_guest_country(seq, &tag) {
+                        Ok(()) => {
+                            let lobby = {
+                                let state = shared.lock()?;
+                                shared.room_message(&state)
+                            };
+                            send(&mut writer, &lobby).await?;
+                            ServerMessage::CommandAccepted { seq }
+                        }
+                        Err(reason) => ServerMessage::CommandRejected { seq, reason },
                     }
                 }
                 Some(ClientMessage::SetController { .. }) => ServerMessage::Rejected {
@@ -635,6 +782,10 @@ async fn serve_peer(shared: Arc<Shared>, mut socket: TcpStream) -> Result<(), St
             },
             outgoing = updates.recv() => match outgoing {
                 Ok(message) => {
+                    if matches!(message.as_ref(), ServerMessage::Lobby { .. }) {
+                        shared.send_update(&mut writer, &message).await?;
+                        continue;
+                    }
                     match message.as_ref() {
                         ServerMessage::Checksum { sequence, .. } if *sequence != sent => continue,
                         ServerMessage::Checksum { .. } => {},
@@ -695,13 +846,17 @@ fn configure_game(config: &HostConfig, scenario: GameState) -> Result<GameState,
     let military = scenario
         .war_state()
         .ok_or("The room needs military rules.")?;
-    let host_country = CountryId::new(config.host_country_id);
-    let guest_country = CountryId::new(config.guest_country_id);
-    if host_country == guest_country
-        || !polity.countries.contains_key(&host_country)
-        || !polity.countries.contains_key(&guest_country)
+    if config.host_country_id != 0
+        && !polity
+            .countries
+            .contains_key(&CountryId::new(config.host_country_id))
+        || config.guest_country_id != 0
+            && !polity
+                .countries
+                .contains_key(&CountryId::new(config.guest_country_id))
+        || config.host_country_id != 0 && config.host_country_id == config.guest_country_id
     {
-        return Err("Choose two different playable countries.".into());
+        return Err("Choose different playable countries or leave both seats open.".into());
     }
     let data: PresetFile = serde_json::from_str(include_str!("../../../data/ai/lan_presets.json"))
         .map_err(|error| format!("Invalid LAN presets: {error}"))?;
@@ -733,13 +888,14 @@ fn configure_game(config: &HostConfig, scenario: GameState) -> Result<GameState,
         .countries
         .iter()
         .map(|(&country, nation)| {
-            let controller = if country == host_country {
-                Controller::Human(HOST)
-            } else if country == guest_country {
-                Controller::Human(GUEST)
-            } else {
-                Controller::Ai(nation.ai_profile.clone())
-            };
+            let controller =
+                if config.host_country_id != 0 && country.get() == config.host_country_id {
+                    Controller::Human(HOST)
+                } else if config.guest_country_id != 0 && country.get() == config.guest_country_id {
+                    Controller::Human(GUEST)
+                } else {
+                    Controller::Ai(nation.ai_profile.clone())
+                };
             (country, controller)
         })
         .collect();

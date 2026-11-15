@@ -26,15 +26,49 @@ fn ai_lands_an_army_across_the_sea_without_invalid_naval_commands() {
                 .is_some_and(|nation| nation.tag == "ara")
         })
         .unwrap();
-    let valencia = state.province_graph().by_key("valencia").unwrap().id;
+    let valencia_port = state
+        .province_graph()
+        .by_key("valencia_part_03")
+        .unwrap()
+        .id;
     let host = CommandActor::Host(PlayerId::new(1));
+    let lisbon = state.province_graph().by_key("lisbon").unwrap().id;
+    state
+        .apply(
+            host,
+            &Command::SetController {
+                country: portugal,
+                controller: Controller::Human(PlayerId::new(1)),
+            },
+        )
+        .unwrap();
+    state
+        .apply(
+            host,
+            &Command::RaiseArmy {
+                country: portugal,
+                province: lisbon,
+                soldiers: 1000,
+            },
+        )
+        .unwrap();
+    let profile = state.country_polity(portugal).unwrap().ai_profile.as_str();
+    state
+        .apply(
+            host,
+            &Command::SetController {
+                country: portugal,
+                controller: Controller::Ai(AiProfileKey::new(profile)),
+            },
+        )
+        .unwrap();
     state
         .apply(
             CommandActor::Ai(portugal),
             &Command::DeclareWar {
                 country: portugal,
                 defender: aragon,
-                goal: valencia,
+                goal: valencia_port,
             },
         )
         .unwrap();
@@ -80,14 +114,14 @@ fn ai_lands_an_army_across_the_sea_without_invalid_naval_commands() {
             .unwrap()
             .armies
             .values()
-            .any(|army| army.country == portugal && army.province == valencia);
+            .any(|army| army.country == portugal && army.province == valencia_port);
         if landed {
             break;
         }
     }
     assert!(
         landed,
-        "AI did not land at Valencia within 500 days: {reasons:?}"
+        "AI did not land at Valencia's port province within 500 days: {reasons:?}"
     );
     assert!(reasons.contains("EmbarkArmy"));
     assert!(reasons.contains("SailToGoal"));

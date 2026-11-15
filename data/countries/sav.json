@@ -15,11 +15,16 @@
     "heir": null,
     "provinces": [
       "annecy",
+      "annecy_part_02",
       "aosta",
+      "aosta_part_02",
+      "aosta_part_03",
       "geneva",
       "lausanne",
       "monaco",
-      "nice"
+      "monaco_part_02",
+      "nice",
+      "nice_part_02"
     ],
     "treasury": 60000,
     "tax_rate": 220,

@@ -3,7 +3,7 @@ use std::fmt;
 use serde::{Deserialize, Serialize};
 use strategy_sim::{
     AiProfileKey, ArmyId, CharacterId, Command, Controller, CountryId, FiscalPolicy, Fixed,
-    FleetId, PlayerId, ProvinceId, Speed, TimeCommand, WarId,
+    FleetId, NewMonarch, PlayerId, ProvinceId, Sex, Speed, TimeCommand, WarId,
 };
 
 use crate::LobbyController;
@@ -26,6 +26,9 @@ pub enum PlayerCommand {
         country: u32,
         tax_rate: i64,
         monthly_spending: i64,
+    },
+    IncreaseStability {
+        country: u32,
     },
     NominateHeir {
         country: u32,
@@ -93,6 +96,21 @@ pub enum PlayerCommand {
         country: u32,
         war: u32,
     },
+    CreateWarFaction {
+        country: u32,
+        war: u32,
+    },
+    JoinWarFaction {
+        country: u32,
+        war: u32,
+        leader: u32,
+    },
+    RenameWarFaction {
+        country: u32,
+        war: u32,
+        name: String,
+        dynasty: String,
+    },
     AcceptCallToArms {
         country: u32,
         war: u32,
@@ -136,6 +154,16 @@ pub enum PlayerCommand {
         country: u32,
         key: String,
     },
+    ChangeGovernment {
+        country: u32,
+        target: String,
+        #[serde(default)]
+        monarch_name: Option<String>,
+        #[serde(default)]
+        dynasty: Option<String>,
+        #[serde(default)]
+        monarch_sex: Option<String>,
+    },
     OfferRoyalMarriage {
         country: u32,
         character: u32,
@@ -177,6 +205,22 @@ pub enum PlayerCommand {
     ReleaseVassal {
         country: u32,
         subject: u32,
+    },
+    OfferTradeRoute {
+        country: u32,
+        toward: u32,
+    },
+    AcceptTradeRoute {
+        country: u32,
+        from: u32,
+    },
+    RejectTradeRoute {
+        country: u32,
+        from: u32,
+    },
+    CloseTradeRoute {
+        country: u32,
+        other: u32,
     },
 }
 
@@ -233,6 +277,9 @@ impl From<&Command> for PlayerCommand {
                 country: country.get(),
                 tax_rate: policy.tax_rate.raw(),
                 monthly_spending: policy.monthly_spending.raw(),
+            },
+            Command::IncreaseStability { country } => Self::IncreaseStability {
+                country: country.get(),
             },
             Command::NominateHeir { country, heir } => Self::NominateHeir {
                 country: country.get(),
@@ -340,6 +387,30 @@ impl From<&Command> for PlayerCommand {
                 country: country.get(),
                 war: war.get(),
             },
+            Command::CreateWarFaction { country, war } => Self::CreateWarFaction {
+                country: country.get(),
+                war: war.get(),
+            },
+            Command::JoinWarFaction {
+                country,
+                war,
+                leader,
+            } => Self::JoinWarFaction {
+                country: country.get(),
+                war: war.get(),
+                leader: leader.get(),
+            },
+            Command::RenameWarFaction {
+                country,
+                war,
+                name,
+                dynasty,
+            } => Self::RenameWarFaction {
+                country: country.get(),
+                war: war.get(),
+                name: name.clone(),
+                dynasty: dynasty.clone(),
+            },
             Command::AcceptCallToArms { country, war, from } => Self::AcceptCallToArms {
                 country: country.get(),
                 war: war.get(),
@@ -386,6 +457,21 @@ impl From<&Command> for PlayerCommand {
             Command::UnlockReform { country, key } => Self::UnlockReform {
                 country: country.get(),
                 key: key.clone(),
+            },
+            Command::ChangeGovernment {
+                country,
+                target,
+                monarch,
+            } => Self::ChangeGovernment {
+                country: country.get(),
+                target: target.clone(),
+                monarch_name: monarch.as_ref().map(|value| value.name.clone()),
+                dynasty: monarch.as_ref().map(|value| value.dynasty.clone()),
+                monarch_sex: monarch.as_ref().map(|value| match value.sex {
+                    Sex::Male => "male".into(),
+                    Sex::Female => "female".into(),
+                    Sex::Unknown => "unknown".into(),
+                }),
             },
             Command::OfferRoyalMarriage {
                 country,
@@ -444,6 +530,22 @@ impl From<&Command> for PlayerCommand {
                 country: country.get(),
                 subject: subject.get(),
             },
+            Command::OfferTradeRoute { country, toward } => Self::OfferTradeRoute {
+                country: country.get(),
+                toward: toward.get(),
+            },
+            Command::AcceptTradeRoute { country, from } => Self::AcceptTradeRoute {
+                country: country.get(),
+                from: from.get(),
+            },
+            Command::RejectTradeRoute { country, from } => Self::RejectTradeRoute {
+                country: country.get(),
+                from: from.get(),
+            },
+            Command::CloseTradeRoute { country, other } => Self::CloseTradeRoute {
+                country: country.get(),
+                other: other.get(),
+            },
         }
     }
 }
@@ -480,6 +582,9 @@ impl TryFrom<PlayerCommand> for Command {
                     tax_rate: Fixed::from_raw(tax_rate),
                     monthly_spending: Fixed::from_raw(monthly_spending),
                 },
+            },
+            PlayerCommand::IncreaseStability { country } => Self::IncreaseStability {
+                country: CountryId::new(country),
             },
             PlayerCommand::NominateHeir { country, heir } => Self::NominateHeir {
                 country: CountryId::new(country),
@@ -587,6 +692,30 @@ impl TryFrom<PlayerCommand> for Command {
                 country: CountryId::new(country),
                 war: WarId::new(war),
             },
+            PlayerCommand::CreateWarFaction { country, war } => Self::CreateWarFaction {
+                country: CountryId::new(country),
+                war: WarId::new(war),
+            },
+            PlayerCommand::JoinWarFaction {
+                country,
+                war,
+                leader,
+            } => Self::JoinWarFaction {
+                country: CountryId::new(country),
+                war: WarId::new(war),
+                leader: CountryId::new(leader),
+            },
+            PlayerCommand::RenameWarFaction {
+                country,
+                war,
+                name,
+                dynasty,
+            } => Self::RenameWarFaction {
+                country: CountryId::new(country),
+                war: WarId::new(war),
+                name,
+                dynasty,
+            },
             PlayerCommand::AcceptCallToArms { country, war, from } => Self::AcceptCallToArms {
                 country: CountryId::new(country),
                 war: WarId::new(war),
@@ -633,6 +762,28 @@ impl TryFrom<PlayerCommand> for Command {
             PlayerCommand::UnlockReform { country, key } => Self::UnlockReform {
                 country: CountryId::new(country),
                 key,
+            },
+            PlayerCommand::ChangeGovernment {
+                country,
+                target,
+                monarch_name,
+                dynasty,
+                monarch_sex,
+            } => Self::ChangeGovernment {
+                country: CountryId::new(country),
+                target,
+                monarch: match (monarch_name, dynasty, monarch_sex) {
+                    (Some(name), Some(dynasty), Some(sex)) => Some(NewMonarch {
+                        name,
+                        dynasty,
+                        sex: match sex.as_str() {
+                            "male" => Sex::Male,
+                            "female" => Sex::Female,
+                            _ => Sex::Unknown,
+                        },
+                    }),
+                    _ => None,
+                },
             },
             PlayerCommand::OfferRoyalMarriage {
                 country,
@@ -690,6 +841,22 @@ impl TryFrom<PlayerCommand> for Command {
             PlayerCommand::ReleaseVassal { country, subject } => Self::ReleaseVassal {
                 country: CountryId::new(country),
                 subject: CountryId::new(subject),
+            },
+            PlayerCommand::OfferTradeRoute { country, toward } => Self::OfferTradeRoute {
+                country: CountryId::new(country),
+                toward: CountryId::new(toward),
+            },
+            PlayerCommand::AcceptTradeRoute { country, from } => Self::AcceptTradeRoute {
+                country: CountryId::new(country),
+                from: CountryId::new(from),
+            },
+            PlayerCommand::RejectTradeRoute { country, from } => Self::RejectTradeRoute {
+                country: CountryId::new(country),
+                from: CountryId::new(from),
+            },
+            PlayerCommand::CloseTradeRoute { country, other } => Self::CloseTradeRoute {
+                country: CountryId::new(country),
+                other: CountryId::new(other),
             },
         })
     }

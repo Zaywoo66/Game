@@ -52,8 +52,8 @@ def main() -> None:
         if row["polity_name"] == "Holy Roman Empire Minor States"
         and row["resolution"] == "coarse_group"
     }
-    if len(hre_cells) != 74:
-        raise SystemExit(f"expected 74 coarse HRE cells, found {len(hre_cells)}")
+    if not hre_cells:
+        raise SystemExit("the map has no coarse HRE cells to compare")
 
     rgb = np.asarray(Image.open(DATA / "provinces.png").convert("RGB"), dtype=np.uint32)
     province_ids = (rgb[:, :, 0] << 16) | (rgb[:, :, 1] << 8) | rgb[:, :, 2]

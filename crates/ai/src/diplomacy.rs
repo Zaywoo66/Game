@@ -144,9 +144,58 @@ pub(super) fn decide(
             .then_some((command, reason));
     }
 
+    if let Some(offer) = state
+        .diplomacy()
+        .and_then(|d| d.trade_route_offers_to(country).next())
+    {
+        let accepts = state.trade_route_operational(offer.from, country)
+            && state
+                .opinion(country, offer.from)
+                .map_or(0, |o| i32::from(o.points()))
+                >= profile.thresholds.alliance_min_opinion;
+        let command = if accepts {
+            Command::AcceptTradeRoute {
+                country,
+                from: offer.from,
+            }
+        } else {
+            Command::RejectTradeRoute {
+                country,
+                from: offer.from,
+            }
+        };
+        let reason = if accepts {
+            Reason::TradeRouteAccepted
+        } else {
+            Reason::TradeRouteRejected
+        };
+        return state
+            .validate_command(actor, &command)
+            .is_ok()
+            .then_some((command, reason));
+    }
+
     // Strategic diplomacy is staggered by country and uses stable candidate order.
     if (state.time().tick().get() + u64::from(country.get())) % 31 != 0 {
         return None;
+    }
+    for (other, _) in state.countries() {
+        if other != country
+            && !state.has_trade_route(country, other)
+            && state
+                .opinion(country, other)
+                .map_or(0, |o| i32::from(o.points()))
+                >= profile.thresholds.alliance_min_opinion
+            && state.trade_route_operational(country, other)
+        {
+            let command = Command::OfferTradeRoute {
+                country,
+                toward: other,
+            };
+            if state.validate_command(actor, &command).is_ok() {
+                return Some((command, Reason::TradeRouteProposed));
+            }
+        }
     }
     for (other, _) in state.countries() {
         if other == country
@@ -325,9 +374,11 @@ mod tests {
                     ArmyId::new(id),
                     Army {
                         country,
+                        faction_override: None,
                         province: scenario.country_polity(country).unwrap().capital,
                         soldiers,
                         morale: military.rules.max_morale,
+                        recruitment_days_remaining: 0,
                         movement: None,
                     },
                 );
@@ -460,9 +511,11 @@ mod tests {
             ArmyId::new(1),
             Army {
                 country: third,
+                faction_override: None,
                 province: scenario.country_polity(third).unwrap().capital,
                 soldiers: 100,
                 morale: military.rules.max_morale,
+                recruitment_days_remaining: 0,
                 movement: None,
             },
         );

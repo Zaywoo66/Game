@@ -31,7 +31,7 @@ export function createFleetLayer(
   scene: THREE.Scene,
   viewport: HTMLElement,
   provinceAnchor: (id: number) => THREE.Vector3 | null,
-  camera: THREE.Camera,
+  camera: THREE.OrthographicCamera,
   onSelect: (id: number) => void,
 ) {
   const overlay = document.createElement('div');
@@ -156,6 +156,8 @@ export function createFleetLayer(
 
   function update(now: number) {
     const rect = viewport.getBoundingClientRect();
+    const showMarkers = camera.zoom >= 2.2 || selected !== 0;
+    for (const mesh of [hullMesh, sailMesh, mastMesh]) if (mesh) mesh.visible = showMarkers;
     let selectedPoint: THREE.Vector3 | null = null;
     let selectedTarget: THREE.Vector3 | null = null;
     const projected = new THREE.Vector3();
@@ -164,7 +166,7 @@ export function createFleetLayer(
       if (!badge) continue;
       position(motion, now, projected).project(camera);
       const visible = Math.abs(projected.x) <= 1 && Math.abs(projected.y) <= 1 && Math.abs(projected.z) <= 1;
-      badge.hidden = !visible;
+      badge.hidden = !showMarkers || !visible;
       badge.dataset.selected = String(id === selected);
       if (!visible) continue;
       const x = (projected.x + 1) * rect.width / 2;

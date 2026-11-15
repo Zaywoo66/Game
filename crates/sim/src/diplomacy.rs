@@ -35,6 +35,13 @@ pub struct CallToArmsOffer {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct TradeRouteOffer {
+    pub from: CountryId,
+    pub toward: CountryId,
+    pub expires_at: Date,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum MarriageError {
     UnknownCharacter(CharacterId),
     Unnamed(CharacterId),
@@ -66,6 +73,12 @@ pub struct DiplomacyState {
     pub vassal_offers: BTreeMap<(CountryId, CountryId), Date>,
     /// Keyed by (war, inviter, invitee); an invitee can hear from both sides.
     pub call_to_arms_offers: BTreeMap<(WarId, CountryId, CountryId), (WarSide, Date)>,
+    /// Directed offers to open a bilateral trade route, keyed by proposer and recipient.
+    pub trade_route_offers: BTreeMap<(CountryId, CountryId), Date>,
+    /// Active bilateral routes keyed by ascending country ID.
+    pub trade_routes: BTreeSet<(CountryId, CountryId)>,
+    /// Current aggressive expansion points, keyed by country.
+    pub aggressive_expansion: BTreeMap<CountryId, u32>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -89,12 +102,100 @@ pub enum DiplomacyError {
     OfferAlreadyPending,
     NoOffer,
     NoCallToArmsOffer,
+    NoTradeRoute,
+    TradeRouteExists,
     Cooldown(Date),
     DateOverflow,
     InvalidState,
 }
 
 impl DiplomacyState {
+    pub fn aggressive_expansion_of(&self, country: CountryId) -> u32 {
+        self.aggressive_expansion
+            .get(&country)
+            .copied()
+            .unwrap_or_default()
+    }
+
+    /// Records AE points with saturating arithmetic.
+    pub fn add_aggressive_expansion(&mut self, country: CountryId, points: u32) -> u32 {
+        if points == 0 {
+            return self.aggressive_expansion_of(country);
+        }
+        let total = self
+            .aggressive_expansion
+            .entry(country)
+            .or_default()
+            .saturating_add(points);
+        self.aggressive_expansion.insert(country, total);
+        total
+    }
+
+    /// Reduces AE by one on peaceful countries' monthly ticks, removing zero entries.
+    pub fn decay_aggressive_expansion(
+        &mut self,
+        peaceful_countries: impl IntoIterator<Item = CountryId>,
+    ) -> Vec<(CountryId, u32)> {
+        let mut changed = Vec::new();
+        for country in peaceful_countries {
+            let Some(points) = self.aggressive_expansion.get_mut(&country) else {
+                continue;
+            };
+            if *points == 0 {
+                self.aggressive_expansion.remove(&country);
+                continue;
+            }
+            *points -= 1;
+            let next = *points;
+            if next == 0 {
+                self.aggressive_expansion.remove(&country);
+            }
+            changed.push((country, next));
+        }
+        changed
+    }
+
+    pub fn trade_route_offers_to(
+        &self,
+        toward: CountryId,
+    ) -> impl Iterator<Item = TradeRouteOffer> + '_ {
+        self.trade_route_offers
+            .iter()
+            .filter_map(move |(&(from, target), &expires_at)| {
+                (target == toward).then_some(TradeRouteOffer {
+                    from,
+                    toward: target,
+                    expires_at,
+                })
+            })
+    }
+
+    pub fn expire_trade_route_offers(&mut self, date: Date) -> Vec<TradeRouteOffer> {
+        let expired: Vec<_> = self
+            .trade_route_offers
+            .iter()
+            .filter_map(|(&(from, toward), &expires_at)| {
+                (expires_at <= date).then_some(TradeRouteOffer {
+                    from,
+                    toward,
+                    expires_at,
+                })
+            })
+            .collect();
+        for offer in &expired {
+            self.trade_route_offers.remove(&(offer.from, offer.toward));
+        }
+        expired
+    }
+
+    pub fn trade_route_offer(&self, from: CountryId, toward: CountryId) -> Option<TradeRouteOffer> {
+        let expires_at = *self.trade_route_offers.get(&(from, toward))?;
+        Some(TradeRouteOffer {
+            from,
+            toward,
+            expires_at,
+        })
+    }
     pub fn call_to_arms_offers_to(
         &self,
         toward: CountryId,
@@ -373,6 +474,29 @@ impl DiplomacyState {
             {
                 return Err(DiplomacyError::InvalidState);
             }
+        }
+        for (&(from, toward), &expires) in &self.trade_route_offers {
+            if from == toward
+                || !countries.contains(&from)
+                || !countries.contains(&toward)
+                || expires <= now
+                || self.trade_routes.contains(&pair(from, toward))
+                || self.trade_route_offers.contains_key(&(toward, from))
+            {
+                return Err(DiplomacyError::InvalidState);
+            }
+        }
+        for &(a, b) in &self.trade_routes {
+            if a >= b || !countries.contains(&a) || !countries.contains(&b) {
+                return Err(DiplomacyError::InvalidState);
+            }
+        }
+        if self
+            .aggressive_expansion
+            .iter()
+            .any(|(country, points)| !countries.contains(country) || *points == 0)
+        {
+            return Err(DiplomacyError::InvalidState);
         }
         for (&(from, toward), &expires) in &self.offers {
             if from == toward

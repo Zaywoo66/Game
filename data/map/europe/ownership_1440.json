@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
-  "map_version": 6,
-  "map_hash": "3e1fc544b192940b83e19d3741cd9ad9caec49230be4dc3e6b4fc96f0fd213c9",
-  "source": "Owner-provided 1440 map reference and owner-approved correction: the reference label Golden Horde is a legacy regional label, represented by one Great Horde country; the visible Nogai zone is a separate gameplay country. Approximate longitude bands adapt source Golden Horde cells; no third-party province geometry copied. Scandinavian cells labelled Kalmar Union are partitioned into Denmark, Norway and Sweden under the owner’s explicit separate-country rule; borders are gameplay approximations.",
+  "map_version": 9,
+  "map_hash": "a85afed0ca89142f9b9a02480b88e8300907e232ca88e051aab977334f91bad0",
+  "source": "Owner-provided 1440 map reference and owner-approved correction: the reference label Golden Horde is a legacy regional label, represented by one Great Horde country; the visible Nogai zone is a separate gameplay country. Approximate longitude bands adapt source Golden Horde cells; no third-party province geometry copied. Scandinavian cells labelled Kalmar Union are partitioned into Denmark, Norway and Sweden under the owner\u2019s explicit separate-country rule; borders are gameplay approximations.",
   "rules": {
     "golden_horde_source_name": "Golden Horde",
     "western_tag": "gth",
@@ -24,6 +24,19 @@
       "Blue Horde": "cri",
       "Khanate of Sibir": "uzb",
       "Novgorod Republic": "nov"
+    },
+    "northern_russia_frontier": {
+      "minimum_latitude": 68.0,
+      "minimum_longitude": 30.0,
+      "owner_tags": [
+        "mos",
+        "nov",
+        "prm",
+        "uzb",
+        "yar",
+        "rya"
+      ],
+      "note": "Owner-approved 1440 gameplay frontier: Russian land north of 68\u00b0N remains unowned for later colonization; Norway and Sweden remain outside this mask."
     },
     "capital_proxy_tags": {
       "astrakhan": "gth"
@@ -197,10 +210,10 @@
     },
     "capital_proxy_notes": {
       "gth": "The closest current settlement cell to the lower-Volga Sarai complex is used as an in-map capital proxy; the meridian bands remain otherwise in effect.",
-      "cri": "Dzhankoy is the nearest existing province cell to Solkhat/Qrïm; it is a gameplay capital proxy.",
-      "nog": "Atyrau is used as a current-map proxy near the historic Manghit/Saray-Jük area."
+      "cri": "Dzhankoy is the nearest existing province cell to Solkhat/Qr\u00efm; it is a gameplay capital proxy.",
+      "nog": "Atyrau is used as a current-map proxy near the historic Manghit/Saray-J\u00fck area."
     },
-    "approximation_note": "Great Horde owns the western band and listed North Caucasus cells; Nogai Horde occupies the 44–52°E band; Uzbek Khanate occupies the eastern band from 52°E plus the Tura/Sibir extension. These are gameplay approximations guided by the owner image, not surveyed 1440 borders. A local Age of Civilizations II 1440 comparison reviewed 80 high-confidence steppe cells; the proprietary source files are not redistributed. Bremen and Hamburg own only their named city cells as municipal gameplay approximations; their disputed 1440 legal status and mixed surrounding cells are not inferred from the game map.",
+    "approximation_note": "Great Horde owns the western band and listed North Caucasus cells; Nogai Horde occupies the 44\u201352\u00b0E band; Uzbek Khanate occupies the eastern band from 52\u00b0E plus the Tura/Sibir extension. These are gameplay approximations guided by the owner image, not surveyed 1440 borders. A local Age of Civilizations II 1440 comparison reviewed 80 high-confidence steppe cells; the proprietary source files are not redistributed. Bremen and Hamburg own only their named city cells as municipal gameplay approximations; their disputed 1440 legal status and mixed surrounding cells are not inferred from the game map.",
     "legacy_map_label": "Golden Horde is a legacy regional label; represent the country as the Great Horde (gth).",
     "kalmar_source_name": "Kalmar Union",
     "kalmar_country_tags": {
@@ -309,19 +322,33 @@
         28.0
       ]
     ],
-    "kalmar_partition_note": "All 139 coarse Kalmar source cells are split by these owner-directed rules: named Denmark/Norway exceptions, a hand-drawn Norway/Sweden longitude boundary, and Sweden for remaining cells. Denmark includes the southern Scanian/Blekinge/Halland overrides; Norway includes Faroe, Orkney, Shetland and Jämtland proxies. This is a campaign approximation, not a verified 1440 boundary dataset. Iceland is outside the current raster extent.",
+    "kalmar_partition_note": "All 139 coarse Kalmar source cells are split by these owner-directed rules: named Denmark/Norway exceptions, a hand-drawn Norway/Sweden longitude boundary, and Sweden for remaining cells. Denmark includes the southern Scanian/Blekinge/Halland overrides; Norway includes Faroe, Orkney, Shetland and J\u00e4mtland proxies. This is a campaign approximation, not a verified 1440 boundary dataset. Iceland is outside the current raster extent.",
     "fallback": {
       "hre_owner_tags": [
         "aus",
+        "bav",
+        "boh",
         "bra",
+        "brn",
         "bur",
+        "col",
+        "lor",
         "lux",
+        "mag",
         "mil",
-        "sav"
+        "mun",
+        "pal",
+        "pom",
+        "sav",
+        "sax",
+        "sil",
+        "wrz"
       ],
-      "method": "For unowned HRE coarse cells, use nearest represented HRE member by shortest map-graph path; for other unmatched or unrepresented cells, use nearest existing country by shortest map-graph path. If a low-confidence polygon names an existing scenario country, prefer that named match when overlap is nonzero.",
+      "method": "For HRE coarse cells, use nearest represented territorial HRE member by shortest map-graph path, excluding explicit city-state overrides; for other unmatched or unrepresented cells, use nearest existing country by shortest map-graph path. If a low-confidence polygon names an existing scenario country, prefer that named match when overlap is nonzero.",
       "tie_break": "lexicographically smallest country tag at equal graph distance",
-      "limitations": "No HRE umbrella country is created. Microstates absent from the scenario are represented by the nearest currently modeled HRE member (Austria, Brandenburg, Burgundy, Luxembourg, Milan, or Savoy); non-member neighbors such as Florence and Venice cannot receive HRE fallback cells. This completes gameplay ownership but does not assert exact 1440 borders."
+      "limitations": "No HRE umbrella country is created. Coarse HRE cells go to the nearest represented territorial member state; one-cell city approximations for Bremen, Hamburg and Schaffhausen remain pinned by explicit overrides and are excluded from generic fallback. Burgundy remains eligible under the previously approved campaign approximation. This completes gameplay ownership but does not assert exact 1440 borders."
     }
-  }
+  },
+  "base_map_version": 6,
+  "base_map_hash": "3e1fc544b192940b83e19d3741cd9ad9caec49230be4dc3e6b4fc96f0fd213c9"
 }

@@ -14,6 +14,14 @@ interface OwnerUpdate {
   ownerTextureUnchanged: boolean;
 }
 
+interface CountryMapLabel {
+  id: number;
+  text: string;
+  capital: boolean;
+  /** Bounds in map pixels for the country's capital-connected territory. */
+  extent?: [number, number, number, number];
+}
+
 export interface BenchmarkSample {
   frameMs: number[];
   drawingBufferWidth: number;
@@ -30,6 +38,7 @@ export interface MapTestControls {
   readArmyPosition(id: number): [number, number, number] | null;
   readFleetPosition(id: number): [number, number, number] | null;
   setOwnerColor(id: number, rgba: Rgba): OwnerUpdate;
+  setPoliticalOwners(colors: ReadonlyMap<number, Rgba>, changedProvinceIds: ReadonlySet<number>): void;
   startBenchmark(): void;
   readBenchmark(): BenchmarkSample;
   setCameraPreset(name: 'whole-region' | 'britain' | 'iberia' | 'province'): void;
@@ -40,20 +49,22 @@ export interface MapTestControls {
   focusProvince(id: number): void;
   setArmies(armies: readonly ArmyMarker[]): void;
   setArmySelection(id: number, targeting: boolean): void;
+  setArmyGroupSelection(ids: readonly number[], targeting: boolean): void;
   setFleets(fleets: readonly FleetMarker[]): void;
   setFleetSelection(id: number): void;
 }
 
 interface MapViewer {
   renderer: string;
-  setOwnerColors(colors: ReadonlyMap<number, Rgba>): void;
+  setOwnerColors(colors: ReadonlyMap<number, Rgba>, changedProvinces?: ReadonlySet<number>): void;
   setOccupationColors(colors: ReadonlyMap<number, Rgba>): void;
   setArmies(armies: readonly ArmyMarker[]): void;
   setArmySelection(id: number, targeting: boolean): void;
+  setArmyGroupSelection(ids: readonly number[], targeting: boolean): void;
   setFleets(fleets: readonly FleetMarker[]): void;
   setFleetSelection(id: number): void;
   setMapMode(mode: MapMode): void;
-  setCountryLabels(labels: readonly { id: number; text: string; capital: boolean }[]): void;
+  setCountryLabels(labels: readonly CountryMapLabel[]): void;
   startBenchmark(): void;
   readBenchmark(): BenchmarkSample;
   testControls: MapTestControls;
@@ -100,6 +111,7 @@ export function createMapViewer(
   onArmySelect: (id: number) => void,
   onFleetSelect: (id: number) => void,
   manualFrames = false,
+  onArmyGroupSelect: (ids: number[]) => void = () => undefined,
 ): MapViewer {
   const { width, height, data } = assets.raster;
   const { provinces } = assets;
@@ -123,6 +135,7 @@ export function createMapViewer(
 
   const lookupPixels = lookupWidth * lookupHeight;
   const ownerBytes = new Uint8Array(lookupPixels * 4);
+  const changedOwnerBytes = new Uint8Array(lookupPixels);
   const occupationBytes = new Uint8Array(lookupPixels * 4);
   const waterBytes = new Uint8Array(lookupPixels);
   const areaBytes = new Uint8Array(lookupPixels * 4);
@@ -150,6 +163,7 @@ export function createMapViewer(
   const riverTexture = texture(redChannel(assets.rivers), width, height, THREE.RedFormat);
   const ownerTexture = texture(ownerBytes, lookupWidth, lookupHeight);
   ownerTexture.colorSpace = THREE.SRGBColorSpace;
+  const changedOwnerTexture = texture(changedOwnerBytes, lookupWidth, lookupHeight, THREE.RedFormat);
   const occupationTexture = texture(occupationBytes, lookupWidth, lookupHeight);
   occupationTexture.colorSpace = THREE.SRGBColorSpace;
   const waterTexture = texture(waterBytes, lookupWidth, lookupHeight, THREE.RedFormat);
@@ -157,6 +171,18 @@ export function createMapViewer(
   const historicalTexture = texture(historicalBytes, lookupWidth, lookupHeight);
   historicalTexture.colorSpace = THREE.SRGBColorSpace;
   const precisionTexture = texture(precisionBytes, lookupWidth, lookupHeight, THREE.RedFormat);
+  const countryBoundariesTexture = assets.countryBoundaries2022
+    ? texture(redChannel(assets.countryBoundaries2022), width, height, THREE.RedFormat)
+    : provinceTexture;
+  countryBoundariesTexture.magFilter = THREE.LinearFilter;
+  countryBoundariesTexture.minFilter = THREE.LinearFilter;
+  const countryFillTexture = assets.countryFill2022
+    ? texture(new Uint8Array(assets.countryFill2022.data.buffer,
+      assets.countryFill2022.data.byteOffset, assets.countryFill2022.data.byteLength), width, height)
+    : ownerTexture;
+  countryFillTexture.magFilter = THREE.LinearFilter;
+  countryFillTexture.minFilter = THREE.LinearFilter;
+  countryFillTexture.colorSpace = THREE.SRGBColorSpace;
   // WebGL 2 has no normalized R16 texture format. Pack the 16-bit samples into
   // RG8 so the height field remains lossless with a sized, portable format.
   const heightTexture = new THREE.DataTexture(packedHeight(assets.heightmap.samples), width, height, THREE.RGFormat);
@@ -165,14 +191,19 @@ export function createMapViewer(
   heightTexture.generateMipmaps = false;
   heightTexture.unpackAlignment = 1;
   heightTexture.needsUpdate = true;
-  const textures = [provinceTexture, terrainTexture, riverTexture, ownerTexture, occupationTexture, waterTexture, areaTexture, historicalTexture, precisionTexture, heightTexture];
+  const textures = [provinceTexture, terrainTexture, riverTexture, ownerTexture, changedOwnerTexture, occupationTexture, waterTexture, areaTexture, historicalTexture, precisionTexture, heightTexture,
+    ...(assets.countryBoundaries2022 ? [countryBoundariesTexture] : []), ...(assets.countryFill2022 ? [countryFillTexture] : [])];
   const uniforms = {
     provinceRaster: { value: provinceTexture },
     terrainRaster: { value: terrainTexture },
     riverRaster: { value: riverTexture },
     ownerLookup: { value: ownerTexture },
+    changedOwnerLookup: { value: changedOwnerTexture },
     historicalLookup: { value: historicalTexture },
     precisionLookup: { value: precisionTexture },
+    countryBoundaries2022: { value: countryBoundariesTexture },
+    countryFill2022: { value: countryFillTexture },
+    showCountryBoundaries2022: { value: false },
     occupationLookup: { value: occupationTexture },
     waterLookup: { value: waterTexture },
     areaLookup: { value: areaTexture },
@@ -183,6 +214,7 @@ export function createMapViewer(
     hoveredId: { value: 0 },
     hasOccupations: { value: false },
     mapMode: { value: 0 },
+    mapZoom: { value: 1 },
     seconds: { value: 0 },
   };
   const material = new THREE.ShaderMaterial({
@@ -264,13 +296,15 @@ export function createMapViewer(
   labelLayer.className = 'map-label-layer';
   labelLayer.setAttribute('aria-hidden', 'true');
   viewport.appendChild(labelLayer);
-  let countryLabels: readonly { id: number; text: string; capital: boolean }[] = [];
+  let countryLabels: readonly CountryMapLabel[] = [];
   let lastLabelRender = -Infinity;
   function renderLabels(now: number) {
     if (now - lastLabelRender < 90) return;
     lastLabelRender = now;
     const bounds = viewport.getBoundingClientRect();
-    const overlays = [...document.querySelectorAll<HTMLElement>('.map-panel, .event-popup')]
+    const overlays = [...document.querySelectorAll<HTMLElement>(
+      '.map-panel, .event-popup, .map-army-badge:not([hidden]), .map-fleet-badge:not([hidden])',
+    )]
       .map((element) => element.getBoundingClientRect())
       .filter((rect) => rect.width > 0 && rect.height > 0);
     const minimumHistoricalArea = camera.zoom < 1.5 ? 5_500 : 700;
@@ -284,22 +318,53 @@ export function createMapViewer(
         id: province.id,
         text: assets.names.get(province.name_key ?? '') ?? `Province ${province.id}`,
         capital: countryLabels.some((country) => country.id === province.id && country.capital),
+        development: province.development,
       }));
+    const orderedCandidates = [...candidates].sort((left, right) =>
+      Number(right.capital) - Number(left.capital)
+      || ((('development' in right && typeof right.development === 'number') ? right.development : 0)
+        - (('development' in left && typeof left.development === 'number') ? left.development : 0))
+      || left.id - right.id);
+    const labelLimit = camera.zoom < 1.5 ? 20 : camera.zoom < 2.2 ? 42
+      : camera.zoom < 3.2 ? 64 : camera.zoom < 4.5 ? 96 : 132;
+    const verticalGap = camera.zoom >= 4.5 ? 19 : camera.zoom >= 3.2 ? 23 : 28;
     const placed: { x: number; y: number; halfWidth: number }[] = [];
     const nodes: HTMLElement[] = [];
-    for (const item of candidates) {
-      if (nodes.length >= (camera.zoom < 1.5 ? 24 : 70)) break;
+    for (const item of orderedCandidates) {
+      if (nodes.length >= labelLimit) break;
       const point = projectProvince(item.id);
       if (!point) continue;
       const x = point.x - bounds.left;
       const y = point.y - bounds.top;
-      const halfWidth = Math.max(55, item.text.length * (camera.zoom < 2.2 ? 4.9 : 3.7));
+      let fontSize: number | undefined;
+      let halfWidth: number;
+      if ('extent' in item && item.extent && camera.zoom < 2.2) {
+        const [minX, minY, maxX, maxY] = item.extent;
+        const corners = [
+          projectMapPoint(minX, minY), projectMapPoint(maxX, minY),
+          projectMapPoint(minX, maxY), projectMapPoint(maxX, maxY),
+        ].filter((corner): corner is { x: number; y: number } => corner !== null);
+        if (corners.length !== 4) continue;
+        const width = Math.max(...corners.map((corner) => corner.x))
+          - Math.min(...corners.map((corner) => corner.x));
+        const height = Math.max(...corners.map((corner) => corner.y))
+          - Math.min(...corners.map((corner) => corner.y));
+        const usableWidth = width * 0.78;
+        const usableHeight = height * 0.52;
+        const displayLength = item.text.length + (item.capital ? 1.5 : 0);
+        fontSize = Math.min(15, usableWidth / Math.max(1, displayLength * 0.64), usableHeight);
+        if (fontSize < 8) continue;
+        halfWidth = displayLength * fontSize * 0.32;
+      } else {
+        fontSize = camera.zoom >= 4.5 ? 10 : camera.zoom >= 3.2 ? 11 : 12;
+        halfWidth = Math.max(20, item.text.length * fontSize * 0.31);
+      }
       if (x < halfWidth || y < 25 || x > bounds.width - halfWidth || y > bounds.height - 25
         || overlays.some((rect) => bounds.left + x + halfWidth > rect.left
           && bounds.left + x - halfWidth < rect.right
           && bounds.top + y + 15 > rect.top
           && bounds.top + y - 15 < rect.bottom)
-        || placed.some((previous) => Math.abs(previous.x - x) < previous.halfWidth + halfWidth + 8 && Math.abs(previous.y - y) < 29)) continue;
+        || placed.some((previous) => Math.abs(previous.x - x) < previous.halfWidth + halfWidth + 8 && Math.abs(previous.y - y) < verticalGap)) continue;
       placed.push({ x, y, halfWidth });
       const label = document.createElement('span');
       label.className = item.capital ? 'map-label map-label--capital' : 'map-label';
@@ -307,6 +372,7 @@ export function createMapViewer(
       label.textContent = item.capital ? `★ ${item.text}` : item.text;
       label.style.left = `${x}px`;
       label.style.top = `${y}px`;
+      if (fontSize) label.style.fontSize = `${fontSize}px`;
       nodes.push(label);
     }
     labelLayer.replaceChildren(...nodes);
@@ -388,6 +454,16 @@ export function createMapViewer(
     };
   }
 
+  function projectMapPoint(x: number, z: number): { x: number; y: number } | null {
+    const point = new THREE.Vector3(x, 0, z).project(camera);
+    if (!Number.isFinite(point.x) || !Number.isFinite(point.y)) return null;
+    const rect = renderer.domElement.getBoundingClientRect();
+    return {
+      x: rect.left + (point.x + 1) * rect.width / 2,
+      y: rect.top + (1 - point.y) * rect.height / 2,
+    };
+  }
+
   function readOwnerColor(id: number): Rgba {
     if (!provinces.has(id)) throw new RangeError('Unknown map province');
     return [
@@ -438,6 +514,14 @@ export function createMapViewer(
     if (changed) target.needsUpdate = true;
   }
 
+  function updateChangedOwners(changedProvinces: ReadonlySet<number> = new Set()) {
+    changedOwnerBytes.fill(0);
+    for (const id of changedProvinces) {
+      if (Number.isInteger(id) && id > 0 && id < changedOwnerBytes.length) changedOwnerBytes[id] = 255;
+    }
+    changedOwnerTexture.needsUpdate = true;
+  }
+
   const armyLayer = createArmyLayer(scene, viewport, provinceAnchor, camera);
   const fleetLayer = createFleetLayer(scene, viewport, provinceAnchor, camera, onFleetSelect);
   let targeting = false;
@@ -446,6 +530,52 @@ export function createMapViewer(
   let hoverX = 0;
   let hoverY = 0;
   let previousHover = -1;
+  const selectionBox = document.createElement('div');
+  selectionBox.className = 'map-selection-box';
+  selectionBox.hidden = true;
+  viewport.appendChild(selectionBox);
+  let boxStart: { x: number; y: number; pointer: number } | null = null;
+  function drawSelectionBox(x: number, y: number) {
+    if (!boxStart) return;
+    const rect = viewport.getBoundingClientRect();
+    selectionBox.style.left = `${Math.min(boxStart.x, x) - rect.left}px`;
+    selectionBox.style.top = `${Math.min(boxStart.y, y) - rect.top}px`;
+    selectionBox.style.width = `${Math.abs(x - boxStart.x)}px`;
+    selectionBox.style.height = `${Math.abs(y - boxStart.y)}px`;
+  }
+  function rightPointerDown(event: PointerEvent) {
+    if (event.button !== 2 || !event.isPrimary) return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    renderer.domElement.focus({ preventScroll: true });
+    boxStart = { x: event.clientX, y: event.clientY, pointer: event.pointerId };
+    renderer.domElement.setPointerCapture(event.pointerId);
+    selectionBox.hidden = false;
+    drawSelectionBox(event.clientX, event.clientY);
+  }
+  function rightPointerMove(event: PointerEvent) {
+    if (!boxStart || event.pointerId !== boxStart.pointer) return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    drawSelectionBox(event.clientX, event.clientY);
+  }
+  function rightPointerUp(event: PointerEvent) {
+    if (!boxStart || event.pointerId !== boxStart.pointer) return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    const start = boxStart;
+    boxStart = null;
+    selectionBox.hidden = true;
+    if (Math.hypot(start.x - event.clientX, start.y - event.clientY) >= 8) {
+      onArmyGroupSelect(armyLayer.selectInRect(start.x, start.y, event.clientX, event.clientY));
+    }
+  }
+  function rightPointerCancel(event: PointerEvent) {
+    if (!boxStart || event.pointerId !== boxStart.pointer) return;
+    boxStart = null;
+    selectionBox.hidden = true;
+  }
+  function stopContextMenu(event: MouseEvent) { event.preventDefault(); }
   function pointerMove(event: PointerEvent) {
     hoverX = event.clientX;
     hoverY = event.clientY;
@@ -517,6 +647,11 @@ export function createMapViewer(
   function cancelPointer() {
     press = null;
   }
+  renderer.domElement.addEventListener('pointerdown', rightPointerDown, true);
+  renderer.domElement.addEventListener('pointermove', rightPointerMove, true);
+  renderer.domElement.addEventListener('pointerup', rightPointerUp, true);
+  renderer.domElement.addEventListener('pointercancel', rightPointerCancel, true);
+  renderer.domElement.addEventListener('contextmenu', stopContextMenu);
   renderer.domElement.addEventListener('pointerdown', pointerDown);
   renderer.domElement.addEventListener('pointerup', pointerUp);
   renderer.domElement.addEventListener('pointercancel', cancelPointer);
@@ -546,6 +681,7 @@ export function createMapViewer(
   const start = performance.now();
   function renderFrame(now: number) {
     controls.update();
+    uniforms.mapZoom.value = camera.zoom;
     const mapScale = camera.zoom < 1.1 ? 'overview' : camera.zoom < 2.2 ? 'regional' : 'local';
     if (viewport.dataset.mapScale !== mapScale) viewport.dataset.mapScale = mapScale;
     const halfWidth = (camera.right - camera.left) / (2 * camera.zoom);
@@ -610,7 +746,13 @@ export function createMapViewer(
 
   return {
     renderer: gpu,
-    setOwnerColors: (colors) => updateLookup(ownerBytes, ownerTexture, colors),
+    setOwnerColors(colors, changedProvinces) {
+      updateLookup(ownerBytes, ownerTexture, colors);
+      if (assets.countryFill2022 && assets.countryBoundaries2022) {
+        uniforms.showCountryBoundaries2022.value = true;
+        updateChangedOwners(changedProvinces);
+      }
+    },
     setOccupationColors(colors) {
       uniforms.hasOccupations.value = colors.size > 0;
       updateLookup(occupationBytes, occupationTexture, colors);
@@ -618,7 +760,11 @@ export function createMapViewer(
     setArmies: armyLayer.setMarkers,
     setFleets: fleetLayer.setMarkers,
     setArmySelection(id, orderTargeting) {
-      armyLayer.select(id);
+      armyLayer.select(id > 0 ? [id] : []);
+      targeting = orderTargeting;
+    },
+    setArmyGroupSelection(ids, orderTargeting) {
+      armyLayer.select(ids);
       targeting = orderTargeting;
     },
     setFleetSelection(id) { fleetLayer.select(id); },
@@ -638,6 +784,11 @@ export function createMapViewer(
         return fleetLayer.readPosition(id);
       },
       setOwnerColor, startBenchmark, readBenchmark,
+      setPoliticalOwners(colors, changedProvinceIds) {
+        updateLookup(ownerBytes, ownerTexture, colors);
+        uniforms.showCountryBoundaries2022.value = Boolean(assets.countryFill2022 && assets.countryBoundaries2022);
+        updateChangedOwners(changedProvinceIds);
+      },
       setCameraPreset,
       readCamera: () => ({ target: [controls.target.x, controls.target.z], zoom: camera.zoom, polarAngle: controls.getPolarAngle() }),
       readPixel(clientX, clientY) {
@@ -654,7 +805,11 @@ export function createMapViewer(
       focusProvince,
       setArmies: armyLayer.setMarkers,
       setFleets: fleetLayer.setMarkers,
-      setArmySelection(id, orderTargeting) { armyLayer.select(id); targeting = orderTargeting; },
+      setArmySelection(id, orderTargeting) {
+        armyLayer.select(id > 0 ? [id] : []);
+        targeting = orderTargeting;
+      },
+      setArmyGroupSelection(ids, orderTargeting) { armyLayer.select(ids); targeting = orderTargeting; },
       setFleetSelection(id) { fleetLayer.select(id); },
     },
     dispose() {
@@ -665,12 +820,18 @@ export function createMapViewer(
       renderer.domElement.removeEventListener('pointerdown', pointerDown);
       renderer.domElement.removeEventListener('pointerup', pointerUp);
       renderer.domElement.removeEventListener('pointercancel', cancelPointer);
+      renderer.domElement.removeEventListener('pointerdown', rightPointerDown, true);
+      renderer.domElement.removeEventListener('pointermove', rightPointerMove, true);
+      renderer.domElement.removeEventListener('pointerup', rightPointerUp, true);
+      renderer.domElement.removeEventListener('pointercancel', rightPointerCancel, true);
+      renderer.domElement.removeEventListener('contextmenu', stopContextMenu);
       renderer.domElement.removeEventListener('pointermove', pointerMove);
       renderer.domElement.removeEventListener('pointerleave', pointerLeave);
       renderer.domElement.removeEventListener('dblclick', doubleClick);
       renderer.domElement.removeEventListener('keydown', keyDown);
       renderer.domElement.remove();
       labelLayer.remove();
+      selectionBox.remove();
       armyLayer.dispose();
       fleetLayer.dispose();
       chunks.forEach(({ geometry }) => geometry.dispose());

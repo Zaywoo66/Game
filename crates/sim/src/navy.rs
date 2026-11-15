@@ -158,12 +158,14 @@ impl NavyState {
         &self,
         graph: &ProvinceGraph,
         countries: impl IntoIterator<Item = CountryId>,
-        armies: impl IntoIterator<Item = (ArmyId, CountryId, u32, bool)>,
+        armies: impl IntoIterator<Item = (ArmyId, CountryId, u32, bool, u16)>,
     ) -> Result<(), NavyError> {
         let countries: BTreeSet<_> = countries.into_iter().collect();
         let armies: BTreeMap<_, _> = armies
             .into_iter()
-            .map(|(id, country, soldiers, moving)| (id, (country, soldiers, moving)))
+            .map(|(id, country, soldiers, moving, recruiting)| {
+                (id, (country, soldiers, moving, recruiting))
+            })
             .collect();
         let mut cargo = BTreeSet::new();
         let mut last_id = 0;
@@ -202,10 +204,10 @@ impl NavyState {
                 }
             }
             if let Some(army_id) = fleet.cargo {
-                let Some(&(country, soldiers, moving)) = armies.get(&army_id) else {
+                let Some(&(country, soldiers, moving, recruiting)) = armies.get(&army_id) else {
                     return Err(NavyError::UnknownArmy(army_id));
                 };
-                if moving {
+                if moving || recruiting > 0 {
                     return Err(NavyError::ArmyInMotion(army_id));
                 }
                 if country != fleet.country || !cargo.insert(army_id) {

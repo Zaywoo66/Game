@@ -86,7 +86,7 @@ requires the generated map to pass validation.
 | `data/map/<region>/regions.yaml` | Schema v1 and region records with `key`, `name_key` and `name`. |
 | `data/map/<region>/names.en.json` | Flat v1 localization key→English fallback name mapping, with no `schema_version` field. |
 
-MAP_SCALE.md defines the hierarchy and reserved ID ranges. The refreshed Western Europe map uses `map_version: 4`; full Europe uses `map_version: 6` after its eastward extension through Tura. Full-Europe IDs remain stable from the v5 baseline, but its map hash changed, so saves and LAN clients must use the matching map identity. The loader still verifies schema v1/v2 maps with their original hash rules.
+MAP_SCALE.md defines the hierarchy and reserved ID ranges. The refreshed Western Europe map uses `map_version: 4`; full Europe uses v7, and the combined Europe-North Africa-Middle East graph began at v8 and advances to v9 for a dedicated Beirut cell. Existing Europe IDs and keys remain stable in 1–3999; appended Africa and Middle East IDs use 4000–5999. The map hash changed, so saves and LAN clients must use the matching map identity. The loader still verifies schema v1/v2 maps with their original hash rules.
 
 ### 1440 polity overlap evidence (`polities_1440.json`)
 
@@ -173,11 +173,10 @@ Country and character numeric IDs are assigned in sorted key order starting at 1
 | `start.tax_rate` | Raw Fixed fraction of taxable income. `250` means 25%. |
 
 The UI loads an SVG from `ui/src/assets/flags/<tag>.svg`, where `<tag>` is the
-country's `tag` in this file. Each country included in the M11 1440 scenario
-must have a flag asset; countries in editor fixtures may omit it, in which
-case the UI leaves the country color swatch visible. Medieval heraldic banners
-are not presented as modern national flags. Record each new SVG and its source
-in `docs/ASSETS.md`.
+country's `tag` in this file. The legacy 1440 scenario has registered banner
+assets. Modern scenario country records may omit a flag; the UI leaves the
+country color swatch visible. Medieval heraldic banners are not presented as
+modern national flags. Record each new SVG and its source in `docs/ASSETS.md`.
 
 ### World-map country extensions (planned for M13)
 
@@ -194,13 +193,17 @@ below.
 | `key`, `country`, `dynasty` | Character filename stem, country tag, dynasty key. |
 | `name` | Nonempty display name. |
 | `sex` | Required `male` or `female`. This content value is checked against biographical sources for historical characters. |
-| `spouse` | Optional key of another character in the scenario. Both character files must point to each other; the pair must be living, adult, from different countries and of opposite sex at scenario start. Omission means no modeled spouse. |
+| `spouse` | Optional reciprocal character key. A starting consort may be in the same country as a ruler/heir. New same-country marriage commands are allowed only for adult siblings in a monarchy; otherwise the marriage pair must be adult, living, and opposite-sex. |
+| `parents` | Optional array of up to two distinct character keys. Parents must exist and be older than the child. Parent links enable sibling-marriage checks and heir relationships. |
 | `birth`, `death` | Gregorian `[year, month, day]` as in saves. Omit `death` or use null if unspecified. |
 | `birth_precision` | Optional `day` (default) or `year`. For `year`, `birth` must use January 1 as a placeholder; age increments on January 1, and the date is approximate rather than a documented day. |
+| `rules.male_names`, `rules.female_names` | Nonempty data lists of given names used for generated children. Sex is selected deterministically from the game seed; child country follows the parent who is a ruler/heir, and dynasty follows the male parent's dynasty. |
 | `stats.adm`, `stats.dip`, `stats.mil` | Whole unsigned 8-bit skill points. |
 | `traits` | Unique keys from the scenario's trait map. |
 
 Existing male entries are checked against the [UK Royal Family biographies](https://www.royal.uk/henry-vi), [France's Larousse biographies](https://www.larousse.fr/encyclopedie/personnage/Charles_VII/112825), the [Spanish national archives](https://pares.cultura.gob.es/ParesBusquedas20/catalogo/autoridad/46221), and the [Portuguese expansion encyclopedia](https://eve.fcsh.unl.pt/en/people/prince-dom-fernando-1433-1470). M11 adds Isabella of Portugal as the first female historical character in the 1440 scenario and models her reciprocal marriage to Philip the Good; her `country` remains `por` to retain her Portuguese royal affiliation, while the cross-country spouse link supplies the marriage relation.
+
+The 2022 scenario's royal-family records use the official [Swedish Royal Court](https://www.kungahuset.se/english/royal-house/hm-the-king), [Danish Royal House](https://www.kongehuset.dk/den-kongelige-familie/hm-dronning-margrethe/), [Belgian Monarchy](https://www.monarchie.be/en/for-children/the-king-the-queen-and-their-family), and [Luxembourg Grand-Ducal Court](https://monarchie.lu/en/grand-ducal-family/hrh-grand-duke-0), with biographical cross-checks from Wikipedia for [Liechtenstein](https://en.wikipedia.org/wiki/Hans-Adam_II_of_Liechtenstein), [the Netherlands](https://en.wikipedia.org/wiki/Willem-Alexander_of_the_Netherlands), [the United Kingdom](https://en.wikipedia.org/wiki/Elizabeth_II), and [Spain](https://es.wikipedia.org/wiki/Felipe_VI_de_Espa%C3%B1a). The roster is frozen at the 2022 campaign start; later deaths are stored as dates in character content.
 
 ## Technologies (`data/techs/<branch>.yaml`) — DAG
 
@@ -230,10 +233,10 @@ For example:
 schema_version: 1
 branch: military
 technologies:
-  - key: professional_officers
+  - key: combined_arms
     cost: 250
-    requires: [recordkeeping]
-    pos: {x: 2, y: -1}
+    requires: [professional_forces]
+    pos: {x: 1, y: 0}
     effects:
       - add_modifier: {key: army_morale, value: 100, kind: multiplicative}
 ```
@@ -267,8 +270,11 @@ duplicate translation keys.
 
 ## Ideas (`data/ideas/<tag>.yaml`)
 
-An optional country idea catalog uses one YAML v1 file named for its lowercase country tag. A missing file means the country has no national ideas in this scenario. The
-root is `{schema_version: 1, country: <tag>, ideas: [...]}`. Idea keys are
+Idea catalogs use one YAML v1 file named for their lowercase country tag. A
+`common.yaml` catalog is the fallback for any country without its own catalog;
+it is not combined with a country's unique catalog. Country-specific files
+override that fallback for their country. The root is
+`{schema_version: 1, country: <tag-or-common>, ideas: [...]}`. Idea keys are
 unique across files. The loader and linter reject unknown fields, duplicate
 keys, noncanonical YAML scalar tokens, and invalid modifier units.
 
@@ -294,7 +300,7 @@ country: eng
 ideas:
   - key: english_longbow
     name: english_longbow
-    unlock: {country_has_tech: professional_officers}
+    unlock: {country_has_tech: professional_forces}
     modifiers:
       - {key: army_morale, value: 100, kind: multiplicative}
 ```
@@ -376,6 +382,27 @@ mean-time and cooldown values are tuned so the repeatable harvest and patrol
 events do not continually fill the player’s pending-event queue.
 
 ## Scenarios (`data/scenarios/<year>.json`)
+
+The production scenario is `data/scenarios/2022.json` and starts on
+2022-01-01. Its country list uses `modern_<sovereign-code>` tags and its
+ownership sidecar is `data/map/europe/ownership_2022.json`. The sidecar
+records the Natural Earth Admin-0 source release, checksum, sovereign tag
+mapping, map identity, and province-owner assignments. Each land province is
+assigned exactly one owner. Country unit polygons are grouped by Natural
+Earth `SOVEREIGNT`, rasterized to the existing province graph, and the owner
+with the most raster pixels in each province is selected; deterministic
+source-code order breaks ties. Exact-name settlement cells are anchored to
+the sovereign polygon containing the settlement point, preventing border
+cells such as Geneva and Basel from going to a neighbor. The Ukraine point-of-
+view source is used for the legal 2022 boundary treatment. Its generated
+country-border overlay is visible while starting ownership is intact and
+turns off when ownership changes during play. This is a country-level gameplay
+assignment, not a survey of local administrative boundaries. The map footprint also
+includes adjacent North Africa, the Middle East, and Central Asia where those
+land provinces already exist. Small states can lack a distinct province at
+this graph resolution. Modern and historical country/idea/reform catalogs are
+scoped to the active scenario; the legacy 1440 scenario remains available to
+tests and tools but is not the default app startup.
 
 | Scenario field | Representation and unit |
 |---|---|
@@ -763,3 +790,36 @@ V16 preserves the birth precision of each historical character. Exact day precis
 ## Saved games (schema version 17)
 
 V17 adds `state.diplomacy.call_to_arms_offers`, sorted by `(war_id, from_country_id, toward_country_id)`. Each offer stores its war ID, inviting leader, recipient, side (`attacker` or `defender`), and expiry date. Offers are created for the leaders' peaceful allies when war is declared, expire after 30 game days, and are removed when the war ends, the alliance becomes invalid, or the recipient joins either side. Either answer removes competing invitations to that country for the same war. V17 uses hash domain `strategy:game-state:v17` followed by NUL and canonical save bytes. V1–v16 remain readable without call-to-arms data. LAN protocol v15 carries these offers and the validated accept/reject commands.
+
+## Saved games (schema version 18)
+
+V18 adds sorted `state.diplomacy.trade_routes` country pairs and directed
+`trade_route_offers` with expiry dates. Offers last 30 game days. Active routes
+persist even when temporarily unusable; their path is derived from current
+capital ownership, allied land, sea connections, war, and port blockades.
+Operational routes grant each participant 1 treasury unit per month. V18 uses
+hash domain `strategy:game-state:v18`; V1–v17 remain readable without trade
+state. LAN protocol v16 carries these records and the validated route commands.
+
+## Saved games (schema version 19)
+
+V19 adds `state.diplomacy.aggressive_expansion`, sorted by country ID, with a
+positive integer `points` value for each country. At each month's first day,
+countries in no active war lose 1 point, down to 0; countries participating in
+a war do not decay. V19 uses hash domain `strategy:game-state:v19`; V1–v18
+remain readable without AE counters. LAN protocol v17 carries this state.
+
+## Saved games (schema versions 20–22)
+
+V20 stores pending player-created monarchs during government transitions. V21
+stores political point pools, stability, and war exhaustion. V22 adds reciprocal
+character parent IDs, marriage dates, and scenario child-name pools to the
+canonical polity snapshot. On each marriage, the first child is generated five
+calendar months later; later children arrive at one-year intervals, up to three
+per couple. Sex, name, and ADM/DIP/MIL values use the saved seeded RNG.
+Sibling-marriage children have a deterministic 50% chance to lose one point
+from each stat, with a floor of zero. V22 uses hash domain
+`strategy:game-state:v22`; V1–V22 remain readable. V23 adds succession-war
+factions, claimant character references and army-side overrides under hash
+domain `strategy:game-state:v23`. LAN protocol v22 carries faction naming,
+claimant selection and host-authoritative succession war state.

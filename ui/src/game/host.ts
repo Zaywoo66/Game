@@ -14,6 +14,7 @@ export interface CharacterView {
   age: number;
   sex?: 'male' | 'female' | 'unknown';
   spouse_id?: number | null;
+  parents: number[];
   adm: number;
   dip: number;
   mil: number;
@@ -28,6 +29,7 @@ export interface CountryView {
   color: string;
   capital_id: number;
   capital: string;
+  eliminated: boolean;
   treasury: string;
   income: string;
   tribute_paid: string;
@@ -39,10 +41,18 @@ export interface CountryView {
   regency: boolean;
   ruler: CharacterView | null;
   heir: CharacterView | null;
+  family: CharacterView[];
   research_points: number | null;
   known_technologies: string[];
   known_ideas: string[];
   government: string;
+  government_options: string[];
+  government_change_pending: boolean;
+  stability: number;
+  admin_points: number;
+  diplomatic_points: number;
+  military_points: number;
+  war_exhaustion: number;
   known_reforms: string[];
   chosen_reform_tiers: number[];
 }
@@ -76,9 +86,11 @@ export interface ReformView {
 export interface ArmyView {
   id: number;
   country_id: number;
+  faction_override: number | null;
   province_id: number;
   soldiers: number;
   morale: number;
+  recruitment_days_remaining: number;
   to_province_id: number | null;
   progress: number;
   embarked_on?: number | null;
@@ -105,7 +117,7 @@ export interface CallToArmsOfferView {
   war_id: number;
   from_id: number;
   toward_id: number;
-  side: 'attacker' | 'defender';
+  side: 'attacker' | 'defender' | 'claimant';
   expires_at: string;
 }
 
@@ -113,13 +125,24 @@ export interface WarView {
   id: number;
   attacker_id: number;
   defender_id: number;
+  succession_country_id: number | null;
   attacker_supporters: number[];
   defender_supporters: number[];
+  factions: WarFactionView[];
   goal_province_id: number;
   independence: boolean;
   score: number;
   occupations: { province_id: number; country_id: number }[];
   offer: { offered_by: number; cede_goal: boolean } | null;
+}
+
+export interface WarFactionView {
+  id: number;
+  members: number[];
+  name: string | null;
+  dynasty: string | null;
+  claimant_id: number | null;
+  country_backed: boolean;
 }
 
 export interface TruceView {
@@ -187,6 +210,8 @@ export interface GameSnapshot {
   blockaded_ports?: number[];
   vassals: { subject_id: number; overlord_id: number }[];
   vassal_offers: { overlord_id: number; subject_id: number; expires_at: string }[];
+  trade_routes?: { a_id: number; b_id: number; operational: boolean }[];
+  trade_route_offers?: { from_id: number; toward_id: number; expires_at: string }[];
   call_to_arms_offers?: CallToArmsOfferView[];
   owners: { province_id: number; country_id: number }[];
   max_tax_rate: number;
@@ -205,6 +230,7 @@ interface GameUpdate {
   generation?: number;
   sequence: number;
   clock: ClockView;
+  local_country_id?: number | null;
   countries: CountryView[];
   acceptance_previews?: CountryAcceptancePreview[];
   pending_events?: EventView[] | null;
@@ -219,6 +245,8 @@ interface GameUpdate {
   blockaded_ports?: number[];
   vassals: { subject_id: number; overlord_id: number }[];
   vassal_offers: { overlord_id: number; subject_id: number; expires_at: string }[];
+  trade_routes?: { a_id: number; b_id: number; operational: boolean }[];
+  trade_route_offers?: { from_id: number; toward_id: number; expires_at: string }[];
   call_to_arms_offers?: CallToArmsOfferView[];
   armies?: ArmyView[];
   removed_armies?: number[];
@@ -235,6 +263,8 @@ export type GameCommand =
   | { type: 'set_paused'; paused: boolean }
   | { type: 'set_speed'; speed: number }
   | { type: 'set_fiscal_policy'; country_id: number; tax_rate: number; monthly_spending: string }
+  | { type: 'increase_stability'; country_id: number }
+  | { type: 'nominate_heir'; country_id: number; character_id: number | null }
   | { type: 'raise_army'; country_id: number; province_id: number; soldiers: number }
   | { type: 'merge_armies'; country_id: number; into: number; from: number }
   | { type: 'split_army'; country_id: number; army_id: number; soldiers: number }
@@ -248,6 +278,9 @@ export type GameCommand =
   | { type: 'declare_independence'; country_id: number }
   | { type: 'offer_peace'; country_id: number; war_id: number; cede_goal: boolean }
   | { type: 'accept_peace'; country_id: number; war_id: number }
+  | { type: 'create_war_faction'; country_id: number; war_id: number }
+  | { type: 'join_war_faction'; country_id: number; war_id: number; leader_id: number }
+  | { type: 'rename_war_faction'; country_id: number; war_id: number; name: string; dynasty: string }
   | { type: 'offer_alliance'; country_id: number; toward_id: number }
   | { type: 'accept_alliance' | 'reject_alliance'; country_id: number; from_id: number }
   | { type: 'break_alliance'; country_id: number; other_id: number }
@@ -258,8 +291,13 @@ export type GameCommand =
   | { type: 'guarantee' | 'revoke_guarantee'; country_id: number; protected_id: number }
   | { type: 'offer_vassalage'; country_id: number; toward_id: number }
   | { type: 'accept_vassalage' | 'reject_vassalage'; country_id: number; from_id: number }
+  | { type: 'offer_trade_route'; country_id: number; toward_id: number }
+  | { type: 'accept_trade_route' | 'reject_trade_route'; country_id: number; from_id: number }
+  | { type: 'close_trade_route'; country_id: number; other_id: number }
   | { type: 'release_vassal'; country_id: number; subject_id: number }
-  | { type: 'unlock_technology' | 'unlock_idea' | 'unlock_reform'; country_id: number; key: string };
+  | { type: 'unlock_technology' | 'unlock_idea' | 'unlock_reform'; country_id: number; key: string }
+  | { type: 'change_government'; country_id: number; target: string; monarch_name?: string;
+    dynasty?: string; monarch_sex?: 'male' | 'female' };
 
 interface TauriBridge {
   core: { invoke<T>(name: string, args?: Record<string, unknown>): Promise<T> };
@@ -309,6 +347,8 @@ function normalizeSnapshot(snapshot: GameSnapshot): GameSnapshot {
     truces: snapshot.truces ?? [],
     vassals: snapshot.vassals ?? [],
     vassal_offers: snapshot.vassal_offers ?? [],
+    trade_routes: snapshot.trade_routes ?? [],
+    trade_route_offers: snapshot.trade_route_offers ?? [],
   };
 }
 
@@ -327,6 +367,8 @@ function applyUpdate(snapshot: GameSnapshot, update: GameUpdate): GameSnapshot {
     ...snapshot,
     sequence: update.sequence,
     clock: update.clock,
+    local_country_id: update.local_country_id !== undefined
+      ? update.local_country_id : snapshot.local_country_id,
     countries: updateRows(snapshot.countries, update.countries)?.map((country) => ({
       ...country,
       tribute_paid: country.tribute_paid ?? '0',
@@ -350,6 +392,8 @@ function applyUpdate(snapshot: GameSnapshot, update: GameUpdate): GameSnapshot {
     blockaded_ports: update.blockaded_ports ?? snapshot.blockaded_ports,
     vassals: update.vassals ?? snapshot.vassals,
     vassal_offers: update.vassal_offers ?? snapshot.vassal_offers,
+    trade_routes: update.trade_routes ?? snapshot.trade_routes,
+    trade_route_offers: update.trade_route_offers ?? snapshot.trade_route_offers,
     call_to_arms_offers: update.call_to_arms_offers ?? snapshot.call_to_arms_offers ?? [],
     owners,
     armies: updateRows(snapshot.armies, update.armies, update.removed_armies),
@@ -448,10 +492,31 @@ export function useGameHost(enabled: boolean, generation = 0, canCommand = true,
     }
   }
 
+  async function sendMany(commands: readonly GameCommand[]): Promise<void> {
+    if (!commands.length || !bridge || !snapshot || !canCommand || inFlight.current) return;
+    const request = Symbol();
+    inFlight.current = request;
+    setPending(true);
+    setCommandError('');
+    try {
+      for (const command of commands) {
+        if (command.type === 'set_speed' && !canSetSpeed) continue;
+        await bridge.core.invoke<null>('game_command', { command });
+      }
+    } catch (reason) {
+      if (inFlight.current === request) setCommandError(errorText(reason));
+    } finally {
+      if (inFlight.current === request) {
+        inFlight.current = undefined;
+        setPending(false);
+      }
+    }
+  }
+
   function readAiLog(): Promise<AiLogEntry[]> {
     return bridge ? bridge.core.invoke<AiLogEntry[]>('game_ai_log') : Promise.resolve([]);
   }
 
   return { connected: Boolean(bridge), snapshot, connectionError, commandError,
-    pending: pending || !canCommand, send, readAiLog };
+    pending: pending || !canCommand, send, sendMany, readAiLog };
 }

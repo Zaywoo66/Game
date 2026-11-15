@@ -68,10 +68,14 @@ jobs:
       - run: python tools/map/validate.py --region western_europe
       - run: cargo run --locked -p strategy-data --bin lint-provinces -- data/map/europe/provinces.json
       - run: cargo run --locked -p strategy-data --bin lint-scenario -- data/scenarios/1440.json data/map/europe/provinces.json
-      - run: cargo build --locked -p strategy-app --features custom-protocol --bin strategy-app
+      - name: Build Windows installers
+        run: ..\ui\node_modules\.bin\tauri.cmd build --bundles msi,nsis
+        working-directory: app
       - uses: actions/upload-artifact@v4
         with:
-          name: strategy-windows-x64
-          path: target/debug/strategy-app.exe
+          name: strategy-windows-installers
+          path: |
+            target/release/bundle/msi/*.msi
+            target/release/bundle/nsis/*-setup.exe
           if-no-files-found: error
 

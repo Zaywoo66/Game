@@ -96,11 +96,9 @@ test('full Europe campaign opens on authoritative game ownership', async ({ page
   await page.goto('/?verify=1&map=europe&verifyHost=1');
   await expect(page.locator('main[data-map-status="ready"]')).toBeVisible({ timeout: 60_000 });
   await expect(page.locator('main')).toHaveAttribute('data-map-mode', 'political');
-  await expect.poll(async () => (await page.evaluate((provinceId) =>
-    window.strategyMapTest.readOwnerColor(provinceId), unowned.province_id))[3]).toBe(132);
   const unownedFill = await page.evaluate((provinceId) =>
     window.strategyMapTest.readOwnerColor(provinceId), unowned.province_id);
-  expect(unownedFill[3]).toBe(132);
+  expect(unownedFill).toEqual([0, 0, 0, 0]);
   const ownedFill = await page.evaluate((provinceId) =>
     window.strategyMapTest.readOwnerColor(provinceId), id);
   expect(ownedFill).toEqual([247, 11, 171, 255]);

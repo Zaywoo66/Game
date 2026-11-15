@@ -189,14 +189,32 @@ fn check_invariants(game: &GameState, initial_count: usize) -> Result<(), &'stat
     }
     let mut belligerents = BTreeSet::new();
     for war in military.wars.values() {
-        if game.owner_of_province(war.goal) != Some(war.defender)
-            || std::iter::once(war.attacker)
+        if game.owner_of_province(war.goal) != Some(war.defender) {
+            return Err("war goal is not owned by its defender");
+        }
+        let mut participants = if let Some(country) = war.succession_country {
+            if war.attacker != country || war.defender != country {
+                return Err("succession war has invalid country leaders");
+            }
+            vec![country]
+        } else {
+            std::iter::once(war.attacker)
                 .chain(std::iter::once(war.defender))
                 .chain(war.attacker_supporters.iter().copied())
                 .chain(war.defender_supporters.iter().copied())
-                .any(|country| !belligerents.insert(country))
+                .collect()
+        };
+        for (&leader, faction) in &war.factions {
+            if faction.country_backed {
+                participants.push(leader);
+                participants.extend(faction.members.iter().copied());
+            }
+        }
+        if participants
+            .into_iter()
+            .any(|country| !belligerents.insert(country))
         {
-            return Err("war participants or goal are invalid");
+            return Err("a country is participating in multiple wars");
         }
         for (&province, &occupier) in &war.occupations {
             let owner = game.owner_of_province(province);
@@ -238,9 +256,11 @@ mod tests {
         let (&country_id, nation) = opening.polity().unwrap().countries.iter().next().unwrap();
         let army = Army {
             country: country_id,
+            faction_override: None,
             province: nation.capital,
             soldiers: 1_000,
             morale: Fixed::ONE,
+            recruitment_days_remaining: 0,
             movement: None,
         };
         let country = opening.country(army.country).unwrap();

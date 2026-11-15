@@ -12,6 +12,11 @@ const files = new Map([
   ['names.en.json', 'application/json'],
   ['polities_1440.json', 'application/json'],
 ]);
+const modernFiles = new Map([
+  ['country_borders_2022.png', 'image/png'],
+  ['country_fill_2022.png', 'image/png'],
+  ['ownership_2022.json', 'application/json'],
+]);
 
 function readMapAsset(region, file) {
   return readFileSync(new URL(`../data/map/${region}/${file}`, import.meta.url));
@@ -25,7 +30,7 @@ function mapAssets() {
         const pathname = request.url?.split('?')[0] ?? '';
         const region = regions.find((item) => pathname.startsWith(`${server.config.base}map/${item}/`));
         const file = region ? pathname.slice(`${server.config.base}map/${region}/`.length) : '';
-        const type = files.get(file);
+        const type = files.get(file) ?? (region === 'europe' ? modernFiles.get(file) : undefined);
         if (!type || (request.method !== 'GET' && request.method !== 'HEAD')) return next();
         try {
           const data = readMapAsset(region, file);
@@ -38,8 +43,11 @@ function mapAssets() {
       });
     },
     generateBundle() {
-      for (const region of regions) for (const file of files.keys()) {
-        this.emitFile({ type: 'asset', fileName: `map/${region}/${file}`, source: readMapAsset(region, file) });
+      for (const region of regions) {
+        const regionFiles = [...files.keys(), ...(region === 'europe' ? modernFiles.keys() : [])];
+        for (const file of regionFiles) {
+          this.emitFile({ type: 'asset', fileName: `map/${region}/${file}`, source: readMapAsset(region, file) });
+        }
       }
     },
   };

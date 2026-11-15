@@ -47,6 +47,13 @@ const REFORM_VERSION: u32 = 14;
 const SHIPYARD_VERSION: u32 = 15;
 const APPROXIMATE_BIRTH_VERSION: u32 = 16;
 const CALL_TO_ARMS_VERSION: u32 = 17;
+const TRADE_VERSION: u32 = 18;
+const AGGRESSIVE_EXPANSION_VERSION: u32 = 19;
+const GOVERNMENT_CHANGE_VERSION: u32 = 20;
+const POLITICAL_ECONOMY_VERSION: u32 = 21;
+const FAMILY_VERSION: u32 = 22;
+const SUCCESSION_WAR_VERSION: u32 = 23;
+const ARMY_RECRUITMENT_VERSION: u32 = 24;
 const STATE_HASH_DOMAIN_V1: &[u8] = b"strategy:game-state:v1\0";
 const STATE_HASH_DOMAIN_V2: &[u8] = b"strategy:game-state:v2\0";
 const STATE_HASH_DOMAIN_V3: &[u8] = b"strategy:game-state:v3\0";
@@ -64,6 +71,13 @@ const STATE_HASH_DOMAIN_V14: &[u8] = b"strategy:game-state:v14\0";
 const STATE_HASH_DOMAIN_V15: &[u8] = b"strategy:game-state:v15\0";
 const STATE_HASH_DOMAIN_V16: &[u8] = b"strategy:game-state:v16\0";
 const STATE_HASH_DOMAIN_V17: &[u8] = b"strategy:game-state:v17\0";
+const STATE_HASH_DOMAIN_V18: &[u8] = b"strategy:game-state:v18\0";
+const STATE_HASH_DOMAIN_V19: &[u8] = b"strategy:game-state:v19\0";
+const STATE_HASH_DOMAIN_V20: &[u8] = b"strategy:game-state:v20\0";
+const STATE_HASH_DOMAIN_V21: &[u8] = b"strategy:game-state:v21\0";
+const STATE_HASH_DOMAIN_V22: &[u8] = b"strategy:game-state:v22\0";
+const STATE_HASH_DOMAIN_V23: &[u8] = b"strategy:game-state:v23\0";
+const STATE_HASH_DOMAIN_V24: &[u8] = b"strategy:game-state:v24\0";
 
 #[derive(Debug)]
 pub enum SaveError {
@@ -228,6 +242,13 @@ pub fn load_game(bytes: &[u8], graph: ProvinceGraph) -> Result<GameState, SaveEr
             | SHIPYARD_VERSION
             | APPROXIMATE_BIRTH_VERSION
             | CALL_TO_ARMS_VERSION
+            | TRADE_VERSION
+            | AGGRESSIVE_EXPANSION_VERSION
+            | GOVERNMENT_CHANGE_VERSION
+            | POLITICAL_ECONOMY_VERSION
+            | FAMILY_VERSION
+            | SUCCESSION_WAR_VERSION
+            | ARMY_RECRUITMENT_VERSION
     ) {
         return Err(SaveError::UnsupportedSchemaVersion(save.schema_version));
     }
@@ -272,6 +293,15 @@ pub fn load_game(bytes: &[u8], graph: ProvinceGraph) -> Result<GameState, SaveEr
         || (save.schema_version < COALITION_VERSION && coalition)
     {
         return Err(SaveError::VersionCoalitionMismatch(save.schema_version));
+    }
+    let has_recruitment = state
+        .military
+        .as_ref()
+        .is_some_and(WarStateFile::has_recruitment);
+    if (save.schema_version < ARMY_RECRUITMENT_VERSION && has_recruitment)
+        || (save.schema_version == ARMY_RECRUITMENT_VERSION && !has_recruitment)
+    {
+        return Err(SaveError::UnsupportedSchemaVersion(save.schema_version));
     }
     let restored = state.restore(graph)?;
     if restored.war_state().is_some_and(|military| {
@@ -343,6 +373,14 @@ pub fn load_game(bytes: &[u8], graph: ProvinceGraph) -> Result<GameState, SaveEr
     {
         return Err(SaveError::UnsupportedSchemaVersion(save.schema_version));
     }
+    let has_trade_data = restored
+        .diplomacy()
+        .is_some_and(|d| !d.trade_routes.is_empty() || !d.trade_route_offers.is_empty());
+    if (save.schema_version < TRADE_VERSION && has_trade_data)
+        || (save.schema_version == TRADE_VERSION && !has_trade_data)
+    {
+        return Err(SaveError::UnsupportedSchemaVersion(save.schema_version));
+    }
     if (save.schema_version < TECHNOLOGY_VERSION && restored.technologies().is_some())
         || (save.schema_version == TECHNOLOGY_VERSION && restored.technologies().is_none())
     {
@@ -380,6 +418,13 @@ pub fn load_game(bytes: &[u8], graph: ProvinceGraph) -> Result<GameState, SaveEr
 pub fn state_hash(state: &GameState) -> Result<[u8; 32], SaveError> {
     let mut hash = Sha256::new();
     hash.update(match schema_version(state) {
+        ARMY_RECRUITMENT_VERSION => STATE_HASH_DOMAIN_V24,
+        SUCCESSION_WAR_VERSION => STATE_HASH_DOMAIN_V23,
+        FAMILY_VERSION => STATE_HASH_DOMAIN_V22,
+        POLITICAL_ECONOMY_VERSION => STATE_HASH_DOMAIN_V21,
+        GOVERNMENT_CHANGE_VERSION => STATE_HASH_DOMAIN_V20,
+        AGGRESSIVE_EXPANSION_VERSION => STATE_HASH_DOMAIN_V19,
+        TRADE_VERSION => STATE_HASH_DOMAIN_V18,
         CALL_TO_ARMS_VERSION => STATE_HASH_DOMAIN_V17,
         APPROXIMATE_BIRTH_VERSION => STATE_HASH_DOMAIN_V16,
         SHIPYARD_VERSION => STATE_HASH_DOMAIN_V15,
@@ -403,7 +448,45 @@ pub fn state_hash(state: &GameState) -> Result<[u8; 32], SaveError> {
 }
 
 fn schema_version(state: &GameState) -> u32 {
-    if state
+    if state.war_state().is_some_and(|wars| {
+        wars.armies
+            .values()
+            .any(|army| army.recruitment_days_remaining > 0)
+    }) {
+        ARMY_RECRUITMENT_VERSION
+    } else if state.war_state().is_some_and(|wars| {
+        wars.armies
+            .values()
+            .any(|army| army.faction_override.is_some())
+            || wars
+                .wars
+                .values()
+                .any(|war| war.succession_country.is_some() || !war.factions.is_empty())
+    }) {
+        SUCCESSION_WAR_VERSION
+    } else if state.polity().is_some() {
+        FAMILY_VERSION
+    } else if state.polity().is_some_and(|polity| {
+        polity
+            .countries
+            .values()
+            .any(|country| !country.government_options.is_empty())
+    }) || state
+        .reforms()
+        .is_some_and(|reforms| !reforms.pending_government_changes.is_empty())
+    {
+        GOVERNMENT_CHANGE_VERSION
+    } else if state
+        .diplomacy()
+        .is_some_and(|diplomacy| !diplomacy.aggressive_expansion.is_empty())
+    {
+        AGGRESSIVE_EXPANSION_VERSION
+    } else if state
+        .diplomacy()
+        .is_some_and(|d| !d.trade_route_offers.is_empty() || !d.trade_routes.is_empty())
+    {
+        TRADE_VERSION
+    } else if state
         .diplomacy()
         .is_some_and(|diplomacy| !diplomacy.call_to_arms_offers.is_empty())
     {
@@ -717,6 +800,19 @@ struct DiplomacyFile {
     vassal_offers: Vec<DatedPairFile>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     call_to_arms_offers: Vec<CallToArmsFile>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    trade_route_offers: Vec<DatedPairFile>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    trade_routes: Vec<PairFile>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    aggressive_expansion: Vec<AggressiveExpansionFile>,
+}
+
+#[derive(Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct AggressiveExpansionFile {
+    country: u32,
+    points: u32,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -749,6 +845,7 @@ struct CallToArmsFile {
 enum WarSideFile {
     Attacker,
     Defender,
+    Faction { leader: u32 },
 }
 
 impl From<&DiplomacyState> for DiplomacyFile {
@@ -824,8 +921,36 @@ impl From<&DiplomacyState> for DiplomacyFile {
                     side: match side {
                         WarSide::Attacker => WarSideFile::Attacker,
                         WarSide::Defender => WarSideFile::Defender,
+                        WarSide::Faction(leader) => WarSideFile::Faction {
+                            leader: leader.get(),
+                        },
                     },
                     until: until.components(),
+                })
+                .collect(),
+            trade_route_offers: state
+                .trade_route_offers
+                .iter()
+                .map(|(&(a, b), &until)| DatedPairFile {
+                    a: a.get(),
+                    b: b.get(),
+                    until: until.components(),
+                })
+                .collect(),
+            trade_routes: state
+                .trade_routes
+                .iter()
+                .map(|&(a, b)| PairFile {
+                    a: a.get(),
+                    b: b.get(),
+                })
+                .collect(),
+            aggressive_expansion: state
+                .aggressive_expansion
+                .iter()
+                .map(|(&country, &points)| AggressiveExpansionFile {
+                    country: country.get(),
+                    points,
                 })
                 .collect(),
         }
@@ -850,6 +975,20 @@ impl DiplomacyFile {
         require_sorted(&self.call_to_arms_offers, "call to arms offers", |item| {
             (item.war, item.from, item.toward)
         })?;
+        require_sorted(&self.trade_route_offers, "trade route offers", |item| {
+            (item.a, item.b)
+        })?;
+        require_sorted(&self.trade_routes, "trade routes", |item| (item.a, item.b))?;
+        require_sorted(&self.aggressive_expansion, "aggressive expansion", |item| {
+            item.country
+        })?;
+        if self
+            .aggressive_expansion
+            .iter()
+            .any(|item| item.points == 0)
+        {
+            return Err(SaveError::InvalidDiplomacy(DiplomacyError::InvalidState));
+        }
         let alliances = self
             .alliances
             .into_iter()
@@ -900,9 +1039,18 @@ impl DiplomacyFile {
                     match item.side {
                         WarSideFile::Attacker => WarSide::Attacker,
                         WarSideFile::Defender => WarSide::Defender,
+                        WarSideFile::Faction { leader } => WarSide::Faction(CountryId::new(leader)),
                     },
                     Date::new(year, month, day).map_err(SaveError::InvalidDate)?,
                 ),
+            );
+        }
+        let mut trade_route_offers = std::collections::BTreeMap::new();
+        for item in self.trade_route_offers {
+            let (year, month, day) = item.until;
+            trade_route_offers.insert(
+                (CountryId::new(item.a), CountryId::new(item.b)),
+                Date::new(year, month, day).map_err(SaveError::InvalidDate)?,
             );
         }
         Ok(DiplomacyState {
@@ -922,6 +1070,17 @@ impl DiplomacyFile {
                 .collect(),
             vassal_offers,
             call_to_arms_offers,
+            trade_route_offers,
+            trade_routes: self
+                .trade_routes
+                .into_iter()
+                .map(|item| (CountryId::new(item.a), CountryId::new(item.b)))
+                .collect(),
+            aggressive_expansion: self
+                .aggressive_expansion
+                .into_iter()
+                .map(|item| (CountryId::new(item.country), item.points))
+                .collect(),
         })
     }
 }

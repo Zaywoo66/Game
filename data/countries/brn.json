@@ -14,8 +14,15 @@
     "ruler": null,
     "heir": null,
     "provinces": [
+      "bielefeld",
       "braunschweig",
-      "hanover"
+      "bremerhaven",
+      "gottingen",
+      "hanover",
+      "kassel",
+      "kiel",
+      "lubeck",
+      "schwerin"
     ],
     "treasury": 50000,
     "tax_rate": 220,

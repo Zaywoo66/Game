@@ -15,11 +15,18 @@
     "heir": null,
     "provinces": [
       "ancona",
+      "ancona_part_02",
       "bologna",
       "civitavecchia",
       "perugia",
+      "perugia_part_02",
+      "perugia_part_03",
       "ravenna",
-      "rome"
+      "ravenna_part_02",
+      "rome",
+      "rome_part_02",
+      "rome_part_03",
+      "rome_part_04"
     ],
     "treasury": 60000,
     "tax_rate": 200,
